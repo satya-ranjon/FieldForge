@@ -14,9 +14,9 @@ export class WorkOrdersService {
   async create(buyerId: string, dto: CreateWorkOrderDto) {
     const workOrderId = randomUUID();
     const workOrder = {
+      ...dto,
       id: workOrderId,
       buyerId,
-      ...dto,
       status: WorkOrderStatus.DRAFT,
       createdAt: new Date().toISOString()
     };

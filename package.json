@@ -3,10 +3,6 @@
   "version": "1.0.0",
   "private": true,
   "description": "Enterprise Field Service Management & Autonomous Dispatch Monorepo",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev --parallel",
@@ -23,13 +19,13 @@
   "devDependencies": {
     "@fieldforge/eslint-config": "workspace:*",
     "@fieldforge/tsconfig": "workspace:*",
-    "prettier": "^3.3.3",
-    "turbo": "^2.1.1",
-    "typescript": "^5.5.4"
+    "prettier": "^3.5.2",
+    "turbo": "^2.4.4",
+    "typescript": "^5.7.3"
   },
-  "packageManager": "pnpm@9.7.0",
+  "packageManager": "pnpm@9.15.9",
   "engines": {
-    "node": ">=20.0.0",
+    "node": ">=22.0.0",
     "pnpm": ">=9.0.0"
   }
 }

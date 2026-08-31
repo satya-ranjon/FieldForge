@@ -29,8 +29,8 @@ export const LiveDispatchBoard: React.FC = () => {
               <p className="text-xs text-slate-400 line-clamp-1">{wo.description}</p>
             </div>
             <div className="text-right">
-              <div className="text-sm font-bold text-emerald-400">${wo.maxBudget.toFixed(2)}</div>
-              <div className="text-xs text-slate-400">{new Date(wo.scheduledDate).toLocaleDateString()}</div>
+              <div className="text-sm font-bold text-emerald-400">${Number(wo.budgetAmount).toFixed(2)}</div>
+              <div className="text-xs text-slate-400">{new Date(wo.scheduledStartTime).toLocaleDateString()}</div>
             </div>
           </div>
         ))}

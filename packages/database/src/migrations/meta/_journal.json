@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1788181734545,
+      "tag": "0000_clumsy_mach_iv",
+      "breakpoints": true
+    }
+  ]
+}

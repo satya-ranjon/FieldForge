@@ -18,9 +18,9 @@ export class MetricsInterceptor implements NestInterceptor {
             console.log(`[APM Metric] ${method} ${url} - ${duration}ms (SLI bound)`);
           }
         },
-        error: (err) => {
+        error: (err: any) => {
           const duration = Date.now() - startTime;
-          console.error(`[APM Error Metric] ${method} ${url} - ${duration}ms: ${err.message}`);
+          console.error(`[APM Error Metric] ${method} ${url} - ${duration}ms: ${err?.message || err}`);
         }
       })
     );

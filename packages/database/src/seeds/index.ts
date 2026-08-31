@@ -1,7 +1,7 @@
 import { createDbClient } from '../index';
-import { users } from '../schemas/users.schema';
+import { users, buyerProfiles, technicianProfiles } from '../schemas/users.schema';
 import { workOrders } from '../schemas/work-orders.schema';
-import { bids } from '../schemas/bids.schema';
+import { workOrderBids } from '../schemas/bids.schema';
 import { escrowAccounts } from '../schemas/billing.schema';
 
 async function seed() {
@@ -9,68 +9,110 @@ async function seed() {
   console.log(`🌱 Connecting to database for seeding: ${dbUrl}`);
   const db = createDbClient(dbUrl);
 
-  const buyerId = 'b0000000-0000-0000-0000-000000000001';
-  const tech1Id = 't0000000-0000-0000-0000-000000000001';
-  const tech2Id = 't0000000-0000-0000-0000-000000000002';
+  const buyerUserId = 'u0000000-0000-0000-0000-000000000001';
+  const buyerProfileId = 'b0000000-0000-0000-0000-000000000001';
+  const tech1UserId = 'u0000000-0000-0000-0000-000000000002';
+  const tech1ProfileId = 't0000000-0000-0000-0000-000000000001';
+  const tech2UserId = 'u0000000-0000-0000-0000-000000000003';
+  const tech2ProfileId = 't0000000-0000-0000-0000-000000000002';
   const woId = 'w0000000-0000-0000-0000-000000000001';
 
   console.log('Inserting seed users (Buyer & Techs)...');
   await db.insert(users).values([
     {
-      id: buyerId,
+      id: buyerUserId,
       email: 'buyer@apexretail.com',
       passwordHash: '$2b$10$EPVpZp07f4M.w42c5g9v6.YqgO1mR3uW1V8qK1fT8b9l0mQ2j7yG', // mock hash
-      fullName: 'Apex Retail Services Corp',
       role: 'BUYER',
-      phone: '+1-555-010-9988'
+      phoneNumber: '+1-555-010-9988',
+      status: 'ACTIVE'
     },
     {
-      id: tech1Id,
+      id: tech1UserId,
       email: 'alex.rivas@fieldtech.io',
       passwordHash: '$2b$10$EPVpZp07f4M.w42c5g9v6.YqgO1mR3uW1V8qK1fT8b9l0mQ2j7yG',
-      fullName: 'Alex Rivas (Cisco CCNA / Fiber Specialist)',
       role: 'TECHNICIAN',
-      phone: '+1-555-019-3322'
+      phoneNumber: '+1-555-019-3322',
+      status: 'ACTIVE'
     },
     {
-      id: tech2Id,
+      id: tech2UserId,
       email: 'jordan.lee@fieldtech.io',
       passwordHash: '$2b$10$EPVpZp07f4M.w42c5g9v6.YqgO1mR3uW1V8qK1fT8b9l0mQ2j7yG',
-      fullName: 'Jordan Lee (POS / CCTV Tier 2 Tech)',
       role: 'TECHNICIAN',
-      phone: '+1-555-019-7744'
+      phoneNumber: '+1-555-019-7744',
+      status: 'ACTIVE'
     }
-  ]).onDuplicateKeyUpdate({ target: users.id, set: { fullName: 'Apex Retail Services Corp' } });
+  ]).onDuplicateKeyUpdate({ set: { phoneNumber: '+1-555-010-9988' } });
+
+  console.log('Inserting seed profiles...');
+  await db.insert(buyerProfiles).values({
+    id: buyerProfileId,
+    userId: buyerUserId,
+    companyName: 'Apex Retail Services Corp',
+    billingAddress: '100 Market St, San Francisco, CA 94105',
+    escrowBalance: '5000.00'
+  }).onDuplicateKeyUpdate({ set: { companyName: 'Apex Retail Services Corp' } });
+
+  await db.insert(technicianProfiles).values([
+    {
+      id: tech1ProfileId,
+      userId: tech1UserId,
+      firstName: 'Alex',
+      lastName: 'Rivas',
+      hourlyRate: '85.00',
+      currentLatitude: '37.7749295',
+      currentLongitude: '-122.4194155',
+      ratingAverage: '4.95',
+      jobsCompleted: 42
+    },
+    {
+      id: tech2ProfileId,
+      userId: tech2UserId,
+      firstName: 'Jordan',
+      lastName: 'Lee',
+      hourlyRate: '75.00',
+      currentLatitude: '37.783333',
+      currentLongitude: '-122.416667',
+      ratingAverage: '4.80',
+      jobsCompleted: 18
+    }
+  ]).onDuplicateKeyUpdate({ set: { ratingAverage: '4.95' } });
 
   console.log('Inserting sample active work order...');
   await db.insert(workOrders).values({
     id: woId,
-    buyerId,
+    buyerId: buyerProfileId,
     title: 'Emergency POS Terminal Swap & Cat6 Cabling',
     description: 'Replace 4 failed Ingenico POS pin-pads and terminate 2 Cat6 drop lines in server rack.',
+    category: 'Networking & POS',
     status: 'PUBLISHED',
-    maxBudget: '450.00',
-    latitude: '37.7749295',
-    longitude: '-122.4194155',
-    scheduledDate: new Date(Date.now() + 86400000)
-  }).onDuplicateKeyUpdate({ target: workOrders.id, set: { title: 'Emergency POS Terminal Swap' } });
+    budgetType: 'FIXED',
+    budgetAmount: '450.00',
+    addressLine: '789 Mission St, San Francisco, CA 94103',
+    latitude: '37.78530000',
+    longitude: '-122.40480000',
+    scheduledStartTime: new Date(Date.now() + 86400000),
+    scheduledEndTime: new Date(Date.now() + 90000000),
+    slaExpirationTime: new Date(Date.now() + 172800000)
+  }).onDuplicateKeyUpdate({ set: { title: 'Emergency POS Terminal Swap & Cat6 Cabling' } });
 
   console.log('Inserting sample technician bid & escrow hold...');
-  await db.insert(bids).values({
+  await db.insert(workOrderBids).values({
     id: 'bid-0000000-0000-0000-0000-000000000001',
     workOrderId: woId,
-    techId: tech1Id,
-    proposedAmount: '425.00',
+    technicianId: tech1ProfileId,
+    bidAmount: '425.00',
     counterNote: 'Available immediately with full crimper kit and Cat6 tester.',
-    status: 'PENDING'
-  }).onDuplicateKeyUpdate({ target: bids.id, set: { proposedAmount: '425.00' } });
+    bidStatus: 'PENDING'
+  }).onDuplicateKeyUpdate({ set: { bidAmount: '425.00' } });
 
   await db.insert(escrowAccounts).values({
     id: 'escrow-0000-0000-0000-000000000001',
     workOrderId: woId,
     amountLocked: '450.00',
     status: 'HELD'
-  }).onDuplicateKeyUpdate({ target: escrowAccounts.id, set: { amountLocked: '450.00' } });
+  }).onDuplicateKeyUpdate({ set: { amountLocked: '450.00' } });
 
   console.log('✅ Seeding completed successfully!');
   process.exit(0);
