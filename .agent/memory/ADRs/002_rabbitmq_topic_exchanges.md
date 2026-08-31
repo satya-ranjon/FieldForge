@@ -1,11 +1,17 @@
-# ADR 002: RabbitMQ Topic Exchanges for Asynchronous Event Propagation
+# 📝 ADR 002: RabbitMQ Topic Exchanges for Event-Driven Microservices
 
-## Context
-State transitions in work orders trigger multiple downstream reactions: billing escrow capture, push notifications, dispatch updates, and audit logging.
+| Status | Date | Decision Maker |
+| :--- | :--- | :--- |
+| **ACCEPTED** | August 2026 | Satya Ranjan Debsharma |
 
-## Decision
-Use **RabbitMQ** with a centralized Topic Exchange (\`fieldforge.events.topic\`) and routing keys formatted as \`<domain>.<entity>.<action>\`.
+---
 
-## Consequences
-- Decouples microservice dependencies.
-- Dead letter exchanges guarantee resilience during transient service outages.
+## 1. Context
+State transitions in work orders trigger multiple asynchronous reactions across independent services (billing holds, push notifications, dispatch updates).
+
+## 2. Decision
+Implement **RabbitMQ 3.13** using a central Topic Exchange (`fieldforge.events.topic`) with routing keys structured as `<domain>.<entity>.<action>`.
+
+## 3. Consequences
+- **Positive:** Complete decoupling of producer and consumer microservices; resilient message delivery via DLQs.
+- **Negative:** Requires message idempotency checks across all consumers.

@@ -1,7 +1,17 @@
-# 01. Architecture & Microservices Rules
+# 🏛️ Architecture & Microservices Directives
+> **Rule ID:** `RULE-ARCH-01` • **Priority:** `CRITICAL`
 
-- **Bounded Contexts**: Microservices must never share a database or make synchronous calls for mutating foreign aggregate roots.
-- **API Gateway as Edge Router**: External client traffic (Web/Mobile) must route through \`api-gateway\` on port 3000.
-- **DTOs & Validation**: All incoming requests must be validated using Zod schemas from \`@fieldforge/contracts\`.
-- **Dependency Injection**: Use NestJS DI and adhere to SOLID design principles.
-- **Async Communication**: Cross-service state transitions trigger RabbitMQ domain events (\`work_order.published\`, \`work_order.assigned\`, \`work_order.approved\`).
+---
+
+### 1. Bounded Contexts & Decoupling
+- Microservices must never directly query another microservice's database.
+- Data exchange between services must strictly utilize:
+  - **Synchronous Reads:** API Gateway edge routing with Bearer JWT propagation.
+  - **Asynchronous Mutations:** RabbitMQ topic events on `fieldforge.events.topic`.
+
+### 2. Dependency Injection & Clean Architecture
+- Follow SOLID principles with NestJS dependency injection.
+- Separate controllers, services, repositories, and event publishers into distinct modules.
+
+### 3. Type Contracts Single Source of Truth
+- All request/response DTOs, Zod validators, and event interfaces must be imported from `@fieldforge/contracts`.

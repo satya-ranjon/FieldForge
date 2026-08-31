@@ -1,7 +1,14 @@
-# 03. Event & RabbitMQ Rules
+# 📬 Asynchronous Messaging & RabbitMQ Directives
+> **Rule ID:** `RULE-EVENT-03` • **Priority:** `CRITICAL`
 
-- **Exchange Type**: Topic Exchange (\`fieldforge.events.topic\`).
-- **Routing Keys**: \`<domain>.<entity>.<action>\` (e.g. \`work_order.lifecycle.created\`, \`tech.bidding.submitted\`, \`billing.escrow.funded\`).
-- **Dead Letter Queues (DLQ)**: Every queue must configure an \`x-dead-letter-exchange\` and retry policy (exponential backoff up to 3 retries).
-- **Message Contracts**: Payloads must strictly implement interfaces defined in \`@fieldforge/contracts/events\`.
-- **Idempotency**: Consumers must record processed message IDs in Redis or MySQL with a 7-day TTL.
+---
+
+### 1. Topic Exchange Standard
+- All domain events must publish to the central Topic Exchange: `fieldforge.events.topic`.
+- Routing Key Schema: `<domain>.<entity>.<action>` (e.g., `work_order.lifecycle.published`, `tech.bidding.submitted`, `billing.escrow.funded`).
+
+### 2. Idempotent Consumption
+- Consumers must maintain an idempotency table or Redis key cache with a 7-day TTL to prevent duplicate processing.
+
+### 3. Dead Letter Queues (DLQ)
+- Every worker queue must be bound to an `x-dead-letter-exchange` with exponential retry backoff (max 3 retries).

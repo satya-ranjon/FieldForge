@@ -1,6 +1,11 @@
-# 05. Mobile & React Native Rules
+# 📱 Mobile & React Native Directives
+> **Rule ID:** `RULE-MOB-05` • **Priority:** `HIGH`
 
-- **Framework**: React Native with Expo SDK.
-- **Offline First**: Support offline work order check-ins and photo capture via SQLite local storage and background sync queue.
-- **Geofencing**: High-precision GPS tracking with geofence radius trigger (e.g. 100m) for automatic on-site check-in verification.
-- **Deliverables**: In-app digital signature capture and multipart S3 image upload with checksum validation.
+---
+
+### 1. Offline First Architecture
+- Cache active gig deliverables in local SQLite storage when network connectivity drops.
+- Flush queued mutations automatically upon network restoration.
+
+### 2. GPS Geofencing Verification
+- Check-in transitions (`ON_SITE`) require Haversine distance verification $\le 100	ext{m}$ from the work site coordinates.

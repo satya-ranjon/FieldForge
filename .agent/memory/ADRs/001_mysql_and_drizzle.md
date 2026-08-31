@@ -1,12 +1,17 @@
-# ADR 001: Adoption of MySQL 8 and Drizzle ORM
+# 📝 ADR 001: Adoption of MySQL 8.0 and Drizzle ORM
 
-## Context
-Field service management requires strict ACID guarantees for work order state machines, financial escrow holds, and contractor compliance tracking.
+| Status | Date | Decision Maker |
+| :--- | :--- | :--- |
+| **ACCEPTED** | August 2026 | Satya Ranjan Debsharma |
 
-## Decision
-Adopt **MySQL 8.0** with InnoDB and **Drizzle ORM**.
+---
 
-## Rationale
-- Drizzle offers zero-overhead TypeScript schema definitions and SQL-like query builder ergonomics.
-- Native support for row-level locking (\`SELECT ... FOR UPDATE\`) during atomic work order assignments.
-- Predictable and inspectable migration files under \`packages/database/src/migrations\`.
+## 1. Context
+Field service management requires ACID transactional integrity for financial escrow holds, work order state machines, and contractor compliance tracking.
+
+## 2. Decision
+Adopt **MySQL 8.0 (InnoDB Engine)** as the primary relational database with **Drizzle ORM** for type-safe query generation and migration management.
+
+## 3. Consequences
+- **Positive:** Zero runtime overhead, end-to-end TypeScript type inference, deterministic SQL migrations.
+- **Negative:** Requires disciplined indexing and connection pool configuration for high write concurrency.

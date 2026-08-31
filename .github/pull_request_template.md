@@ -1,18 +1,25 @@
-## 📋 Summary of Changes
+## 📋 Pull Request Summary
 
-### 🧩 Affected Services / Packages
-- [ ] \`apps/api-gateway\`
-- [ ] \`apps/auth-service\`
-- [ ] \`apps/work-order-service\`
-- [ ] \`apps/dispatch-matching-service\`
-- [ ] \`apps/billing-service\`
-- [ ] \`apps/notification-service\`
-- [ ] \`apps/web-buyer-portal\`
-- [ ] \`apps/mobile-tech-app\`
-- [ ] \`packages/*\`
+### 🧩 Affected Workspaces & Services
+- [ ] `apps/api-gateway`
+- [ ] `apps/auth-service`
+- [ ] `apps/work-order-service`
+- [ ] `apps/dispatch-matching-service`
+- [ ] `apps/billing-service`
+- [ ] `apps/notification-service`
+- [ ] `apps/web-buyer-portal`
+- [ ] `apps/mobile-tech-app`
+- [ ] `packages/contracts`
+- [ ] `packages/database`
+- [ ] `packages/common`
+- [ ] `packages/ui`
+- [ ] `infra/*`
 
-### 🛡️ Checklist
-- [ ] Database migrations tested with rollback compatibility
-- [ ] RabbitMQ event schema matches \`@fieldforge/contracts\`
-- [ ] Unit & integration tests added / updated
-- [ ] Zero regressions against SLI/SLO bounds
+---
+
+### 🛡️ Quality & Verification Checklist
+- [ ] **Type Safety:** Monorepo builds cleanly with zero TypeScript errors (`pnpm build`).
+- [ ] **Automated Tests:** Unit & integration tests pass with $\ge 90\%$ coverage (`pnpm test`).
+- [ ] **Schema Migrations:** Database migrations tested with backward-compatible rollback scripts.
+- [ ] **SLI/SLO Compliance:** No regressions against latency ($p95 < 100	ext{ms}$) or availability bounds.
+- [ ] **Security:** Zero hardcoded credentials or unparameterized queries.
