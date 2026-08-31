@@ -7,5 +7,17 @@
     "nestjs.json",
     "react.json",
     "react-native.json"
-  ]
+  ],
+  "exports": {
+    "./*": "./*",
+    "./*.json": "./*.json",
+    "./base.json": "./base.json",
+    "./nestjs.json": "./nestjs.json",
+    "./react.json": "./react.json",
+    "./react-native.json": "./react-native.json",
+    "./base": "./base.json",
+    "./nestjs": "./nestjs.json",
+    "./react": "./react.json",
+    "./react-native": "./react-native.json"
+  }
 }

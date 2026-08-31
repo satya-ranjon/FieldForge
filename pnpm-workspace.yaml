@@ -1,3 +1,13 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+allowBuilds:
+  '@firebase/util': true
+  '@parcel/watcher': true
+  bcrypt: true
+  esbuild: true
+  protobufjs: true
+  unrs-resolver: true
+
+minimumReleaseAge: 0

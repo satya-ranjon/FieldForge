@@ -1,7 +1,6 @@
 {
   "extends": "@fieldforge/tsconfig/react.json",
   "compilerOptions": {
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }
