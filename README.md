@@ -3,13 +3,13 @@
 # ⚡ FieldForge
 ### Real-Time Enterprise Field Service Marketplace & Microservices Platform
 
-[![Node.js](https://img.shields.io/badge/Node.js-v20+-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
-[![NestJS](https://img.shields.io/badge/NestJS-v10-E0234E?style=for-the-badge&logo=nestjs&logoColor=white)](https://nestjs.com/)
+[![Node.js](https://img.shields.io/badge/Node.js-v24_LTS-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
+[![NestJS](https://img.shields.io/badge/NestJS-v12-E0234E?style=for-the-badge&logo=nestjs&logoColor=white)](https://nestjs.com/)
 [![React 19](https://img.shields.io/badge/React-v19-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
 [![React Native](https://img.shields.io/badge/React_Native-Expo-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactnative.dev/)
-[![MySQL 8](https://img.shields.io/badge/MySQL-8.0_InnoDB-4479A1?style=for-the-badge&logo=mysql&logoColor=white)](https://www.mysql.com/)
-[![Redis](https://img.shields.io/badge/Redis-7.0_GEOSEARCH-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
-[![RabbitMQ](https://img.shields.io/badge/RabbitMQ-3.13_Topic-FF6600?style=for-the-badge&logo=rabbitmq&logoColor=white)](https://www.rabbitmq.com/)
+[![MySQL 8](https://img.shields.io/badge/MySQL-8.4_InnoDB-4479A1?style=for-the-badge&logo=mysql&logoColor=white)](https://www.mysql.com/)
+[![Redis](https://img.shields.io/badge/Redis-8.0_GEOSEARCH-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
+[![RabbitMQ](https://img.shields.io/badge/RabbitMQ-4.1_Topic-FF6600?style=for-the-badge&logo=rabbitmq&logoColor=white)](https://www.rabbitmq.com/)
 [![Turborepo](https://img.shields.io/badge/Turborepo-Monorepo-EF4444?style=for-the-badge&logo=turborepo&logoColor=white)](https://turbo.build/)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-EKS_GitOps-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)](https://kubernetes.io/)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](./LICENSE)
@@ -158,8 +158,8 @@ stateDiagram-v2
 ## 🛠️ Quickstart & Local Development
 
 ### 1. Prerequisites
-- **Node.js** $\ge 20.0.0$
-- **pnpm** $\ge 9.0.0$ (`npm install -g pnpm`)
+- **Node.js** $\ge 24.0.0$
+- **pnpm** $\ge 11.0.0$ (`npm install -g pnpm@latest`)
 - **Docker Desktop** with Docker Compose enabled
 
 ### 2. Environment Setup

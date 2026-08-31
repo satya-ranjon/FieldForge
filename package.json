@@ -19,13 +19,13 @@
   "devDependencies": {
     "@fieldforge/eslint-config": "workspace:*",
     "@fieldforge/tsconfig": "workspace:*",
-    "prettier": "^3.5.2",
-    "turbo": "^2.4.4",
-    "typescript": "^5.7.3"
+    "prettier": "^3.9.6",
+    "turbo": "^2.10.12",
+    "typescript": "^7.0.2"
   },
-  "packageManager": "pnpm@9.15.9",
+  "packageManager": "pnpm@11.24.0",
   "engines": {
-    "node": ">=22.0.0",
-    "pnpm": ">=9.0.0"
+    "node": ">=24.0.0",
+    "pnpm": ">=11.0.0"
   }
 }

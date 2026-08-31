@@ -15,7 +15,7 @@ services:
       - ./mysql-init:/docker-entrypoint-initdb.d
 
   redis:
-    image: redis:7.4-alpine
+    image: redis:8.0-alpine
     container_name: fieldforge-redis
     restart: always
     ports:
@@ -24,7 +24,7 @@ services:
       - redis_data:/data
 
   rabbitmq:
-    image: rabbitmq:4.0-management-alpine
+    image: rabbitmq:4.1-management-alpine
     container_name: fieldforge-rabbitmq
     restart: always
     environment:
