@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dispatch-service
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: dispatch-service
+  template:
+    metadata:
+      labels:
+        app: dispatch-service
+    spec:
+      containers:
+        - name: dispatch-service
+          image: fieldforge/dispatch-matching-service:latest
+          ports:
+            - containerPort: 3003

@@ -1,0 +1,19 @@
+name: Kubernetes GitOps Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target Environment (staging/production)'
+        required: true
+        default: 'staging'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy via Helm
+        run: |
+          echo "Deploying FieldForge to ${{ github.event.inputs.environment }} cluster..."
+          kubectl apply -k infra/k8s/base

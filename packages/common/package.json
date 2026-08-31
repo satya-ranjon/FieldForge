@@ -1,0 +1,18 @@
+{
+  "name": "@fieldforge/common",
+  "version": "1.0.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "pino": "^9.3.2",
+    "pino-pretty": "^11.2.2"
+  },
+  "devDependencies": {
+    "@fieldforge/tsconfig": "workspace:*",
+    "@types/node": "^20.14.14",
+    "typescript": "^5.5.4"
+  }
+}

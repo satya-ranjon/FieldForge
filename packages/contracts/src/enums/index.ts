@@ -1,0 +1,57 @@
+export enum UserRole {
+  BUYER = 'BUYER',
+  TECHNICIAN = 'TECHNICIAN',
+  DISPATCHER = 'DISPATCHER',
+  ADMIN = 'ADMIN'
+}
+
+export enum UserStatus {
+  PENDING = 'PENDING',
+  ACTIVE = 'ACTIVE',
+  SUSPENDED = 'SUSPENDED'
+}
+
+export enum BudgetType {
+  FIXED = 'FIXED',
+  HOURLY = 'HOURLY'
+}
+
+export enum WorkOrderStatus {
+  DRAFT = 'DRAFT',
+  PUBLISHED = 'PUBLISHED',
+  ASSIGNED = 'ASSIGNED',
+  EN_ROUTE = 'EN_ROUTE',
+  ON_SITE = 'ON_SITE',
+  COMPLETED = 'COMPLETED',
+  APPROVED = 'APPROVED',
+  CANCELLED = 'CANCELLED',
+  DISPUTED = 'DISPUTED'
+}
+
+export enum BidStatus {
+  PENDING = 'PENDING',
+  ACCEPTED = 'ACCEPTED',
+  REJECTED = 'REJECTED',
+  WITHDRAWN = 'WITHDRAWN'
+}
+
+export enum DeliverableType {
+  PHOTO_BEFORE = 'PHOTO_BEFORE',
+  PHOTO_AFTER = 'PHOTO_AFTER',
+  CHECKLIST = 'CHECKLIST',
+  SIGNATURE = 'SIGNATURE'
+}
+
+export enum EscrowStatus {
+  HELD = 'HELD',
+  RELEASED = 'RELEASED',
+  REFUNDED = 'REFUNDED',
+  DISPUTED = 'DISPUTED'
+}
+
+export enum PriorityLevel {
+  LOW = 'LOW',
+  STANDARD = 'STANDARD',
+  URGENT = 'URGENT',
+  CRITICAL_SLA = 'CRITICAL_SLA'
+}

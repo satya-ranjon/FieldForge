@@ -1,0 +1,8 @@
+# FieldForge Agent Directives & Guardrails
+
+## Core Principles
+1. **Microservice Isolation**: Keep service domains decoupled. Never query another service's database directly. Communicate via API Gateway or RabbitMQ topic events.
+2. **ACID & Drizzle**: Use MySQL 8 + Drizzle ORM for all transactional relational data. Wrap multi-table state transitions in explicit transactions.
+3. **Idempotency**: All event consumers must maintain idempotency checks using message IDs or entity version numbers.
+4. **Type Safety**: Use shared packages (@fieldforge/contracts, @fieldforge/database, @fieldforge/common) across all apps and microservices.
+5. **Observability**: Propagate x-correlation-id across HTTP and AMQP boundaries. Use structured Pino logging with JSON output.

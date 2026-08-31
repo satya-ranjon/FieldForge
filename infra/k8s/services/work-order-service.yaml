@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: work-order-service
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: work-order-service
+  template:
+    metadata:
+      labels:
+        app: work-order-service
+    spec:
+      containers:
+        - name: work-order-service
+          image: fieldforge/work-order-service:latest
+          ports:
+            - containerPort: 3002

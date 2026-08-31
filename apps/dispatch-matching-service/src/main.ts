@@ -1,0 +1,10 @@
+import { NestFactory } from '@nestjs/core';
+import { DispatchModule } from './dispatch.module';
+
+async function bootstrap() {
+  const app = await NestFactory.create(DispatchModule);
+  const port = process.env.PORT || 3003;
+  await app.listen(port);
+  console.log(`📍 FieldForge Dispatch Matching Engine running on port ${port}`);
+}
+bootstrap();

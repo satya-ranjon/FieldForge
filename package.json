@@ -1,0 +1,35 @@
+{
+  "name": "fieldforge-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Enterprise Field Service Management & Autonomous Dispatch Monorepo",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "db:generate": "pnpm --filter @fieldforge/database db:generate",
+    "db:migrate": "pnpm --filter @fieldforge/database db:migrate",
+    "db:seed": "pnpm --filter @fieldforge/database db:seed",
+    "docker:up": "docker compose -f infra/docker/docker-compose.yml up -d",
+    "docker:down": "docker compose -f infra/docker/docker-compose.yml down",
+    "clean": "turbo run clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "@fieldforge/eslint-config": "workspace:*",
+    "@fieldforge/tsconfig": "workspace:*",
+    "prettier": "^3.3.3",
+    "turbo": "^2.1.1",
+    "typescript": "^5.5.4"
+  },
+  "packageManager": "pnpm@9.7.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}

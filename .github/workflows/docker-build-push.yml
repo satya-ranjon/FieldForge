@@ -1,0 +1,24 @@
+name: Docker Build & Security Scan
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - api-gateway
+          - auth-service
+          - work-order-service
+          - dispatch-matching-service
+          - billing-service
+          - notification-service
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker Image
+        run: |
+          docker build -t fieldforge/${{ matrix.service }}:${{ github.sha }} -f apps/${{ matrix.service }}/Dockerfile .

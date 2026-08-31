@@ -1,0 +1,24 @@
+{
+  "name": "@fieldforge/database",
+  "version": "1.0.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:seed": "ts-node src/seeds/index.ts"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "drizzle-orm": "^0.33.0",
+    "mysql2": "^3.11.0"
+  },
+  "devDependencies": {
+    "@fieldforge/tsconfig": "workspace:*",
+    "@types/node": "^20.14.14",
+    "drizzle-kit": "^0.24.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.4"
+  }
+}
