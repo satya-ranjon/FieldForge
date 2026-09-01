@@ -9,10 +9,11 @@ When documents disagree, use this order:
 
 1. The user's current task and acceptance criteria.
 2. `docs/SRS.md` for product requirements.
-3. Accepted ADRs in `.agent/memory/ADRs/` for architecture decisions.
-4. Rules in `.agent/rules/` for implementation constraints.
-5. Shared contracts and database migrations for the currently implemented shape.
-6. `README.md` and other descriptive documents.
+3. `DESIGN.md` for design system tokens, visual architecture, and UI/UX invariants.
+4. Accepted ADRs in `.agent/memory/ADRs/` for architecture decisions.
+5. Rules in `.agent/rules/` for implementation constraints.
+6. Shared contracts and database migrations for the currently implemented shape.
+7. `README.md` and other descriptive documents.
 
 Do not silently resolve a conflict. Record it in `docs/ISSUES.md`, and create or
 supersede an ADR when the resolution changes architecture or a public contract.
@@ -56,6 +57,9 @@ above.
   entrypoints, caching, type checking, builds, or related CI failures, read and
   follow `.agent/skills/turborepo/SKILL.md` before editing. Its clean-typecheck
   validation is required for task-graph fixes.
+- For UI component generation, styling, design system tokens, or Google Stitch MCP
+  integrations, read and follow `.agent/skills/stitch-design/SKILL.md` and adhere to
+  `DESIGN.md`.
 - `.agent/skills/` is the canonical, agent-neutral skills source. Tool-specific
   discovery directories may link to it, but must not contain divergent copies.
 
