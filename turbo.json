@@ -11,7 +11,7 @@
       "inputs": ["src/**/*.tsx", "src/**/*.ts", "test/**/*.ts"]
     },
     "typecheck": {
-      "dependsOn": ["^typecheck"],
+      "dependsOn": ["^build", "^typecheck"],
       "outputs": []
     },
     "dev": {
