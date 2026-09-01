@@ -50,6 +50,15 @@ Detailed rules live in `.agent/rules/`. Read only the rules relevant to the
 files being changed, but always apply the architecture and security boundaries
 above.
 
+## Project-local skills
+
+- For changes involving `turbo.json`, workspace task ordering, internal package
+  entrypoints, caching, type checking, builds, or related CI failures, read and
+  follow `.agent/skills/turborepo/SKILL.md` before editing. Its clean-typecheck
+  validation is required for task-graph fixes.
+- `.agent/skills/` is the canonical, agent-neutral skills source. Tool-specific
+  discovery directories may link to it, but must not contain divergent copies.
+
 ## Working method
 
 1. Inspect the affected workspace, nearby tests, contracts, migrations, and the
