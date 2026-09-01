@@ -12,6 +12,11 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    // Every transpiler in this repo (ts-jest, Vite/esbuild, Expo/babel) compiles
+    // one file at a time and cannot see across module boundaries. Declaring that
+    // constraint makes the compiler reject the constructs that only a whole-program
+    // emit can resolve, instead of letting them fail at test or bundle time.
+    "isolatedModules": true
   }
 }

@@ -95,6 +95,12 @@ erDiagram
 
 ## 2. Work Order Finite State Machine (FSM)
 
+The authoritative copy of this table is `validTransitions` in
+`apps/work-order-service/src/modules/fsm/work-order-fsm.service.ts`, asserted
+over all 100 ordered status pairs by `test/work-order-fsm.service.spec.ts`. Every
+edge below appears there and vice versa; a transition drawn here but absent from
+that table is a documentation bug, not a feature.
+
 ```mermaid
 stateDiagram-v2
     [*] --> DRAFT: Buyer drafts work order & SOW
@@ -107,11 +113,21 @@ stateDiagram-v2
     APPROVED --> PAID: Escrow released to technician payout ledger
     PAID --> [*]
 
+    DRAFT --> CANCELLED: Buyer abandons an unpublished draft
     PUBLISHED --> CANCELLED: Buyer cancels ticket
+    ASSIGNED --> CANCELLED: Buyer cancels before the technician departs
     ASSIGNED --> DISPUTED: SLA breach or quality dispute raised
+    EN_ROUTE --> DISPUTED: SLA breach or quality dispute raised
+    ON_SITE --> DISPUTED: SLA breach or quality dispute raised
+    COMPLETED --> DISPUTED: Buyer rejects the deliverables
     DISPUTED --> APPROVED: Dispute resolved in technician favor
     DISPUTED --> CANCELLED: Dispute resolved with buyer refund
+    CANCELLED --> [*]
 ```
+
+Cancellation stops at `ASSIGNED`. Once a technician reaches `ON_SITE` they have
+travelled and logged proof of work, so `DISPUTED` — not `CANCELLED` — is the only
+way out; the funds stay in escrow until the dispute resolves.
 
 ---
 

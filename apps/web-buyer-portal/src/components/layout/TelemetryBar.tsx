@@ -3,7 +3,7 @@ import { Activity, Radio, ShieldCheck, TrendingUp, AlertTriangle, Users } from '
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../store';
 import { Card } from '@fieldforge/ui';
-import { WorkOrderStatus } from '@fieldforge/contracts';
+import { formatMinor, fromMinor, WorkOrderStatus } from '@fieldforge/contracts';
 
 export const TelemetryBar: React.FC = () => {
   const workOrders = useSelector((state: RootState) => state.workOrders.items);
@@ -95,14 +95,14 @@ export const TelemetryBar: React.FC = () => {
         </div>
         <div className="mt-2 flex items-baseline space-x-2">
           <span className="text-2xl font-bold font-mono text-white">
-            ${billing.totalLocked.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            {formatMinor(billing.totalLockedMinor)}
           </span>
         </div>
         <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400 border-t border-slate-800/60 pt-2">
-          <span>Total Settled: ${(billing.totalReleased / 1000).toFixed(1)}k</span>
-          {billing.totalDisputed > 0 && (
+          <span>Total Settled: ${(fromMinor(billing.totalReleasedMinor) / 1000).toFixed(1)}k</span>
+          {billing.totalDisputedMinor > 0 && (
             <span className="text-red-400 font-semibold">
-              ${billing.totalDisputed.toFixed(0)} In Review
+              ${fromMinor(billing.totalDisputedMinor).toFixed(0)} In Review
             </span>
           )}
         </div>

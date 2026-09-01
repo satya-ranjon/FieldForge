@@ -1,7 +1,12 @@
+import type { MinorUnits } from '../money';
+
+/**
+ * Bid submission request. The bidding technician comes from the verified access
+ * token, never from the body — see CreateWorkOrderDto.
+ */
 export interface SubmitBidDto {
   workOrderId: string;
-  techId: string;
-  proposedAmount: number;
+  bidAmountMinor: MinorUnits;
   estimatedArrivalMinutes?: number;
   counterNote?: string;
 }

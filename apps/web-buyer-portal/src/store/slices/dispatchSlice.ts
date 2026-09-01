@@ -3,8 +3,14 @@ import { createSlice } from '@reduxjs/toolkit';
 import type { NearbyTechnicianDto, SubmitBidDto } from '@fieldforge/contracts';
 import { BidStatus } from '@fieldforge/contracts';
 
+/**
+ * A bid as the server reports it back. `techId` is added here rather than
+ * inherited: `SubmitBidDto` deliberately omits it so a bidder cannot claim to be
+ * someone else, but the response identifies the bidder.
+ */
 export interface ExtendedBid extends SubmitBidDto {
   id: string;
+  techId: string;
   technicianName: string;
   technicianRating: number;
   technicianJobsCount: number;
@@ -92,7 +98,7 @@ const initialBids: ExtendedBid[] = [
     technicianJobsCount: 142,
     technicianCertifications: ['Cisco CCNA', 'CompTIA A+', 'OSHA 10'],
     distanceMiles: 1.8,
-    proposedAmount: 420.0,
+    bidAmountMinor: 42_000,
     estimatedArrivalMinutes: 25,
     counterNote: 'In the area with Fluke cable certifier and 4 spare Ingenico Lane/7000 brackets.',
     status: BidStatus.PENDING,
@@ -107,7 +113,7 @@ const initialBids: ExtendedBid[] = [
     technicianJobsCount: 164,
     technicianCertifications: ['CompTIA A+', 'OSHA 10', 'Cat6 Structured Cabling'],
     distanceMiles: 2.3,
-    proposedAmount: 450.0,
+    bidAmountMinor: 45_000,
     estimatedArrivalMinutes: 35,
     counterNote: 'Ready with complete Cat6 termination toolkit and patch cords.',
     status: BidStatus.PENDING,
@@ -122,7 +128,7 @@ const initialBids: ExtendedBid[] = [
     technicianJobsCount: 215,
     technicianCertifications: ['Cisco CCNP', 'CompTIA Network+'],
     distanceMiles: 4.2,
-    proposedAmount: 480.0,
+    bidAmountMinor: 48_000,
     estimatedArrivalMinutes: 20,
     counterNote: 'Emergency priority response. Full test gear in vehicle.',
     status: BidStatus.PENDING,

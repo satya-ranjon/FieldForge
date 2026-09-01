@@ -11,7 +11,7 @@ import {
 import { assignTechnician } from '../../store/slices/workOrderSlice';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button } from '@fieldforge/ui';
 import type { NearbyTechnicianDto } from '@fieldforge/contracts';
-import { WorkOrderStatus, BidStatus } from '@fieldforge/contracts';
+import { BidStatus, formatMinor, WorkOrderStatus } from '@fieldforge/contracts';
 
 export const TechnicianMatchingRadar: React.FC = () => {
   const dispatch = useDispatch();
@@ -43,7 +43,7 @@ export const TechnicianMatchingRadar: React.FC = () => {
     );
 
     setSuccessToast(
-      `Bid from ${bid.technicianName} accepted for $${bid.proposedAmount.toFixed(2)}! Work order assigned & technician notified via WebSocket.`
+      `Bid from ${bid.technicianName} accepted for ${formatMinor(bid.bidAmountMinor)}! Work order assigned & technician notified via WebSocket.`
     );
     setTimeout(() => setSuccessToast(null), 5000);
   };
@@ -197,7 +197,7 @@ export const TechnicianMatchingRadar: React.FC = () => {
 
                         <div className="text-right">
                           <div className="text-base font-bold font-mono text-emerald-400">
-                            ${bid.proposedAmount.toFixed(2)}
+                            {formatMinor(bid.bidAmountMinor)}
                           </div>
                           <div className="text-xs text-slate-400 flex items-center justify-end gap-1 font-mono">
                             <Clock className="w-3 h-3 text-cyan-400" />

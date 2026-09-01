@@ -5,7 +5,8 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .turbo coverage"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",

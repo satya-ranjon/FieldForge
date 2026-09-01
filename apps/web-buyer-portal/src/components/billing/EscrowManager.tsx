@@ -19,7 +19,7 @@ import {
   Modal,
   Textarea
 } from '@fieldforge/ui';
-import { EscrowStatus } from '@fieldforge/contracts';
+import { EscrowStatus, formatMinor } from '@fieldforge/contracts';
 
 export const EscrowManager: React.FC = () => {
   const dispatch = useDispatch();
@@ -61,7 +61,7 @@ export const EscrowManager: React.FC = () => {
     dispatch(approveDeliverables({ workOrderId: selectedTx.workOrderId }));
     setReleaseModalOpen(false);
     setToastMsg(
-      `Escrow of $${selectedTx.amount.toFixed(2)} released to technician for work order ${selectedTx.workOrderId}. Invoice generated!`
+      `Escrow of ${formatMinor(selectedTx.amountMinor)} released to technician for work order ${selectedTx.workOrderId}. Invoice generated!`
     );
     setTimeout(() => setToastMsg(null), 5000);
   };
@@ -109,7 +109,7 @@ export const EscrowManager: React.FC = () => {
             </div>
           </div>
           <div className="mt-2 text-2xl font-bold font-mono text-emerald-400">
-            ${billing.totalLocked.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            {formatMinor(billing.totalLockedMinor)}
           </div>
           <div className="mt-2 text-[11px] text-slate-400 border-t border-slate-800/60 pt-2 flex items-center justify-between">
             <span>Guaranteed pre-authorized vault</span>
@@ -125,7 +125,7 @@ export const EscrowManager: React.FC = () => {
             </div>
           </div>
           <div className="mt-2 text-2xl font-bold font-mono text-white">
-            ${billing.totalReleased.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            {formatMinor(billing.totalReleasedMinor)}
           </div>
           <div className="mt-2 text-[11px] text-slate-400 border-t border-slate-800/60 pt-2 flex items-center justify-between">
             <span>Automated ACH/Wire payouts</span>
@@ -224,7 +224,7 @@ export const EscrowManager: React.FC = () => {
                       </td>
 
                       <td className="px-5 py-4 font-mono font-bold text-sm text-emerald-400">
-                        ${tx.amount.toFixed(2)}
+                        {formatMinor(tx.amountMinor)}
                       </td>
 
                       <td className="px-5 py-4">
@@ -306,7 +306,7 @@ export const EscrowManager: React.FC = () => {
               <div className="flex justify-between items-center text-slate-300">
                 <span>Release Amount:</span>
                 <span className="text-base font-bold font-mono text-emerald-400">
-                  ${selectedTx.amount.toFixed(2)} USD
+                  {formatMinor(selectedTx.amountMinor)} USD
                 </span>
               </div>
               <div className="flex justify-between items-center text-slate-400">
@@ -331,7 +331,7 @@ export const EscrowManager: React.FC = () => {
                 Cancel
               </Button>
               <Button variant="success" size="sm" onClick={handleConfirmRelease}>
-                Confirm Release (${selectedTx.amount.toFixed(2)})
+                Confirm Release ({formatMinor(selectedTx.amountMinor)})
               </Button>
             </div>
           </div>
@@ -393,18 +393,20 @@ export const EscrowManager: React.FC = () => {
             <div className="flex justify-between text-slate-300">
               <span>LIFETIME SETTLED:</span>
               <span className="text-emerald-400 font-bold">
-                ${billing.totalReleased.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                {formatMinor(billing.totalReleasedMinor)}
               </span>
             </div>
             <div className="flex justify-between text-slate-300">
               <span>ACTIVE ESCROW HELD:</span>
               <span className="text-amber-400 font-bold">
-                ${billing.totalLocked.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                {formatMinor(billing.totalLockedMinor)}
               </span>
             </div>
             <div className="flex justify-between text-slate-300">
               <span>ACTIVE DISPUTES:</span>
-              <span className="text-red-400 font-bold">${billing.totalDisputed.toFixed(2)}</span>
+              <span className="text-red-400 font-bold">
+                {formatMinor(billing.totalDisputedMinor)}
+              </span>
             </div>
           </div>
 

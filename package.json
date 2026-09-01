@@ -12,6 +12,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:e2e": "turbo run test:e2e",
+    "validate:clean-typecheck": "./.agent/skills/turborepo/scripts/validate-clean-typecheck.sh",
     "format": "prettier --write . --ignore-unknown",
     "format:check": "prettier --check . --ignore-unknown",
     "db:generate": "pnpm --filter @fieldforge/database db:generate",
@@ -21,7 +22,8 @@
     "docker:up": "docker compose --env-file .env -f infra/docker/docker-compose.yml -f infra/docker/docker-compose.observability.yml up -d --wait",
     "docker:down": "docker compose --env-file .env -f infra/docker/docker-compose.yml -f infra/docker/docker-compose.observability.yml down",
     "docker:logs": "docker compose --env-file .env -f infra/docker/docker-compose.yml -f infra/docker/docker-compose.observability.yml logs -f",
-    "clean": "turbo run clean && rm -rf node_modules"
+    "clean": "turbo run clean",
+    "clean:deps": "pnpm clean && rm -rf .turbo node_modules apps/*/node_modules packages/*/node_modules"
   },
   "devDependencies": {
     "@fieldforge/eslint-config": "workspace:*",

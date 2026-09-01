@@ -6,12 +6,15 @@ import { GeoSearchService } from '../geo-search/geo-search.service';
 export class WorkOrderCreatedConsumer {
   constructor(private readonly geoSearchService: GeoSearchService) {}
 
+  /**
+   * Not bound to a queue yet — Phase 3 of docs/DEVELOPMENT_PLAN.md adds the
+   * binding and the idempotency check on `event.eventId`.
+   */
   async handleWorkOrderPublished(event: WorkOrderPublishedEvent): Promise<void> {
-    console.log(`⚡ [Dispatch Consumer] Received WorkOrderPublishedEvent: ${event.workOrderId}`);
-    const nearbyTechs = await this.geoSearchService.findNearbyTechnicians(
-      event.latitude,
-      event.longitude
+    const { workOrderId, latitude, longitude } = event.payload;
+    const nearbyTechs = await this.geoSearchService.findNearbyTechnicians(latitude, longitude);
+    console.log(
+      `[Dispatch] work order ${workOrderId}: ${nearbyTechs.length} eligible technicians in radius (correlationId=${event.correlationId})`
     );
-    console.log(`🎯 Identified ${nearbyTechs.length} eligible technicians within 25-mile radius.`);
   }
 }

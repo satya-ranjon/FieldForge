@@ -1,27 +1,35 @@
-export interface WorkOrderPublishedEvent {
-  eventId: string;
+import type { MinorUnits } from '../money';
+import type { EventEnvelope } from './envelope';
+
+/**
+ * Work order lifecycle event payloads.
+ *
+ * Payloads carry no timestamp of their own: the envelope's `occurredAt` already
+ * records when the fact became true, and a second field would drift from it.
+ */
+
+export interface WorkOrderPublishedPayload {
   workOrderId: string;
   buyerId: string;
   title: string;
-  maxBudget: number;
+  maxBudgetMinor: MinorUnits;
   latitude: number;
   longitude: number;
-  publishedAt: string;
 }
 
-export interface WorkOrderAssignedEvent {
-  eventId: string;
+export interface WorkOrderAssignedPayload {
   workOrderId: string;
   techId: string;
-  agreedRate: number;
-  assignedAt: string;
+  agreedRateMinor: MinorUnits;
 }
 
-export interface WorkOrderApprovedEvent {
-  eventId: string;
+export interface WorkOrderApprovedPayload {
   workOrderId: string;
   buyerId: string;
   techId: string;
-  payoutAmount: number;
-  approvedAt: string;
+  payoutAmountMinor: MinorUnits;
 }
+
+export type WorkOrderPublishedEvent = EventEnvelope<WorkOrderPublishedPayload>;
+export type WorkOrderAssignedEvent = EventEnvelope<WorkOrderAssignedPayload>;
+export type WorkOrderApprovedEvent = EventEnvelope<WorkOrderApprovedPayload>;

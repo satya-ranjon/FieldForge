@@ -30,13 +30,19 @@ import {
   Select,
   StatusBadge
 } from '@fieldforge/ui';
-import { WorkOrderStatus, BudgetType, PriorityLevel } from '@fieldforge/contracts';
+import {
+  BudgetType,
+  formatMinor,
+  PriorityLevel,
+  toMinor,
+  WorkOrderStatus
+} from '@fieldforge/contracts';
 
 interface SowTemplatePreset {
   name: string;
   category: string;
   priority: PriorityLevel;
-  budgetAmount: number;
+  budgetDollars: number;
   budgetType: BudgetType;
   description: string;
   certifications: string[];
@@ -52,7 +58,7 @@ const PRESETS: SowTemplatePreset[] = [
     name: 'POS Terminal Emergency Swap & Cat6',
     category: 'Networking & POS',
     priority: PriorityLevel.CRITICAL_SLA,
-    budgetAmount: 450,
+    budgetDollars: 450,
     budgetType: BudgetType.FIXED,
     description:
       'Emergency replacement of 4x Ingenico POS terminals and re-termination of Cat6 drop cables to store back-office switch.',
@@ -75,7 +81,7 @@ const PRESETS: SowTemplatePreset[] = [
     name: 'Fiber Optic Splice & SFP+ Replacement',
     category: 'Telecommunications',
     priority: PriorityLevel.URGENT,
-    budgetAmount: 620,
+    budgetDollars: 620,
     budgetType: BudgetType.FIXED,
     description:
       'Single-mode fiber core fusion splicing, optical power dBm loss verification, and Cisco SFP-10G-LR transceiver hot swap.',
@@ -98,7 +104,7 @@ const PRESETS: SowTemplatePreset[] = [
     name: 'Meraki Wireless AP Cloud Deployment',
     category: 'Networking & POS',
     priority: PriorityLevel.STANDARD,
-    budgetAmount: 75,
+    budgetDollars: 75,
     budgetType: BudgetType.HOURLY,
     description:
       'Mount 6x Cisco Meraki MR46 Access Points across ceiling grid, connect to PoE+ Gigabit switch, and verify cloud mesh connectivity.',
@@ -136,7 +142,7 @@ export const SowBuilder: React.FC = () => {
   const [longitude, setLongitude] = useState(-122.4068);
   const [geofenceRadius, setGeofenceRadius] = useState(200);
   const [budgetType, setBudgetType] = useState<BudgetType>(BudgetType.FIXED);
-  const [budgetAmount, setBudgetAmount] = useState<number>(450);
+  const [budgetDollars, setBudgetDollars] = useState<number>(450);
   const [slaHours, setSlaHours] = useState<number>(6);
 
   // Certifications
@@ -181,7 +187,7 @@ export const SowBuilder: React.FC = () => {
     setTitle(preset.name);
     setCategory(preset.category);
     setPriority(preset.priority);
-    setBudgetAmount(preset.budgetAmount);
+    setBudgetDollars(preset.budgetDollars);
     setBudgetType(preset.budgetType);
     setDescription(preset.description);
     setSelectedCerts(preset.certifications);
@@ -220,7 +226,7 @@ export const SowBuilder: React.FC = () => {
       status: WorkOrderStatus.PUBLISHED,
       priority,
       budgetType,
-      budgetAmount,
+      budgetAmountMinor: toMinor(budgetDollars),
       addressLine,
       latitude,
       longitude,
@@ -248,12 +254,12 @@ export const SowBuilder: React.FC = () => {
       preAuthorizeEscrow({
         workOrderId: newId,
         workOrderTitle: title,
-        amount: budgetAmount
+        amountMinor: toMinor(budgetDollars)
       })
     );
 
     setPublishedSuccess(
-      `Work Order ${newId} published to dispatch queue! $${budgetAmount.toFixed(2)} escrow pre-authorized and broadcasted to nearby technicians.`
+      `Work Order ${newId} published to dispatch queue! ${formatMinor(toMinor(budgetDollars))} escrow pre-authorized and broadcasted to nearby technicians.`
     );
     setStep(1);
     setTimeout(() => setPublishedSuccess(null), 6000);
@@ -465,8 +471,8 @@ export const SowBuilder: React.FC = () => {
                       : 'Hourly Rate ($/hr)'
                   }
                   type="number"
-                  value={budgetAmount}
-                  onChange={(e) => setBudgetAmount(parseFloat(e.target.value) || 0)}
+                  value={budgetDollars}
+                  onChange={(e) => setBudgetDollars(parseFloat(e.target.value) || 0)}
                   leftIcon={<DollarSign className="w-4 h-4" />}
                 />
               </div>
@@ -478,13 +484,13 @@ export const SowBuilder: React.FC = () => {
                     Escrow Vault Guarantee (FR-BILL-001)
                   </span>
                   <span className="text-emerald-400 font-mono font-bold">
-                    ${budgetAmount.toFixed(2)} Pre-Auth
+                    {formatMinor(toMinor(budgetDollars))} Pre-Auth
                   </span>
                 </div>
                 <p className="text-xs text-slate-400">
-                  Upon publishing, ${budgetAmount.toFixed(2)} will be reserved from your corporate
-                  billing account (Apex Retail Corp). Funds remain locked in escrow until you
-                  approve deliverables or the 72-hour review window concludes.
+                  Upon publishing, {formatMinor(toMinor(budgetDollars))} will be reserved from your
+                  corporate billing account (Apex Retail Corp). Funds remain locked in escrow until
+                  you approve deliverables or the 72-hour review window concludes.
                 </p>
               </div>
             </div>
@@ -576,7 +582,7 @@ export const SowBuilder: React.FC = () => {
                   </div>
                   <div className="text-right">
                     <div className="text-base font-bold font-mono text-emerald-400">
-                      ${budgetAmount.toFixed(2)}
+                      {formatMinor(toMinor(budgetDollars))}
                     </div>
                     <span className="text-slate-400 font-mono text-[11px]">{budgetType}</span>
                   </div>
@@ -673,7 +679,7 @@ export const SowBuilder: React.FC = () => {
                 onClick={handlePublish}
                 leftIcon={<Zap className="w-4 h-4" />}
               >
-                Publish to Dispatch & Pre-Auth Escrow (${budgetAmount.toFixed(2)})
+                Publish to Dispatch & Pre-Auth Escrow ({formatMinor(toMinor(budgetDollars))})
               </Button>
             )}
           </div>

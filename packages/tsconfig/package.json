@@ -19,5 +19,8 @@
     "./nestjs": "./nestjs.json",
     "./react": "./react.json",
     "./react-native": "./react-native.json"
+  },
+  "scripts": {
+    "clean": "rm -rf .turbo"
   }
 }

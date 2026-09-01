@@ -6,7 +6,8 @@
     "start": "nest start",
     "dev": "nest start --watch",
     "typecheck": "tsc --noEmit",
-    "test": "jest --watchman=false --passWithNoTests"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watchman=false",
+    "clean": "rm -rf dist .turbo coverage"
   },
   "dependencies": {
     "@fieldforge/common": "workspace:*",
@@ -21,6 +22,7 @@
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
+    "@fieldforge/jest-config": "workspace:*",
     "@fieldforge/tsconfig": "workspace:*",
     "@nestjs/cli": "^12.0.0",
     "@types/jest": "^30.0.0",

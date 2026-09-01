@@ -29,7 +29,14 @@ export class CertificationsService {
     ]
   };
 
+  /**
+   * Returns copies, not the stored records: a caller holding a reference into
+   * `mockCertifications` could delete a technician's background check for every
+   * subsequent request. Phase 1 of docs/DEVELOPMENT_PLAN.md replaces this map
+   * with a read of `technician_certifications`, which makes the isolation
+   * structural rather than defensive.
+   */
   async getTechnicianBadges(techId: string): Promise<TechnicianBadge[]> {
-    return this.mockCertifications[techId] || [];
+    return (this.mockCertifications[techId] ?? []).map((badge) => ({ ...badge }));
   }
 }

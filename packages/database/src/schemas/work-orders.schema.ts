@@ -31,6 +31,7 @@ export const workOrders = mysqlTable(
       'ON_SITE',
       'COMPLETED',
       'APPROVED',
+      'PAID',
       'CANCELLED',
       'DISPUTED'
     ])
@@ -47,8 +48,8 @@ export const workOrders = mysqlTable(
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull()
   },
-  (table) => ({
-    statusIdx: index('idx_wo_status').on(table.status),
-    scheduleIdx: index('idx_wo_schedule').on(table.scheduledStartTime)
-  })
+  // The dispatch queue reads open work orders in schedule order, so a single
+  // composite index serves that access path; two single-column indexes would
+  // leave MySQL to filesort the schedule. See .agent rules RULE-DB-02.
+  (table) => [index('idx_wo_status_sched').on(table.status, table.scheduledStartTime)]
 );

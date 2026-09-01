@@ -11,6 +11,7 @@ import {
   Clock
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
+import { formatMinor } from '@fieldforge/contracts';
 import type { RootState } from '../../store';
 
 export type NavTab = 'operations' | 'create-wo' | 'technicians' | 'billing' | 'audit';
@@ -22,7 +23,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab }) => {
   const workOrders = useSelector((state: RootState) => state.workOrders.items);
-  const totalLocked = useSelector((state: RootState) => state.billing.totalLocked);
+  const totalLockedMinor = useSelector((state: RootState) => state.billing.totalLockedMinor);
   const activeCount = workOrders.filter(
     (w) => w.status !== 'COMPLETED' && w.status !== 'APPROVED' && w.status !== 'CANCELLED'
   ).length;
@@ -87,7 +88,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab }) => {
             <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
             <span className="text-slate-400 text-[11px]">Escrow Vault:</span>
             <span className="text-emerald-400 font-mono font-bold text-[11px]">
-              ${totalLocked.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              {formatMinor(totalLockedMinor)}
             </span>
           </div>
 

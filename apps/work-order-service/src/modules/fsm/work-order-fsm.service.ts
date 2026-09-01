@@ -14,7 +14,10 @@ export class WorkOrderFsmService {
     [WorkOrderStatus.EN_ROUTE]: [WorkOrderStatus.ON_SITE, WorkOrderStatus.DISPUTED],
     [WorkOrderStatus.ON_SITE]: [WorkOrderStatus.COMPLETED, WorkOrderStatus.DISPUTED],
     [WorkOrderStatus.COMPLETED]: [WorkOrderStatus.APPROVED, WorkOrderStatus.DISPUTED],
-    [WorkOrderStatus.APPROVED]: [],
+    // Only a successful escrow release moves an approved order to PAID
+    // (docs/SRS.md FR-BILL-002); billing-service owns that transition.
+    [WorkOrderStatus.APPROVED]: [WorkOrderStatus.PAID],
+    [WorkOrderStatus.PAID]: [],
     [WorkOrderStatus.CANCELLED]: [],
     [WorkOrderStatus.DISPUTED]: [WorkOrderStatus.APPROVED, WorkOrderStatus.CANCELLED]
   };

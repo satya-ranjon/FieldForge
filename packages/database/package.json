@@ -8,7 +8,8 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:seed": "ts-node src/seeds/index.ts"
+    "db:seed": "ts-node src/seeds/index.ts",
+    "clean": "rm -rf dist .turbo coverage"
   },
   "dependencies": {
     "dotenv": "^17.4.2",

@@ -1,4 +1,5 @@
 import type { UserRole, UserStatus } from '../enums';
+import type { MinorUnits } from '../money';
 
 export interface RegisterUserDto {
   email: string;
@@ -9,7 +10,7 @@ export interface RegisterUserDto {
   billingAddress?: string;
   firstName?: string; // If TECHNICIAN
   lastName?: string;
-  hourlyRate?: number;
+  hourlyRateMinor?: MinorUnits;
 }
 
 export interface LoginDto {

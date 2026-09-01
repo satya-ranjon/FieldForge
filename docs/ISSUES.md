@@ -10,6 +10,13 @@
 > Kustomize scaffold check. Findings below retain their original IDs; resolved or
 > partially remediated items are marked in place.
 
+> **Phase 0 update — 2026-09-01:** Phase 0 of [`DEVELOPMENT_PLAN.md`](./DEVELOPMENT_PLAN.md)
+> established one FSM canon, one money representation, one event envelope, and a
+> test harness that can fail. Closed: **M1, M3, M4, M5, M11**, and the empty-suite
+> half of **H7**. Advanced: **M7** (envelope field exists; AMQP propagation is
+> Phase 3). Everything else below is untouched and still open — in particular the
+> four Critical findings, which Phases 1–4 address.
+
 ---
 
 ## How to read this report
@@ -111,8 +118,13 @@ The ≤100 m Haversine check (`RULE-MOB-05`) exists only in the mobile client (`
 
 ### H7 · 📄 Automated test suites are empty
 
-**Status: process claim remediated; coverage gap remains.** CI and the PR template
-now report the empty-suite limitation honestly and no longer claim 90% coverage.
+**Status: resolved for the empty-suite claim; the coverage threshold is not yet
+enforced.** `packages/jest-config` supplies a shared `ts-jest` preset, all seven
+workspaces with a `test` script have a `jest.config.cjs` and real specs (225
+tests), and `--passWithNoTests` is gone everywhere — deleting an FSM transition
+now turns `pnpm test` red. `coverageThreshold` is deliberately still unset; it is
+raised per phase toward the SRS §5 90% target as the business rules those numbers
+would measure are actually implemented.
 
 Every service's `test` script is `jest --passWithNoTests` and there are **no test files**; `ci-pipeline.yml` therefore always goes green. The PR template asserts "≥90% coverage."
 **Impact:** false quality signal; regressions land unchecked.
@@ -140,6 +152,14 @@ authentication remains out of scope until the manifests in H8 are deployable.
 
 ### M1 · 📄 `SETTLED` / `BIDDING` states exist in docs & UI but not in the enum/DB
 
+**Status: resolved.** `docs/SRS.md` FR-WO-002 won on the `AGENTS.md` source-of-truth
+order: `PAID` was added to `WorkOrderStatus`, the Drizzle enum, and migration
+`0001_canon_and_constraints.sql`, and `BIDDING`/`SETTLED`/`OPEN`/`IN_PROGRESS` were
+deleted from `StatusBadge` and the docs. Bidding is `work_order_bids` rows, not a
+work-order state. `apps/work-order-service/test/work-order-fsm.service.spec.ts`
+asserts all 100 ordered status pairs, so a fourth definition cannot reappear
+silently.
+
 `WorkOrderStatus` (contracts) and the migration enum contain **neither** `BIDDING` nor `SETTLED`, yet: the README FSM shows `APPROVED → SETTLED`, `domain_entities.md` shows both `BIDDING` and `SETTLED`, and `@fieldforge/ui`'s `StatusBadge` renders `BIDDING`/`SETTLED`/`OPEN`/`IN_PROGRESS`. Three divergent FSM definitions exist (see ARCHITECTURE §7).
 **Impact:** persisting a documented state would throw on the enum column; UI has dead/incorrect branches; contributors get contradictory specs.
 **Fix:** pick one canonical FSM. Either add the states to the enum+migration+contracts or remove them from README/domain doc/UI.
@@ -155,17 +175,37 @@ strings that fit the `VARCHAR(36)` keys.
 
 ### M3 · 🏛️ Escrow ↔ work order 1:1 not enforced (no UNIQUE)
 
+**Status: resolved.** `escrow_accounts.work_order_id` now carries
+`uq_escrow_work_order` in both the Drizzle schema and migration
+`0001_canon_and_constraints.sql`, so a second escrow row for one job is rejected by
+the database rather than by application code. The double-release logic in
+`releaseFunds()` itself is still open — see C3.
+
 `escrow_accounts.work_order_id` is a plain FK in both the Drizzle schema (`billing.schema.ts`, no `.unique()`) and the migration.
 **Impact:** multiple escrow rows per work order become possible → ambiguous "the escrow" lookups and double-hold/double-release risk.
 **Fix:** add a UNIQUE constraint on `work_order_id` and a migration.
 
 ### M4 · 🏛️ Composite index rule violated
 
+**Status: resolved.** Migration `0001_canon_and_constraints.sql` drops
+`idx_wo_status` and `idx_wo_schedule` and creates
+`idx_wo_status_sched (status, scheduled_start_time)`; the Drizzle table definition
+matches.
+
 `RULE-DB-02` mandates a composite `(status, scheduled_start_time)` index for the dispatch hot path. The migration creates **two single-column** indexes (`idx_wo_status`, `idx_wo_schedule`) instead.
 **Impact:** the intended dispatch/SLA queries can't use an ideal index.
 **Fix:** replace with `CREATE INDEX idx_wo_status_sched ON work_orders (status, scheduled_start_time)`.
 
 ### M5 · 🐛 Money represented as floating point in the app/event layer
+
+**Status: resolved in the contract layer.** `packages/contracts/src/money.ts` holds
+the conversions and the `assertMinorUnits` guard; every DTO, event payload, and Zod
+schema now names its amounts `*Minor` and types them as non-negative integers.
+DB columns stay `DECIMAL(10,2)` and convert at the repository edge via
+`decimalStringToMinor`/`minorToDecimalString`, which parse the digits rather than
+routing through a float. `packages/contracts/test/money.spec.ts` pins the round
+trip on the values that break naive `* 100` arithmetic. The remaining float math
+lives in `scripts/simulate-dispatch-load.js`, which L8 deletes outright.
 
 DB columns are `DECIMAL`, but DTOs and event payloads type amounts as `number` (JS float), and the load simulator/stubs do float math.
 **Impact:** rounding drift on financial amounts once real arithmetic runs.
@@ -178,6 +218,14 @@ DB columns are `DECIMAL`, but DTOs and event payloads type amounts as `number` (
 **Fix:** implement a dedupe store keyed on `eventId`, a DLX, and retry/backoff policy.
 
 ### M7 · 🏛️ Correlation-id not propagated over AMQP
+
+**Status: partially remediated — the field now exists; propagation lands in
+Phase 3.** `EventEnvelope<T>` in `packages/contracts/src/events/envelope.ts` carries
+`eventId`, `eventType`, `occurredAt`, `correlationId`, and `payload`, and the five
+event interfaces were reshaped as payloads inside it. `createEvent()` requires a
+correlationId at the call site rather than defaulting one. Actually publishing over
+the broker and restoring the id into the Pino context on consume is Phase 3 of
+`docs/DEVELOPMENT_PLAN.md`; today the publisher still logs.
 
 `RULE-OBS`/`.cursorrules` require `x-correlation-id` across HTTP **and** AMQP. Event interfaces in `@fieldforge/contracts` carry no `correlationId` field, and the `CorrelationId` decorator only reads an HTTP header.
 **Impact:** traces break at every service hop through the broker.
@@ -205,6 +253,16 @@ ADRs/README specify MySQL 8.0, Redis 7.0, RabbitMQ 3.13; compose pulls `mysql:8.
 **Fix:** pin images to the ADR versions or supersede the ADRs deliberately.
 
 ### M11 · 🐛 `transitionStatusSchema` referenced but does not exist
+
+**Status: resolved.** `transitionStatusSchema` is defined and exported from
+`packages/contracts/src/validators/work-order.schema.ts`; it takes `nextStatus` from
+the canon enum plus `latitude`/`longitude`, required together for the `ON_SITE`
+arrival because the server — not the handset — decides whether the technician is
+inside the geofence. `submitBidSchema.proposedAmount` is now `bidAmountMinor`,
+matching the `bid_amount` column. The same pass dropped the caller-supplied
+`buyerId`/`techId` fields from the request schemas: identity comes from the verified
+token, and `packages/contracts/test/validators.spec.ts` asserts a client that sends
+one is ignored rather than obeyed.
 
 `.agent/context/api_contracts.md` documents a `transitionStatusSchema` validator; it isn't defined or exported from `@fieldforge/contracts` (`packages/contracts/src/index.ts` exports no such symbol). Relatedly, `submitBidSchema` uses `proposedAmount` while the DB column is `bid_amount`.
 **Impact:** the status-transition endpoint has no request validation to import; bid field naming is inconsistent between validator and schema.

@@ -16,6 +16,14 @@ export enum BudgetType {
   HOURLY = 'HOURLY'
 }
 
+/**
+ * Canonical work order lifecycle, per docs/SRS.md FR-WO-002.
+ *
+ * This enum is the single source of truth for work order state. Bidding is not
+ * a state: bids live in the `work_order_bids` table and a work order stays
+ * PUBLISHED while it collects them. `PAID` is terminal and is reached only by
+ * a successful escrow release (FR-BILL-002).
+ */
 export enum WorkOrderStatus {
   DRAFT = 'DRAFT',
   PUBLISHED = 'PUBLISHED',
@@ -24,6 +32,7 @@ export enum WorkOrderStatus {
   ON_SITE = 'ON_SITE',
   COMPLETED = 'COMPLETED',
   APPROVED = 'APPROVED',
+  PAID = 'PAID',
   CANCELLED = 'CANCELLED',
   DISPUTED = 'DISPUTED'
 }

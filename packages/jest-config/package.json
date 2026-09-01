@@ -1,0 +1,19 @@
+{
+  "name": "@fieldforge/jest-config",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Shared Jest base configuration for FieldForge workspaces",
+  "files": [
+    "node.cjs",
+    "nestjs.cjs"
+  ],
+  "exports": {
+    "./node": "./node.cjs",
+    "./node.cjs": "./node.cjs",
+    "./nestjs": "./nestjs.cjs",
+    "./nestjs.cjs": "./nestjs.cjs"
+  },
+  "scripts": {
+    "clean": "rm -rf .turbo"
+  }
+}

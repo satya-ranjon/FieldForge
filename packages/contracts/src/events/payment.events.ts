@@ -1,16 +1,21 @@
-export interface EscrowFundedEvent {
-  eventId: string;
+import type { MinorUnits } from '../money';
+import type { EventEnvelope } from './envelope';
+
+/** Billing event payloads. See work-order.events.ts on the absence of timestamps. */
+
+export interface EscrowFundedPayload {
   escrowId: string;
   workOrderId: string;
   buyerId: string;
-  amount: number;
-  fundedAt: string;
+  amountMinor: MinorUnits;
 }
 
-export interface PayoutDisbursedEvent {
-  eventId: string;
+export interface PayoutDisbursedPayload {
+  escrowId: string;
   workOrderId: string;
   techId: string;
-  amount: number;
-  disbursedAt: string;
+  amountMinor: MinorUnits;
 }
+
+export type EscrowFundedEvent = EventEnvelope<EscrowFundedPayload>;
+export type PayoutDisbursedEvent = EventEnvelope<PayoutDisbursedPayload>;

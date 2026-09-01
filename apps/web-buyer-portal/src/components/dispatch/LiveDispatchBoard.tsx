@@ -37,7 +37,7 @@ import {
   Modal,
   Textarea
 } from '@fieldforge/ui';
-import { WorkOrderStatus } from '@fieldforge/contracts';
+import { formatMinor, WorkOrderStatus } from '@fieldforge/contracts';
 
 export const LiveDispatchBoard: React.FC = () => {
   const dispatch = useDispatch();
@@ -98,7 +98,7 @@ export const LiveDispatchBoard: React.FC = () => {
     dispatch(approveDeliverables({ workOrderId: wo.id }));
     dispatch(releaseEscrow({ workOrderId: wo.id }));
     setActionSuccessMsg(
-      `Work Order ${wo.id} approved! Escrow funds $${wo.budgetAmount} released to technician.`
+      `Work Order ${wo.id} approved! Escrow funds ${formatMinor(wo.budgetAmountMinor)} released to technician.`
     );
     setTimeout(() => setActionSuccessMsg(null), 5000);
   };
@@ -254,7 +254,7 @@ export const LiveDispatchBoard: React.FC = () => {
 
                     <div className="text-right space-y-1 flex-shrink-0">
                       <div className="text-base font-bold font-mono text-emerald-400">
-                        ${Number(wo.budgetAmount).toFixed(2)}
+                        {formatMinor(wo.budgetAmountMinor)}
                         <span className="text-[10px] text-slate-400 font-normal">
                           {' '}
                           ({wo.budgetType})
@@ -539,7 +539,7 @@ export const LiveDispatchBoard: React.FC = () => {
                         onClick={() => handleApprove(selectedOrder)}
                         leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
                       >
-                        Approve & Release Escrow (${selectedOrder.budgetAmount})
+                        Approve & Release Escrow ({formatMinor(selectedOrder.budgetAmountMinor)})
                       </Button>
                     </>
                   )}
@@ -615,7 +615,7 @@ export const LiveDispatchBoard: React.FC = () => {
               <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
                 <span className="text-slate-400 block mb-1">Financial Escrow & SLA:</span>
                 <span className="text-emerald-400 font-bold font-mono text-sm block">
-                  ${selectedOrder.budgetAmount}.00 ({selectedOrder.budgetType})
+                  {formatMinor(selectedOrder.budgetAmountMinor)} ({selectedOrder.budgetType})
                 </span>
                 <span className="text-slate-400 text-[11px] block mt-1">
                   SLA Deadline: {new Date(selectedOrder.slaExpirationTime).toLocaleString()}

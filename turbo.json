@@ -1,14 +1,32 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalDependencies": ["**/.env.*local"],
+  "globalDependencies": [
+    "**/.env.*local",
+    ".npmrc",
+    ".nvmrc",
+    "pnpm-lock.yaml",
+    "packages/tsconfig/*.json",
+    "packages/eslint-config/index.js",
+    ".prettierrc.json"
+  ],
+  "globalEnv": ["NODE_ENV", "CI", "LOG_LEVEL"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
+      "env": ["PORT", "DATABASE_URL", "DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_PASSWORD"]
     },
     "test": {
       "dependsOn": ["^build"],
-      "inputs": ["src/**/*.tsx", "src/**/*.ts", "test/**/*.ts"]
+      "inputs": [
+        "src/**/*.tsx",
+        "src/**/*.ts",
+        "test/**/*.ts",
+        "jest.config.*",
+        "package.json",
+        "tsconfig.json"
+      ],
+      "outputs": []
     },
     "test:e2e": {
       "dependsOn": ["^build"],
@@ -21,6 +39,9 @@
     "dev": {
       "cache": false,
       "persistent": true
+    },
+    "clean": {
+      "cache": false
     },
     "db:migrate": {
       "cache": false

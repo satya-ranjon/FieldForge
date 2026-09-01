@@ -29,7 +29,10 @@ GENERATED_PATHS=(
   "apps/web-buyer-portal/dist"
 )
 
-VALIDATION_BACKUP="$(mktemp -d)"
+# An explicit template keeps this on TMPDIR. BSD mktemp defaults to the Darwin
+# per-user temp directory and ignores TMPDIR entirely unless it is given one, so
+# the bare `mktemp -d` fails wherever that directory is not writable.
+VALIDATION_BACKUP="$(mktemp -d "${TMPDIR:-/tmp}/fieldforge-clean-typecheck.XXXXXX")"
 PRIOR_OUTPUTS="${VALIDATION_BACKUP}/prior"
 NEW_OUTPUTS="${VALIDATION_BACKUP}/generated"
 mkdir -p "${PRIOR_OUTPUTS}" "${NEW_OUTPUTS}"

@@ -1,16 +1,20 @@
 import type { EscrowStatus } from '../enums';
+import type { MinorUnits } from '../money';
 
+/**
+ * Escrow pre-authorization request. The funding buyer comes from the verified
+ * access token, never from the body — see CreateWorkOrderDto.
+ */
 export interface PreAuthEscrowDto {
   workOrderId: string;
-  buyerId: string;
-  amount: number;
+  amountMinor: MinorUnits;
   paymentMethodId: string;
 }
 
 export interface EscrowDetailsDto {
   id: string;
   workOrderId: string;
-  amountLocked: number;
+  amountLockedMinor: MinorUnits;
   status: EscrowStatus;
   createdAt: string;
   releasedAt?: string;
