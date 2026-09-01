@@ -16,6 +16,9 @@
 > half of **H7**. Advanced: **M7** (envelope field exists; AMQP propagation is
 > Phase 3). Everything else below is untouched and still open — in particular the
 > four Critical findings, which Phases 1–4 address.
+> A parallel setup audit on the same date contributed **M13, M14, L9, L10, L11**
+> and the measured Dockerfile numbers under L3; each was re-verified against the
+> tree before being recorded here.
 
 ---
 
@@ -32,7 +35,7 @@ Because of that, findings fall into four kinds — tagged on each item:
 
 Severity reflects impact _if this project is taken toward the production system its docs describe_. A "not implemented" gap is only called out where the spec/PR-template claims it **is** done, or where it's load-bearing for a security guarantee.
 
-**Severity counts:** Critical 4 · High 9 · Medium 12 · Low 8
+**Severity counts:** Critical 4 · High 9 · Medium 14 · Low 11
 
 ---
 
@@ -129,6 +132,13 @@ would measure are actually implemented.
 Every service's `test` script is `jest --passWithNoTests` and there are **no test files**; `ci-pipeline.yml` therefore always goes green. The PR template asserts "≥90% coverage."
 **Impact:** false quality signal; regressions land unchecked.
 **Fix:** add real tests (start with escrow/FSM/geofence), drop `--passWithNoTests`, and enforce a coverage threshold — or correct the PR template.
+
+The harness was not merely empty, it was non-functional: no workspace had a
+`jest.config.*` or a `jest` key in `package.json` despite `ts-jest` being a
+devDependency, so Jest fell back to `babel-jest` and any `.ts` spec failed on a
+parse error before it could assert anything. `pnpm test` was green only because
+zero spec files existed. Anyone who had added a test before Phase 0 would have hit
+that wall.
 
 ### H8 · 🐛 Kubernetes manifests can't actually run the system
 
@@ -274,6 +284,40 @@ Services enable permissive CORS (reflect-any-origin) and log request bodies/head
 **Impact:** CSRF-adjacent exposure once auth exists; PII leakage into logs.
 **Fix:** restrict CORS to known origins; route through Pino with redaction of PII/authorization headers.
 
+### M13 · 🏛️ Three architecture rules have no lint enforcement
+
+`packages/eslint-config/index.js` uses `tseslint.configs.recommended` with no
+`parserOptions.projectService`, so there is **no type-aware linting at all** and the
+rules that need type information cannot run. Measured 2026-09-01: enabling only
+`no-floating-promises` and `no-misused-promises` surfaces 9 problems, 6 of which are
+the unhandled `bootstrap()` calls already filed as L8 — meaning the linter would
+have caught a known defect. Separately, three `.agent/rules` are entirely
+unenforced: rule 01 §1 bounded contexts (no `no-restricted-imports`), rule 04 React
+(no `eslint-plugin-react-hooks`), and rule 07 §4 "a11y non-negotiables" (no
+`eslint-plugin-jsx-a11y`).
+**Impact:** rules stated as non-negotiable are advisory in practice; a
+cross-context import or a missing hook dependency lands green.
+**Fix:** enable `projectService` on a type-aware block scoped to `src/**`, starting
+with the two promise rules. Note that `apps/web-buyer-portal/e2e/*.spec.ts` and the
+root `*.config.ts` files sit outside every tsconfig `include`, so a type-aware block
+must exclude them or a tsconfig must claim them. The rule-01 boundary can be
+enforced with core `no-restricted-imports` and needs no new dependency.
+
+### M14 · 🏛️ `@fieldforge/ui` declares no React peer dependency, and mobile bypasses it
+
+`packages/ui/package.json` lists React neither as a dependency nor as a peer
+dependency, so nothing constrains which React a consumer supplies to components
+that require one. Meanwhile `web-buyer-portal` is on React `^19.2.8` and
+`mobile-tech-app` on `18.3.1` (pinned by React Native 0.76.7), and mobile does not
+depend on `@fieldforge/ui` at all — contradicting rule 07 §2, which requires common
+UI building blocks to live in `@fieldforge/ui` and be composed by both frontends.
+**Impact:** the shared package cannot actually be shared. Any attempt to consume it
+from mobile would pull a second React version into the graph, and today the two
+frontends necessarily duplicate every primitive.
+**Fix:** declare `react` as a peer dependency with a range that admits both majors,
+and split the package into platform-neutral tokens/logic versus DOM components — or
+record explicitly that `@fieldforge/ui` is web-only and amend rule 07 §2 to match.
+
 ---
 
 ## 🟢 Low
@@ -300,6 +344,11 @@ users and stronger multi-stage/pruned builds.
 Service Dockerfiles use a single stage, run as root, and there's no `.dockerignore` (build context includes `node_modules`, `.git`).
 **Fix:** multi-stage builds, non-root `USER`, add `.dockerignore`.
 
+Measured 2026-09-01 across the seven tracked Dockerfiles: **0 of 7** declare a
+`USER`, **0 of 7** declare a `HEALTHCHECK`, and only `web-buyer-portal` is
+multi-stage. None use `turbo prune`, so each image build ships the whole monorepo
+context.
+
 ### L4 · 🔒 Terraform lacks remote state and S3 public-access-block
 
 No remote backend/state locking; the deliverables bucket has SSE+versioning but **no `aws_s3_bucket_public_access_block`**; `outputs.tf` exposes only `vpc_id`; no EKS/security groups.
@@ -324,6 +373,46 @@ The deliverable "signature" SHA-256 mixes `Date.now()` into the hashed input, so
 
 `scripts/simulate-dispatch-load.js` fabricates latency samples with `Math.random()` and reports them as SLO evidence. Separately, each service's `bootstrap()` promise is unhandled — a startup failure exits silently without a non-zero signal in some paths.
 **Fix:** measure real requests (or label the script clearly as a mock) and add `.catch()` to `bootstrap()` with `process.exit(1)`.
+
+### L9 · 🐛 `.env.example` omits `PORT`, which every service reads
+
+All six `apps/*/src/main.ts` read `process.env.PORT` with a distinct
+service-specific fallback (3000–3005), but `.env.example` declares neither `PORT`
+nor `CI`. Copying the example and exporting a single `PORT` — the obvious reading
+of an undocumented variable — collapses all six services onto one port.
+**Impact:** the documented setup path either leaves `PORT` unset (working only by
+fallback) or, once someone sets it globally, produces `EADDRINUSE` on five of six
+services.
+**Fix:** document the variable per service rather than globally, or read a
+service-scoped name (`AUTH_PORT`, `GATEWAY_PORT`, …) so one value cannot collide.
+
+### L10 · 🔒 `.npmrc` makes a destructive install silent
+
+`.npmrc` sets `confirm-modules-purge=false`. When pnpm decides `node_modules` was
+built by a different configuration it deletes the tree without prompting, and if
+the registry is then unreachable there is no way back — the lockfile alone cannot
+rebuild without network. This happened on 2026-09-01: an `--offline` install purged
+the tree and hung, and recovery required an out-of-band install.
+**Impact:** one routine command can leave the repository unbuildable, with no
+confirmation step and nothing recoverable from git.
+**Fix:** drop the setting so the purge prompt returns, or pair it with a
+content-addressable store checked into the developer's environment (a
+`.pnpm-store/` APFS clone is currently staged and gitignored) so an offline
+rebuild is always possible.
+
+### L11 · 🏛️ CI workflows have no concurrency, permissions, or cache
+
+None of the three workflows in `.github/workflows/` declares `permissions:`
+(so jobs inherit the repository default token scope), `concurrency:` (so
+superseded pushes keep running), or `actions/cache` (so no Turborepo cache is
+shared). `ci-pipeline.yml` duplicates checkout/pnpm/node/install across both jobs
+and runs `pnpm build` twice.
+**Impact:** over-scoped tokens, wasted runner minutes, and CI that is slower than
+the task graph requires.
+**Fix:** add least-privilege `permissions:`, a `concurrency` group keyed on the
+ref, cache the pnpm store and `.turbo`, and let the second job `needs:` the first.
+Setting `TURBO_TELEMETRY_DISABLED: 1` also stops a per-invocation call to
+`telemetry.vercel.com`.
 
 ---
 
