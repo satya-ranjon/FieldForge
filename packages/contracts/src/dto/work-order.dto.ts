@@ -1,4 +1,4 @@
-import { WorkOrderStatus, BudgetType, PriorityLevel } from '../enums';
+import type { BudgetType, WorkOrderStatus } from '../enums';
 
 export interface CreateWorkOrderDto {
   buyerId: string;

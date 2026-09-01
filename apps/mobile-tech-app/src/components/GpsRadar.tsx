@@ -11,7 +11,9 @@ export const GpsRadar: React.FC<GpsRadarProps> = ({ distanceMeters, isVerified }
     <View style={styles.card}>
       <Text style={styles.label}>GPS Geofence Radar</Text>
       <Text style={[styles.status, isVerified ? styles.verified : styles.unverified]}>
-        {isVerified ? '✅ Within Site Radius (<100m)' : `📍 ${distanceMeters.toFixed(0)}m from Site`}
+        {isVerified
+          ? '✅ Within Site Radius (<100m)'
+          : `📍 ${distanceMeters.toFixed(0)}m from Site`}
       </Text>
     </View>
   );
@@ -24,22 +26,22 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: '#334155',
-    marginVertical: 10,
+    marginVertical: 10
   },
   label: {
     color: '#94a3b8',
     fontSize: 12,
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 4
   },
   status: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: 'bold'
   },
   verified: {
-    color: '#34d399',
+    color: '#34d399'
   },
   unverified: {
-    color: '#fbbf24',
-  },
+    color: '#fbbf24'
+  }
 });

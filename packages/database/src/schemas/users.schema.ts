@@ -1,4 +1,12 @@
-import { mysqlTable, varchar, timestamp, mysqlEnum, text, decimal, int } from 'drizzle-orm/mysql-core';
+import {
+  mysqlTable,
+  varchar,
+  timestamp,
+  mysqlEnum,
+  text,
+  decimal,
+  int
+} from 'drizzle-orm/mysql-core';
 
 export const users = mysqlTable('users', {
   id: varchar('id', { length: 36 }).primaryKey(),
@@ -13,7 +21,10 @@ export const users = mysqlTable('users', {
 
 export const buyerProfiles = mysqlTable('buyer_profiles', {
   id: varchar('id', { length: 36 }).primaryKey(),
-  userId: varchar('user_id', { length: 36 }).references(() => users.id, { onDelete: 'cascade' }).notNull().unique(),
+  userId: varchar('user_id', { length: 36 })
+    .references(() => users.id, { onDelete: 'cascade' })
+    .notNull()
+    .unique(),
   companyName: varchar('company_name', { length: 255 }).notNull(),
   billingAddress: text('billing_address').notNull(),
   escrowBalance: decimal('escrow_balance', { precision: 12, scale: 2 }).default('0.00').notNull()
@@ -21,7 +32,10 @@ export const buyerProfiles = mysqlTable('buyer_profiles', {
 
 export const technicianProfiles = mysqlTable('technician_profiles', {
   id: varchar('id', { length: 36 }).primaryKey(),
-  userId: varchar('user_id', { length: 36 }).references(() => users.id, { onDelete: 'cascade' }).notNull().unique(),
+  userId: varchar('user_id', { length: 36 })
+    .references(() => users.id, { onDelete: 'cascade' })
+    .notNull()
+    .unique(),
   firstName: varchar('first_name', { length: 100 }).notNull(),
   lastName: varchar('last_name', { length: 100 }).notNull(),
   hourlyRate: decimal('hourly_rate', { precision: 8, scale: 2 }).notNull(),

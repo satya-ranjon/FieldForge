@@ -1,4 +1,4 @@
-name: Docker Build & Security Scan
+name: Docker Build
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - 'v*.*.*'
 
 jobs:
-  build-and-push:
+  build:
     runs-on: ubuntu-latest
     strategy:
       matrix:

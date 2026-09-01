@@ -17,7 +17,10 @@ export const ActiveJobScreen: React.FC = () => {
       setIsOnSite(true);
       Alert.alert('Checked In', 'GPS location verified. State transitioned to ON_SITE.');
     } else {
-      Alert.alert('Geofence Error', 'You must be within 100 meters of the job location to check in.');
+      Alert.alert(
+        'Geofence Error',
+        'You must be within 100 meters of the job location to check in.'
+      );
     }
   };
 
@@ -33,7 +36,9 @@ export const ActiveJobScreen: React.FC = () => {
         onPress={handleCheckIn}
         disabled={!canCheckIn}
       >
-        <Text style={styles.buttonText}>{isOnSite ? 'Currently On Site' : 'Geofence Check-In'}</Text>
+        <Text style={styles.buttonText}>
+          {isOnSite ? 'Currently On Site' : 'Geofence Check-In'}
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -43,33 +48,33 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0f172a',
-    padding: 20,
+    padding: 20
   },
   title: {
     color: '#f8fafc',
     fontSize: 22,
-    fontWeight: 'bold',
+    fontWeight: 'bold'
   },
   subtitle: {
     color: '#94a3b8',
     fontSize: 14,
-    marginBottom: 16,
+    marginBottom: 16
   },
   button: {
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 20
   },
   buttonActive: {
-    backgroundColor: '#2563eb',
+    backgroundColor: '#2563eb'
   },
   buttonDisabled: {
-    backgroundColor: '#334155',
+    backgroundColor: '#334155'
   },
   buttonText: {
     color: '#ffffff',
     fontWeight: 'bold',
-    fontSize: 16,
-  },
+    fontSize: 16
+  }
 });

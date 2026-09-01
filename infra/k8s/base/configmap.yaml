@@ -3,7 +3,7 @@ kind: ConfigMap
 metadata:
   name: fieldforge-global-config
 data:
-  NODE_ENV: "production"
-  LOG_LEVEL: "info"
-  REDIS_HOST: "redis-service"
-  RABBITMQ_HOST: "rabbitmq-service"
+  NODE_ENV: 'production'
+  LOG_LEVEL: 'info'
+  REDIS_HOST: 'redis-service'
+  RABBITMQ_HOST: 'rabbitmq-service'

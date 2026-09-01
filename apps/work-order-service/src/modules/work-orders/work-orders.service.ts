@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { CreateWorkOrderDto, WorkOrderStatus, WorkOrderPublishedEvent } from '@fieldforge/contracts';
+import { Injectable } from '@nestjs/common';
+import type { CreateWorkOrderDto, WorkOrderPublishedEvent } from '@fieldforge/contracts';
+import { WorkOrderStatus } from '@fieldforge/contracts';
 import { WorkOrderFsmService } from '../fsm/work-order-fsm.service';
 import { WorkOrderEventPublisher } from '../../events/work-order-event.publisher';
 import { randomUUID } from 'crypto';

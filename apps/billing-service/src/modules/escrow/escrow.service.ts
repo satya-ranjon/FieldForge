@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { EscrowFundedEvent, EscrowStatus } from '@fieldforge/contracts';
+import type { EscrowFundedEvent } from '@fieldforge/contracts';
+import { EscrowStatus } from '@fieldforge/contracts';
 import { randomUUID } from 'crypto';
 
 @Injectable()
@@ -16,6 +17,7 @@ export class EscrowService {
       amount,
       fundedAt: new Date().toISOString()
     };
+    void event; // Event publication is intentionally not implemented in the scaffold.
 
     return {
       escrowId,

@@ -15,6 +15,10 @@ out/
 .env.*.local
 !.env.example
 
+# Local and generated secret manifests
+infra/k8s/base/secrets.yaml
+infra/k8s/**/secrets.local.yaml
+
 # Logs
 npm-debug.log*
 yarn-debug.log*

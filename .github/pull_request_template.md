@@ -1,6 +1,13 @@
-## 📋 Pull Request Summary
+## Pull request summary
 
-### 🧩 Affected Workspaces & Services
+### Requirement or issue
+
+- SRS requirement IDs:
+- Related issue:
+- Out of scope:
+
+### Affected workspaces and services
+
 - [ ] `apps/api-gateway`
 - [ ] `apps/auth-service`
 - [ ] `apps/work-order-service`
@@ -14,12 +21,23 @@
 - [ ] `packages/common`
 - [ ] `packages/ui`
 - [ ] `infra/*`
+- [ ] Documentation or agent context
 
----
+### Quality and verification
 
-### 🛡️ Quality & Verification Checklist
-- [ ] **Type Safety:** Monorepo builds cleanly with zero TypeScript errors (`pnpm build`).
-- [ ] **Automated Tests:** Unit & integration tests pass with $\ge 90\%$ coverage (`pnpm test`).
-- [ ] **Schema Migrations:** Database migrations tested with backward-compatible rollback scripts.
-- [ ] **SLI/SLO Compliance:** No regressions against latency ($p95 < 100	ext{ms}$) or availability bounds.
-- [ ] **Security:** Zero hardcoded credentials or unparameterized queries.
+- [ ] `pnpm check` passes.
+- [ ] `pnpm build` passes.
+- [ ] New or changed behavior has meaningful tests; empty suites are not counted.
+- [ ] The test output and any unverified behavior are described below.
+- [ ] Database changes include a reviewed forward migration and rollback/restore plan.
+- [ ] SLO claims are backed by measured requests, not synthetic random samples.
+- [ ] No secrets, credentials, personal data, or unparameterized queries were added.
+- [ ] Contracts, docs, status context, and ADRs are updated where required.
+
+### Verification evidence
+
+Commands run and results:
+
+### Operational and rollback notes
+
+Deployment, migration, observability, and rollback impact:

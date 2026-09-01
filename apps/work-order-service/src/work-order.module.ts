@@ -7,11 +7,7 @@ import { HealthController } from '@fieldforge/common';
 @Module({
   imports: [],
   controllers: [HealthController],
-  providers: [
-    WorkOrdersService,
-    WorkOrderFsmService,
-    WorkOrderEventPublisher
-  ],
+  providers: [WorkOrdersService, WorkOrderFsmService, WorkOrderEventPublisher],
   exports: [WorkOrdersService]
 })
 export class WorkOrderModule {}

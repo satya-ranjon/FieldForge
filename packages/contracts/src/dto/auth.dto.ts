@@ -1,4 +1,4 @@
-import { UserRole, UserStatus } from '../enums';
+import type { UserRole, UserStatus } from '../enums';
 
 export interface RegisterUserDto {
   email: string;

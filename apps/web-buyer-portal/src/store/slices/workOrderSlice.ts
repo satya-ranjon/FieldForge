@@ -1,5 +1,7 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { WorkOrderResponseDto, WorkOrderStatus, BudgetType } from '@fieldforge/contracts';
+import type { PayloadAction } from '@reduxjs/toolkit';
+import { createSlice } from '@reduxjs/toolkit';
+import type { WorkOrderResponseDto } from '@fieldforge/contracts';
+import { WorkOrderStatus, BudgetType } from '@fieldforge/contracts';
 
 export interface WorkOrderState {
   items: WorkOrderResponseDto[];
@@ -13,7 +15,8 @@ const initialState: WorkOrderState = {
       id: 'w0000000-0000-0000-0000-000000000001',
       buyerId: 'b0000000-0000-0000-0000-000000000001',
       title: 'Emergency POS Terminal Swap & Cat6 Cabling',
-      description: 'Replace 4 failed Ingenico POS pin-pads and terminate 2 Cat6 drop lines in server rack.',
+      description:
+        'Replace 4 failed Ingenico POS pin-pads and terminate 2 Cat6 drop lines in server rack.',
       category: 'Networking & POS',
       status: WorkOrderStatus.PUBLISHED,
       budgetType: BudgetType.FIXED,

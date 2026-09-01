@@ -1,4 +1,5 @@
 # 🏛️ Domain Entities & Relational Schema Specifications
+
 > **Living Specification** • Conforms to Software Requirements Specification (SRS v1.0.0)
 
 ---
@@ -53,7 +54,7 @@ erDiagram
         string title
         text description
         string category
-        enum status "DRAFT | PUBLISHED | ASSIGNED | EN_ROUTE | ON_SITE | COMPLETED | APPROVED | CANCELLED | DISPUTED"
+        enum status "DRAFT | PUBLISHED | ASSIGNED | EN_ROUTE | ON_SITE | COMPLETED | APPROVED | PAID | CANCELLED | DISPUTED"
         enum budget_type "FIXED | HOURLY"
         decimal budget_amount
         text address_line
@@ -98,14 +99,13 @@ erDiagram
 stateDiagram-v2
     [*] --> DRAFT: Buyer drafts work order & SOW
     DRAFT --> PUBLISHED: Buyer funds escrow & publishes ticket
-    PUBLISHED --> BIDDING: Technicians submit bids / Proximity search
-    BIDDING --> ASSIGNED: Buyer accepts bid or Auto-Dispatch matches
+    PUBLISHED --> ASSIGNED: Buyer accepts bid or Auto-Dispatch matches
     ASSIGNED --> EN_ROUTE: Technician marks departure
-    EN_ROUTE --> ON_SITE: GPS geofence verified (<100m radius)
+    EN_ROUTE --> ON_SITE: GPS geofence verified (≤200m radius)
     ON_SITE --> COMPLETED: Photos, checklist & client signature uploaded
     COMPLETED --> APPROVED: Buyer approves deliverables (or 72h auto-approval)
-    APPROVED --> SETTLED: Escrow released to technician payout ledger
-    SETTLED --> [*]
+    APPROVED --> PAID: Escrow released to technician payout ledger
+    PAID --> [*]
 
     PUBLISHED --> CANCELLED: Buyer cancels ticket
     ASSIGNED --> DISPUTED: SLA breach or quality dispute raised
@@ -117,9 +117,9 @@ stateDiagram-v2
 
 ## 3. Deliverable & Proof-of-Work Contracts
 
-| Deliverable Type | Storage Location | Validation & Cryptographic Integrity |
-| :--- | :--- | :--- |
-| `PHOTO_BEFORE` | AWS S3 (`fieldforge-deliverables-storage`) | Pre-work timestamp watermark + Geo-tag inspection |
-| `PHOTO_AFTER` | AWS S3 (`fieldforge-deliverables-storage`) | Post-repair photo with serial number verification |
-| `CHECKLIST` | AWS S3 / JSON Metadata | Mandatory itemized tasks completed (100% check rate) |
-| `SIGNATURE` | AWS S3 (`.svg`) | Client on-screen signature + SHA-256 audit digest hash |
+| Deliverable Type | Storage Location                           | Validation & Cryptographic Integrity                   |
+| :--------------- | :----------------------------------------- | :----------------------------------------------------- |
+| `PHOTO_BEFORE`   | AWS S3 (`fieldforge-deliverables-storage`) | Pre-work timestamp watermark + Geo-tag inspection      |
+| `PHOTO_AFTER`    | AWS S3 (`fieldforge-deliverables-storage`) | Post-repair photo with serial number verification      |
+| `CHECKLIST`      | AWS S3 / JSON Metadata                     | Mandatory itemized tasks completed (100% check rate)   |
+| `SIGNATURE`      | AWS S3 (`.svg`)                            | Client on-screen signature + SHA-256 audit digest hash |

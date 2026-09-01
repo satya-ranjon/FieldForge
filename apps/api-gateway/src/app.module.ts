@@ -1,7 +1,12 @@
-import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
+import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { CorrelationIdMiddleware } from './middleware/correlation-id.middleware';
-import { GlobalHttpExceptionFilter, MetricsInterceptor, HealthController } from '@fieldforge/common';
+import {
+  GlobalHttpExceptionFilter,
+  MetricsInterceptor,
+  HealthController
+} from '@fieldforge/common';
 
 @Module({
   imports: [],
@@ -15,7 +20,7 @@ import { GlobalHttpExceptionFilter, MetricsInterceptor, HealthController } from 
       provide: APP_INTERCEPTOR,
       useClass: MetricsInterceptor
     }
-  ],
+  ]
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

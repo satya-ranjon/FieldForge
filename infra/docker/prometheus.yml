@@ -1,0 +1,12 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Application services do not export Prometheus metrics yet. Add explicit
+  # scrape jobs here when FR-OBS-002 is implemented; do not infer an SLO from
+  # synthetic latency samples.

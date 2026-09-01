@@ -22,7 +22,11 @@ export class GeofenceService {
     return R * c;
   }
 
-  static isWithinGeofence(techLocation: Coordinates, jobLocation: Coordinates, radiusMeters = 100): boolean {
+  static isWithinGeofence(
+    techLocation: Coordinates,
+    jobLocation: Coordinates,
+    radiusMeters = 100
+  ): boolean {
     const distance = this.calculateDistanceMeters(techLocation, jobLocation);
     return distance <= radiusMeters;
   }

@@ -54,6 +54,7 @@ FieldForge/
 ```
 
 **Tooling**
+
 - **Package manager:** pnpm 9.15.9 workspaces (`apps/*`, `packages/*`); `engines.node >= 22`.
 - **Task runner:** Turborepo (`build`, `dev --parallel`, `lint`, `test`; `test` depends on `build`).
 - **Language:** TypeScript 5.7 across all workspaces; shared compiler configs in `packages/tsconfig`.
@@ -91,6 +92,7 @@ graph TD
 ```
 
 **Communication rules** (from `.agent/rules/01_architecture_rules.md`):
+
 - Services **must not** query another service's database. Sync reads go through the gateway with JWT propagation; async mutations go through RabbitMQ topic events.
 - All DTOs/validators/event interfaces come from `@fieldforge/contracts` (single source of truth).
 - Propagate `x-correlation-id` across HTTP **and** AMQP; log structured JSON via Pino.
@@ -99,18 +101,19 @@ graph TD
 
 ## 4. Microservices
 
-| Service | Port | Domain responsibility | Data store | Publishes | Consumes |
-| :--- | :---: | :--- | :--- | :--- | :--- |
-| `api-gateway` | 3000 | Edge proxy, JWT validation, rate limiting, correlation-id injection | — (Redis intended) | — | — |
-| `auth-service` | 3001 | Registration, login, refresh, RBAC, technician vetting/badges | MySQL `users`, `*_profiles` | — | — |
-| `work-order-service` | 3002 | Work-order FSM, SOW, deliverables (S3 presign + signature), SLA watcher | MySQL `work_orders`, `work_order_deliverables` | `work_order.lifecycle.{published,assigned,approved}` | — |
-| `dispatch-matching-service` | 3003 | Redis `GEOSEARCH` proximity + contractor scoring, bidding, auto-route | Redis, RabbitMQ | `dispatch.*` / `tech.bidding.*` (intended) | `work_order.lifecycle.published` |
-| `billing-service` | 3004 | Escrow pre-auth/lock/capture, payouts, PDF invoicing | MySQL `escrow_accounts` | `billing.escrow.funded`, `billing.payout.disbursed` (intended) | `work_order.lifecycle.approved` (intended) |
-| `notification-service` | 3005 | Push (FCM/APNS), SMS (Twilio), Email (SES) | RabbitMQ consumer | — | dispatch/notification events (intended) |
+| Service                     | Port | Domain responsibility                                                   | Data store                                     | Publishes                                                      | Consumes                                   |
+| :-------------------------- | :--: | :---------------------------------------------------------------------- | :--------------------------------------------- | :------------------------------------------------------------- | :----------------------------------------- |
+| `api-gateway`               | 3000 | Edge proxy, JWT validation, rate limiting, correlation-id injection     | — (Redis intended)                             | —                                                              | —                                          |
+| `auth-service`              | 3001 | Registration, login, refresh, RBAC, technician vetting/badges           | MySQL `users`, `*_profiles`                    | —                                                              | —                                          |
+| `work-order-service`        | 3002 | Work-order FSM, SOW, deliverables (S3 presign + signature), SLA watcher | MySQL `work_orders`, `work_order_deliverables` | `work_order.lifecycle.{published,assigned,approved}`           | —                                          |
+| `dispatch-matching-service` | 3003 | Redis `GEOSEARCH` proximity + contractor scoring, bidding, auto-route   | Redis, RabbitMQ                                | `dispatch.*` / `tech.bidding.*` (intended)                     | `work_order.lifecycle.published`           |
+| `billing-service`           | 3004 | Escrow pre-auth/lock/capture, payouts, PDF invoicing                    | MySQL `escrow_accounts`                        | `billing.escrow.funded`, `billing.payout.disbursed` (intended) | `work_order.lifecycle.approved` (intended) |
+| `notification-service`      | 3005 | Push (FCM/APNS), SMS (Twilio), Email (SES)                              | RabbitMQ consumer                              | —                                                              | dispatch/notification events (intended)    |
 
 > **Reality check:** All six backend services currently bootstrap as plain HTTP apps whose only live endpoints are `/healthz` and `/readyz`. No service opens a DB connection, and no service attaches a RabbitMQ transport — publishers/consumers are `console.log` stubs. See [§12](#12-implementation-status-matrix) and `ISSUES.md`.
 
 ### Clients
+
 - **web-buyer-portal** — React 19 + Redux Toolkit + Vite. Single static dashboard (`LiveDispatchBoard`, `SowBuilder`, `EscrowManager`) reading hardcoded Redux `initialState`. No router, no API layer, no RTK Query yet. Boots as an already-authenticated buyer with a mock token.
 - **mobile-tech-app** — React Native + Expo. Static landing screen; an unmounted `ActiveJobScreen` demonstrates the geofence check-in UI. Ships a **correct Haversine** implementation (`services/geofencing.service.ts`, radius 6371 km → meters, `≤100 m`) and an in-memory offline queue (`services/offlineSync.service.ts`).
 
@@ -185,18 +188,18 @@ The guard is pure graph validation — it does **not** read the persisted status
 
 ## 9. Infrastructure
 
-**Docker Compose** (`infra/docker/docker-compose.yml`) — core backing services, all ports published to host, `restart: always`, **no healthchecks / resource limits / non-root user**:
+**Docker Compose** (`infra/docker/docker-compose.yml`) — local backing services with credentials supplied by the ignored `.env` file. MySQL, Redis, and RabbitMQ have readiness health checks; the stack still lacks resource limits and container hardening.
 
-| Service | Image | Ports | Credentials |
-| :--- | :--- | :--- | :--- |
-| MySQL | `mysql:8.4` | 3306 | root / `fieldforge_secret` (hardcoded) |
-| Redis | `redis:7.4-alpine` | 6379 | **none (no auth)** |
-| RabbitMQ | `rabbitmq:4.0-management-alpine` | 5672, 15672 | `guest` / `guest` |
-| Jaeger | `jaegertracing/all-in-one:latest` | 16686, 4317, 4318 | — |
+| Service  | Image                             | Default host ports | Credentials        |
+| :------- | :-------------------------------- | :----------------- | :----------------- |
+| MySQL    | `mysql:8.4`                       | 3306               | Required in `.env` |
+| Redis    | `redis:8.0-alpine`                | 6379               | Required in `.env` |
+| RabbitMQ | `rabbitmq:4.1-management-alpine`  | 5672, 15672        | Required in `.env` |
+| Jaeger   | `jaegertracing/all-in-one:latest` | 16686, 4317, 4318  | —                  |
 
-**Observability** (`docker-compose.observability.yml`) — Prometheus (`:9090`, mounts a `prometheus.yml` that **does not exist** in the repo) and Grafana (`3001:3000`, admin password `admin`). ⚠️ Grafana host port `3001` collides with `auth-service`.
+**Observability** (`docker-compose.observability.yml`) — Prometheus (`:9090`) has a minimal checked-in configuration and Grafana defaults to host `:3009` with credentials from `.env`. Application metric exporters and dashboards remain unimplemented.
 
-**Kubernetes** (`infra/k8s/`) — `base/` has `configmap`, `secrets` (⚠️ committed `JWT_SECRET`), and an `ingress` (host `api.fieldforge.io` → `api-gateway-service:3000`). `services/` has **5 Deployments** (no notification-service), all `:latest`, **no Service objects, probes, resource limits, securityContext, or `envFrom`**, so config/secrets never reach the pods. `helm/` is empty. No `kustomization.yaml`, no MySQL/Redis/RabbitMQ workloads.
+**Kubernetes** (`infra/k8s/`) — a root Kustomize file renders the current scaffold. The secret manifest is now an unapplied example only. The five Deployments still omit notification-service, Service objects, probes, resource limits, security contexts, `envFrom`, and backing-service workloads, so this is not deployable production infrastructure.
 
 **Terraform** (`infra/terraform/`) — AWS provider `~>5.0`; VPC via `terraform-aws-modules/vpc/aws`; S3 `fieldforge-deliverables-storage-<env>` with SSE (AES256) + versioning. ⚠️ **No remote backend/state locking**, no `aws_s3_bucket_public_access_block`, no EKS/security groups; `outputs.tf` exposes only `vpc_id`.
 
@@ -204,25 +207,25 @@ The guard is pure graph validation — it does **not** read the persisted status
 
 ## 10. Local development / quickstart
 
-> ⚠️ **Caveats before you run this:** `db:seed` currently fails (a seed PK exceeds `VARCHAR(36)`), the buyer portal is pinned to port `3000` (collides with the gateway; README says `5173`), and the services expose only health endpoints. See `ISSUES.md`.
+> **Caveat before you run this:** most services expose only scaffold behavior. See `ISSUES.md`.
 
 ```bash
-pnpm install
-pnpm docker:up          # MySQL, Redis, RabbitMQ, Jaeger  (observability is a separate compose file)
+cp .env.example .env
+pnpm setup              # install dependencies and start backing services
 pnpm db:migrate
-pnpm db:seed            # ⚠️ currently errors — see ISSUES.md #S1
+pnpm db:seed
 pnpm dev                # turbo run dev --parallel
 ```
 
-Intended endpoints: Buyer Portal `:5173`, API Gateway `:3000/api/v1`, RabbitMQ UI `:15672` (guest/guest), Jaeger `:16686`, Grafana `:3001` (admin/admin).
+Default endpoints: Buyer Portal `:5173`, API Gateway `:3000/api/v1`, RabbitMQ UI `:15672`, Jaeger `:16686`, Prometheus `:9090`, and Grafana `:3009`. Credentials come from `.env`.
 
 ---
 
 ## 11. CI/CD
 
-- **`ci-pipeline.yml`** — on push/PR to `main`/`develop`: pnpm install → `lint` → `test`. ⚠️ Every service's test script is `jest --passWithNoTests` with **zero test files**, so the gate always passes while the PR template asserts "≥90% coverage".
-- **`docker-build-push.yml`** — on `v*.*.*` tags: matrix `docker build` over the 6 services. ⚠️ Despite its name ("Build & Security Scan") it neither **pushes** nor **scans**; k8s pulls `:latest` images this pipeline never publishes.
-- **`k8s-deploy.yml`** — `workflow_dispatch`: `kubectl apply -k infra/k8s/base`. ⚠️ Broken — no `kustomization.yaml` exists, only `base/` (not `services/`) is targeted, and no cluster credentials are wired.
+- **`ci-pipeline.yml`** — on push/PR to `main`/`develop`: frozen install → formatting → lint → typecheck → tests → build → Compose validation. Jest still has zero real test files, and the PR template now states that honestly.
+- **`docker-build-push.yml`** — on `v*.*.*` tags: matrix `docker build` over six services. It neither pushes nor scans, and is named accordingly.
+- **`k8s-deploy.yml`** — renders the Kustomize scaffold only. Production deployment and cluster credentials are intentionally not configured.
 
 ---
 
@@ -230,36 +233,37 @@ Intended endpoints: Buyer Portal `:5173`, API Gateway `:3000/api/v1`, RabbitMQ U
 
 Legend: ✅ implemented · 🟡 partial/stub · ❌ absent
 
-| Capability | Status | Notes |
-| :--- | :---: | :--- |
-| Health probes (`/healthz`, `/readyz`) | ✅ | Via `@fieldforge/common` (all services except notification/auth) |
-| Shared contracts / DB schema / migration | ✅ | Types, Zod, Drizzle schema + one migration all present |
-| Geofence Haversine math (client) | ✅ | Correct; but mock inputs & client-only enforcement |
-| API Gateway JWT auth | ❌ | Guard always returns `true`, not registered; no JWT lib |
-| API Gateway proxy/routing | ❌ | No proxy wired; real paths 404 |
-| Rate limiting | ❌ | No throttler dependency |
-| auth-service endpoints (register/login/…) | ❌ | Module is empty; no DB/bcrypt/JWT usage |
-| Work-order persistence & transactions | ❌ | In-memory objects; no DB writes; no `db.transaction()` |
-| FSM enforcement against real state | 🟡 | Graph validation only; hardcoded DRAFT→PUBLISHED in `publish()` |
-| Server-side geofence enforcement | ❌ | Not present in work-order-service |
-| SLA watcher / 72 h auto-approval | ❌ | Service unregistered; no scheduler; breach logic bug |
-| Escrow lock/release correctness | ❌ | No state/amount/approval checks, no persistence, no idempotency |
-| RabbitMQ transport / bindings | ❌ | No transport attached; publishers/consumers are `console.log` |
-| Consumer idempotency / DLQ / retry | ❌ | None |
-| correlation-id over AMQP | ❌ | Events carry no `correlationId` |
-| Dispatch GEOSEARCH + scoring | 🟡→❌ | Returns 2 hardcoded techs; no Redis call, no scoring |
-| Notification channels (SMS/push/email) | 🟡 | SMS/push are `console.log`; module empty so unregistered; no email |
-| Buyer portal data / auth flow | 🟡 | Hardcoded Redux state, mock JWT, no API/RTK Query/router |
-| Mobile offline sync | 🟡→❌ | In-memory queue; `flushQueue()` **discards** items |
-| k8s deploy path | ❌ | No Services, missing kustomization, config not injected |
-| CI tests | ❌ | `--passWithNoTests`, zero tests |
-| Observability (Prometheus/OTEL) | 🟡 | Interceptor `console.log`s; `prometheus.yml` missing |
+| Capability                                | Status | Notes                                                              |
+| :---------------------------------------- | :----: | :----------------------------------------------------------------- |
+| Health probes (`/healthz`, `/readyz`)     |   ✅   | Via `@fieldforge/common` (all services except notification/auth)   |
+| Shared contracts / DB schema / migration  |   ✅   | Types, Zod, Drizzle schema + one migration all present             |
+| Geofence Haversine math (client)          |   ✅   | Correct; but mock inputs & client-only enforcement                 |
+| API Gateway JWT auth                      |   ❌   | Guard always returns `true`, not registered; no JWT lib            |
+| API Gateway proxy/routing                 |   ❌   | No proxy wired; real paths 404                                     |
+| Rate limiting                             |   ❌   | No throttler dependency                                            |
+| auth-service endpoints (register/login/…) |   ❌   | Module is empty; no DB/bcrypt/JWT usage                            |
+| Work-order persistence & transactions     |   ❌   | In-memory objects; no DB writes; no `db.transaction()`             |
+| FSM enforcement against real state        |   🟡   | Graph validation only; hardcoded DRAFT→PUBLISHED in `publish()`    |
+| Server-side geofence enforcement          |   ❌   | Not present in work-order-service                                  |
+| SLA watcher / 72 h auto-approval          |   ❌   | Service unregistered; no scheduler; breach logic bug               |
+| Escrow lock/release correctness           |   ❌   | No state/amount/approval checks, no persistence, no idempotency    |
+| RabbitMQ transport / bindings             |   ❌   | No transport attached; publishers/consumers are `console.log`      |
+| Consumer idempotency / DLQ / retry        |   ❌   | None                                                               |
+| correlation-id over AMQP                  |   ❌   | Events carry no `correlationId`                                    |
+| Dispatch GEOSEARCH + scoring              | 🟡→❌  | Returns 2 hardcoded techs; no Redis call, no scoring               |
+| Notification channels (SMS/push/email)    |   🟡   | SMS/push are `console.log`; module empty so unregistered; no email |
+| Buyer portal data / auth flow             |   🟡   | Hardcoded Redux state, mock JWT, no API/RTK Query/router           |
+| Mobile offline sync                       | 🟡→❌  | In-memory queue; `flushQueue()` **discards** items                 |
+| k8s deploy path                           |   ❌   | No Services, missing kustomization, config not injected            |
+| CI tests                                  |   ❌   | `--passWithNoTests`, zero tests                                    |
+| Observability (Prometheus/OTEL)           |   🟡   | Interceptor `console.log`s; `prometheus.yml` missing               |
 
 ---
 
 ## 13. Conventions & guardrails
 
 Codified under `.agent/` and `.cursorrules`:
+
 - `RULE-ARCH-01` — bounded contexts, no cross-service DB access, contracts as single source of truth.
 - `RULE-DB-02` — InnoDB/utf8mb4, UUID v4 `VARCHAR(36)` PKs, `db.transaction()` + `SELECT … FOR UPDATE` for multi-table state changes, composite `(status, scheduled_start_time)` index.
 - `RULE-EVENT-03` — topic exchange `fieldforge.events.topic`, `<domain>.<entity>.<action>` keys, idempotent consumers (7-day TTL), DLQ + exponential backoff (max 3 retries).

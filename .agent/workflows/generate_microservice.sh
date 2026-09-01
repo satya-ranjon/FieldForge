@@ -8,8 +8,20 @@ if [ -z "$SERVICE_NAME" ]; then
   exit 1
 fi
 
-TARGET_DIR="apps/${SERVICE_NAME}"
+if [[ ! "${SERVICE_NAME}" =~ ^[a-z][a-z0-9-]*$ ]]; then
+  echo "Service names must use lowercase kebab-case."
+  exit 1
+fi
 
-echo "🚀 Generating new microservice: ${SERVICE_NAME} in ${TARGET_DIR}..."
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
+TARGET_DIR="${PROJECT_ROOT}/apps/${SERVICE_NAME}"
+
+if [ -e "${TARGET_DIR}" ]; then
+  echo "Refusing to overwrite existing path: ${TARGET_DIR}"
+  exit 1
+fi
+
+echo "Creating a directory skeleton for ${SERVICE_NAME} in ${TARGET_DIR}..."
 mkdir -p "${TARGET_DIR}/src/modules" "${TARGET_DIR}/test"
-echo "✅ Microservice scaffold ready."
+echo "Skeleton created. Add package metadata, NestJS bootstrap, ownership, and tests before use."

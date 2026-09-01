@@ -1,12 +1,14 @@
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
-import { Observable } from 'rxjs';
+import type { NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import type { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
+import type { Request } from 'express';
 
 @Injectable()
 export class MetricsInterceptor implements NestInterceptor {
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const startTime = Date.now();
-    const req = context.switchToHttp().getRequest();
+    const req = context.switchToHttp().getRequest<Request>();
     const { method, url } = req;
 
     return next.handle().pipe(
@@ -18,9 +20,10 @@ export class MetricsInterceptor implements NestInterceptor {
             console.log(`[APM Metric] ${method} ${url} - ${duration}ms (SLI bound)`);
           }
         },
-        error: (err: any) => {
+        error: (error: unknown) => {
           const duration = Date.now() - startTime;
-          console.error(`[APM Error Metric] ${method} ${url} - ${duration}ms: ${err?.message || err}`);
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error(`[APM Error Metric] ${method} ${url} - ${duration}ms: ${errorMessage}`);
         }
       })
     );

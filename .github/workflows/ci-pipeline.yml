@@ -1,4 +1,4 @@
-name: CI Pipeline
+name: CI
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [main, develop]
 
 jobs:
-  lint-and-test:
+  quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,13 +17,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: 'pnpm'
+          cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint all workspaces
-        run: pnpm run lint
+      - name: Run formatting, lint, type, and test checks
+        run: pnpm check
 
-      - name: Run Unit & Integration Tests
-        run: pnpm run test
+      - name: Build all implemented workspaces
+        run: pnpm build
+
+      - name: Validate local infrastructure configuration
+        run: pnpm infra:config

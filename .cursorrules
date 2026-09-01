@@ -1,5 +1,9 @@
 # FieldForge Agent Directives & Guardrails
 
+Read `AGENTS.md` first. It defines the source-of-truth order, project phase,
+standard commands, and definition of done. The rules below are a compatibility
+summary for tools that load only this file.
+
 ## Core Principles
 1. **Microservice Isolation**: Keep service domains decoupled. Never query another service's database directly. Communicate via API Gateway or RabbitMQ topic events.
 2. **ACID & Drizzle**: Use MySQL 8 + Drizzle ORM for all transactional relational data. Wrap multi-table state transitions in explicit transactions.

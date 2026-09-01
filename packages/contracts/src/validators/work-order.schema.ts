@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { WorkOrderStatus, BudgetType } from '../enums';
+import { BudgetType } from '../enums';
 
 export const createWorkOrderSchema = z.object({
   buyerId: z.string().uuid(),

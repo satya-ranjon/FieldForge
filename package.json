@@ -4,28 +4,35 @@
   "private": true,
   "description": "Enterprise Field Service Management & Autonomous Dispatch Monorepo",
   "scripts": {
+    "setup": "./scripts/setup-dev.sh",
     "build": "turbo run build",
     "dev": "turbo run dev --parallel",
-    "lint": "turbo run lint",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "format": "prettier --write . --ignore-unknown",
+    "format:check": "prettier --check . --ignore-unknown",
     "db:generate": "pnpm --filter @fieldforge/database db:generate",
     "db:migrate": "pnpm --filter @fieldforge/database db:migrate",
     "db:seed": "pnpm --filter @fieldforge/database db:seed",
-    "docker:up": "docker compose -f infra/docker/docker-compose.yml up -d",
-    "docker:down": "docker compose -f infra/docker/docker-compose.yml down",
+    "infra:config": "docker compose --env-file .env.example -f infra/docker/docker-compose.yml -f infra/docker/docker-compose.observability.yml config --quiet",
+    "docker:up": "docker compose --env-file .env -f infra/docker/docker-compose.yml -f infra/docker/docker-compose.observability.yml up -d --wait",
+    "docker:down": "docker compose --env-file .env -f infra/docker/docker-compose.yml -f infra/docker/docker-compose.observability.yml down",
+    "docker:logs": "docker compose --env-file .env -f infra/docker/docker-compose.yml -f infra/docker/docker-compose.observability.yml logs -f",
     "clean": "turbo run clean && rm -rf node_modules"
   },
   "devDependencies": {
     "@fieldforge/eslint-config": "workspace:*",
     "@fieldforge/tsconfig": "workspace:*",
+    "eslint": "^10.9.1",
     "prettier": "^3.9.6",
     "turbo": "^2.10.12",
     "typescript": "^5.7.3"
   },
   "packageManager": "pnpm@11.24.0",
   "engines": {
-    "node": ">=24.0.0",
-    "pnpm": ">=11.0.0"
+    "node": ">=24.0.0 <25",
+    "pnpm": ">=11.0.0 <12"
   }
 }

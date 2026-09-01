@@ -1,5 +1,5 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
-import { CreateDeliverableDto, DeliverableType } from '@fieldforge/contracts';
+import { Injectable } from '@nestjs/common';
+import { DeliverableType } from '@fieldforge/contracts';
 import { randomUUID, createHash } from 'crypto';
 
 @Injectable()
@@ -23,7 +23,9 @@ export class DeliverablesService {
    * Cryptographically verify and record digital signature proof of work (FR-MOB-003)
    */
   async recordSignatureDeliverable(workOrderId: string, signatureSvg: string, clientName: string) {
-    const signatureHash = createHash('sha256').update(signatureSvg + clientName + Date.now()).digest('hex');
+    const signatureHash = createHash('sha256')
+      .update(signatureSvg + clientName + Date.now())
+      .digest('hex');
     const key = `work-orders/${workOrderId}/signature/${randomUUID()}.svg`;
     const s3Url = `https://fieldforge-deliverables-s3.s3.amazonaws.com/${key}`;
 

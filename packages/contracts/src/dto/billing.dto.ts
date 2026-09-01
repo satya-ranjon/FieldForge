@@ -1,4 +1,4 @@
-import { EscrowStatus } from '../enums';
+import type { EscrowStatus } from '../enums';
 
 export interface PreAuthEscrowDto {
   workOrderId: string;

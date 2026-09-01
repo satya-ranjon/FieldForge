@@ -6,8 +6,12 @@ export const SowBuilder: React.FC = () => {
 
   return (
     <div className="bg-slate-800 rounded-xl p-5 border border-slate-700">
-      <h3 className="text-lg font-semibold text-white mb-2">Scope of Work (SOW) Template Builder</h3>
-      <p className="text-sm text-slate-400 mb-4">Define standardized deliverables, required tools, and check-in milestones.</p>
+      <h3 className="text-lg font-semibold text-white mb-2">
+        Scope of Work (SOW) Template Builder
+      </h3>
+      <p className="text-sm text-slate-400 mb-4">
+        Define standardized deliverables, required tools, and check-in milestones.
+      </p>
       <textarea
         value={scope}
         onChange={(e) => setScope(e.target.value)}
@@ -16,7 +20,9 @@ export const SowBuilder: React.FC = () => {
         className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none"
       />
       <div className="mt-4 flex justify-end">
-        <Button variant="primary" size="sm">Save SOW Standard</Button>
+        <Button variant="primary" size="sm">
+          Save SOW Standard
+        </Button>
       </div>
     </div>
   );

@@ -16,17 +16,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f172a',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    padding: 20
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#38bdf8',
-    marginBottom: 8,
+    marginBottom: 8
   },
   subtitle: {
     fontSize: 14,
     color: '#94a3b8',
-    textAlign: 'center',
-  },
+    textAlign: 'center'
+  }
 });

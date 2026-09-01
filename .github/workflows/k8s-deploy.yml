@@ -1,19 +1,27 @@
-name: Kubernetes GitOps Deployment
+name: Kubernetes Scaffold Check
 
 on:
+  push:
+    paths:
+      - 'infra/k8s/**'
+      - '.github/workflows/k8s-deploy.yml'
+  pull_request:
+    paths:
+      - 'infra/k8s/**'
+      - '.github/workflows/k8s-deploy.yml'
   workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Target Environment (staging/production)'
-        required: true
-        default: 'staging'
 
 jobs:
-  deploy:
+  render:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Deploy via Helm
+      - name: Render the Kustomize scaffold
         run: |
-          echo "Deploying FieldForge to ${{ github.event.inputs.environment }} cluster..."
-          kubectl apply -k infra/k8s/base
+          kubectl kustomize infra/k8s > /tmp/fieldforge-k8s.yaml
+          test -s /tmp/fieldforge-k8s.yaml
+
+      - name: Report deployment status
+        run: |
+          echo 'The current Kubernetes files are a scaffold only.'
+          echo 'Cluster authentication and production deployment are intentionally not configured.'

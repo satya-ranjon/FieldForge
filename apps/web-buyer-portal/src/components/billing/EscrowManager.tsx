@@ -14,8 +14,12 @@ export const EscrowManager: React.FC = () => {
         Funds are securely held in escrow until deliverables and manager sign-offs are verified.
       </p>
       <div className="flex space-x-3">
-        <Button variant="primary" size="sm">Pre-Authorize Funds</Button>
-        <Button variant="secondary" size="sm">Download Tax Invoices</Button>
+        <Button variant="primary" size="sm">
+          Pre-Authorize Funds
+        </Button>
+        <Button variant="secondary" size="sm">
+          Download Tax Invoices
+        </Button>
       </div>
     </div>
   );

@@ -1,14 +1,23 @@
 import { Injectable } from '@nestjs/common';
-import { NearbyTechnicianDto } from '@fieldforge/contracts';
+import type { NearbyTechnicianDto } from '@fieldforge/contracts';
 
 @Injectable()
 export class GeoSearchService {
-  async updateTechnicianLocation(techId: string, latitude: number, longitude: number): Promise<void> {
+  async updateTechnicianLocation(
+    techId: string,
+    latitude: number,
+    longitude: number
+  ): Promise<void> {
     // In production: Redis GEOADD tech:locations longitude latitude techId
     console.log(`[Redis GEOADD] tech:locations ${longitude} ${latitude} ${techId}`);
   }
 
-  async findNearbyTechnicians(latitude: number, longitude: number, radiusMiles = 25): Promise<NearbyTechnicianDto[]> {
+  async findNearbyTechnicians(
+    latitude: number,
+    longitude: number,
+    radiusMiles = 25
+  ): Promise<NearbyTechnicianDto[]> {
+    void radiusMiles; // Redis GEOSEARCH is intentionally not implemented in the scaffold.
     // In production: Redis GEOSEARCH tech:locations FROMLONLAT lng lat BYRADIUS radius mi WITHDIST WITHCOORD
     return [
       {

@@ -1,5 +1,3 @@
-import { BidStatus } from '../enums';
-
 export interface SubmitBidDto {
   workOrderId: string;
   techId: string;

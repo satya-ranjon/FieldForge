@@ -1,11 +1,16 @@
-# 📱 Mobile & React Native Directives
+# Mobile and React Native Directives
+
 > **Rule ID:** `RULE-MOB-05` • **Priority:** `HIGH`
 
----
+## Offline-first architecture
 
-### 1. Offline First Architecture
-- Cache active gig deliverables in local SQLite storage when network connectivity drops.
-- Flush queued mutations automatically upon network restoration.
+- Persist active-gig deliverables locally when network connectivity drops.
+- Flush queued mutations automatically when connectivity returns.
+- Remove a queued mutation only after the server confirms success.
 
-### 2. GPS Geofencing Verification
-- Check-in transitions (`ON_SITE`) require Haversine distance verification $\le 100	ext{m}$ from the work site coordinates.
+## GPS geofencing verification
+
+- `ON_SITE` requires server-authoritative Haversine verification within 200
+  metres of the stored work-site coordinates (FR-MOB-001).
+- Mobile verification improves the user experience but is not an authorization
+  or anti-fraud boundary.
