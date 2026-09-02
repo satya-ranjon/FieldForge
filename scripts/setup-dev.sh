@@ -19,7 +19,7 @@ if [ "${NODE_MAJOR}" != "24" ]; then
 fi
 
 docker compose version >/dev/null
-docker info >/dev/null
+"${SCRIPT_DIR}/ensure-docker.sh"
 
 if [ ! -f .env ]; then
   cp .env.example .env
