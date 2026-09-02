@@ -16,4 +16,4 @@ spec:
         - name: work-order-service
           image: fieldforge/work-order-service:latest
           ports:
-            - containerPort: 3002
+            - containerPort: 5002

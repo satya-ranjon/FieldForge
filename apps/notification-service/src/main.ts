@@ -6,7 +6,7 @@ class NotificationModule {}
 
 async function bootstrap() {
   const app = await NestFactory.create(NotificationModule);
-  const port = process.env.PORT || 3005;
+  const port = process.env.PORT || 5005;
   await app.listen(port);
   console.log(`🔔 FieldForge Notification Service running on port ${port}`);
 }

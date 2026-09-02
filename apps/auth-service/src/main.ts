@@ -3,7 +3,7 @@ import { AuthModule } from './auth.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AuthModule);
-  const port = process.env.PORT || 3001;
+  const port = process.env.PORT || 5001;
   await app.listen(port);
   console.log(`🔐 FieldForge Auth Service running on port ${port}`);
 }

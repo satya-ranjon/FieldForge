@@ -16,4 +16,4 @@ spec:
         - name: dispatch-service
           image: fieldforge/dispatch-matching-service:latest
           ports:
-            - containerPort: 3003
+            - containerPort: 5003
