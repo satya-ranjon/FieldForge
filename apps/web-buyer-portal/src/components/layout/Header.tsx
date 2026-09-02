@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Zap,
   Activity,
@@ -9,10 +9,15 @@ import {
   Radio,
   Wallet,
   Clock,
-  ChevronDown
+  ChevronDown,
+  LogIn,
+  LogOut,
+  User as UserIcon,
+  Check
 } from 'lucide-react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { formatMinor } from '@fieldforge/contracts';
+import { logout } from '../../store/slices/authSlice';
 import type { RootState } from '../../store';
 
 export type NavTab = 'operations' | 'create-wo' | 'technicians' | 'billing' | 'audit';
@@ -20,9 +25,25 @@ export type NavTab = 'operations' | 'create-wo' | 'technicians' | 'billing' | 'a
 interface HeaderProps {
   activeTab: NavTab;
   onSelectTab: (tab: NavTab) => void;
+  onOpenAuth?: (mode?: 'login' | 'register') => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab }) => {
+export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab, onOpenAuth }) => {
+  const dispatch = useDispatch();
+  const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const workOrders = useSelector((state: RootState) => state.workOrders.items);
   const totalLockedMinor = useSelector((state: RootState) => state.billing.totalLockedMinor);
   const activeCount = workOrders.filter(
@@ -177,15 +198,76 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab }) => {
           })}
         </nav>
 
-        {/* User Identity & Avatar */}
-        <div className="flex items-center space-x-3 shrink-0 pl-2">
-          <div className="text-right hidden sm:block">
-            <div className="text-xs font-semibold text-slate-200 leading-tight">Satya Ranjan</div>
-            <div className="text-[10px] text-blue-400 font-mono">BUYER_ADMIN</div>
-          </div>
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-700 to-indigo-600 border border-blue-400/40 flex items-center justify-center font-bold text-xs text-white shadow-sm shadow-black/50 ring-2 ring-blue-500/10">
-            SR
-          </div>
+        {/* User Identity & Avatar / Sign In */}
+        <div className="relative shrink-0 pl-2" ref={menuRef}>
+          {isAuthenticated && user ? (
+            <div>
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="flex items-center space-x-2.5 p-1 rounded-xl hover:bg-slate-800/60 transition cursor-pointer select-none text-left"
+                aria-expanded={showUserMenu}
+                aria-haspopup="true"
+              >
+                <div className="text-right hidden sm:block">
+                  <div className="text-xs font-semibold text-slate-200 leading-tight">
+                    {user.companyName || user.fullName || user.email.split('@')[0]}
+                  </div>
+                  <div className="text-[10px] text-blue-400 font-mono font-medium">{user.role}</div>
+                </div>
+                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-700 to-indigo-600 border border-blue-400/40 flex items-center justify-center font-bold text-xs text-white shadow-sm shadow-black/50 ring-2 ring-blue-500/10">
+                  {user.fullName
+                    ? user.fullName.substring(0, 2).toUpperCase()
+                    : user.email.substring(0, 2).toUpperCase()}
+                </div>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
+              </button>
+
+              {/* User Dropdown Menu */}
+              {showUserMenu && (
+                <div className="absolute right-0 mt-2 w-64 rounded-xl bg-[#0f172a] border border-slate-800 shadow-2xl shadow-blue-950/40 p-2 z-50 text-xs animate-in fade-in zoom-in-95 duration-100">
+                  <div className="p-2 border-b border-slate-800/80 space-y-1">
+                    <div className="font-semibold text-slate-200 truncate">
+                      {user.companyName || user.fullName}
+                    </div>
+                    <div className="text-slate-400 text-[11px] truncate flex items-center gap-1 font-mono">
+                      <UserIcon className="w-3 h-3 text-blue-400" />
+                      {user.email}
+                    </div>
+                    <div className="flex items-center gap-1.5 pt-1">
+                      <span className="text-[10px] uppercase font-mono px-1.5 py-0.2 rounded bg-blue-950 text-blue-400 border border-blue-800/60 font-semibold">
+                        {user.role}
+                      </span>
+                      <span className="text-[10px] text-emerald-400 flex items-center gap-1">
+                        <Check className="w-3 h-3" />
+                        Active Session
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="p-1 pt-2">
+                    <button
+                      onClick={() => {
+                        dispatch(logout());
+                        setShowUserMenu(false);
+                      }}
+                      className="w-full flex items-center space-x-2 px-2.5 py-2 rounded-lg text-rose-400 hover:bg-rose-950/40 hover:text-rose-300 transition text-left cursor-pointer font-medium"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={() => onOpenAuth?.('login')}
+              className="flex items-center space-x-2 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs shadow-md shadow-blue-600/30 transition cursor-pointer"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span>Sign In</span>
+            </button>
+          )}
         </div>
       </div>
     </header>

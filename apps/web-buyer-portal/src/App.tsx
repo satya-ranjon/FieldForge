@@ -8,10 +8,18 @@ import { TechnicianMatchingRadar } from './components/dispatch/TechnicianMatchin
 import { SowBuilder } from './components/work-orders/SowBuilder';
 import { EscrowManager } from './components/billing/EscrowManager';
 import { SlaAuditView } from './components/audit/SlaAuditView';
+import { AuthModal } from './components/auth/AuthModal';
 import { ShieldCheck, CheckCircle } from 'lucide-react';
 
 const BuyerPortalContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<NavTab>('operations');
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
+
+  const handleOpenAuth = (mode?: 'login' | 'register') => {
+    setAuthModalMode(mode || 'login');
+    setIsAuthModalOpen(true);
+  };
 
   return (
     <div className="min-h-screen bg-[#090d16] text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white relative overflow-x-hidden">
@@ -19,7 +27,14 @@ const BuyerPortalContent: React.FC = () => {
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-96 bg-radial from-blue-600/10 via-cyan-500/5 to-transparent pointer-events-none blur-3xl z-0" />
 
       {/* Enterprise Header with Telemetry Bar */}
-      <Header activeTab={activeTab} onSelectTab={setActiveTab} />
+      <Header activeTab={activeTab} onSelectTab={setActiveTab} onOpenAuth={handleOpenAuth} />
+
+      {/* Authentication Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        initialMode={authModalMode}
+      />
 
       {/* Main Command Center Canvas */}
       <main className="flex-1 max-w-[1536px] w-full mx-auto p-3 sm:p-5 lg:p-6 space-y-5 sm:space-y-6 relative z-10">
