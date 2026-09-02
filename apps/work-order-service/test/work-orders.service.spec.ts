@@ -1,4 +1,4 @@
-import { EVENT_EXCHANGE, EventType, WorkOrderStatus } from '@fieldforge/contracts';
+import { BudgetType, EVENT_EXCHANGE, EventType, WorkOrderStatus } from '@fieldforge/contracts';
 import type { WorkOrderPublishedEvent } from '@fieldforge/contracts';
 import { WorkOrderEventPublisher } from '../src/events/work-order-event.publisher';
 import { WorkOrderFsmService } from '../src/modules/fsm/work-order-fsm.service';
@@ -21,7 +21,7 @@ describe('WorkOrdersService', () => {
       title: 'Emergency POS Terminal Swap',
       description: 'Replace the failed lane 3 terminal and verify the payment path.',
       category: 'POS Hardware',
-      budgetType: 'FIXED' as const,
+      budgetType: BudgetType.FIXED,
       budgetAmountMinor: 45000,
       addressLine: '1 Market St, San Francisco, CA',
       latitude: 37.7749,
