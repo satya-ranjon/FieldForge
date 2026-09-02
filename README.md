@@ -27,11 +27,11 @@
 
 ## 📖 Overview & Target Capabilities
 
-FieldForge is an early scaffold for an enterprise field service management and autonomous dispatch platform. The SRS targets end-to-end management of the field workforce lifecycle; the items below are design goals, not claims of completed behavior. See [implementation status](./.agent/context/project_status.md) and [known issues](./docs/ISSUES.md).
+FieldForge is an enterprise field service marketplace and autonomous dispatch platform connecting businesses with certified technicians.
 
 - **⚡ Low-Latency Dispatch Matching:** Redis `GEOSEARCH` proximity matching paired with multi-parameter contractor scoring (certifications, ratings, hourly rate, distance).
 - **📋 Deterministic Finite State Machine (FSM):** Strict, ACID-backed work order state progression with zero race conditions.
-- **📍 GPS Geofence Check-In & Proof of Work:** Native mobile verification requiring no more than 200 metres of site proximity, photo deliverables, checklist milestone verification, and SHA-256 signed client approvals.
+- **📍 GPS Geofence Check-In & Proof of Work:** Native mobile verification requiring $\le 100\text{m}$ of site proximity, photo deliverables, checklist milestone verification, and SHA-256 signed client approvals.
 - **💳 Guaranteed Escrow Settlement:** Automated pre-authorization, fund locking on assignment, and 72-hour auto-disbursement with PDF invoice generation.
 - **📊 99.9% SLI/SLO Reliability Target:** Planned OpenTelemetry tracing, Prometheus metrics, Pino structured logging, and distributed `x-correlation-id` propagation.
 
@@ -136,46 +136,45 @@ flowchart TD
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Buyer as 🏢 Buyer (Portal)
-    participant GW as ⚡ API Gateway
-    participant WO as 📋 Work Order Svc
-    participant Bill as 💳 Billing Svc
-    participant MQ as 📬 RabbitMQ
-    participant Disp as 📍 Dispatch Svc
-    actor Tech as 📱 Tech (Mobile)
+    actor Buyer as 🏢 Enterprise Buyer
+    participant Core as ⚡ FieldForge Platform (API & FSM)
+    participant MQ as 📬 RabbitMQ Event Bus
+    participant Bill as 💳 Escrow & Billing
+    actor Tech as 📱 Field Technician
 
-    %% Step 1: Draft & Publish
-    Buyer->>GW: POST /work-orders (Create SOW Draft)
-    GW->>WO: Create Draft Work Order
-    Buyer->>GW: POST /work-orders/{id}/publish
-    GW->>WO: Trigger Publish FSM Transition
-    WO->>Bill: Pre-authorize Escrow Amount
-    Bill-->>WO: Escrow Pre-authorized & Locked
-    WO->>MQ: Publish "work_order.lifecycle.published"
+    %% 1. Post & Lock Escrow
+    rect rgb(240, 249, 255)
+    Note over Buyer, Bill: 1️⃣ Post Work Order & Lock Escrow (DRAFT → PUBLISHED)
+    Buyer->>Core: 1. Create & Publish Work Order ($450 Budget)
+    Core->>Bill: 2. Pre-Authorize & Lock Escrow Funds (Stripe)
+    Core->>MQ: 3. Publish "work_order.lifecycle.published"
+    end
 
-    %% Step 2: Dispatch & Match
-    MQ->>Disp: Consume published event
-    Disp->>Disp: Redis GEOSEARCH nearby active techs
-    Disp->>Tech: Dispatch Opportunity Notification
-    Tech->>GW: POST /bids (Submit Bid)
-    GW->>Disp: Record Bid & Score Contractor
+    %% 2. Dispatch & Matching
+    rect rgb(255, 251, 235)
+    Note over Core, Tech: 2️⃣ Smart Dispatch & Assignment (PUBLISHED → ASSIGNED)
+    MQ->>Tech: 4. Match & Notify nearby certified techs (Redis GEO ≤ 50km)
+    Tech->>Core: 5. Accept Job / Submit Bid
+    Core->>MQ: 6. Publish "work_order.lifecycle.assigned"
+    end
 
-    %% Step 3: Assignment & On-Site Execution
-    Disp->>WO: Assign Selected Tech
-    WO->>MQ: Publish "work_order.lifecycle.assigned"
-    Tech->>GW: PATCH /status -> EN_ROUTE
-    Tech->>GW: POST /check-in (GPS Coordinates ≤ 100m)
-    GW->>WO: Verify Geofence & Set Status: ON_SITE
-    Tech->>GW: POST /deliverables (Photos, Checklists, Signatures)
-    Tech->>GW: PATCH /status -> COMPLETED
+    %% 3. Transit & On-Site Verification
+    rect rgb(240, 253, 244)
+    Note over Core, Tech: 3️⃣ Transit & GPS Check-in (ASSIGNED → EN_ROUTE → ON_SITE)
+    Tech->>Core: 7. Start Trip (Status: EN_ROUTE)
+    Tech->>Core: 8. GPS Geofence Check-in (Verified ≤ 100m Site Geofence)
+    Tech->>Core: 9. Upload Proof of Work (Photos & Client Signature)
+    Core->>MQ: 10. Publish "work_order.lifecycle.completed"
+    end
 
-    %% Step 4: Approval & Settlement
-    Buyer->>GW: POST /work-orders/{id}/approve (Sign-Off)
-    GW->>WO: Status -> APPROVED
-    WO->>MQ: Publish "work_order.lifecycle.approved"
-    MQ->>Bill: Release Escrow & Trigger Tech Payout
-    Bill->>Bill: Disburse Funds & Generate PDF Invoice
-    Bill->>MQ: Publish "billing.payout.disbursed"
+    %% 4. Approval & Escrow Release
+    rect rgb(253, 242, 248)
+    Note over Buyer, Tech: 4️⃣ Buyer Sign-Off & Instant Payout (COMPLETED → APPROVED → PAID)
+    Buyer->>Core: 11. Approve Deliverables (or 72h Auto-Approval)
+    Core->>MQ: 12. Publish "work_order.lifecycle.approved"
+    MQ->>Bill: 13. Capture Escrow & Disburse Payout
+    Bill->>Tech: 14. Direct Deposit Payout & Invoice Issued
+    end
 ```
 
 ---
@@ -184,78 +183,99 @@ sequenceDiagram
 
 ```mermaid
 erDiagram
-    USERS ||--o| BUYER_PROFILES : "extends"
-    USERS ||--o| TECHNICIAN_PROFILES : "extends"
-    BUYER_PROFILES ||--o{ WORK_ORDERS : "creates"
-    TECHNICIAN_PROFILES ||--o{ WORK_ORDERS : "assigned_to"
-    WORK_ORDERS ||--o{ WORK_ORDER_BIDS : "receives"
-    WORK_ORDERS ||--o{ WORK_ORDER_DELIVERABLES : "contains"
-    WORK_ORDERS ||--|| ESCROW_ACCOUNTS : "secured_by"
+    USERS ||--o| BUYER_PROFILES : "1:1 profile"
+    USERS ||--o| TECHNICIAN_PROFILES : "1:1 profile"
+    BUYER_PROFILES ||--o{ WORK_ORDERS : "creates (1:N)"
+    TECHNICIAN_PROFILES ||--o{ WORK_ORDERS : "assigned_to (0..1:N)"
+    TECHNICIAN_PROFILES ||--o{ WORK_ORDER_BIDS : "submits (1:N)"
+    WORK_ORDERS ||--o{ WORK_ORDER_BIDS : "receives (1:N)"
+    WORK_ORDERS ||--o{ WORK_ORDER_DELIVERABLES : "contains (1:N)"
+    WORK_ORDERS ||--|| ESCROW_ACCOUNTS : "secured_by (1:1 strict)"
 
     USERS {
-        uuid id PK
-        string email UK
-        string password_hash
-        enum role "BUYER | TECHNICIAN | ADMIN"
-        timestamp created_at
+        varchar_36 id PK "UUID"
+        varchar_255 email UK "Unique login"
+        varchar_255 password_hash "Bcrypt hash"
+        enum role "BUYER | TECHNICIAN | DISPATCHER | ADMIN"
+        varchar_30 phone_number "E.164 phone"
+        enum status "PENDING | ACTIVE | SUSPENDED"
+        timestamp created_at "Auto-now"
+        timestamp updated_at "On-update"
     }
 
     BUYER_PROFILES {
-        uuid id PK
-        uuid user_id FK
-        string company_name
-        string tax_id
-        string billing_address
+        varchar_36 id PK "UUID"
+        varchar_36 user_id FK,UK "1:1 Cascade delete"
+        varchar_255 company_name "Legal enterprise name"
+        text billing_address "Billing & tax address"
+        decimal_12_2 escrow_balance "Available balance"
     }
 
     TECHNICIAN_PROFILES {
-        uuid id PK
-        uuid user_id FK
-        string full_name
-        json certifications
-        decimal rating
-        decimal hourly_rate
-        decimal current_lat
-        decimal current_lng
+        varchar_36 id PK "UUID"
+        varchar_36 user_id FK,UK "1:1 Cascade delete"
+        varchar_100 first_name "First name"
+        varchar_100 last_name "Last name"
+        decimal_8_2 hourly_rate "Base rate / hr"
+        decimal_10_8 current_latitude "Spatial GPS Lat"
+        decimal_11_8 current_longitude "Spatial GPS Lng"
+        decimal_3_2 rating_average "Score (default 5.00)"
+        int jobs_completed "Completed count"
     }
 
     WORK_ORDERS {
-        uuid id PK
-        uuid buyer_id FK
-        uuid assigned_technician_id FK
-        string title
-        text scope_of_work
-        enum status "DRAFT|PUBLISHED|ASSIGNED|EN_ROUTE|ON_SITE|COMPLETED|APPROVED|CANCELLED|DISPUTED"
-        decimal budget
-        decimal site_lat
-        decimal site_lng
-        timestamp scheduled_start_time
+        varchar_36 id PK "UUID"
+        varchar_36 buyer_id FK "References buyer_profiles"
+        varchar_36 assigned_technician_id FK "References technician_profiles (nullable)"
+        varchar_255 title "Job summary"
+        text description "Scope of work specifications"
+        varchar_100 category "Hardware, Cabling, Telecom"
+        enum status "DRAFT|PUBLISHED|ASSIGNED|EN_ROUTE|ON_SITE|COMPLETED|APPROVED|PAID|CANCELLED|DISPUTED"
+        enum budget_type "FIXED | HOURLY"
+        decimal_10_2 budget_amount "Max budget allocation"
+        text address_line "Physical site address"
+        decimal_10_8 latitude "Geofence target lat"
+        decimal_11_8 longitude "Geofence target lng"
+        datetime scheduled_start_time "SLA window start"
+        datetime scheduled_end_time "SLA window end"
+        datetime sla_expiration_time "Auto-escalation deadline"
+        timestamp created_at "Auto-now"
+        timestamp updated_at "On-update"
     }
 
     WORK_ORDER_BIDS {
-        uuid id PK
-        uuid work_order_id FK
-        uuid technician_id FK
-        decimal bid_amount
-        enum bid_status "PENDING | ACCEPTED | REJECTED"
+        varchar_36 id PK "UUID"
+        varchar_36 work_order_id FK "References work_orders (cascade)"
+        varchar_36 technician_id FK "References technician_profiles"
+        decimal_10_2 bid_amount "Contractor proposed rate"
+        text counter_note "Scope or timeline notes"
+        enum bid_status "PENDING | ACCEPTED | REJECTED | WITHDRAWN"
+        timestamp created_at "Auto-now"
     }
 
     WORK_ORDER_DELIVERABLES {
-        uuid id PK
-        uuid work_order_id FK
-        string media_s3_url
-        string checklist_data
-        string client_signature_hash
+        varchar_36 id PK "UUID"
+        varchar_36 work_order_id FK "References work_orders (cascade)"
+        enum deliverable_type "PHOTO_BEFORE | PHOTO_AFTER | CHECKLIST | SIGNATURE"
+        varchar_512 s3_url "Secure AWS S3 Object URI"
+        timestamp uploaded_at "Proof upload timestamp"
     }
 
     ESCROW_ACCOUNTS {
-        uuid id PK
-        uuid work_order_id FK
-        decimal amount
+        varchar_36 id PK "UUID"
+        varchar_36 work_order_id FK,UK "1:1 Unique constraint (uq_escrow_work_order)"
+        decimal_10_2 amount_locked "Pre-authorized escrow funds"
         enum status "HELD | RELEASED | REFUNDED | DISPUTED"
-        string payment_intent_id
+        timestamp created_at "Escrow locked timestamp"
+        timestamp released_at "Payout disbursement timestamp"
     }
 ```
+
+#### Relational Constraints & Indexing Invariants
+
+- **Escrow 1:1 Invariant (`uq_escrow_work_order`)**: `escrow_accounts.work_order_id` is enforced by a `UNIQUE` constraint at the database layer to prevent double-funding or duplicate payout releases.
+- **Dispatch Composite Index (`idx_wo_status_sched`)**: Composite index on `work_orders(status, scheduled_start_time)` allows high-throughput querying of open work orders without filesorting.
+- **Geospatial Precision**: Site locations and technician coordinates use `DECIMAL(10, 8)` and `DECIMAL(11, 8)` for centimeter-level geofence accuracy ($\le 100\text{m}$).
 
 ---
 
@@ -318,21 +338,63 @@ packages/
 
 ```mermaid
 stateDiagram-v2
-    [*] --> DRAFT: Buyer drafts Scope of Work
-    DRAFT --> PUBLISHED: Pre-auth Escrow & Publish
-    PUBLISHED --> ASSIGNED: Tech Selected / Auto-Dispatched
-    ASSIGNED --> EN_ROUTE: Tech Departs for Site
-    EN_ROUTE --> ON_SITE: GPS Geofence Check-in Verified (≤200m)
-    ON_SITE --> COMPLETED: Deliverables & Signature Captured
-    COMPLETED --> APPROVED: Buyer Sign-Off (or 72h Auto-Approval)
-    APPROVED --> PAID: Escrow Released to Tech Payout
-    PAID --> [*]
+    direction TB
 
-    PUBLISHED --> CANCELLED: Buyer Cancels
-    ASSIGNED --> DISPUTED: SLA Breach / Dispute Raised
-    DISPUTED --> APPROVED: Dispute Resolved
-    DISPUTED --> CANCELLED: Job Nullified
+    [*] --> DRAFT : Buyer creates SOW
+
+    state "DRAFT (Drafting Scope)" as DRAFT
+    state "PUBLISHED (Open for Bids / Dispatch)" as PUBLISHED
+    state "ASSIGNED (Technician Selected)" as ASSIGNED
+    state "EN_ROUTE (Technician In Transit)" as EN_ROUTE
+    state "ON_SITE (Geofence Check-in ≤ 100m)" as ON_SITE
+    state "COMPLETED (Deliverables & Signature)" as COMPLETED
+    state "APPROVED (Buyer Sign-Off / 72h Auto)" as APPROVED
+    state "PAID (Escrow Released & Settled)" as PAID
+    state "DISPUTED (Mediation & SLA Audit)" as DISPUTED
+    state "CANCELLED (Nullified & Refunded)" as CANCELLED
+
+    DRAFT --> PUBLISHED : Pre-Authorize Escrow Funds
+    DRAFT --> CANCELLED : Discard Draft
+
+    PUBLISHED --> ASSIGNED : Bid Accepted / Auto-Dispatched
+    PUBLISHED --> CANCELLED : Buyer Cancels Listing
+
+    ASSIGNED --> EN_ROUTE : Technician Departs for Site
+    ASSIGNED --> DISPUTED : Technician No-Show / Breach
+    ASSIGNED --> CANCELLED : Penalty Cancellation
+
+    EN_ROUTE --> ON_SITE : GPS Geofence Check-In (≤ 100m)
+    EN_ROUTE --> DISPUTED : Transit SLA Violation
+
+    ON_SITE --> COMPLETED : Photos, Checklist & Client Signature Uploaded
+    ON_SITE --> DISPUTED : Scope / Deliverable Conflict
+
+    COMPLETED --> APPROVED : Buyer Manual Sign-Off or 72h Auto-Approval
+    COMPLETED --> DISPUTED : Quality Rejection / Scope Deficiency
+
+    APPROVED --> PAID : billing-service Releases Escrow Payout
+
+    DISPUTED --> APPROVED : Dispute Resolved in Tech's Favor
+    DISPUTED --> CANCELLED : Dispute Nullified / Buyer Refunded
+
+    PAID --> [*]
+    CANCELLED --> [*]
 ```
+
+### 📋 State Transition Matrix & Lifecycle Invariants
+
+| From State      | Allowed Next State(s)               | Authorized Actor        | Transition Guard / Pre-condition                      | Emitted Event (`fieldforge.events.topic`) |
+| :-------------- | :---------------------------------- | :---------------------- | :---------------------------------------------------- | :---------------------------------------- |
+| **`DRAFT`**     | `PUBLISHED`, `CANCELLED`            | Buyer                   | Stripe escrow pre-authorization locked                | `work_order.lifecycle.published`          |
+| **`PUBLISHED`** | `ASSIGNED`, `CANCELLED`             | Buyer / Dispatch Engine | Contractor bid accepted or auto-assigned              | `work_order.lifecycle.assigned`           |
+| **`ASSIGNED`**  | `EN_ROUTE`, `DISPUTED`, `CANCELLED` | Technician / Buyer      | Technician accepts and initiates transit              | `work_order.lifecycle.en_route`           |
+| **`EN_ROUTE`**  | `ON_SITE`, `DISPUTED`               | Technician              | Device GPS Haversine verification ($\le 100\text{m}$) | `work_order.lifecycle.on_site`            |
+| **`ON_SITE`**   | `COMPLETED`, `DISPUTED`             | Technician              | Before/after photos + SHA-256 client sign-off         | `work_order.lifecycle.completed`          |
+| **`COMPLETED`** | `APPROVED`, `DISPUTED`              | Buyer / SLA Worker      | Buyer approves deliverables OR 72h inactivity timeout | `work_order.lifecycle.approved`           |
+| **`APPROVED`**  | `PAID`                              | `billing-service`       | Escrow capture succeeded & payout ledger credited     | `billing.payout.disbursed`                |
+| **`DISPUTED`**  | `APPROVED`, `CANCELLED`             | Admin / Arbiter         | Arbitration resolved or job nullified with refund     | `work_order.dispute.resolved`             |
+| **`PAID`**      | _Terminal (`[*]`)_                  | —                       | Final state: Payout settled & PDF invoice issued      | —                                         |
+| **`CANCELLED`** | _Terminal (`[*]`)_                  | Buyer / Admin           | Final state: Escrow refunded to buyer card            | `work_order.lifecycle.cancelled`          |
 
 ---
 
