@@ -252,7 +252,7 @@ The 72-h auto-approval flow is absent (no scheduler; the SLA module isn't regist
 **Status: resolved.** Vite now uses `5173` with strict port binding, Grafana uses
 `3009`, and local documentation matches.
 
-Grafana publishes host `3009` (`docker-compose.observability.yml`) which no longer collides with any service. The buyer portal's Vite config binds `5173` with strict port binding. All application services now run on the `5000`–`5005` range.
+Grafana publishes host `3009` (`docker-compose.observability.yml`) which no longer collides with any service. The buyer portal's Vite config binds `5173` with strict port binding. All application services now run on the `8000`–`8005` range.
 **Impact:** you can't run the documented set together; quickstart is misleading.
 **Fix:** move Grafana to e.g. `3009`, pin Vite to `5173`, and reconcile the README.
 
@@ -377,7 +377,7 @@ The deliverable "signature" SHA-256 mixes `Date.now()` into the hashed input, so
 ### L9 · 🐛 `.env.example` omits `PORT`, which every service reads
 
 All six `apps/*/src/main.ts` read `process.env.PORT` with a distinct
-service-specific fallback (5000–5005), but `.env.example` declares neither `PORT`
+service-specific fallback (8000–8005), but `.env.example` declares neither `PORT`
 nor `CI`. Copying the example and exporting a single `PORT` — the obvious reading
 of an undocumented variable — collapses all six services onto one port.
 **Impact:** the documented setup path either leaves `PORT` unset (working only by

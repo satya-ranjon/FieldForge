@@ -16,4 +16,4 @@ spec:
         - name: api-gateway
           image: fieldforge/api-gateway:latest
           ports:
-            - containerPort: 5000
+            - containerPort: 8000

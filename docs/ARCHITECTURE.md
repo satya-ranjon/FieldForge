@@ -27,12 +27,12 @@ Cross-cutting concerns: JWT auth + RBAC at the edge, RabbitMQ topic events for a
 ```
 FieldForge/
 ├── apps/
-│   ├── api-gateway/              # Edge reverse proxy / JWT / rate-limit / correlation-id   (:5000)
-│   ├── auth-service/             # Identity, RBAC, technician vetting                        (:5001)
-│   ├── work-order-service/       # Work-order lifecycle FSM, deliverables, SLA              (:5002)
-│   ├── dispatch-matching-service/# Redis GEOSEARCH matching, bidding, auto-route            (:5003)
-│   ├── billing-service/          # Escrow pre-auth / capture / payout / invoicing           (:5004)
-│   ├── notification-service/     # FCM/APNS push, Twilio SMS, SES email (RabbitMQ consumer) (:5005)
+│   ├── api-gateway/              # Edge reverse proxy / JWT / rate-limit / correlation-id   (:8000)
+│   ├── auth-service/             # Identity, RBAC, technician vetting                        (:8001)
+│   ├── work-order-service/       # Work-order lifecycle FSM, deliverables, SLA              (:8002)
+│   ├── dispatch-matching-service/# Redis GEOSEARCH matching, bidding, auto-route            (:8003)
+│   ├── billing-service/          # Escrow pre-auth / capture / payout / invoicing           (:8004)
+│   ├── notification-service/     # FCM/APNS push, Twilio SMS, SES email (RabbitMQ consumer) (:8005)
 │   ├── web-buyer-portal/         # React 19 + Redux Toolkit + Vite buyer dashboard          (:5173 intended)
 │   └── mobile-tech-app/          # React Native + Expo technician app (offline-first)
 ├── packages/
@@ -68,12 +68,12 @@ FieldForge/
 graph TD
     Buyer["🏢 Buyer Portal (React 19)"] -->|HTTPS REST| APIGW
     Tech["📱 Tech App (React Native)"] -->|HTTPS REST| APIGW
-    APIGW["⚡ API Gateway :5000<br/>JWT · rate-limit · x-correlation-id"]
+    APIGW["⚡ API Gateway :8000<br/>JWT · rate-limit · x-correlation-id"]
 
-    APIGW --> AuthSvc["🔐 auth-service :5001"]
-    APIGW --> WOSvc["📋 work-order-service :5002"]
-    APIGW --> DispSvc["📍 dispatch-matching :5003"]
-    APIGW --> BillSvc["💳 billing-service :5004"]
+    APIGW --> AuthSvc["🔐 auth-service :8001"]
+    APIGW --> WOSvc["📋 work-order-service :8002"]
+    APIGW --> DispSvc["📍 dispatch-matching :8003"]
+    APIGW --> BillSvc["💳 billing-service :8004"]
 
     AuthSvc --> MySQL[("MySQL 8 InnoDB")]
     WOSvc --> MySQL
@@ -83,7 +83,7 @@ graph TD
     WOSvc -->|publish| MQ{{"RabbitMQ topic<br/>fieldforge.events.topic"}}
     MQ -->|consume| DispSvc
     MQ -->|consume| BillSvc
-    MQ -->|consume| NotifSvc["🔔 notification-service :5005"]
+    MQ -->|consume| NotifSvc["🔔 notification-service :8005"]
 
     subgraph Observability
       Prom["Prometheus"] --> Graf["Grafana"]
@@ -103,12 +103,12 @@ graph TD
 
 | Service                     | Port | Domain responsibility                                                   | Data store                                     | Publishes                                                      | Consumes                                   |
 | :-------------------------- | :--: | :---------------------------------------------------------------------- | :--------------------------------------------- | :------------------------------------------------------------- | :----------------------------------------- |
-| `api-gateway`               | 5000 | Edge proxy, JWT validation, rate limiting, correlation-id injection     | — (Redis intended)                             | —                                                              | —                                          |
-| `auth-service`              | 5001 | Registration, login, refresh, RBAC, technician vetting/badges           | MySQL `users`, `*_profiles`                    | —                                                              | —                                          |
-| `work-order-service`        | 5002 | Work-order FSM, SOW, deliverables (S3 presign + signature), SLA watcher | MySQL `work_orders`, `work_order_deliverables` | `work_order.lifecycle.{published,assigned,approved}`           | —                                          |
-| `dispatch-matching-service` | 5003 | Redis `GEOSEARCH` proximity + contractor scoring, bidding, auto-route   | Redis, RabbitMQ                                | `dispatch.*` / `tech.bidding.*` (intended)                     | `work_order.lifecycle.published`           |
-| `billing-service`           | 5004 | Escrow pre-auth/lock/capture, payouts, PDF invoicing                    | MySQL `escrow_accounts`                        | `billing.escrow.funded`, `billing.payout.disbursed` (intended) | `work_order.lifecycle.approved` (intended) |
-| `notification-service`      | 5005 | Push (FCM/APNS), SMS (Twilio), Email (SES)                              | RabbitMQ consumer                              | —                                                              | dispatch/notification events (intended)    |
+| `api-gateway`               | 8000 | Edge proxy, JWT validation, rate limiting, correlation-id injection     | — (Redis intended)                             | —                                                              | —                                          |
+| `auth-service`              | 8001 | Registration, login, refresh, RBAC, technician vetting/badges           | MySQL `users`, `*_profiles`                    | —                                                              | —                                          |
+| `work-order-service`        | 8002 | Work-order FSM, SOW, deliverables (S3 presign + signature), SLA watcher | MySQL `work_orders`, `work_order_deliverables` | `work_order.lifecycle.{published,assigned,approved}`           | —                                          |
+| `dispatch-matching-service` | 8003 | Redis `GEOSEARCH` proximity + contractor scoring, bidding, auto-route   | Redis, RabbitMQ                                | `dispatch.*` / `tech.bidding.*` (intended)                     | `work_order.lifecycle.published`           |
+| `billing-service`           | 8004 | Escrow pre-auth/lock/capture, payouts, PDF invoicing                    | MySQL `escrow_accounts`                        | `billing.escrow.funded`, `billing.payout.disbursed` (intended) | `work_order.lifecycle.approved` (intended) |
+| `notification-service`      | 8005 | Push (FCM/APNS), SMS (Twilio), Email (SES)                              | RabbitMQ consumer                              | —                                                              | dispatch/notification events (intended)    |
 
 > **Reality check:** All six backend services currently bootstrap as plain HTTP apps whose only live endpoints are `/healthz` and `/readyz`. No service opens a DB connection, and no service attaches a RabbitMQ transport — publishers/consumers are `console.log` stubs. See [§12](#12-implementation-status-matrix) and `ISSUES.md`.
 
@@ -217,7 +217,7 @@ pnpm db:seed
 pnpm dev                # turbo run dev --parallel
 ```
 
-Default endpoints: Buyer Portal `:5173`, API Gateway `:5000/api/v1`, RabbitMQ UI `:15672`, Jaeger `:16686`, Prometheus `:9090`, and Grafana `:3009`. Credentials come from `.env`.
+Default endpoints: Buyer Portal `:5173`, API Gateway `:8000/api/v1`, RabbitMQ UI `:15672`, Jaeger `:16686`, Prometheus `:9090`, and Grafana `:3009`. Credentials come from `.env`.
 
 ---
 

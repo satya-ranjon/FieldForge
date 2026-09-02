@@ -58,16 +58,16 @@ flowchart TD
     end
 
     subgraph Edge[" 🛡️ Edge Security & Gateway Tier "]
-        APIGW["⚡ API Gateway Microservice (:5000)<br/><b>Reverse Proxy · JWT Authentication · Rate Limiting</b><br/><i>x-correlation-id propagation</i>"]:::gatewayStyle
+        APIGW["⚡ API Gateway Microservice (:8000)<br/><b>Reverse Proxy · JWT Authentication · Rate Limiting</b><br/><i>x-correlation-id propagation</i>"]:::gatewayStyle
     end
 
     subgraph Services[" 🚀 Core Domain Microservices Cluster (NestJS) "]
         direction TB
-        AuthSvc["🔐 Auth & Identity (:5001)<br/><i>RBAC · Identity · Vetting</i>"]:::serviceStyle
-        WOSvc["📋 Work Order FSM (:5002)<br/><i>State Machine · SOW · SLA</i>"]:::serviceStyle
-        DispSvc["📍 Dispatch & Matching (:5003)<br/><i>Geo Routing · Bidding</i>"]:::serviceStyle
-        BillSvc["💳 Billing & Escrow (:5004)<br/><i>Escrow · Ledger · Invoicing</i>"]:::serviceStyle
-        NotifSvc["🔔 Notification Service (:5005)<br/><i>Event Consumer · Push/SMS</i>"]:::serviceStyle
+        AuthSvc["🔐 Auth & Identity (:8001)<br/><i>RBAC · Identity · Vetting</i>"]:::serviceStyle
+        WOSvc["📋 Work Order FSM (:8002)<br/><i>State Machine · SOW · SLA</i>"]:::serviceStyle
+        DispSvc["📍 Dispatch & Matching (:8003)<br/><i>Geo Routing · Bidding</i>"]:::serviceStyle
+        BillSvc["💳 Billing & Escrow (:8004)<br/><i>Escrow · Ledger · Invoicing</i>"]:::serviceStyle
+        NotifSvc["🔔 Notification Service (:8005)<br/><i>Event Consumer · Push/SMS</i>"]:::serviceStyle
     end
 
     subgraph Messaging[" 📬 Event-Driven Message Broker "]
@@ -283,12 +283,12 @@ erDiagram
 
 | Microservice                    |  Port  | Domain Responsibilities                                                                   | Primary Data Store                    |
 | :------------------------------ | :----: | :---------------------------------------------------------------------------------------- | :------------------------------------ |
-| **`api-gateway`**               | `5000` | Edge reverse proxy, JWT validation, rate limiting, correlation ID injection               | In-Memory / Redis                     |
-| **`auth-service`**              | `5001` | User onboarding, RBAC tokens, compliance vetting (OSHA 10, Cisco CCNA, Background Checks) | MySQL (`users`, `profiles`)           |
-| **`work-order-service`**        | `5002` | Work order lifecycle FSM, SOW templates, S3 deliverable uploads, SLA timeout watchers     | MySQL (`work_orders`, `deliverables`) |
-| **`dispatch-matching-service`** | `5003` | Geospatial contractor matching (`GEOSEARCH`), bidding negotiation, auto-routing rules     | Redis 7 & RabbitMQ                    |
-| **`billing-service`**           | `5004` | Escrow pre-authorizations, fund capture, technician payouts, automated PDF invoicing      | MySQL (`escrow_accounts`)             |
-| **`notification-service`**      | `5005` | Push notifications (FCM/APNS), SMS dispatch alerts (Twilio), Email receipts (SES)         | RabbitMQ Topic Consumer               |
+| **`api-gateway`**               | `8000` | Edge reverse proxy, JWT validation, rate limiting, correlation ID injection               | In-Memory / Redis                     |
+| **`auth-service`**              | `8001` | User onboarding, RBAC tokens, compliance vetting (OSHA 10, Cisco CCNA, Background Checks) | MySQL (`users`, `profiles`)           |
+| **`work-order-service`**        | `8002` | Work order lifecycle FSM, SOW templates, S3 deliverable uploads, SLA timeout watchers     | MySQL (`work_orders`, `deliverables`) |
+| **`dispatch-matching-service`** | `8003` | Geospatial contractor matching (`GEOSEARCH`), bidding negotiation, auto-routing rules     | Redis 7 & RabbitMQ                    |
+| **`billing-service`**           | `8004` | Escrow pre-authorizations, fund capture, technician payouts, automated PDF invoicing      | MySQL (`escrow_accounts`)             |
+| **`notification-service`**      | `8005` | Push notifications (FCM/APNS), SMS dispatch alerts (Twilio), Email receipts (SES)         | RabbitMQ Topic Consumer               |
 
 ---
 
@@ -440,7 +440,7 @@ pnpm dev
 ### 3. Service Endpoints
 
 - **Enterprise Buyer Portal:** `http://localhost:5173`
-- **API Gateway (Public REST API):** `http://localhost:5000/api/v1`
+- **API Gateway (Public REST API):** `http://localhost:8000/api/v1`
 - **RabbitMQ Management UI:** `http://localhost:15672` (credentials from `.env`)
 - **Jaeger Tracing Console:** `http://localhost:16686`
 - **Grafana:** `http://localhost:3009` (credentials from `.env`)

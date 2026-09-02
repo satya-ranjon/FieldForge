@@ -126,7 +126,7 @@ command that can actually fail.
   phone numbers, and emails (L2 plus the PII half of M12).
 
 **Exit criteria:** an unauthenticated call to any non-public route returns 401; register → login →
-`GET /users/me` works through port 5000; a `BUYER` token is rejected from a `TECHNICIAN`-only route.
+`GET /users/me` works through port 8000; a `BUYER` token is rejected from a `TECHNICIAN`-only route.
 
 **Verify:** supertest integration suite in `apps/auth-service` against Dockerised MySQL, plus a
 manual `curl` sequence through the gateway.
@@ -245,7 +245,7 @@ mismatch blocked, unauthorized caller blocked, and N concurrent release calls yi
 **Size: M · Depends on Phase 4.** Resolves L6. Implements the SRS §5 Playwright coverage.
 
 - **RTK Query.** Add an API slice in `apps/web-buyer-portal/src/store/` pointed at
-  `http://localhost:5000/api/v1`, per `RULE-FE-04`. Strip the hardcoded `initialState` fixtures —
+  `http://localhost:8000/api/v1`, per `RULE-FE-04`. Strip the hardcoded `initialState` fixtures —
   `workOrderSlice.ts` alone carries six fully-populated work orders — from all four slices, and
   re-home that data as MSW fixtures so component tests and Playwright keep deterministic input.
 - **Real auth.** Login view, access token in memory with refresh rotation, replacing the mock token

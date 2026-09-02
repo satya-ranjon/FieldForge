@@ -6,7 +6,7 @@
   "scripts": {
     "setup": "./scripts/setup-dev.sh",
     "build": "turbo run build",
-    "dev": "turbo run dev --parallel",
+    "dev": "./scripts/clean-ports.sh && turbo run dev --parallel",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "turbo run typecheck",

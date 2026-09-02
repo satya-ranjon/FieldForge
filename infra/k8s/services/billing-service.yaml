@@ -16,4 +16,4 @@ spec:
         - name: billing-service
           image: fieldforge/billing-service:latest
           ports:
-            - containerPort: 5004
+            - containerPort: 8004

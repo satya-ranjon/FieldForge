@@ -16,4 +16,4 @@ spec:
         - name: auth-service
           image: fieldforge/auth-service:latest
           ports:
-            - containerPort: 5001
+            - containerPort: 8001
