@@ -42,74 +42,91 @@ FieldForge is an early scaffold for an enterprise field service management and a
 ### High-Level System Topology
 
 ```mermaid
-graph TD
-    %% Clients
-    subgraph Clients[" 🌐 Client Tier "]
-        Buyer["🏢 Web Buyer Portal<br/>(React 19 + Redux Toolkit + Vite)"]
-        Tech["📱 Mobile Tech App<br/>(React Native / Expo + Offline Queue)"]
+flowchart TD
+    %% Global Styling Classes
+    classDef clientStyle fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0f172a,font-weight:600;
+    classDef gatewayStyle fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#0f172a,font-weight:600;
+    classDef serviceStyle fill:#f0fdf4,stroke:#16a34a,stroke-width:2px,color:#0f172a,font-weight:600;
+    classDef brokerStyle fill:#fffbeb,stroke:#d97706,stroke-width:2px,color:#0f172a,font-weight:600;
+    classDef dbStyle fill:#f1f5f9,stroke:#475569,stroke-width:2px,color:#0f172a,font-weight:600;
+    classDef extStyle fill:#fdf2f8,stroke:#db2777,stroke-width:2px,color:#0f172a,font-weight:600;
+    classDef apmStyle fill:#fef2f2,stroke:#dc2626,stroke-width:2px,color:#0f172a,font-weight:600;
+
+    subgraph Clients[" 🌐 Client Applications Tier "]
+        Buyer["🏢 Enterprise Buyer Portal<br/><b>React 19 + Redux Toolkit</b><br/><i>Vite Dashboard (:5173)</i>"]:::clientStyle
+        Tech["📱 Field Tech Mobile App<br/><b>React Native + Expo</b><br/><i>Offline-First Queue & GPS</i>"]:::clientStyle
     end
 
-    %% Edge Gateway
-    subgraph Edge[" 🛡️ Edge & Gateway Tier "]
-        APIGW["⚡ API Gateway (:3000)<br/>• Reverse Proxy & Routing<br/>• JWT Authentication & RBAC<br/>• Rate Limiting<br/>• x-correlation-id Injection"]
+    subgraph Edge[" 🛡️ Edge Security & Gateway Tier "]
+        APIGW["⚡ API Gateway Microservice (:3000)<br/><b>Reverse Proxy · JWT Authentication · Rate Limiting</b><br/><i>x-correlation-id propagation</i>"]:::gatewayStyle
     end
 
-    %% Core Services
-    subgraph Services[" 🚀 Core Domain Microservices Tier (NestJS) "]
-        AuthSvc["🔐 Auth & Identity Service (:3001)<br/>• Identity, Login & Token Refresh<br/>• Contractor Vetting & Certifications"]
-        WOSvc["📋 Work Order Service (:3002)<br/>• Finite State Machine (FSM)<br/>• SOW & SLA Watcher<br/>• Deliverable Proofs (S3 presigned)"]
-        DispSvc["📍 Dispatch & Matching Service (:3003)<br/>• Geospatial Matching (GEOSEARCH)<br/>• Technician Scoring & Auto-Routing<br/>• Contractor Bidding"]
-        BillSvc["💳 Billing & Escrow Service (:3004)<br/>• Pre-Auth & Escrow Locking<br/>• Payout Ledger & PDF Invoicing<br/>• Payment Integrations"]
-        NotifSvc["🔔 Notification Service (:3005)<br/>• Push Notifications (FCM / APNS)<br/>• SMS Alerts (Twilio)<br/>• Email Receipts (AWS SES)"]
+    subgraph Services[" 🚀 Core Domain Microservices Cluster (NestJS) "]
+        direction TB
+        AuthSvc["🔐 Auth & Identity (:3001)<br/><i>RBAC · Identity · Vetting</i>"]:::serviceStyle
+        WOSvc["📋 Work Order FSM (:3002)<br/><i>State Machine · SOW · SLA</i>"]:::serviceStyle
+        DispSvc["📍 Dispatch & Matching (:3003)<br/><i>Geo Routing · Bidding</i>"]:::serviceStyle
+        BillSvc["💳 Billing & Escrow (:3004)<br/><i>Escrow · Ledger · Invoicing</i>"]:::serviceStyle
+        NotifSvc["🔔 Notification Service (:3005)<br/><i>Event Consumer · Push/SMS</i>"]:::serviceStyle
     end
 
-    %% Messaging & Event Bus
-    subgraph EventBus[" 📬 Asynchronous Event-Driven Messaging "]
-        RabbitMQ{{"RabbitMQ Topic Exchange<br/>(fieldforge.events.topic)"}}
+    subgraph Messaging[" 📬 Event-Driven Message Broker "]
+        RabbitMQ{{"📬 RabbitMQ Topic Exchange<br/><b>fieldforge.events.topic</b>"}}:::brokerStyle
     end
 
-    %% Persistence
-    subgraph Storage[" 💾 Data & Caching Tier "]
-        MySQL[("🗄️ MySQL 8 (InnoDB)<br/>• Users & Profiles<br/>• Work Orders & Bids<br/>• Deliverables & Escrow")]
-        Redis[("⚡ Redis 7+<br/>• Geospatial Index (GEOSEARCH)<br/>• Token Cache & Rate Limiting")]
+    subgraph Storage[" 💾 Persistence & In-Memory Geospatial Tier "]
+        MySQL[("🗄️ MySQL 8 (InnoDB)<br/><b>Drizzle ORM · ACID</b><br/><i>Users, Work Orders, Escrow</i>")]:::dbStyle
+        Redis[("⚡ Redis 7+ Cache<br/><b>GEOSEARCH & In-Memory</b><br/><i>Spatial Index & Rate Limits</i>")]:::dbStyle
     end
 
-    %% Observability
-    subgraph APM[" 📊 APM & Observability "]
-        Prometheus["📈 Prometheus (Metrics)"]
-        Jaeger["🔍 Jaeger (Tracing)"]
-        Grafana["📊 Grafana (Dashboards)"]
+    subgraph External[" ☁️ Third-Party Integrations & Cloud Services "]
+        S3["🪣 AWS S3<br/><i>Presigned Deliverables</i>"]:::extStyle
+        Stripe["💳 Stripe API<br/><i>Payment Intents</i>"]:::extStyle
+        Twilio["📱 Twilio / AWS SES<br/><i>SMS Alerts & Email</i>"]:::extStyle
+        FCM["🔔 Firebase FCM<br/><i>Mobile Push Alerts</i>"]:::extStyle
     end
 
-    %% Client -> Edge
+    subgraph Observability[" 📊 APM, Metrics & Distributed Tracing "]
+        OTEL["📡 OpenTelemetry & Pino Logs"]:::apmStyle
+        Prometheus["📈 Prometheus & Grafana"]:::apmStyle
+        Jaeger["🔍 Jaeger Distributed Tracing"]:::apmStyle
+    end
+
+    %% Client Ingress
     Buyer -->|HTTPS / REST| APIGW
     Tech -->|HTTPS / REST| APIGW
 
-    %% Edge -> Services
-    APIGW --> AuthSvc
-    APIGW --> WOSvc
-    APIGW --> DispSvc
-    APIGW --> BillSvc
+    %% Gateway Routing
+    APIGW -->|Route /auth| AuthSvc
+    APIGW -->|Route /work-orders| WOSvc
+    APIGW -->|Route /dispatch| DispSvc
+    APIGW -->|Route /billing| BillSvc
 
-    %% Service -> Databases
-    AuthSvc --> MySQL
-    WOSvc --> MySQL
-    BillSvc --> MySQL
-    DispSvc --> Redis
+    %% Database Connections
+    AuthSvc -->|TCP / Drizzle| MySQL
+    WOSvc -->|TCP / Drizzle| MySQL
+    BillSvc -->|TCP / Drizzle| MySQL
+    DispSvc -->|RESP / GEOSEARCH| Redis
 
-    %% Async Events
-    WOSvc -.->|Publishes: work_order.lifecycle.*| RabbitMQ
-    DispSvc -.->|Publishes: dispatch.*, tech.bidding.*| RabbitMQ
-    BillSvc -.->|Publishes: billing.escrow.*, billing.payout.*| RabbitMQ
+    %% Async Event Publish & Consume
+    WOSvc -.->|Pub: work_order.lifecycle.*| RabbitMQ
+    DispSvc -.->|Pub: dispatch.* / tech.bidding.*| RabbitMQ
+    BillSvc -.->|Pub: billing.escrow.*| RabbitMQ
 
-    RabbitMQ -.->|Consumes events| DispSvc
-    RabbitMQ -.->|Consumes events| BillSvc
-    RabbitMQ -.->|Consumes events| NotifSvc
+    RabbitMQ -.->|Sub: work_order.lifecycle.*| DispSvc
+    RabbitMQ -.->|Sub: work_order.approved| BillSvc
+    RabbitMQ -.->|Sub: notifications.*| NotifSvc
 
-    %% Observability
-    Services -.->|Pino JSON Logs / OTEL Metrics| Prometheus
-    Services -.->|x-correlation-id Traces| Jaeger
-    Prometheus --> Grafana
+    %% External Cloud Services
+    WOSvc -.->|Presigned URLs| S3
+    BillSvc -.->|Payment Gateway| Stripe
+    NotifSvc -.->|SMS & Email Delivery| Twilio
+    NotifSvc -.->|Push Notifications| FCM
+
+    %% APM Telemetry
+    Services -.->|Structured JSON Logs & Spans| OTEL
+    OTEL --> Prometheus
+    OTEL --> Jaeger
 ```
 
 ---
