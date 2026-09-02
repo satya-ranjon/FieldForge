@@ -39,58 +39,205 @@ FieldForge is an early scaffold for an enterprise field service management and a
 
 ## 🏗️ System Architecture
 
+### High-Level System Topology
+
 ```mermaid
 graph TD
+    %% Clients
     subgraph Clients[" 🌐 Client Tier "]
-        Buyer["🏢 Enterprise Buyer Portal<br/>(React 19 + Redux Toolkit)"]
-        Tech["📱 Field Tech Mobile App<br/>(React Native + Offline Sync)"]
+        Buyer["🏢 Web Buyer Portal<br/>(React 19 + Redux Toolkit + Vite)"]
+        Tech["📱 Mobile Tech App<br/>(React Native / Expo + Offline Queue)"]
     end
 
-    subgraph Edge[" 🛡️ Edge & Routing "]
-        APIGW["⚡ API Gateway Microservice<br/>(:3000 • JWT Auth • Rate Limiting)"]
+    %% Edge Gateway
+    subgraph Edge[" 🛡️ Edge & Gateway Tier "]
+        APIGW["⚡ API Gateway (:3000)<br/>• Reverse Proxy & Routing<br/>• JWT Authentication & RBAC<br/>• Rate Limiting<br/>• x-correlation-id Injection"]
     end
 
-    subgraph Services[" 🚀 Core Domain Microservices "]
-        AuthSvc["🔐 Auth & Identity Service<br/>(:3001 • RBAC & Tech Vetting)"]
-        WOSvc["📋 Work Order Service<br/>(:3002 • FSM & SLA Escalation)"]
-        DispSvc["📍 Dispatch & Matching Service<br/>(:3003 • Redis GEOSEARCH)"]
-        BillSvc["💳 Billing & Escrow Service<br/>(:3004 • Stripe & Invoicing)"]
-        NotifSvc["🔔 Notification Service<br/>(:3005 • FCM, Twilio, SES)"]
+    %% Core Services
+    subgraph Services[" 🚀 Core Domain Microservices Tier (NestJS) "]
+        AuthSvc["🔐 Auth & Identity Service (:3001)<br/>• Identity, Login & Token Refresh<br/>• Contractor Vetting & Certifications"]
+        WOSvc["📋 Work Order Service (:3002)<br/>• Finite State Machine (FSM)<br/>• SOW & SLA Watcher<br/>• Deliverable Proofs (S3 presigned)"]
+        DispSvc["📍 Dispatch & Matching Service (:3003)<br/>• Geospatial Matching (GEOSEARCH)<br/>• Technician Scoring & Auto-Routing<br/>• Contractor Bidding"]
+        BillSvc["💳 Billing & Escrow Service (:3004)<br/>• Pre-Auth & Escrow Locking<br/>• Payout Ledger & PDF Invoicing<br/>• Payment Integrations"]
+        NotifSvc["🔔 Notification Service (:3005)<br/>• Push Notifications (FCM / APNS)<br/>• SMS Alerts (Twilio)<br/>• Email Receipts (AWS SES)"]
     end
 
-    subgraph Persistence[" 💾 Persistence & Messaging "]
-        MySQL[("🗄️ MySQL InnoDB<br/>(ACID Relational Core)")]
-        Redis[("⚡ Redis<br/>(Geospatial & Cache)")]
-        RabbitMQ{{"📬 RabbitMQ<br/>(Topic Exchange: fieldforge.events.topic)"}}
+    %% Messaging & Event Bus
+    subgraph EventBus[" 📬 Asynchronous Event-Driven Messaging "]
+        RabbitMQ{{"RabbitMQ Topic Exchange<br/>(fieldforge.events.topic)"}}
     end
 
-    subgraph Observability[" 📊 APM & Monitoring "]
-        Prometheus["📈 Prometheus Metrics"]
-        Jaeger["🔍 Jaeger Distributed Tracing"]
-        Grafana["📊 Grafana Dashboards"]
+    %% Persistence
+    subgraph Storage[" 💾 Data & Caching Tier "]
+        MySQL[("🗄️ MySQL 8 (InnoDB)<br/>• Users & Profiles<br/>• Work Orders & Bids<br/>• Deliverables & Escrow")]
+        Redis[("⚡ Redis 7+<br/>• Geospatial Index (GEOSEARCH)<br/>• Token Cache & Rate Limiting")]
     end
 
+    %% Observability
+    subgraph APM[" 📊 APM & Observability "]
+        Prometheus["📈 Prometheus (Metrics)"]
+        Jaeger["🔍 Jaeger (Tracing)"]
+        Grafana["📊 Grafana (Dashboards)"]
+    end
+
+    %% Client -> Edge
     Buyer -->|HTTPS / REST| APIGW
     Tech -->|HTTPS / REST| APIGW
 
+    %% Edge -> Services
     APIGW --> AuthSvc
     APIGW --> WOSvc
     APIGW --> DispSvc
     APIGW --> BillSvc
 
+    %% Service -> Databases
     AuthSvc --> MySQL
     WOSvc --> MySQL
     BillSvc --> MySQL
-
     DispSvc --> Redis
-    WOSvc -->|Publish Domain Events| RabbitMQ
-    RabbitMQ -->|Consume Events| DispSvc
-    RabbitMQ -->|Consume Events| BillSvc
-    RabbitMQ -->|Consume Events| NotifSvc
 
-    Services -.->|APM Metrics & Spans| Prometheus
-    Services -.->|Tracing Spans| Jaeger
+    %% Async Events
+    WOSvc -.->|Publishes: work_order.lifecycle.*| RabbitMQ
+    DispSvc -.->|Publishes: dispatch.*, tech.bidding.*| RabbitMQ
+    BillSvc -.->|Publishes: billing.escrow.*, billing.payout.*| RabbitMQ
+
+    RabbitMQ -.->|Consumes events| DispSvc
+    RabbitMQ -.->|Consumes events| BillSvc
+    RabbitMQ -.->|Consumes events| NotifSvc
+
+    %% Observability
+    Services -.->|Pino JSON Logs / OTEL Metrics| Prometheus
+    Services -.->|x-correlation-id Traces| Jaeger
     Prometheus --> Grafana
+```
+
+---
+
+### 🔄 End-to-End Work Order Lifecycle & Event Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Buyer as 🏢 Buyer (Portal)
+    participant GW as ⚡ API Gateway
+    participant WO as 📋 Work Order Svc
+    participant Bill as 💳 Billing Svc
+    participant MQ as 📬 RabbitMQ
+    participant Disp as 📍 Dispatch Svc
+    actor Tech as 📱 Tech (Mobile)
+
+    %% Step 1: Draft & Publish
+    Buyer->>GW: POST /work-orders (Create SOW Draft)
+    GW->>WO: Create Draft Work Order
+    Buyer->>GW: POST /work-orders/{id}/publish
+    GW->>WO: Trigger Publish FSM Transition
+    WO->>Bill: Pre-authorize Escrow Amount
+    Bill-->>WO: Escrow Pre-authorized & Locked
+    WO->>MQ: Publish "work_order.lifecycle.published"
+
+    %% Step 2: Dispatch & Match
+    MQ->>Disp: Consume published event
+    Disp->>Disp: Redis GEOSEARCH nearby active techs
+    Disp->>Tech: Dispatch Opportunity Notification
+    Tech->>GW: POST /bids (Submit Bid)
+    GW->>Disp: Record Bid & Score Contractor
+
+    %% Step 3: Assignment & On-Site Execution
+    Disp->>WO: Assign Selected Tech
+    WO->>MQ: Publish "work_order.lifecycle.assigned"
+    Tech->>GW: PATCH /status -> EN_ROUTE
+    Tech->>GW: POST /check-in (GPS Coordinates ≤ 100m)
+    GW->>WO: Verify Geofence & Set Status: ON_SITE
+    Tech->>GW: POST /deliverables (Photos, Checklists, Signatures)
+    Tech->>GW: PATCH /status -> COMPLETED
+
+    %% Step 4: Approval & Settlement
+    Buyer->>GW: POST /work-orders/{id}/approve (Sign-Off)
+    GW->>WO: Status -> APPROVED
+    WO->>MQ: Publish "work_order.lifecycle.approved"
+    MQ->>Bill: Release Escrow & Trigger Tech Payout
+    Bill->>Bill: Disburse Funds & Generate PDF Invoice
+    Bill->>MQ: Publish "billing.payout.disbursed"
+```
+
+---
+
+### 🗄️ Database Entity-Relationship (ER) Model
+
+```mermaid
+erDiagram
+    USERS ||--o| BUYER_PROFILES : "extends"
+    USERS ||--o| TECHNICIAN_PROFILES : "extends"
+    BUYER_PROFILES ||--o{ WORK_ORDERS : "creates"
+    TECHNICIAN_PROFILES ||--o{ WORK_ORDERS : "assigned_to"
+    WORK_ORDERS ||--o{ WORK_ORDER_BIDS : "receives"
+    WORK_ORDERS ||--o{ WORK_ORDER_DELIVERABLES : "contains"
+    WORK_ORDERS ||--|| ESCROW_ACCOUNTS : "secured_by"
+
+    USERS {
+        uuid id PK
+        string email UK
+        string password_hash
+        enum role "BUYER | TECHNICIAN | ADMIN"
+        timestamp created_at
+    }
+
+    BUYER_PROFILES {
+        uuid id PK
+        uuid user_id FK
+        string company_name
+        string tax_id
+        string billing_address
+    }
+
+    TECHNICIAN_PROFILES {
+        uuid id PK
+        uuid user_id FK
+        string full_name
+        json certifications
+        decimal rating
+        decimal hourly_rate
+        decimal current_lat
+        decimal current_lng
+    }
+
+    WORK_ORDERS {
+        uuid id PK
+        uuid buyer_id FK
+        uuid assigned_technician_id FK
+        string title
+        text scope_of_work
+        enum status "DRAFT|PUBLISHED|ASSIGNED|EN_ROUTE|ON_SITE|COMPLETED|APPROVED|CANCELLED|DISPUTED"
+        decimal budget
+        decimal site_lat
+        decimal site_lng
+        timestamp scheduled_start_time
+    }
+
+    WORK_ORDER_BIDS {
+        uuid id PK
+        uuid work_order_id FK
+        uuid technician_id FK
+        decimal bid_amount
+        enum bid_status "PENDING | ACCEPTED | REJECTED"
+    }
+
+    WORK_ORDER_DELIVERABLES {
+        uuid id PK
+        uuid work_order_id FK
+        string media_s3_url
+        string checklist_data
+        string client_signature_hash
+    }
+
+    ESCROW_ACCOUNTS {
+        uuid id PK
+        uuid work_order_id FK
+        decimal amount
+        enum status "HELD | RELEASED | REFUNDED | DISPUTED"
+        string payment_intent_id
+    }
 ```
 
 ---
@@ -108,7 +255,35 @@ graph TD
 
 ---
 
-## 📦 Shared Monorepo Packages
+## 📦 Monorepo Package Architecture
+
+```mermaid
+graph LR
+    subgraph Apps[" 📱 Apps Tier "]
+        APIGW["apps/api-gateway"]
+        AuthSvc["apps/auth-service"]
+        WOSvc["apps/work-order-service"]
+        DispSvc["apps/dispatch-matching-service"]
+        BillSvc["apps/billing-service"]
+        NotifSvc["apps/notification-service"]
+        WebPortal["apps/web-buyer-portal"]
+        MobileApp["apps/mobile-tech-app"]
+    end
+
+    subgraph Packages[" 📦 Shared Packages Tier "]
+        Contracts["@fieldforge/contracts<br/>(DTOs, Zod Validators, Event Interfaces)"]
+        Database["@fieldforge/database<br/>(Drizzle ORM, MySQL Schemas, Seeds)"]
+        Common["@fieldforge/common<br/>(Pino Logger, Interceptors, Probes)"]
+        UI["@fieldforge/ui<br/>(Tailwind React Primitives)"]
+    end
+
+    Apps --> Contracts
+    Apps --> Common
+    AuthSvc --> Database
+    WOSvc --> Database
+    BillSvc --> Database
+    WebPortal --> UI
+```
 
 ```
 packages/
