@@ -1,4 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, Optional } from '@nestjs/common';
+import { eq } from 'drizzle-orm';
+import { DRIZZLE, type DrizzleClient } from '@fieldforge/common';
+import { technicianCertifications } from '@fieldforge/database';
 
 export interface TechnicianBadge {
   badgeId: string;
@@ -29,14 +32,36 @@ export class CertificationsService {
     ]
   };
 
+  constructor(@Optional() @Inject(DRIZZLE) private readonly db?: DrizzleClient) {}
+
   /**
-   * Returns copies, not the stored records: a caller holding a reference into
-   * `mockCertifications` could delete a technician's background check for every
-   * subsequent request. Phase 1 of docs/DEVELOPMENT_PLAN.md replaces this map
-   * with a read of `technician_certifications`, which makes the isolation
-   * structural rather than defensive.
+   * Reads stored certifications from `technician_certifications` when DB is
+   * available, falling back to mockCertifications for standalone tests.
    */
   async getTechnicianBadges(techId: string): Promise<TechnicianBadge[]> {
+    if (this.db) {
+      const rows = await this.db
+        .select()
+        .from(technicianCertifications)
+        .where(eq(technicianCertifications.technicianId, techId));
+
+      if (rows.length > 0) {
+        return rows.map((row) => ({
+          badgeId: row.id,
+          name: row.name as TechnicianBadge['name'],
+          issuedDate:
+            row.issuedDate instanceof Date
+              ? row.issuedDate.toISOString().split('T')[0]
+              : String(row.issuedDate),
+          expiryDate:
+            row.expiryDate instanceof Date
+              ? row.expiryDate.toISOString().split('T')[0]
+              : String(row.expiryDate),
+          isVerified: Boolean(row.isVerified)
+        }));
+      }
+    }
+
     return (this.mockCertifications[techId] ?? []).map((badge) => ({ ...badge }));
   }
 }

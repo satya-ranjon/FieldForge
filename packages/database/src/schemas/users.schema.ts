@@ -5,7 +5,8 @@ import {
   mysqlEnum,
   text,
   decimal,
-  int
+  int,
+  boolean
 } from 'drizzle-orm/mysql-core';
 
 export const users = mysqlTable('users', {
@@ -43,4 +44,27 @@ export const technicianProfiles = mysqlTable('technician_profiles', {
   currentLongitude: decimal('current_longitude', { precision: 11, scale: 8 }),
   ratingAverage: decimal('rating_average', { precision: 3, scale: 2 }).default('5.00').notNull(),
   jobsCompleted: int('jobs_completed').default(0).notNull()
+});
+
+export const refreshTokens = mysqlTable('refresh_tokens', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 })
+    .references(() => users.id, { onDelete: 'cascade' })
+    .notNull(),
+  tokenHash: varchar('token_hash', { length: 255 }).notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+  revokedAt: timestamp('revoked_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull()
+});
+
+export const technicianCertifications = mysqlTable('technician_certifications', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  technicianId: varchar('technician_id', { length: 36 })
+    .references(() => users.id, { onDelete: 'cascade' })
+    .notNull(),
+  name: varchar('name', { length: 100 }).notNull(),
+  issuedDate: timestamp('issued_date').notNull(),
+  expiryDate: timestamp('expiry_date').notNull(),
+  isVerified: boolean('is_verified').default(false).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull()
 });

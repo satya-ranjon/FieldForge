@@ -1,18 +1,27 @@
 # FieldForge Implementation Status
 
-**Last reviewed:** 2026-09-01  
-**Phase:** Phase 0 complete — canon, contracts, and test harness. Next: Phase 1
-(identity and a real trust boundary). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Last reviewed:** 2026-09-02  
+**Phase:** Phase 1 complete — identity and a real trust boundary. Next: Phase 2
+(persistent, transactional work-order lifecycle). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
 - A pnpm/Turborepo monorepo with NestJS service shells, a Vite buyer portal, an
   Expo technician app, and shared contracts, database, common, and UI packages.
 - Initial Drizzle schemas and migrations for users, work orders, bids,
-  deliverables, and escrow.
+  deliverables, escrow, refresh tokens, and technician certifications (`0000`, `0001`, `0002_auth.sql`).
 - Local Docker Compose definitions for MySQL, Redis, RabbitMQ, Jaeger,
   Prometheus, and Grafana.
 - Architecture rules, three accepted ADRs, and CI/build scaffolding.
+- **Shared Drizzle module.** `packages/common/src/database/drizzle.module.ts` provides
+  the centralized `DRIZZLE` injection token using `createDbClient` and loads local `.env`.
+- **Identity & Auth service.** `apps/auth-service` implements `POST /auth/register`,
+  `POST /auth/login`, `POST /auth/refresh` (with rotating tokens in `refresh_tokens`),
+  `GET /users/me`, and database-backed technician certifications (`technician_certifications`).
+- **Real trust boundary at API Gateway.** `apps/api-gateway` enforces `JwtAuthGuard`,
+  `RolesGuard` (RBAC), `ThrottlerGuard` rate limiting, strict CORS allowlist, PII redaction
+  in structured Pino logging, and reverse-proxying with injected `x-ff-user-id`, `x-ff-user-role`,
+  and `x-correlation-id` downstream headers.
 - **One work-order FSM.** `WorkOrderStatus` ends at `PAID` per SRS FR-WO-002;
   `validTransitions` in `work-order-fsm.service.ts` is the single definition, and
   `test/work-order-fsm.service.spec.ts` asserts all 100 ordered status pairs, so
@@ -24,17 +33,15 @@
   `occurredAt`, `correlationId`, and `payload`; `createEvent()` requires the
   correlation id at the call site.
 - **A test harness that can fail.** `packages/jest-config` plus a
-  `jest.config.cjs` in each of the seven workspaces with a `test` script; 225
+  `jest.config.cjs` in each of the seven workspaces with a `test` script; 246
   unit tests; no `--passWithNoTests` anywhere. Run tests on Node 24 (see
   `.nvmrc`) — the scripts pass `--experimental-vm-modules` because NestJS 12
   ships ESM only while the services compile to CommonJS.
 
 ## What is not yet implemented
 
-- Production authentication, JWT verification, or RBAC enforcement.
-- API gateway proxying to downstream services.
-- Database-backed work-order lifecycle and escrow transactions. No service opens
-  a connection yet; `createDbClient` has no callers.
+- Database-backed work-order lifecycle and escrow transactions. Work orders
+  and escrow currently use in-memory stubs.
 - A working RabbitMQ publish/consume pipeline with idempotency, retries, and DLQ.
   The envelope exists; the publisher still logs instead of publishing.
 - Server-enforced geofencing, durable mobile offline sync, or media storage.

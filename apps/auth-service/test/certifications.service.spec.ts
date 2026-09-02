@@ -61,4 +61,34 @@ describe('CertificationsService', () => {
     const second = await certifications.getTechnicianBadges(KNOWN_TECH);
     expect(second.length).toBeGreaterThan(first.length);
   });
+
+  it('reads certifications from database when Drizzle client is injected', async () => {
+    const mockDb = {
+      select: jest.fn().mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          where: jest.fn().mockResolvedValue([
+            {
+              id: 'cert-1',
+              technicianId: 't-123',
+              name: 'OSHA 10',
+              issuedDate: new Date('2025-01-01'),
+              expiryDate: new Date('2028-01-01'),
+              isVerified: true
+            }
+          ])
+        })
+      })
+    };
+
+    const serviceWithDb = new CertificationsService(
+      mockDb as unknown as import('@fieldforge/common').DrizzleClient
+    );
+    const badges = await serviceWithDb.getTechnicianBadges('t-123');
+
+    expect(badges).toHaveLength(1);
+    expect(badges[0].badgeId).toBe('cert-1');
+    expect(badges[0].name).toBe('OSHA 10');
+    expect(badges[0].isVerified).toBe(true);
+    expect(badges[0].issuedDate).toBe('2025-01-01');
+  });
 });

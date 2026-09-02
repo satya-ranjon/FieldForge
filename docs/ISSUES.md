@@ -60,6 +60,8 @@ The Docker stack repeats the pattern: MySQL `root/fieldforge_secret`, RabbitMQ `
 
 ### C2 · 🔒/🐛 API Gateway performs no authentication
 
+**Status: resolved (Phase 1).** `JwtAuthGuard` is registered globally as `APP_GUARD` on the API Gateway, verifying HS256 JWTs and populating `request.user` with authenticated identity (`userId`, `email`, `role`). Public endpoints (`/api/v1/auth/register`, `/api/v1/auth/login`, `/api/v1/auth/refresh`, health probes, and routes annotated with `@Public()`) are explicitly permitted without a token, and `RolesGuard` is registered globally to enforce role-based access control against `@Roles()` decorators.
+
 The gateway is the only intended trust boundary, but `JwtAuthGuard.canActivate()` unconditionally `return true`, the guard is **not registered** (no `APP_GUARD`), and `@nestjs/jwt`/`passport` are never used. There is also no `RolesGuard` anywhere in the repo, so the `@Roles()` decorator from `@fieldforge/common` decorates nothing.
 
 **Impact:** every downstream route is effectively public; RBAC is cosmetic.
@@ -91,11 +93,15 @@ No service attaches a RabbitMQ transport (`amqplib`/`@nestjs/microservices` unus
 
 ### H2 · 🐛 API Gateway does not proxy anything
 
+**Status: resolved (Phase 1).** `ProxyController` on the API Gateway reverse-proxies incoming routes (`/api/v1/auth/*`, `/api/v1/users/*`, `/api/v1/work-orders/*`, `/api/v1/dispatch/*`, `/api/v1/billing/*`, `/api/v1/notifications/*`) to their respective downstream microservice URLs defined in `gateway.config.ts`. The proxy pipeline preserves and forwards `x-correlation-id`, and injects verified `x-ff-user-id` and `x-ff-user-role` headers into downstream requests.
+
 Despite `express-http-proxy` in `package.json`, no proxy/forwarding is configured. The gateway exposes only its own health routes; documented paths like `/api/v1/work-orders` **404**.
 **Impact:** clients cannot reach any service through the edge.
 **Fix:** implement route→service forwarding (or NestJS microservice clients) with correlation-id + auth propagation.
 
 ### H3 · 🐛 auth-service is an empty shell
+
+**Status: resolved (Phase 1).** `auth-service` implements registration (`POST /auth/register`) with `bcrypt` password hashing, login (`POST /auth/login`), refresh token rotation (`POST /auth/refresh`) backed by the `refresh_tokens` table via migration `0002_auth.sql`, profile fetching (`GET /users/me`), and database-backed technician certifications (`technician_certifications` table). It also mounts `HealthController` and `GlobalHttpExceptionFilter`.
 
 `auth-service` has an empty module — no register/login/refresh, no `bcrypt`, no `@nestjs/jwt`, no DB access. It doesn't even mount the health controller.
 **Impact:** there is no identity provider; nothing can issue the JWTs the gateway is supposed to verify. Blocks C2.
@@ -280,6 +286,8 @@ one is ignored rather than obeyed.
 
 ### M12 · 🔒 Wide-open CORS + PII in logs
 
+**Status: partially remediated (Phase 1).** The API Gateway now enforces a strict CORS origin allowlist derived from `WEB_PORT` and `CLIENT_URL` rather than reflecting any origin. Gateway and auth services use structured Pino logging via `createLogger()` with redaction paths for `authorization`, `password`, `passwordHash`, `token`, `refreshToken`, `phoneNumber`, `phone_number`, and `email`. Downstream services adopt this in subsequent phases.
+
 Services enable permissive CORS (reflect-any-origin) and log request bodies/headers that can include phone numbers/emails via `console.log`, not the Pino redaction path.
 **Impact:** CSRF-adjacent exposure once auth exists; PII leakage into logs.
 **Fix:** restrict CORS to known origins; route through Pino with redaction of PII/authorization headers.
@@ -331,6 +339,8 @@ start, but application exporters, dashboards, and measured SLO tests remain abse
 **Fix:** add an OTEL/Prom exporter and the missing scrape config.
 
 ### L2 · 🏛️ Structured logging bypassed
+
+**Status: partially remediated (Phase 1).** `api-gateway` and `auth-service` have eliminated `console.*` in favor of `createLogger()` with PII redaction and fatal startup error handlers. Downstream services will follow in Phases 2–4.
 
 Across services, `console.log`/`console.error` are used instead of the provided Pino `createLogger()`, so logs aren't structured JSON and correlation-id isn't attached.
 **Fix:** inject the Pino logger and drop `console.*`.

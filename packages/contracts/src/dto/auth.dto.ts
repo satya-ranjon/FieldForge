@@ -29,3 +29,23 @@ export interface AuthTokensDto {
     status: UserStatus;
   };
 }
+
+export interface RefreshTokenDto {
+  refreshToken: string;
+}
+
+export interface AuthJwtPayload {
+  sub: string;
+  email: string;
+  role: UserRole;
+  iat?: number;
+  exp?: number;
+}
+
+export interface TechnicianBadgeDto {
+  badgeId: string;
+  name: string;
+  issuedDate: string;
+  expiryDate: string;
+  isVerified: boolean;
+}

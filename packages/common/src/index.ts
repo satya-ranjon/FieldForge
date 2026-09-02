@@ -2,5 +2,8 @@ export * from './logger';
 export * from './apm/metrics.interceptor';
 export * from './decorators/roles.decorator';
 export * from './decorators/correlation-id.decorator';
+export * from './decorators/public.decorator';
+export * from './guards/roles.guard';
+export * from './database/drizzle.module';
 export * from './exceptions/http-exception.filter';
 export * from './health/health.controller';
