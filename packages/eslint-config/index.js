@@ -23,6 +23,7 @@ export default tseslint.config(
       '**/coverage/**',
       '**/.turbo/**',
       '**/.expo/**',
+      '**/.next/**',
       'packages/database/src/migrations/**'
     ]
   },

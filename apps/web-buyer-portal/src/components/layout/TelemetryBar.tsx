@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { Activity, Radio, ShieldCheck, TrendingUp, AlertTriangle, Users } from 'lucide-react';
 import { useSelector } from 'react-redux';

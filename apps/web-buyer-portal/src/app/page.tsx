@@ -1,17 +1,17 @@
+'use client';
+
 import React, { useState } from 'react';
-import { Provider } from 'react-redux';
-import { store } from './store';
-import { Header, type NavTab } from './components/layout/Header';
-import { TelemetryBar } from './components/layout/TelemetryBar';
-import { LiveDispatchBoard } from './components/dispatch/LiveDispatchBoard';
-import { TechnicianMatchingRadar } from './components/dispatch/TechnicianMatchingRadar';
-import { SowBuilder } from './components/work-orders/SowBuilder';
-import { EscrowManager } from './components/billing/EscrowManager';
-import { SlaAuditView } from './components/audit/SlaAuditView';
-import { AuthModal } from './components/auth/AuthModal';
+import { Header, type NavTab } from '../components/layout/Header';
+import { TelemetryBar } from '../components/layout/TelemetryBar';
+import { LiveDispatchBoard } from '../components/dispatch/LiveDispatchBoard';
+import { TechnicianMatchingRadar } from '../components/dispatch/TechnicianMatchingRadar';
+import { SowBuilder } from '../components/work-orders/SowBuilder';
+import { EscrowManager } from '../components/billing/EscrowManager';
+import { SlaAuditView } from '../components/audit/SlaAuditView';
+import { AuthModal } from '../components/auth/AuthModal';
 import { ShieldCheck, CheckCircle } from 'lucide-react';
 
-const BuyerPortalContent: React.FC = () => {
+export default function BuyerPortalPage(): React.JSX.Element {
   const [activeTab, setActiveTab] = useState<NavTab>('operations');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
@@ -79,13 +79,5 @@ const BuyerPortalContent: React.FC = () => {
         </div>
       </footer>
     </div>
-  );
-};
-
-export default function App() {
-  return (
-    <Provider store={store}>
-      <BuyerPortalContent />
-    </Provider>
   );
 }

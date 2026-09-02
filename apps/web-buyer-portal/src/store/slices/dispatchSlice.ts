@@ -28,7 +28,8 @@ export interface DispatchState {
   isBroadcasting: boolean;
 }
 
-const now = Date.now();
+// Fixed baseline timestamp for deterministic SSR hydration parity
+const now = 1772496000000;
 
 const initialTechnicians: NearbyTechnicianDto[] = [
   {

@@ -43,7 +43,8 @@ export interface WorkOrderState {
   isLoading: boolean;
 }
 
-const now = Date.now();
+// Fixed baseline timestamp for deterministic SSR hydration parity
+const now = 1772496000000;
 
 const initialWorkOrders: ExtendedWorkOrder[] = [
   {

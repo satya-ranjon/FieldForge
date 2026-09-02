@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { Clock, CheckCircle2, Activity, Cpu, Server, Terminal, Radio } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@fieldforge/ui';

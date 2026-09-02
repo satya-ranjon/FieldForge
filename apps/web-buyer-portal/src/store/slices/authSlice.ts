@@ -38,11 +38,6 @@ const getStoredUser = (): User | null => {
   }
 };
 
-const isExplicitlyLoggedOut = Boolean(getStoredItem('ff_logged_out'));
-const storedToken = getStoredItem('ff_access_token');
-const storedRefreshToken = getStoredItem('ff_refresh_token');
-const storedUser = getStoredUser();
-
 const defaultDemoUser: User = {
   id: 'b0000000-0000-0000-0000-000000000001',
   email: 'buyer@apexretail.com',
@@ -52,10 +47,10 @@ const defaultDemoUser: User = {
 };
 
 const initialState: AuthState = {
-  user: isExplicitlyLoggedOut ? null : storedUser || defaultDemoUser,
-  token: isExplicitlyLoggedOut ? null : storedToken || 'demo-token',
-  refreshToken: storedRefreshToken,
-  isAuthenticated: !isExplicitlyLoggedOut,
+  user: defaultDemoUser,
+  token: 'demo-token',
+  refreshToken: null,
+  isAuthenticated: true,
   isLoading: false,
   error: null
 };
@@ -64,6 +59,28 @@ export const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
+    rehydrateAuthFromStorage: (state) => {
+      const isLoggedOut = Boolean(getStoredItem('ff_logged_out'));
+      if (isLoggedOut) {
+        state.user = null;
+        state.token = null;
+        state.refreshToken = null;
+        state.isAuthenticated = false;
+        return;
+      }
+      const storedUser = getStoredUser();
+      const storedToken = getStoredItem('ff_access_token');
+      const storedRefreshToken = getStoredItem('ff_refresh_token');
+      if (storedUser) {
+        state.user = storedUser;
+      }
+      if (storedToken) {
+        state.token = storedToken;
+      }
+      if (storedRefreshToken) {
+        state.refreshToken = storedRefreshToken;
+      }
+    },
     setCredentials: (
       state,
       action: PayloadAction<{ user: User; accessToken: string; refreshToken: string }>
@@ -128,6 +145,13 @@ export const authSlice = createSlice({
   }
 });
 
-export const { setCredentials, setUser, setToken, setLoading, setError, logout } =
-  authSlice.actions;
+export const {
+  rehydrateAuthFromStorage,
+  setCredentials,
+  setUser,
+  setToken,
+  setLoading,
+  setError,
+  logout
+} = authSlice.actions;
 export default authSlice.reducer;

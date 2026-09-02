@@ -26,7 +26,8 @@ export interface BillingState {
   selectedTransactionId: string | null;
 }
 
-const now = Date.now();
+// Fixed baseline timestamp for deterministic SSR hydration parity
+const now = 1772496000000;
 
 const initialTransactions: EscrowTransaction[] = [
   {
