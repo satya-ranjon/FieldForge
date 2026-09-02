@@ -21,27 +21,27 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const baseStyles =
-    'inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed select-none';
+    'inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#090d16] disabled:opacity-40 disabled:cursor-not-allowed select-none active:scale-[0.98] cursor-pointer';
 
   const variants = {
     primary:
-      'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 focus:ring-blue-500 shadow-sm shadow-blue-900/30',
+      'bg-blue-600 text-white hover:bg-blue-500 active:bg-blue-700 focus-visible:ring-blue-500 shadow-md shadow-blue-900/30 hover:shadow-blue-600/25 border border-blue-500/40',
     secondary:
-      'bg-slate-800 text-slate-200 hover:bg-slate-700 active:bg-slate-750 focus:ring-slate-500 border border-slate-700 hover:border-slate-600',
+      'bg-slate-800/90 text-slate-200 hover:bg-slate-700/90 active:bg-slate-800 focus-visible:ring-slate-400 border border-slate-700 hover:border-slate-600 shadow-sm',
     danger:
-      'bg-red-600 text-white hover:bg-red-700 active:bg-red-800 focus:ring-red-500 shadow-sm shadow-red-900/30',
+      'bg-red-600/95 text-white hover:bg-red-500 active:bg-red-700 focus-visible:ring-red-500 shadow-sm shadow-red-950/40 border border-red-500/30',
     outline:
-      'border border-blue-500 text-blue-400 hover:bg-blue-950/50 active:bg-blue-950 focus:ring-blue-400',
+      'border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800/60 hover:border-slate-600 active:bg-slate-800 focus-visible:ring-blue-500',
     ghost:
-      'text-slate-300 hover:text-white hover:bg-slate-800/60 active:bg-slate-800 focus:ring-slate-500',
+      'text-slate-300 hover:text-white hover:bg-slate-800/60 active:bg-slate-800/80 focus-visible:ring-slate-500',
     success:
-      'bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800 focus:ring-emerald-500 shadow-sm shadow-emerald-900/30'
+      'bg-emerald-600 text-white hover:bg-emerald-500 active:bg-emerald-700 focus-visible:ring-emerald-500 shadow-md shadow-emerald-950/40 border border-emerald-500/30'
   };
 
   const sizes = {
-    sm: 'px-3 py-1.5 text-xs',
-    md: 'px-4 py-2 text-sm',
-    lg: 'px-6 py-3 text-base'
+    sm: 'px-2.5 py-1.5 text-xs h-7',
+    md: 'px-3.5 py-2 text-xs sm:text-sm h-9',
+    lg: 'px-5 py-2.5 text-sm sm:text-base h-11'
   };
 
   return (
@@ -52,7 +52,7 @@ export const Button: React.FC<ButtonProps> = ({
     >
       {isLoading ? (
         <svg
-          className="animate-spin -ml-0.5 mr-1.5 h-4 w-4 text-current"
+          className="animate-spin h-3.5 w-3.5 text-current shrink-0"
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
@@ -73,10 +73,10 @@ export const Button: React.FC<ButtonProps> = ({
           />
         </svg>
       ) : (
-        leftIcon
+        leftIcon && <span className="shrink-0">{leftIcon}</span>
       )}
       {children}
-      {!isLoading && rightIcon}
+      {!isLoading && rightIcon && <span className="shrink-0">{rightIcon}</span>}
     </button>
   );
 };

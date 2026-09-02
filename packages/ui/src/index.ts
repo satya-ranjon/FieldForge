@@ -1,4 +1,5 @@
-export const cn = (...classes: string[]) => classes.filter(Boolean).join(' ');
+export const cn = (...classes: (string | undefined | null | false | 0)[]) =>
+  classes.filter(Boolean).join(' ');
 export * from './components/Button';
 export * from './components/StatusBadge';
 export * from './components/Card';

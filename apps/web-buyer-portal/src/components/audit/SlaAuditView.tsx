@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock } from 'lucide-react';
+import { Clock, CheckCircle2, Activity, Cpu, Server, Terminal, Radio } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@fieldforge/ui';
 
 export const SlaAuditView: React.FC = () => {
@@ -9,28 +9,32 @@ export const SlaAuditView: React.FC = () => {
       value: '99.98%',
       target: '≥ 99.9%',
       status: 'OPTIMAL',
-      spec: 'FR-OBS-002'
+      spec: 'FR-OBS-002',
+      icon: Server
     },
     {
       label: 'p95 API Read Latency',
       value: '42ms',
       target: '< 100ms',
       status: 'OPTIMAL',
-      spec: 'NFR-PERF-001'
+      spec: 'NFR-PERF-001',
+      icon: Cpu
     },
     {
       label: 'p95 API Write Latency',
       value: '118ms',
       target: '< 200ms',
       status: 'OPTIMAL',
-      spec: 'NFR-PERF-001'
+      spec: 'NFR-PERF-001',
+      icon: Activity
     },
     {
       label: 'Dispatch Queue Latency',
       value: '0.45s',
       target: '< 1.5s',
       status: 'OPTIMAL',
-      spec: 'FR-OBS-002'
+      spec: 'FR-OBS-002',
+      icon: Radio
     }
   ];
 
@@ -71,47 +75,78 @@ export const SlaAuditView: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       {/* SLA Metrics Header */}
-      <Card variant="glass" className="p-4 border-slate-800">
-        <div className="flex items-center space-x-2">
-          <Clock className="w-4 h-4 text-blue-400" />
-          <h2 className="text-lg font-bold text-white tracking-tight">
-            SLA Compliance & Observability Telemetry
-          </h2>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800">
-            FR-OBS-001 / 002
-          </span>
+      <Card variant="glass" className="p-4 sm:p-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center space-x-2.5">
+              <Clock className="w-4 h-4 text-blue-400" />
+              <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
+                SLA Compliance & Observability Telemetry
+              </h2>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-950/80 text-blue-300 border border-blue-800/80 font-semibold">
+                FR-OBS-001 / 002
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 mt-1">
+              Real-time service-level indicator (SLI) telemetry and distributed trace audit trail
+              across bounded contexts
+            </p>
+          </div>
+
+          <div className="flex items-center space-x-2 bg-[#090d16]/90 px-3 py-1.5 rounded-xl border border-slate-800 self-start sm:self-auto font-mono text-xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-slate-300">Cluster Status:</span>
+            <span className="text-emerald-400 font-bold">HEALTHY</span>
+          </div>
         </div>
-        <p className="text-xs text-slate-400 mt-0.5">
-          Real-time service-level indicator (SLI) telemetry and distributed trace audit trail
-        </p>
       </Card>
 
       {/* Observability Telemetry Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {metrics.map((m) => (
-          <Card key={m.label} variant="default" className="p-4">
-            <div className="flex items-center justify-between text-xs text-slate-400">
-              <span>{m.label}</span>
-              <span className="text-[10px] font-mono text-slate-500">{m.spec}</span>
-            </div>
-            <div className="mt-2 text-2xl font-bold font-mono text-emerald-400">{m.value}</div>
-            <div className="mt-2 pt-2 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
-              <span>Target: {m.target}</span>
-              <span className="text-emerald-400 font-semibold font-mono">PASS</span>
-            </div>
-          </Card>
-        ))}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {metrics.map((m) => {
+          const Icon = m.icon;
+          return (
+            <Card
+              key={m.label}
+              variant="glass"
+              className="p-4 sm:p-5 group hover:border-slate-700/80 transition"
+            >
+              <div className="flex items-center justify-between text-xs text-slate-400">
+                <span className="font-medium truncate max-w-[170px]">{m.label}</span>
+                <span className="text-[10px] font-mono text-slate-500 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">
+                  {m.spec}
+                </span>
+              </div>
+              <div className="mt-2.5 flex items-baseline justify-between">
+                <span className="text-2xl sm:text-3xl font-bold font-mono text-emerald-400">
+                  {m.value}
+                </span>
+                <Icon className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition" />
+              </div>
+              <div className="mt-3 pt-2.5 border-t border-slate-800/70 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                <span>Target: {m.target}</span>
+                <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" />
+                  PASS
+                </span>
+              </div>
+            </Card>
+          );
+        })}
       </div>
 
       {/* Distributed Audit Log & Correlation ID Trail */}
-      <Card>
-        <CardHeader>
+      <Card variant="elevated" className="border-slate-700/80">
+        <CardHeader className="bg-[#090d16]/50">
           <div>
-            <CardTitle className="text-base">
-              Microservices Event Trail & Correlation Logs
-            </CardTitle>
+            <div className="flex items-center space-x-2">
+              <Terminal className="w-4 h-4 text-blue-400" />
+              <CardTitle className="text-sm sm:text-base">
+                Microservices Event Trail & Correlation Logs
+              </CardTitle>
+            </div>
             <CardDescription>
               Structured JSON event propagation across AMQP and HTTP boundaries (FR-OBS-001)
             </CardDescription>
@@ -121,7 +156,7 @@ export const SlaAuditView: React.FC = () => {
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-slate-950/60 text-slate-400 uppercase text-[10px] font-mono border-b border-slate-800">
+              <thead className="bg-[#090d16]/80 text-slate-400 uppercase text-[10px] font-mono border-b border-slate-800">
                 <tr>
                   <th className="px-5 py-3">Timestamp</th>
                   <th className="px-5 py-3">Correlation ID</th>
@@ -130,22 +165,24 @@ export const SlaAuditView: React.FC = () => {
                   <th className="px-5 py-3">Telemetry Payload Description</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800">
+              <tbody className="divide-y divide-slate-800/80">
                 {auditEvents.map((evt) => (
-                  <tr key={evt.id} className="hover:bg-slate-850/50 transition">
-                    <td className="px-5 py-3 text-slate-400 font-mono">{evt.time}</td>
-                    <td className="px-5 py-3 font-mono text-blue-400 font-semibold">
+                  <tr key={evt.id} className="hover:bg-[#090d16]/50 transition">
+                    <td className="px-5 py-3.5 text-slate-400 font-mono whitespace-nowrap">
+                      {evt.time}
+                    </td>
+                    <td className="px-5 py-3.5 font-mono text-blue-400 font-bold whitespace-nowrap">
                       {evt.correlationId}
                     </td>
-                    <td className="px-5 py-3">
-                      <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-200 border border-slate-700 font-mono text-[11px]">
+                    <td className="px-5 py-3.5 whitespace-nowrap">
+                      <span className="px-2 py-0.5 rounded-md bg-[#090d16] text-slate-300 border border-slate-700 font-mono text-[10px]">
                         {evt.service}
                       </span>
                     </td>
-                    <td className="px-5 py-3 font-mono text-emerald-400 font-medium">
+                    <td className="px-5 py-3.5 font-mono text-emerald-400 font-semibold whitespace-nowrap">
                       {evt.event}
                     </td>
-                    <td className="px-5 py-3 text-slate-300">{evt.details}</td>
+                    <td className="px-5 py-3.5 text-slate-300 leading-relaxed">{evt.details}</td>
                   </tr>
                 ))}
               </tbody>

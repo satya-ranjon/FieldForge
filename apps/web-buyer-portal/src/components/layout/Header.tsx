@@ -8,7 +8,8 @@ import {
   Layers,
   Radio,
   Wallet,
-  Clock
+  Clock,
+  ChevronDown
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { formatMinor } from '@fieldforge/contracts';
@@ -31,82 +32,111 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab }) => {
   const navItems = [
     {
       id: 'operations' as NavTab,
-      label: 'Live Operations & FSM',
+      label: 'Live Operations',
+      sublabel: 'FSM & Dispatch',
       icon: Activity,
       badge: activeCount
     },
-    { id: 'create-wo' as NavTab, label: 'SOW Studio & Create', icon: Layers },
-    { id: 'technicians' as NavTab, label: 'Technician Radar & Bids', icon: Radio, pulse: true },
-    { id: 'billing' as NavTab, label: 'Escrow Vault & Ledger', icon: Wallet },
-    { id: 'audit' as NavTab, label: 'SLA & Telemetry Audit', icon: Clock }
+    {
+      id: 'create-wo' as NavTab,
+      label: 'SOW Studio',
+      sublabel: 'Create Ticket',
+      icon: Layers
+    },
+    {
+      id: 'technicians' as NavTab,
+      label: 'Technician Radar',
+      sublabel: 'Geo-Matching & Bids',
+      icon: Radio,
+      pulse: true
+    },
+    {
+      id: 'billing' as NavTab,
+      label: 'Escrow Vault',
+      sublabel: 'Ledger & Audit',
+      icon: Wallet
+    },
+    {
+      id: 'audit' as NavTab,
+      label: 'SLA Telemetry',
+      sublabel: 'SLO Observability',
+      icon: Clock
+    }
   ];
 
   return (
-    <header className="border-b border-slate-800/90 bg-[#090d16]/95 backdrop-blur-md sticky top-0 z-40">
-      {/* Top Banner: Enterprise Context & System Telemetry */}
-      <div className="px-6 py-2.5 border-b border-slate-800/60 flex items-center justify-between text-xs">
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white shadow-sm shadow-blue-500/30">
-              <Zap className="w-4 h-4" />
+    <header className="border-b border-slate-800/80 bg-[#090d16]/90 backdrop-blur-xl sticky top-0 z-40">
+      {/* Top Banner: Enterprise Identity & Live Infrastructure Telemetry */}
+      <div className="px-4 sm:px-6 py-2 border-b border-slate-800/50 flex flex-wrap items-center justify-between gap-3 text-xs">
+        {/* Brand & Organization Identity */}
+        <div className="flex items-center space-x-3 sm:space-x-4">
+          <div className="flex items-center space-x-2.5">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center font-bold text-white shadow-md shadow-blue-600/30 border border-blue-400/30 ring-1 ring-blue-500/20">
+              <Zap className="w-4 h-4 fill-white" />
             </div>
-            <div className="flex items-baseline space-x-1.5">
-              <span className="font-bold text-white text-sm tracking-tight">FieldForge</span>
-              <span className="text-blue-400 font-mono font-medium text-xs">
-                ENTERPRISE BUYER HUB
+            <div className="flex items-baseline space-x-2">
+              <span className="font-bold text-white text-base tracking-tight">FieldForge</span>
+              <span className="text-[10px] uppercase font-mono font-semibold tracking-wider px-1.5 py-0.5 rounded bg-blue-950/80 text-blue-400 border border-blue-800/50">
+                Enterprise
               </span>
             </div>
           </div>
 
-          <span className="text-slate-700">|</span>
+          <span className="hidden sm:inline text-slate-700">/</span>
 
           {/* Buyer Organization Switcher */}
-          <div className="flex items-center space-x-2 bg-slate-900/80 px-2.5 py-1 rounded-md border border-slate-800">
+          <div className="hidden sm:flex items-center space-x-2 bg-slate-900/90 px-2.5 py-1 rounded-lg border border-slate-800/80 hover:border-slate-700 transition cursor-pointer">
             <Building2 className="w-3.5 h-3.5 text-blue-400" />
-            <span className="text-slate-200 font-medium">Apex Retail Corp</span>
-            <span className="text-slate-500 font-mono text-[10px]">(ID: b-apex-01)</span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-950 text-blue-300 font-semibold border border-blue-800/60">
-              Tier 1 Enterprise
+            <span className="text-slate-200 font-medium text-xs">Apex Retail Corp</span>
+            <span className="text-slate-500 font-mono text-[10px] hidden md:inline">
+              (b-apex-01)
             </span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-950/80 text-emerald-400 font-semibold border border-emerald-800/60 font-mono">
+              Tier 1
+            </span>
+            <ChevronDown className="w-3 h-3 text-slate-500" />
           </div>
         </div>
 
-        {/* Live Cluster Heartbeat Telemetry */}
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-1.5 bg-slate-900/80 px-2.5 py-1 rounded-md border border-slate-800">
+        {/* Live Cluster Heartbeat Telemetry & Escrow */}
+        <div className="flex items-center space-x-2 sm:space-x-3">
+          {/* GeoStream AMQP Heartbeat */}
+          <div className="flex items-center space-x-2 bg-slate-900/90 px-2.5 py-1 rounded-lg border border-slate-800/80">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
             </span>
-            <span className="text-slate-400 text-[11px]">AMQP & Redis GEOSTREAM:</span>
+            <span className="text-slate-400 text-[11px] hidden md:inline">AMQP GEOSTREAM:</span>
             <span className="text-emerald-400 font-mono font-semibold text-[11px]">
-              ACTIVE (12ms)
+              ONLINE <span className="text-slate-500 font-normal hidden lg:inline">(12ms)</span>
             </span>
           </div>
 
-          <div className="flex items-center space-x-1.5 bg-slate-900/80 px-2.5 py-1 rounded-md border border-slate-800">
+          {/* Escrow Vault Chip */}
+          <div className="flex items-center space-x-1.5 bg-slate-900/90 px-2.5 py-1 rounded-lg border border-slate-800/80">
             <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
-            <span className="text-slate-400 text-[11px]">Escrow Vault:</span>
+            <span className="text-slate-400 text-[11px] hidden sm:inline">Escrow:</span>
             <span className="text-emerald-400 font-mono font-bold text-[11px]">
               {formatMinor(totalLockedMinor)}
             </span>
           </div>
 
-          <div className="flex items-center space-x-2 text-slate-400">
-            <button
-              className="p-1.5 rounded-lg hover:text-white hover:bg-slate-800 transition focus:outline-none focus:ring-2 focus:ring-blue-500"
-              aria-label="Notifications"
-            >
-              <Bell className="w-4 h-4" />
-            </button>
-          </div>
+          {/* Notification Alert Bell */}
+          <button
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition focus:outline-none focus:ring-2 focus:ring-blue-500 relative cursor-pointer"
+            aria-label="Notifications"
+          >
+            <Bell className="w-4 h-4" />
+            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-blue-500 ring-2 ring-[#090d16]" />
+          </button>
         </div>
       </div>
 
       {/* Main Navigation Bar */}
-      <div className="px-4 sm:px-6 py-2 flex items-center justify-between gap-2 overflow-hidden">
+      <div className="px-4 sm:px-6 py-2 flex items-center justify-between gap-3">
+        {/* Navigation Tabs (Scrollable on small screens) */}
         <nav
-          className="flex space-x-1 overflow-x-auto min-w-0 flex-1 py-0.5"
+          className="flex space-x-1 sm:space-x-1.5 overflow-x-auto min-w-0 flex-1 py-1 no-scrollbar"
           aria-label="Main Navigation"
         >
           {navItems.map((item) => {
@@ -116,41 +146,44 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab }) => {
               <button
                 key={item.id}
                 onClick={() => onSelectTab(item.id)}
-                className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 select-none shrink-0 whitespace-nowrap ${
+                className={`relative flex items-center space-x-2 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-lg text-xs font-medium transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 select-none shrink-0 whitespace-nowrap cursor-pointer ${
                   isActive
-                    ? 'bg-blue-600 text-white shadow-sm shadow-blue-900/30'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30 border border-blue-500/40'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-                <span>{item.label}</span>
+                <Icon
+                  className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${
+                    isActive ? 'text-white' : 'text-slate-400'
+                  }`}
+                />
+                <span className="font-semibold tracking-tight">{item.label}</span>
                 {item.badge !== undefined && (
                   <span
-                    className={`ml-1.5 px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+                    className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
                       isActive
-                        ? 'bg-blue-800 text-blue-100'
-                        : 'bg-slate-800 text-slate-300 border border-slate-700'
+                        ? 'bg-blue-800/90 text-blue-100 border border-blue-400/40'
+                        : 'bg-slate-800 text-slate-300 border border-slate-700/80'
                     }`}
                   >
                     {item.badge}
                   </span>
                 )}
                 {item.pulse && !isActive && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping ml-1" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse ml-0.5" />
                 )}
               </button>
             );
           })}
         </nav>
 
-        <div className="flex items-center space-x-3">
+        {/* User Identity & Avatar */}
+        <div className="flex items-center space-x-3 shrink-0 pl-2">
           <div className="text-right hidden sm:block">
-            <div className="text-xs font-semibold text-slate-200">
-              Satya Ranjan (Lead Dispatcher)
-            </div>
-            <div className="text-[10px] text-slate-400 font-mono">Role: BUYER_ADMIN</div>
+            <div className="text-xs font-semibold text-slate-200 leading-tight">Satya Ranjan</div>
+            <div className="text-[10px] text-blue-400 font-mono">BUYER_ADMIN</div>
           </div>
-          <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-xs text-blue-400">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-700 to-indigo-600 border border-blue-400/40 flex items-center justify-center font-bold text-xs text-white shadow-sm shadow-black/50 ring-2 ring-blue-500/10">
             SR
           </div>
         </div>

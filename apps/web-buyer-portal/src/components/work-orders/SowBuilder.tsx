@@ -1,18 +1,17 @@
 import React, { useState } from 'react';
 import {
-  Layers,
   Sparkles,
   MapPin,
   Clock,
-  DollarSign,
   ShieldCheck,
   CheckCircle2,
   Plus,
   Trash2,
-  Zap,
   ArrowRight,
   ArrowLeft,
-  Check
+  Check,
+  X,
+  DollarSign
 } from 'lucide-react';
 import { useDispatch } from 'react-redux';
 import { addWorkOrder, type ExtendedWorkOrder } from '../../store/slices/workOrderSlice';
@@ -21,7 +20,6 @@ import {
   Card,
   CardHeader,
   CardTitle,
-  CardDescription,
   CardContent,
   CardFooter,
   Button,
@@ -265,27 +263,31 @@ export const SowBuilder: React.FC = () => {
     setTimeout(() => setPublishedSuccess(null), 6000);
   };
 
+  const platformFee = Math.round(budgetDollars * 0.08);
+  const totalEscrowDollars = budgetDollars + platformFee;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       {/* Toast */}
       {publishedSuccess && (
-        <div className="bg-emerald-950 border border-emerald-700 text-emerald-300 px-4 py-3 rounded-lg flex items-center justify-between text-xs animate-in fade-in">
-          <div className="flex items-center space-x-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+        <div className="bg-emerald-950/90 border border-emerald-600/80 text-emerald-300 px-4 py-3 rounded-xl flex items-center justify-between text-xs animate-in fade-in shadow-lg shadow-emerald-950/40">
+          <div className="flex items-center space-x-2.5">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
             <span className="font-semibold">{publishedSuccess}</span>
           </div>
           <button
             onClick={() => setPublishedSuccess(null)}
-            className="text-emerald-400 hover:text-emerald-200"
+            className="text-emerald-400 hover:text-emerald-200 p-1 cursor-pointer"
+            aria-label="Dismiss toast"
           >
-            ×
+            <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {/* Preset Banner */}
-      <Card variant="glass" className="p-4 border-slate-800">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+      {/* Preset Banner Cards */}
+      <Card variant="glass" className="p-4 sm:p-5">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 mb-3">
           <div>
             <div className="flex items-center space-x-2">
               <Sparkles className="w-4 h-4 text-blue-400" />
@@ -294,256 +296,344 @@ export const SowBuilder: React.FC = () => {
               </h3>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Load standardized deliverables and certification criteria for fast dispatch
+              Click a verified blueprint to pre-populate industry-standard scope, certifications,
+              and escrow terms
             </p>
           </div>
+        </div>
 
-          <div className="flex flex-wrap gap-2">
-            {PRESETS.map((p) => (
-              <Button
-                key={p.name}
-                variant="secondary"
-                size="sm"
-                onClick={() => applyPreset(p)}
-                className="text-xs"
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {PRESETS.map((preset) => {
+            const isMatch = title === preset.name;
+            return (
+              <div
+                key={preset.name}
+                onClick={() => applyPreset(preset)}
+                className={`p-3.5 rounded-xl border transition-all duration-150 cursor-pointer relative ${
+                  isMatch
+                    ? 'bg-blue-950/40 border-blue-500 shadow-md shadow-blue-950/40 ring-1 ring-blue-500/30'
+                    : 'bg-[#090d16]/80 border-slate-800/80 hover:bg-[#090d16] hover:border-slate-700'
+                }`}
               >
-                {p.name.split(' ')[0]} {p.name.split(' ')[1]}
-              </Button>
-            ))}
-          </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase font-mono font-semibold px-1.5 py-0.2 rounded bg-slate-900 text-slate-400 border border-slate-800">
+                    {preset.category}
+                  </span>
+                  <span className="text-xs font-mono font-bold text-emerald-400">
+                    ${preset.budgetDollars}
+                  </span>
+                </div>
+                <h4 className="text-xs font-bold text-white mt-2 leading-snug">{preset.name}</h4>
+                <p className="text-[11px] text-slate-400 line-clamp-2 mt-1 leading-relaxed">
+                  {preset.description}
+                </p>
+                <div className="mt-2.5 pt-2 border-t border-slate-800/60 flex items-center justify-between text-[10px] text-slate-400">
+                  <span>{preset.scopeSteps.length} Steps</span>
+                  <span className="text-blue-400 font-medium">Click to Load →</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </Card>
 
-      {/* Multi-Step SOW Studio Card */}
-      <Card variant="default">
-        <CardHeader>
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 rounded-lg bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
-              <Layers className="w-4 h-4" />
+      {/* Main Studio Grid: Form Wizard (7 cols) + Live Escrow Preview (5 cols) */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
+        {/* Left Wizard Column */}
+        <div className="xl:col-span-7 space-y-4">
+          <Card variant="elevated" className="border-slate-700/80">
+            {/* Step Navigation Bar */}
+            <div className="p-3 sm:p-4 border-b border-slate-800/80 bg-[#090d16]/60 flex items-center justify-between overflow-x-auto gap-2 no-scrollbar">
+              {[
+                { num: 1, label: 'Scope & Category' },
+                { num: 2, label: 'Geo & Location' },
+                { num: 3, label: 'SLA & Escrow' },
+                { num: 4, label: 'Deliverables' }
+              ].map((s) => {
+                const isCurrent = step === s.num;
+                const isPassed = step > s.num;
+
+                return (
+                  <button
+                    key={s.num}
+                    onClick={() => setStep(s.num)}
+                    className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer shrink-0 ${
+                      isCurrent
+                        ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/30'
+                        : isPassed
+                          ? 'text-emerald-400 hover:text-white bg-slate-900/60 border border-emerald-800/40'
+                          : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <span
+                      className={`w-5 h-5 rounded-full flex items-center justify-center font-mono text-[10px] font-bold ${
+                        isCurrent
+                          ? 'bg-white text-blue-700'
+                          : isPassed
+                            ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                            : 'bg-slate-800 text-slate-400'
+                      }`}
+                    >
+                      {isPassed ? <Check className="w-3 h-3" /> : s.num}
+                    </span>
+                    <span>{s.label}</span>
+                  </button>
+                );
+              })}
             </div>
-            <div>
-              <CardTitle className="text-base">
-                Scope of Work (SOW) Standard & Work Order Creator
-              </CardTitle>
-              <CardDescription>
-                Define mandatory deliverables, technician accreditation, GPS geofencing, and
-                pre-authorized escrow
-              </CardDescription>
-            </div>
-          </div>
 
-          {/* Stepper Navigation Indicator */}
-          <div className="flex items-center space-x-2 text-xs font-mono">
-            {[
-              { num: 1, label: 'Classification' },
-              { num: 2, label: 'Location & SLA' },
-              { num: 3, label: 'Budget & Escrow' },
-              { num: 4, label: 'Certifications' },
-              { num: 5, label: 'Review & Publish' }
-            ].map((s) => (
-              <button
-                key={s.num}
-                onClick={() => setStep(s.num)}
-                className={`px-2.5 py-1 rounded-md transition ${
-                  step === s.num
-                    ? 'bg-blue-600 text-white font-bold'
-                    : step > s.num
-                      ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
-                      : 'bg-slate-800 text-slate-500'
-                }`}
-              >
-                {s.num}. {s.label}
-              </button>
-            ))}
-          </div>
-        </CardHeader>
-
-        <CardContent className="p-6 space-y-6">
-          {/* Step 1: Classification & Details */}
-          {step === 1 && (
-            <div className="space-y-4">
-              <Input
-                label="Work Order Title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. POS Pin-Pad Replacement & Cat6 Cable Termination"
-              />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Select
-                  label="Category Domain"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  options={[
-                    { value: 'Networking & POS', label: 'Networking & POS' },
-                    { value: 'Telecommunications', label: 'Telecommunications' },
-                    { value: 'Hardware Maintenance', label: 'Hardware Maintenance' },
-                    { value: 'HVAC & Facility IoT', label: 'HVAC & Facility IoT' },
-                    { value: 'Digital Signage', label: 'Digital Signage' }
-                  ]}
-                />
-
-                <Select
-                  label="Priority & Urgency Level"
-                  value={priority}
-                  onChange={(e) => setPriority(e.target.value as PriorityLevel)}
-                  options={[
-                    { value: PriorityLevel.CRITICAL_SLA, label: 'CRITICAL_SLA (< 4hr Response)' },
-                    { value: PriorityLevel.URGENT, label: 'URGENT (< 8hr Response)' },
-                    { value: PriorityLevel.STANDARD, label: 'STANDARD (24-48hr Window)' },
-                    { value: PriorityLevel.LOW, label: 'LOW (Flexible Schedule)' }
-                  ]}
-                />
-              </div>
-
-              <Textarea
-                label="Detailed Description & Problem Statement"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={4}
-              />
-            </div>
-          )}
-
-          {/* Step 2: Location & Geofencing */}
-          {step === 2 && (
-            <div className="space-y-4">
-              <Input
-                label="Site Physical Address"
-                value={addressLine}
-                onChange={(e) => setAddressLine(e.target.value)}
-                leftIcon={<MapPin className="w-4 h-4" />}
-                placeholder="e.g. 789 Mission St, San Francisco, CA 94103"
-              />
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Step 1: Scope & Category */}
+            {step === 1 && (
+              <CardContent className="space-y-4">
                 <Input
-                  label="Site Latitude (GPS)"
-                  type="number"
-                  step="0.0001"
-                  value={latitude}
-                  onChange={(e) => setLatitude(parseFloat(e.target.value) || 0)}
-                />
-                <Input
-                  label="Site Longitude (GPS)"
-                  type="number"
-                  step="0.0001"
-                  value={longitude}
-                  onChange={(e) => setLongitude(parseFloat(e.target.value) || 0)}
-                />
-                <Input
-                  label="Geofence Tolerance (Meters)"
-                  type="number"
-                  value={geofenceRadius}
-                  onChange={(e) => setGeofenceRadius(parseInt(e.target.value, 10) || 200)}
-                  helperText="Technician must be within this radius to check in"
-                />
-              </div>
-
-              <Input
-                label="SLA Resolution Deadline (Hours from Publish)"
-                type="number"
-                value={slaHours}
-                onChange={(e) => setSlaHours(parseInt(e.target.value, 10) || 6)}
-                leftIcon={<Clock className="w-4 h-4" />}
-              />
-            </div>
-          )}
-
-          {/* Step 3: Budget & Escrow Pre-Auth */}
-          {step === 3 && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Select
-                  label="Budget Compensation Model"
-                  value={budgetType}
-                  onChange={(e) => setBudgetType(e.target.value as BudgetType)}
-                  options={[
-                    { value: BudgetType.FIXED, label: 'Fixed Price (Pre-Authorized Escrow)' },
-                    { value: BudgetType.HOURLY, label: 'Hourly Rate (with Not-To-Exceed Cap)' }
-                  ]}
+                  label="Work Order Title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. POS Terminal Emergency Swap"
                 />
 
-                <Input
-                  label={
-                    budgetType === BudgetType.FIXED
-                      ? 'Total Escrow Amount ($)'
-                      : 'Hourly Rate ($/hr)'
-                  }
-                  type="number"
-                  value={budgetDollars}
-                  onChange={(e) => setBudgetDollars(parseFloat(e.target.value) || 0)}
-                  leftIcon={<DollarSign className="w-4 h-4" />}
-                />
-              </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Select
+                    label="Work Order Category"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    options={[
+                      { value: 'Networking & POS', label: 'Networking & POS' },
+                      { value: 'Telecommunications', label: 'Telecommunications' },
+                      { value: 'EV Charging & Power', label: 'EV Charging & Power' },
+                      { value: 'HVAC & Refrigeration', label: 'HVAC & Refrigeration' },
+                      { value: 'CCTV & Security', label: 'CCTV & Security' }
+                    ]}
+                  />
 
-              <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-2">
-                <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
-                  <span className="flex items-center gap-1.5">
-                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                    Escrow Vault Guarantee (FR-BILL-001)
-                  </span>
-                  <span className="text-emerald-400 font-mono font-bold">
-                    {formatMinor(toMinor(budgetDollars))} Pre-Auth
-                  </span>
+                  <Select
+                    label="Priority & SLA Urgency"
+                    value={priority}
+                    onChange={(e) => setPriority(e.target.value as PriorityLevel)}
+                    options={[
+                      { value: PriorityLevel.CRITICAL_SLA, label: 'CRITICAL_SLA (< 4hr SLA)' },
+                      { value: PriorityLevel.URGENT, label: 'URGENT (< 8hr SLA)' },
+                      { value: PriorityLevel.STANDARD, label: 'STANDARD (< 24hr SLA)' },
+                      { value: PriorityLevel.LOW, label: 'LOW (Flexible)' }
+                    ]}
+                  />
                 </div>
-                <p className="text-xs text-slate-400">
-                  Upon publishing, {formatMinor(toMinor(budgetDollars))} will be reserved from your
-                  corporate billing account (Apex Retail Corp). Funds remain locked in escrow until
-                  you approve deliverables or the 72-hour review window concludes.
-                </p>
-              </div>
-            </div>
-          )}
 
-          {/* Step 4: Compliance & Certifications */}
-          {step === 4 && (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-2">
-                  Mandatory Technician Accreditation & Vetting Badges (FR-AUTH-003)
-                </label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
-                  {availableCerts.map((cert) => {
-                    const isSelected = selectedCerts.includes(cert);
-                    return (
+                <Textarea
+                  label="Detailed Scope Description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={3}
+                  placeholder="Describe root-cause, target assets, serial numbers, and equipment model..."
+                />
+
+                {/* Scope Steps Builder */}
+                <div className="space-y-2 pt-2 border-t border-slate-800/80">
+                  <label className="block text-xs font-medium text-slate-300">
+                    Step-by-Step SOP Checklist ({scopeSteps.length})
+                  </label>
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                    {scopeSteps.map((s, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-2 rounded-lg bg-[#090d16] border border-slate-800 text-xs"
+                      >
+                        <div className="flex items-center space-x-2 min-w-0 pr-2">
+                          <span className="font-mono text-blue-400 font-bold shrink-0">
+                            {idx + 1}.
+                          </span>
+                          <span className="text-slate-200 truncate">{s}</span>
+                        </div>
+                        <button
+                          onClick={() => removeScopeStep(idx)}
+                          className="text-slate-500 hover:text-red-400 p-1 cursor-pointer shrink-0"
+                          aria-label="Remove step"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center space-x-2 mt-2">
+                    <input
+                      type="text"
+                      placeholder="Add an SOP step..."
+                      value={newStepText}
+                      onChange={(e) => setNewStepText(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && addScopeStep()}
+                      className="flex-1 bg-[#090d16] border border-slate-700/80 rounded-lg px-3 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={addScopeStep}
+                      leftIcon={<Plus className="w-3.5 h-3.5" />}
+                    >
+                      Add
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            )}
+
+            {/* Step 2: Location & Geofence */}
+            {step === 2 && (
+              <CardContent className="space-y-4">
+                <Input
+                  label="Site Street Address"
+                  value={addressLine}
+                  onChange={(e) => setAddressLine(e.target.value)}
+                  placeholder="e.g. 789 Mission St, San Francisco, CA"
+                  leftIcon={<MapPin className="w-4 h-4" />}
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Input
+                    label="Latitude"
+                    type="number"
+                    step="0.0001"
+                    value={latitude}
+                    onChange={(e) => setLatitude(parseFloat(e.target.value) || 0)}
+                  />
+                  <Input
+                    label="Longitude"
+                    type="number"
+                    step="0.0001"
+                    value={longitude}
+                    onChange={(e) => setLongitude(parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+
+                <div className="space-y-2 pt-2 border-t border-slate-800/80">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-medium text-slate-300">Geofence Radius Tolerance</span>
+                    <span className="font-mono text-cyan-400 font-bold">
+                      {geofenceRadius} meters
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="50"
+                    max="1000"
+                    step="25"
+                    value={geofenceRadius}
+                    onChange={(e) => setGeofenceRadius(parseInt(e.target.value, 10))}
+                    className="w-full accent-cyan-500 bg-slate-800 h-1.5 rounded-lg cursor-pointer"
+                  />
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    Technician mobile check-in will strictly require GPS coordinates within this
+                    boundary before unlocking on-site milestone status.
+                  </p>
+                </div>
+              </CardContent>
+            )}
+
+            {/* Step 3: SLA & Escrow */}
+            {step === 3 && (
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Select
+                    label="Budget Billing Model"
+                    value={budgetType}
+                    onChange={(e) => setBudgetType(e.target.value as BudgetType)}
+                    options={[
+                      { value: BudgetType.FIXED, label: 'Fixed Price Milestones' },
+                      { value: BudgetType.HOURLY, label: 'Hourly Blended Rate' }
+                    ]}
+                  />
+
+                  <Input
+                    label="Target Budget ($ USD)"
+                    type="number"
+                    value={budgetDollars}
+                    onChange={(e) =>
+                      setBudgetDollars(Math.max(1, parseInt(e.target.value, 10) || 0))
+                    }
+                    leftIcon={<DollarSign className="w-4 h-4" />}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-medium text-slate-300">
+                    SLA Response & Resolution Window
+                  </label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { hours: 2, label: '2 Hours (Critical)' },
+                      { hours: 6, label: '6 Hours (Urgent)' },
+                      { hours: 24, label: '24 Hours (Std)' },
+                      { hours: 72, label: '72 Hours (Low)' }
+                    ].map((sla) => (
                       <button
-                        key={cert}
-                        type="button"
-                        onClick={() => toggleCert(cert)}
-                        className={`p-3 rounded-lg border text-left text-xs font-medium transition flex items-center justify-between ${
-                          isSelected
-                            ? 'bg-blue-950/80 border-blue-500 text-blue-200'
-                            : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600'
+                        key={sla.hours}
+                        onClick={() => setSlaHours(sla.hours)}
+                        className={`p-2 rounded-lg border text-xs font-medium font-mono text-center cursor-pointer transition ${
+                          slaHours === sla.hours
+                            ? 'bg-blue-600/30 border-blue-500 text-blue-300 ring-1 ring-blue-500/40'
+                            : 'bg-[#090d16] border-slate-800 text-slate-400 hover:border-slate-700'
                         }`}
                       >
-                        <span>{cert}</span>
-                        {isSelected && <Check className="w-4 h-4 text-blue-400" />}
+                        {sla.label}
                       </button>
-                    );
-                  })}
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              {/* Scope of Work Steps */}
-              <div className="space-y-2 pt-2">
-                <label className="block text-xs font-medium text-slate-300">
-                  Scope of Work Checklist Steps ({scopeSteps.length})
-                </label>
-                <div className="space-y-1.5">
-                  {scopeSteps.map((s, idx) => (
+                {/* Required Certifications */}
+                <div className="space-y-2 pt-2 border-t border-slate-800/80">
+                  <label className="block text-xs font-medium text-slate-300">
+                    Required Technician Vetting & Badges
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {availableCerts.map((cert) => {
+                      const isSelected = selectedCerts.includes(cert);
+                      return (
+                        <button
+                          key={cert}
+                          onClick={() => toggleCert(cert)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition cursor-pointer flex items-center space-x-1.5 ${
+                            isSelected
+                              ? 'bg-blue-950/80 text-blue-300 border-blue-700 shadow-sm'
+                              : 'bg-[#090d16] text-slate-400 border-slate-800 hover:border-slate-700'
+                          }`}
+                        >
+                          {isSelected && <Check className="w-3 h-3" />}
+                          <span>{cert}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </CardContent>
+            )}
+
+            {/* Step 4: Deliverables Checklist */}
+            {step === 4 && (
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-medium text-slate-300">
+                    Mandatory Proof-of-Work Deliverables ({deliverables.length})
+                  </span>
+                  <span className="text-slate-500 font-mono text-[10px]">FR-MOB-002</span>
+                </div>
+
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {deliverables.map((del, idx) => (
                     <div
                       key={idx}
-                      className="bg-slate-950/80 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between text-xs text-slate-300"
+                      className="p-3 rounded-xl bg-[#090d16] border border-slate-800 flex items-center justify-between gap-3 text-xs"
                     >
-                      <div className="flex items-start space-x-2">
-                        <span className="font-mono text-blue-400 font-bold">{idx + 1}.</span>
-                        <span>{s}</span>
+                      <div className="flex items-center space-x-2.5 min-w-0">
+                        <span className="text-[10px] px-2 py-0.5 rounded font-mono font-bold bg-slate-900 border border-slate-800 text-cyan-400 shrink-0">
+                          {del.type}
+                        </span>
+                        <span className="text-slate-200 font-medium truncate">{del.title}</span>
                       </div>
                       <button
-                        onClick={() => removeScopeStep(idx)}
-                        className="text-slate-500 hover:text-red-400 p-1"
-                        aria-label="Remove step"
+                        onClick={() => setDeliverables(deliverables.filter((_, i) => i !== idx))}
+                        className="text-slate-500 hover:text-red-400 p-1 cursor-pointer shrink-0"
+                        aria-label="Delete deliverable"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -551,140 +641,157 @@ export const SowBuilder: React.FC = () => {
                   ))}
                 </div>
 
-                <div className="flex gap-2 mt-2">
-                  <Input
-                    placeholder="Add step to SOW checklist..."
-                    value={newStepText}
-                    onChange={(e) => setNewStepText(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && addScopeStep()}
-                  />
-                  <Button
-                    variant="secondary"
-                    size="md"
-                    onClick={addScopeStep}
-                    leftIcon={<Plus className="w-4 h-4" />}
-                  >
-                    Add
-                  </Button>
+                <div className="p-3 rounded-xl bg-blue-950/30 border border-blue-900/50 flex items-start space-x-2.5 text-xs text-blue-300">
+                  <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                  <p className="leading-relaxed">
+                    Escrow funds are safeguarded in the Smart Vault and are only released upon buyer
+                    verification of all {deliverables.length} deliverables or dispute clearance.
+                  </p>
                 </div>
-              </div>
-            </div>
-          )}
+              </CardContent>
+            )}
 
-          {/* Step 5: Review & Publish */}
-          {step === 5 && (
-            <div className="space-y-4">
-              <div className="bg-slate-950/80 p-5 rounded-xl border border-slate-800 space-y-4 text-xs">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                  <div>
-                    <span className="text-slate-400 font-mono text-[10px]">WORK ORDER PREVIEW</span>
-                    <h4 className="text-base font-bold text-white">{title}</h4>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-base font-bold font-mono text-emerald-400">
-                      {formatMinor(toMinor(budgetDollars))}
-                    </div>
-                    <span className="text-slate-400 font-mono text-[11px]">{budgetType}</span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <span className="text-slate-400 block mb-1">Domain Category:</span>
-                    <span className="text-white font-medium">{category}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block mb-1">Priority:</span>
-                    <StatusBadge status={priority} />
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block mb-1">Site Location & Geofence:</span>
-                    <span className="text-white font-medium">{addressLine}</span>
-                    <span className="text-slate-500 font-mono text-[10px] block mt-0.5">
-                      GPS: {latitude}, {longitude} (Radius: {geofenceRadius}m)
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block mb-1">SLA Target Resolution:</span>
-                    <span className="text-cyan-400 font-mono font-bold">
-                      {slaHours} Hours from Publish
-                    </span>
-                  </div>
-                </div>
-
-                <div>
-                  <span className="text-slate-400 block mb-1.5">
-                    Required Vetting & Compliance:
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedCerts.map((c) => (
-                      <span
-                        key={c}
-                        className="px-2 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800 text-[11px] font-semibold"
-                      >
-                        ✓ {c}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <span className="text-slate-400 block mb-1.5">
-                    Mandatory Deliverables Checklist:
-                  </span>
-                  <div className="grid grid-cols-2 gap-2">
-                    {deliverables.map((d, i) => (
-                      <div
-                        key={i}
-                        className="bg-slate-900 p-2 rounded border border-slate-800 text-[11px] text-slate-300"
-                      >
-                        <span className="font-semibold text-blue-400">[{d.type}]</span> {d.title}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </CardContent>
-
-        <CardFooter className="justify-between">
-          <div>
-            {step > 1 && (
+            {/* Step Navigation Actions */}
+            <CardFooter className="justify-between">
               <Button
                 variant="secondary"
-                size="md"
-                onClick={() => setStep(step - 1)}
-                leftIcon={<ArrowLeft className="w-4 h-4" />}
+                size="sm"
+                onClick={() => setStep(Math.max(1, step - 1))}
+                disabled={step === 1}
+                leftIcon={<ArrowLeft className="w-3.5 h-3.5" />}
               >
-                Previous Step
+                Back
               </Button>
-            )}
-          </div>
 
-          <div className="flex space-x-3">
-            {step < 5 ? (
-              <Button
-                variant="primary"
-                size="md"
-                onClick={() => setStep(step + 1)}
-                rightIcon={<ArrowRight className="w-4 h-4" />}
-              >
-                Continue to Step {step + 1}
-              </Button>
-            ) : (
-              <Button
-                variant="success"
-                size="md"
-                onClick={handlePublish}
-                leftIcon={<Zap className="w-4 h-4" />}
-              >
-                Publish to Dispatch & Pre-Auth Escrow ({formatMinor(toMinor(budgetDollars))})
-              </Button>
-            )}
-          </div>
-        </CardFooter>
-      </Card>
+              {step < 4 ? (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setStep(step + 1)}
+                  rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
+                >
+                  Continue
+                </Button>
+              ) : (
+                <Button
+                  variant="success"
+                  size="sm"
+                  onClick={handlePublish}
+                  leftIcon={<Sparkles className="w-3.5 h-3.5" />}
+                >
+                  Publish & Lock Escrow
+                </Button>
+              )}
+            </CardFooter>
+          </Card>
+        </div>
+
+        {/* Right Live Preview Column */}
+        <div className="xl:col-span-5 space-y-4">
+          <Card variant="elevated" className="border-slate-700/80 sticky top-24">
+            <CardHeader className="bg-[#090d16]/50">
+              <div>
+                <span className="text-[10px] font-mono text-cyan-400 font-bold uppercase tracking-wider">
+                  Live Dispatch Preview
+                </span>
+                <CardTitle className="mt-1 text-sm sm:text-base">
+                  {title || 'Untitled Ticket'}
+                </CardTitle>
+              </div>
+              <StatusBadge status="PUBLISHED" />
+            </CardHeader>
+
+            <CardContent className="space-y-4 text-xs">
+              <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                <span className="px-2 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-800">
+                  {category}
+                </span>
+                <StatusBadge status={priority} />
+                <span className="text-slate-400 font-mono flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  {slaHours}h Target
+                </span>
+              </div>
+
+              <p className="text-slate-300 leading-relaxed text-xs">
+                {description || 'No description provided.'}
+              </p>
+
+              {/* Site location snippet */}
+              <div className="bg-[#090d16] p-3 rounded-xl border border-slate-800 space-y-1">
+                <div className="flex items-center space-x-1.5 text-slate-300 font-semibold text-[11px]">
+                  <MapPin className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Site Address:</span>
+                </div>
+                <div className="text-slate-200 pl-5">{addressLine}</div>
+                <div className="text-[10px] font-mono text-slate-500 pl-5">
+                  Lat: {latitude.toFixed(4)}, Lng: {longitude.toFixed(4)} • {geofenceRadius}m
+                  geofence
+                </div>
+              </div>
+
+              {/* Transparent Escrow Vault Breakdown (Stripe-inspired) */}
+              <div className="bg-[#090d16] p-3.5 rounded-xl border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between text-slate-300 text-[11px] font-semibold">
+                  <span className="flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    Escrow Vault Pre-Authorization
+                  </span>
+                  <span className="font-mono text-slate-500">AES-256</span>
+                </div>
+
+                <div className="space-y-1.5 pt-1 border-t border-slate-800/80 text-[11px]">
+                  <div className="flex items-center justify-between text-slate-400">
+                    <span>Base Technician Payout ({budgetType}):</span>
+                    <span className="font-mono text-slate-200 font-semibold">
+                      ${budgetDollars}.00
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-400">
+                    <span>FieldForge Platform Service Fee (8%):</span>
+                    <span className="font-mono text-slate-200 font-semibold">
+                      ${platformFee}.00
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-white font-bold pt-1.5 border-t border-slate-800 font-mono text-sm">
+                    <span>Total Escrow Vault Pre-Auth:</span>
+                    <span className="text-emerald-400">${totalEscrowDollars}.00</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Required Badges Preview */}
+              <div>
+                <span className="text-[11px] font-semibold text-slate-400 block mb-1.5">
+                  Required Vetting ({selectedCerts.length}):
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedCerts.map((c) => (
+                    <span
+                      key={c}
+                      className="px-2 py-0.5 rounded bg-blue-950/60 text-blue-300 border border-blue-900/50 text-[10px] font-semibold font-mono"
+                    >
+                      ✓ {c}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <Button
+                  variant="success"
+                  size="md"
+                  className="w-full shadow-lg shadow-emerald-950/50"
+                  onClick={handlePublish}
+                  leftIcon={<Sparkles className="w-4 h-4" />}
+                >
+                  Publish Ticket & Authorize ${totalEscrowDollars}.00
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 };
