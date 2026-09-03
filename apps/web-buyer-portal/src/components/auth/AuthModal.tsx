@@ -70,8 +70,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
     try {
       if (mode === 'login') {
         const tokens = await authApi.login({ email, password });
-        const fullName =
-          tokens.user.role === 'BUYER' ? companyName || 'Apex Buyer Corp' : 'Field Technician';
+        let fullName = companyName || tokens.user.email.split('@')[0];
+
+        try {
+          const profile = await authApi.getMe(tokens.accessToken);
+          if (profile.buyerProfile?.companyName) {
+            fullName = profile.buyerProfile.companyName;
+          } else if (profile.technicianProfile?.firstName) {
+            fullName =
+              `${profile.technicianProfile.firstName} ${profile.technicianProfile.lastName || ''}`.trim();
+          }
+        } catch {
+          // getMe fallback to entered companyName or email prefix
+        }
 
         dispatch(
           setCredentials({
@@ -98,10 +109,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
           role,
           phoneNumber: phoneNumber || '+15551234567',
           ...(role === 'BUYER'
-            ? { companyName: companyName || 'Enterprise Buyer Inc' }
+            ? { companyName: companyName || email.split('@')[0] }
             : {
-                firstName: firstName || 'John',
-                lastName: lastName || 'Doe',
+                firstName: firstName || 'Technician',
+                lastName: lastName || 'User',
                 hourlyRateMinor: 8500
               })
         };
@@ -109,8 +120,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
         const tokens = await authApi.register(registerPayload);
         const fullName =
           role === 'BUYER'
-            ? companyName || 'Enterprise Buyer Inc'
-            : `${firstName} ${lastName}`.trim();
+            ? companyName || email.split('@')[0]
+            : `${firstName || 'Technician'} ${lastName || 'User'}`.trim();
 
         dispatch(
           setCredentials({

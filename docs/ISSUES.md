@@ -44,7 +44,7 @@ Because of that, findings fall into four kinds — tagged on each item:
 
 Severity reflects impact _if this project is taken toward the production system its docs describe_. A "not implemented" gap is only called out where the spec/PR-template claims it **is** done, or where it's load-bearing for a security guarantee.
 
-**Severity counts:** Critical 5 · High 9 · Medium 14 · Low 12
+**Severity counts:** Critical 5 · High 9 · Medium 14 · Low 13
 
 ---
 
@@ -523,6 +523,21 @@ array, added to `.gitignore`, and not edited manually." `tsc --noEmit` still exi
 with the file absent, because `tsconfig.json` lists it under `include` (a glob, which
 skips missing entries) rather than `files` (which errors on them). Verified by running
 `pnpm typecheck` followed immediately by `pnpm format:check` — both clean.
+
+### L13 · 🐛 ~~Web buyer portal auto-authenticates as default demo user when localStorage is cleared~~ — FIXED 2026-09-03
+
+`apps/web-buyer-portal/src/store/slices/authSlice.ts` had an inverted auth persistence
+model: `initialState` defaulted to `isAuthenticated: true` with `defaultDemoUser`
+(`Apex Retail Corp`), and `logout` relied on writing an ad-hoc `ff_logged_out = 'true'`
+key to `localStorage`. When a user cleared `localStorage` and reloaded the page,
+the `ff_logged_out` marker was gone, leaving Redux to mount in the hardcoded
+authenticated state.
+**Impact:** logged-out users clearing browser storage or browsing in fresh storage
+sessions were unexpectedly re-authenticated as the demo buyer.
+**Fix:** set default `initialState` to unauthenticated (`user: null`, `token: null`,
+`isAuthenticated: false`). Rehydration now strictly checks for the presence of valid
+`ff_access_token` and `ff_user` entries before asserting authentication. Automated with
+a 24-test Playwright test suite (`apps/web-buyer-portal/e2e/auth-persistence.spec.ts`).
 
 ---
 

@@ -38,19 +38,11 @@ const getStoredUser = (): User | null => {
   }
 };
 
-const defaultDemoUser: User = {
-  id: 'b0000000-0000-0000-0000-000000000001',
-  email: 'buyer@apexretail.com',
-  fullName: 'Apex Retail Corp',
-  companyName: 'Apex Retail Corp',
-  role: 'BUYER'
-};
-
 const initialState: AuthState = {
-  user: defaultDemoUser,
-  token: 'demo-token',
+  user: null,
+  token: null,
   refreshToken: null,
-  isAuthenticated: true,
+  isAuthenticated: false,
   isLoading: false,
   error: null
 };
@@ -60,25 +52,20 @@ export const authSlice = createSlice({
   initialState,
   reducers: {
     rehydrateAuthFromStorage: (state) => {
-      const isLoggedOut = Boolean(getStoredItem('ff_logged_out'));
-      if (isLoggedOut) {
+      const storedUser = getStoredUser();
+      const storedToken = getStoredItem('ff_access_token');
+      const storedRefreshToken = getStoredItem('ff_refresh_token');
+
+      if (storedToken && storedUser) {
+        state.user = storedUser;
+        state.token = storedToken;
+        state.refreshToken = storedRefreshToken;
+        state.isAuthenticated = true;
+      } else {
         state.user = null;
         state.token = null;
         state.refreshToken = null;
         state.isAuthenticated = false;
-        return;
-      }
-      const storedUser = getStoredUser();
-      const storedToken = getStoredItem('ff_access_token');
-      const storedRefreshToken = getStoredItem('ff_refresh_token');
-      if (storedUser) {
-        state.user = storedUser;
-      }
-      if (storedToken) {
-        state.token = storedToken;
-      }
-      if (storedRefreshToken) {
-        state.refreshToken = storedRefreshToken;
       }
     },
     setCredentials: (
@@ -134,10 +121,10 @@ export const authSlice = createSlice({
       state.error = null;
 
       try {
-        localStorage.setItem('ff_logged_out', 'true');
         localStorage.removeItem('ff_access_token');
         localStorage.removeItem('ff_refresh_token');
         localStorage.removeItem('ff_user');
+        localStorage.removeItem('ff_logged_out');
       } catch {
         // Storage failure handled silently
       }

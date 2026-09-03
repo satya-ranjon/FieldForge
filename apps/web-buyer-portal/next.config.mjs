@@ -5,6 +5,7 @@ const nextConfig = {
   output: 'standalone',
   transpilePackages: ['@fieldforge/contracts', '@fieldforge/ui'],
   reactStrictMode: true,
+  typedRoutes: false,
   async rewrites() {
     return [
       {
