@@ -11,3 +11,14 @@ summary for tools that load only this file.
 4. **Type Safety**: Use shared packages (@fieldforge/contracts, @fieldforge/database, @fieldforge/common) across all apps and microservices.
 5. **Observability**: Propagate x-correlation-id across HTTP and AMQP boundaries. Use structured Pino logging with JSON output.
 6. **Feature Lifecycle & DoD (RULE-FEAT-09)**: Any feature implementation strictly requires writing automated tests (unit/integration, zero `--passWithNoTests`) and updating living documentation in lockstep: `docs/DEVELOPMENT_PLAN.md`, `README.md`, `@fieldforge/contracts` & `.agent/context/api_contracts.md`, `.agent/context/project_status.md`, `docs/SRS.md`, and `docs/ISSUES.md`.
+7. **Git Push Verification Gate (MANDATORY)**: Whenever the user requests `git push` (or before any push), NEVER push directly. FIRST run and verify all tests and checks:
+   - `pnpm format`
+   - `pnpm format:check`
+   - `pnpm lint`
+   - `pnpm typecheck`
+   - `pnpm test`
+   - `pnpm test:e2e`
+   - `pnpm validate:clean-typecheck`
+   - `pnpm build`
+   - `pnpm check`
+   ONLY if ALL of these checks pass without errors are you allowed to execute `git push`. If any step fails, abort the push and fix the issue.

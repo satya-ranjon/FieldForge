@@ -136,3 +136,20 @@ from `.env.example`.
 - Generated outputs, caches, local environment files, and secrets are untracked.
 - Operational or security assumptions are visible rather than embedded as
   unexplained constants.
+
+## Git push guardrail (Pre-push verification gate)
+
+Whenever the user instructs to `git push` (or before pushing to remote):
+NEVER execute `git push` immediately. You MUST first execute and verify all required checks in sequence:
+
+1. `pnpm format`
+2. `pnpm format:check`
+3. `pnpm lint`
+4. `pnpm typecheck`
+5. `pnpm test`
+6. `pnpm test:e2e`
+7. `pnpm validate:clean-typecheck`
+8. `pnpm build`
+9. `pnpm check`
+
+**Hard Invariant**: If ANY of the above checks fail, `git push` MUST NOT be executed. Block the push immediately, report the failure, and fix the defect before re-running verification.

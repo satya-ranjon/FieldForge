@@ -8,6 +8,7 @@
     "build": "turbo run build",
     "dev": "./scripts/clean-ports.sh && turbo run dev --parallel",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
+    "verify:pre-push": "pnpm format && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:e2e && pnpm validate:clean-typecheck && pnpm build && pnpm check",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
