@@ -5,13 +5,15 @@ import { resolve } from 'node:path';
  * Loads environment variables from the nearest `.env` file candidate into the
  * target environment (defaults to `process.env`) without overwriting existing variables.
  */
-export function loadEnv(targetEnv: NodeJS.ProcessEnv = process.env): void {
-  const candidates = [
-    resolve(process.cwd(), '.env'),
-    resolve(process.cwd(), '../../.env'),
-    resolve(__dirname, '../../../../.env'),
-    resolve(__dirname, '../../../.env')
-  ];
+export function loadEnv(targetEnv: NodeJS.ProcessEnv = process.env, customPath?: string): void {
+  const candidates = customPath
+    ? [resolve(customPath)]
+    : [
+        resolve(process.cwd(), '.env'),
+        resolve(process.cwd(), '../../.env'),
+        resolve(__dirname, '../../../../.env'),
+        resolve(__dirname, '../../../.env')
+      ];
 
   for (const file of candidates) {
     if (existsSync(file)) {
