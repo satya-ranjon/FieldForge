@@ -60,6 +60,10 @@ above.
 - For UI component generation, styling, design system tokens, or Google Stitch MCP
   integrations, read and follow `.agent/skills/stitch-design/SKILL.md` and adhere to
   `DESIGN.md`.
+- For Next.js applications (such as `apps/web-buyer-portal`), modern Next.js
+  includes breaking changes from older conventions (APIs, conventions, and file structure).
+  Read `.agent/skills/nextjs-migration/SKILL.md` and the version-matched documentation
+  in `apps/web-buyer-portal/node_modules/next/dist/docs/` before writing code.
 - `.agent/skills/` is the canonical, agent-neutral skills source. Tool-specific
   discovery directories may link to it, but must not contain divergent copies.
 

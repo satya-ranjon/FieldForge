@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // @ts-ignore Next.js 16 internal option: disable auto-generating AGENTS.md / CLAUDE.md in subpackage
+  agentRules: false,
   output: 'standalone',
   transpilePackages: ['@fieldforge/contracts', '@fieldforge/ui'],
   reactStrictMode: true,

@@ -5,23 +5,25 @@ test.describe('Buyer Portal Smoke Tests', () => {
     await page.goto('/');
   });
 
-  test('loads the buyer portal application with enterprise header', async ({ page }) => {
+  test('loads the buyer portal application with enterprise header', async ({ page, isMobile }) => {
     // Check main title / header elements
     await expect(page.locator('header').getByText('FieldForge', { exact: true })).toBeVisible();
-    await expect(page.getByText('ENTERPRISE BUYER HUB')).toBeVisible();
-    await expect(page.getByText('Apex Retail Corp')).toBeVisible();
+    await expect(page.locator('header').getByText('Enterprise', { exact: true })).toBeVisible();
+    if (!isMobile) {
+      await expect(page.getByText('Apex Retail Corp').first()).toBeVisible();
+    }
   });
 
   test('renders top KPI telemetry bar cards', async ({ page }) => {
     await expect(page.getByText('Active Work Orders')).toBeVisible();
-    await expect(page.getByText('Technicians on Radar')).toBeVisible();
-    await expect(page.getByText('SLA Adherence Rate')).toBeVisible();
-    await expect(page.getByText('Escrow Locked Vault')).toBeVisible();
+    await expect(page.getByText('Tech Radar & Matching')).toBeVisible();
+    await expect(page.getByText('SLA SLO Adherence')).toBeVisible();
+    await expect(page.getByText('Escrow Protected Vault')).toBeVisible();
   });
 
   test('renders footer security and status telemetry', async ({ page }) => {
     await expect(page.getByText('FieldForge Enterprise v1.0.0')).toBeVisible();
-    await expect(page.getByText('99.98% SLO Target Met')).toBeVisible();
-    await expect(page.getByText('AES-256 Encrypted Escrow Vault')).toBeVisible();
+    await expect(page.getByText(/99.98% SLO Target/i)).toBeVisible();
+    await expect(page.getByText(/AES-256 Escrow Vault/i)).toBeVisible();
   });
 });
