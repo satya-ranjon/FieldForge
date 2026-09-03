@@ -469,7 +469,7 @@ The deliverable "signature" SHA-256 mixes `Date.now()` into the hashed input, so
 `scripts/simulate-dispatch-load.js` fabricates latency samples with `Math.random()` and reports them as SLO evidence. Separately, each service's `bootstrap()` promise is unhandled — a startup failure exits silently without a non-zero signal in some paths.
 **Fix:** measure real requests (or label the script clearly as a mock) and add `.catch()` to `bootstrap()` with `process.exit(1)`.
 
-### L9 · 🐛 `.env.example` omits `PORT`, which every service reads
+### L9 · 🐛 `.env.example` omits `PORT`, which every service reads [RESOLVED]
 
 All six `apps/*/src/main.ts` read `process.env.PORT` with a distinct
 service-specific fallback (8000–8005), but `.env.example` declares neither `PORT`
@@ -478,8 +478,7 @@ of an undocumented variable — collapses all six services onto one port.
 **Impact:** the documented setup path either leaves `PORT` unset (working only by
 fallback) or, once someone sets it globally, produces `EADDRINUSE` on five of six
 services.
-**Fix:** document the variable per service rather than globally, or read a
-service-scoped name (`AUTH_PORT`, `GATEWAY_PORT`, …) so one value cannot collide.
+**Resolution:** updated all microservices to bind to service-scoped environment variables (`AUTH_PORT`, `WORK_ORDER_PORT`, `DISPATCH_PORT`, `BILLING_PORT`, `NOTIFICATION_PORT`, `GATEWAY_PORT`) with their standard respective fallbacks (8001–8005, 8000).
 
 ### L10 · 🔒 `.npmrc` makes a destructive install silent
 

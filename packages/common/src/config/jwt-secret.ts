@@ -55,7 +55,13 @@ const GENERATE_HINT =
  *   real process environment.
  * @throws Error if the key is unusable. The message never includes the value.
  */
+import { loadEnv } from './env';
+
 export function requireJwtSecret(env: NodeJS.ProcessEnv = process.env): string {
+  if (env === process.env && (!env.JWT_SECRET || env.JWT_SECRET.trim() === '')) {
+    loadEnv(env);
+  }
+
   const raw = env.JWT_SECRET;
 
   if (raw === undefined || raw.trim() === '') {

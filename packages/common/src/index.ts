@@ -1,4 +1,5 @@
 export * from './logger';
+export * from './config/env';
 export * from './config/jwt-secret';
 export * from './apm/metrics.interceptor';
 export * from './decorators/roles.decorator';

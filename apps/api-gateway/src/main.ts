@@ -1,6 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { createLogger } from '@fieldforge/common';
+import { createLogger, loadEnv } from '@fieldforge/common';
+
+loadEnv();
 
 const logger = createLogger('api-gateway');
 
@@ -32,7 +34,7 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization', 'x-correlation-id']
   });
 
-  const port = Number(process.env.PORT) || 8000;
+  const port = Number(process.env.GATEWAY_PORT || process.env.PORT) || 8000;
   await app.listen(port);
   logger.info(`🌐 FieldForge API Gateway running on port ${port}`);
 }
