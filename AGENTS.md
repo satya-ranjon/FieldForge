@@ -48,8 +48,8 @@ turn a setup task into feature implementation.
   secrets manager.
 
 Detailed rules live in `.agent/rules/`. Read only the rules relevant to the
-files being changed, but always apply the architecture and security boundaries
-above.
+files being changed, but always apply the architecture, security, and feature
+lifecycle boundaries (`RULE-FEAT-09`).
 
 ## Project-local skills
 
@@ -73,12 +73,28 @@ above.
    relevant SRS requirement IDs.
 2. State assumptions when the SRS does not decide a material behavior.
 3. Prefer the smallest complete change. Avoid drive-by refactors.
-4. Add or update tests with behavior changes. A test command that finds no tests
+4. **Mandatory test implementation**: Every feature addition, endpoint, state
+   transition, or domain behavior change MUST include automated unit and
+   integration tests with real assertions. A test command that finds no tests
+   (`--passWithNoTests`) or superficial assertions (`expect(true).toBe(true)`)
    is not a successful feature verification.
-5. Update living context only when the durable project state changes:
-   - `.agent/context/project_status.md` for implementation status;
-   - `docs/ISSUES.md` for unresolved defects or specification drift;
-   - `.agent/memory/ADRs/` for accepted architectural decisions.
+5. **Mandatory documentation synchronization**: When implementing any feature,
+   update the following documents in lockstep with the code (see `RULE-FEAT-09`
+   in `.agent/rules/09_feature_implementation_rules.md`):
+   - `docs/DEVELOPMENT_PLAN.md`: Roadmap milestone progress, work package
+     checklists, and active sequencing;
+   - `README.md`: Feature list, port tables, environment variables, and
+     quickstart/CLI usage if affected;
+   - `@fieldforge/contracts` & `.agent/context/api_contracts.md`: Shared
+     DTOs/validators/events and the living REST/OpenAPI endpoint catalogue;
+   - `.agent/context/project_status.md`: Durable implementation status, verified
+     test count, and architectural state;
+   - `docs/SRS.md`: Traceability mapping to requirement IDs (`SRS-FR-*`) and
+     acceptance status;
+   - `docs/ISSUES.md`: Resolved defect entries closed, and newly discovered edge
+     cases or technical debt logged;
+   - `docs/ARCHITECTURE.md` and `.agent/memory/ADRs/`: If service topologies,
+     boundaries, or architecture decisions change.
 6. Run the checks listed below and report any check that could not run.
 
 ## Standard commands
@@ -108,9 +124,15 @@ from `.env.example`.
 ## Definition of done
 
 - The requested scope is complete and no unrelated behavior was added.
-- Formatting, linting, and type checking pass.
-- Relevant tests pass and the result is described honestly.
+- Comprehensive automated tests (unit, integration, contracts) are implemented
+  and pass (no `--passWithNoTests`).
+- Formatting, linting, and type checking pass (`pnpm check`).
+- Public contracts in `@fieldforge/contracts` and database migrations agree with
+  the change.
+- Required living documentation is updated: `docs/DEVELOPMENT_PLAN.md`,
+  `README.md`, `.agent/context/api_contracts.md`,
+  `.agent/context/project_status.md`, `docs/SRS.md`, and `docs/ISSUES.md` (and
+  ADRs/Architecture if applicable).
 - Generated outputs, caches, local environment files, and secrets are untracked.
-- Public contracts, migrations, docs, and ADRs agree with the change.
 - Operational or security assumptions are visible rather than embedded as
   unexplained constants.

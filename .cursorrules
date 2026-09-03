@@ -10,3 +10,4 @@ summary for tools that load only this file.
 3. **Idempotency**: All event consumers must maintain idempotency checks using message IDs or entity version numbers.
 4. **Type Safety**: Use shared packages (@fieldforge/contracts, @fieldforge/database, @fieldforge/common) across all apps and microservices.
 5. **Observability**: Propagate x-correlation-id across HTTP and AMQP boundaries. Use structured Pino logging with JSON output.
+6. **Feature Lifecycle & DoD (RULE-FEAT-09)**: Any feature implementation strictly requires writing automated tests (unit/integration, zero `--passWithNoTests`) and updating living documentation in lockstep: `docs/DEVELOPMENT_PLAN.md`, `README.md`, `@fieldforge/contracts` & `.agent/context/api_contracts.md`, `.agent/context/project_status.md`, `docs/SRS.md`, and `docs/ISSUES.md`.
