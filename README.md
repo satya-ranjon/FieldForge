@@ -53,7 +53,7 @@ flowchart TD
     classDef apmStyle fill:#fef2f2,stroke:#dc2626,stroke-width:2px,color:#0f172a,font-weight:600;
 
     subgraph Clients[" 🌐 Client Applications Tier "]
-        Buyer["🏢 Enterprise Buyer Portal<br/><b>React 19 + Redux Toolkit</b><br/><i>Vite Dashboard (:5173)</i>"]:::clientStyle
+        Buyer["🏢 Enterprise Buyer Portal<br/><b>Next.js 16 App Router · React 19 + Redux Toolkit</b><br/><i>Dashboard (:5173)</i>"]:::clientStyle
         Tech["📱 Field Tech Mobile App<br/><b>React Native + Expo</b><br/><i>Offline-First Queue & GPS</i>"]:::clientStyle
     end
 
@@ -436,6 +436,23 @@ pnpm db:seed
 # 4. Launch all microservices and frontend portals concurrently
 pnpm dev
 ```
+
+> **`JWT_SECRET` has no default.** `api-gateway` and `auth-service` share one
+> HS256 key and both resolve it through `requireJwtSecret()`
+> ([`packages/common/src/config/jwt-secret.ts`](./packages/common/src/config/jwt-secret.ts)).
+> There is deliberately no fallback value: a service with a missing, too-short
+> (< 32 characters, per RFC 7518 §3.2), or previously-published key exits at
+> startup with an explanatory message rather than quietly signing tokens with a
+> key that is in this repository and therefore public.
+>
+> `pnpm setup` (step 2) generates a unique local key for you, which is why it
+> runs before `pnpm dev`. If you populate `.env` by hand instead, set
+> `JWT_SECRET` yourself — the two services must hold the **identical** value or
+> every authenticated request fails signature verification:
+>
+> ```bash
+> node -e "console.log(require('node:crypto').randomBytes(48).toString('base64url'))"
+> ```
 
 ### 3. Service Endpoints
 

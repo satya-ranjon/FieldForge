@@ -10,13 +10,19 @@ import {
   GlobalHttpExceptionFilter,
   MetricsInterceptor,
   HealthController,
-  RolesGuard
+  RolesGuard,
+  requireJwtSecret
 } from '@fieldforge/common';
 
 @Module({
   imports: [
-    JwtModule.register({
-      secret: process.env.JWT_SECRET || 'super_secret_jwt_key_fieldforge_2026'
+    // registerAsync, not register: the factory runs while `bootstrap()` builds
+    // the app, so a missing or public JWT_SECRET is reported by the fatal logger
+    // in main.ts instead of throwing during module import.
+    JwtModule.registerAsync({
+      useFactory: () => ({
+        secret: requireJwtSecret()
+      })
     }),
     ThrottlerModule.forRoot([
       {

@@ -14,6 +14,19 @@
 | `GET`  | `/users/me`               | Retrieve authenticated user profile              | Bearer JWT  | None                       |
 | `GET`  | `/technicians/:id/badges` | Fetch technician certifications & vetting badges | Bearer JWT  | None                       |
 
+> **"Bearer JWT" means the token, not the header.** `/users/me` resolves the
+> caller from the verified token's `sub` claim. The `x-ff-user-id` /
+> `x-ff-user-role` headers the gateway injects are **not** an accepted identity
+> source: the gateway sets them only after verifying a token, but every service
+> listens on `0.0.0.0` with no NetworkPolicy or mTLS, so a direct caller can set
+> them too. `/users/me` reads `x-ff-user-id` solely to detect disagreement with
+> the token and returns 401 on a mismatch. The gateway, for its part, strips any
+> inbound `x-ff-user-*` before asserting its own.
+>
+> New endpoints in this catalogue inherit that rule — verify the token, use
+> `payload.sub`. `docs/ISSUES.md` **C5** records what happened when `/users/me`
+> did it the other way around.
+
 ---
 
 ## 2. Work Order Lifecycle Service (`work-order-service`)

@@ -2,10 +2,17 @@
 
 ## FieldForge — Real-Time Enterprise Field Service Marketplace & Microservices Platform
 
-**Document version:** 1.0.0  
+**Document version:** 1.1.0  
 **Target domain:** On-demand gig economy and field service management  
 **Primary author:** Satya Ranjan Debsharma  
-**Date:** August 2026
+**Date:** August 2026 · last amended 2026-09-03
+
+### Revision history
+
+| Version | Date       | Change                                                                                                                                                                                                               |
+| :------ | :--------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1.0.0   | 2026-08    | Initial normalization of the attached SRS into Markdown.                                                                                                                                                             |
+| 1.1.0   | 2026-09-03 | Tightened FR-AUTH-002, added FR-AUTH-004, NFR-SEC-004, and a negative-path verification requirement. Raised by the trust-boundary audit recorded as **C1** and **C5** in [`ISSUES.md`](./ISSUES.md) — see §6 note 2. |
 
 ## 1. Purpose and scope
 
@@ -16,8 +23,8 @@ telecommunications, and equipment maintenance.
 
 The intended system comprises:
 
-- A React and Redux Toolkit enterprise web portal for work-order creation,
-  bidding, dispatch, monitoring, and escrow approval.
+- A Next.js (App Router) enterprise web portal, using React and Redux Toolkit, for
+  work-order creation, bidding, dispatch, monitoring, and escrow approval.
 - A React Native technician app for nearby-gig discovery, bidding, navigation,
   geofenced execution, proof-of-work capture, and earnings.
 - Decoupled Node.js, NestJS, and TypeScript REST microservices for identity, work
@@ -54,9 +61,27 @@ technician accreditation verification.
   technician onboarding with credential validation, phone OTP verification, and
   tax/banking details.
 - **FR-AUTH-002 — RBAC and security:** Issue stateless JWTs with `BUYER`,
-  `TECHNICIAN`, `DISPATCHER`, and `ADMIN` role claims.
+  `TECHNICIAN`, `DISPATCHER`, and `ADMIN` role claims. A service that needs the
+  caller's identity or role **must** derive it by verifying the token signature
+  and reading the claims. Transport metadata that merely _describes_ an identity
+  — a proxy-injected header, a request-body field, a query parameter — is not an
+  accepted source, because anything a client can reach it can also set.
 - **FR-AUTH-003 — Technician vetting and badges:** Track compliance badges such
   as Background Checked, OSHA 10, Cisco CCNA, and CompTIA A+.
+- **FR-AUTH-004 — Trust boundary and identity propagation:** The API Gateway
+  authenticates at the edge and may forward the identity it verified to
+  downstream services for logging and correlation. That forwarding is a
+  convenience, not a guarantee:
+  - The gateway **must** remove any inbound copy of a header it asserts, before
+    asserting it. A header that arrives from a client must never be forwarded as
+    though the gateway had verified it.
+  - A downstream service **must not** treat such a header as proof of identity.
+    Where it holds the key to verify the token, it verifies the token. Where a
+    forwarded header is present alongside a token, disagreement between the two
+    is a rejected request, not a value to be reconciled.
+  - Restricting network reachability between services (NetworkPolicy, service
+    mesh mTLS) is required for production but **must not** be a precondition for
+    the above. A correct service is safe when reached directly.
 
 ### 3.2 Work-order lifecycle
 
@@ -137,7 +162,24 @@ technician accreditation verification.
   data.
 - **NFR-SEC-002:** Use parameterized database access through Drizzle or Prisma.
 - **NFR-SEC-003:** Inject secrets at runtime; hardcoded credentials are
-  prohibited.
+  prohibited. This includes fallback values. A literal supplied only when an
+  environment variable is absent (`process.env.X || 'default'`) is a hardcoded
+  credential, and is the more dangerous form because the code reads as
+  configurable while the committed value is the one in force.
+- **NFR-SEC-004 — Fail closed on unusable key material:** A service that cannot
+  obtain valid secret material **must** terminate at startup with a message
+  naming the missing configuration. It must not start in a degraded or default
+  state. For the shared JWT signing key specifically:
+  - Signer and verifier resolve the key through a single shared code path, so
+    they cannot diverge.
+  - An absent or blank key is fatal.
+  - A key shorter than 32 bytes is rejected (RFC 7518 §3.2 requires an HMAC key
+    at least the size of the hash output).
+  - A key whose value has appeared in this repository or its history is rejected
+    permanently and at any length. Such a value is public in every clone and
+    fork, so history rewriting does not restore it; refusing it is the only
+    remedy.
+  - Failure messages must not echo the secret value.
 
 ## 5. Verification requirements
 
@@ -147,10 +189,33 @@ technician accreditation verification.
 - Playwright validates the buyer creation, bid, acceptance, and completion path.
 - k6 validates 1,000 concurrent active work-order dispatches within the latency
   targets.
+- **Security requirements are verified by negative tests.** For every access
+  control, at least one test asserts that the disallowed request is _refused_ —
+  not merely that the allowed request succeeds. A suite that only walks the happy
+  path through a boundary cannot detect a path around it: the FR-AUTH-004
+  violation recorded as **C5** coexisted with a passing register → login →
+  profile test, because that test went through the gateway and the bypass did
+  not.
+- **A control's test must fail when the control is removed.** Before a
+  security-relevant guard is considered covered, temporarily revert the guard and
+  confirm the suite goes red. A test that passes against both the fixed and the
+  vulnerable implementation documents intent without enforcing it.
 
 ## 6. Requirement interpretation notes
 
-This checked-in document normalizes the attached SRS into portable Markdown. It
-does not claim that the requirements are implemented. Where existing code or an
-older design document conflicts with this SRS, follow the source-of-truth order
-in `AGENTS.md` and record the resolution before changing a public contract.
+1. This checked-in document normalizes the attached SRS into portable Markdown. It
+   does not claim that the requirements are implemented. Where existing code or an
+   older design document conflicts with this SRS, follow the source-of-truth order
+   in `AGENTS.md` and record the resolution before changing a public contract.
+2. **On the 1.1.0 amendments.** FR-AUTH-004, NFR-SEC-004, the FR-AUTH-002 identity
+   clause, and the two verification bullets were added after an audit found two
+   working bypasses of the Phase 1 trust boundary (`ISSUES.md` **C1**, **C5**).
+   Neither implementation contradicted this SRS at version 1.0.0 — FR-AUTH-002
+   required issuing role-claimed JWTs and said nothing about where a service
+   should read identity _from_, and NFR-SEC-003 prohibited hardcoded credentials
+   without addressing fallback literals or requiring a service to fail closed
+   without a key. The requirements were satisfiable by insecure code, so they are
+   now stated in terms of what must be refused rather than only what must be
+   offered. Consistent with note 1, these clauses describe required behavior;
+   `.agent/context/project_status.md` is where their implementation status is
+   tracked.

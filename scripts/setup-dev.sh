@@ -26,6 +26,20 @@ if [ ! -f .env ]; then
   echo "Created .env from development-only placeholders in .env.example."
 fi
 
+# JWT_SECRET ships blank in .env.example and has no in-code fallback, so a fresh
+# .env would leave api-gateway and auth-service refusing to start. Mint a unique
+# local key rather than shipping a shared one everybody inherits.
+if ! grep -qE '^JWT_SECRET=.+$' .env; then
+  FF_JWT_SECRET="$(node -e "console.log(require('node:crypto').randomBytes(48).toString('base64url'))")"
+  # Rewrite in place without a sed -i portability split between GNU and BSD.
+  node -e "
+    const fs = require('node:fs');
+    const s = fs.readFileSync('.env', 'utf8');
+    fs.writeFileSync('.env', s.replace(/^JWT_SECRET=.*\$/m, 'JWT_SECRET=' + process.argv[1]));
+  " "${FF_JWT_SECRET}"
+  echo "Generated a local JWT_SECRET in .env (not committed; local development only)."
+fi
+
 echo "Installing monorepo dependencies from the frozen lockfile..."
 pnpm install --frozen-lockfile
 

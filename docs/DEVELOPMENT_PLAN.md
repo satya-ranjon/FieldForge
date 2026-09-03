@@ -12,7 +12,12 @@ FieldForge is an **early scaffold with a mature specification**. `docs/SRS.md`,
 marketplace; the code implements type definitions, a Drizzle schema, one migration, a rich mock
 buyer UI, and `console.log` stubs.
 
-Verified state of the tree:
+Verified state of the tree **as of 2026-08-31, before Phase 0 began** — this is the baseline the
+phases below are sequenced against, not a description of the current code. Phases 0 and 1 have since
+landed, so several items here are now false (there are domain controllers, a real trust boundary, and
+271 unit tests). For what exists today, read
+[`.agent/context/project_status.md`](../.agent/context/project_status.md); for what is still broken,
+read [`ISSUES.md`](./ISSUES.md), whose counts supersede the tally at the end of this section:
 
 - **No domain HTTP controllers exist anywhere.** The only controller in the repo is the shared
   `HealthController` (`packages/common/src/health/health.controller.ts`). Every endpoint in
@@ -115,10 +120,18 @@ command that can actually fail.
   the `@Roles()` decorator currently decorates nothing.
 - **Gateway proxy.** Forward `/api/v1/{auth,users,work-orders,dispatch,billing}` to the URLs
   already in `gateway.config.ts`. Propagate the `x-correlation-id` set by
-  `correlation-id.middleware.ts`, and inject verified `x-ff-user-id` / `x-ff-user-role` headers.
-  Downstream services read identity from those headers and reject requests lacking them.
-  **Document explicitly** that this is a gateway-only trust model valid for local development, and
-  that service-to-service authentication is an open hardening item.
+  `correlation-id.middleware.ts`, and inject verified `x-ff-user-id` / `x-ff-user-role` headers,
+  **deleting any inbound copy of those headers first** — `express-http-proxy` forwards inbound
+  headers by default, and on a public route there is no verified identity to overwrite a spoofed
+  one with.
+  Downstream services may read those headers for logging and correlation, but **must not treat
+  them as proof of identity**: every service listens on `0.0.0.0` with no NetworkPolicy or mTLS,
+  so any caller that can reach the port can also set the header. A service that needs identity
+  verifies the bearer token itself and uses `payload.sub`; the header is at most a cross-check
+  whose disagreement is grounds for a 401. Trusting it instead of the token is what produced
+  **C5** — treat that entry as the worked example before adding a downstream reader.
+  **Document explicitly** that gateway-enforced RBAC is an edge control valid for local
+  development, and that service-to-service authentication is an open hardening item.
 - **Rate limiting + CORS.** `@nestjs/throttler` with a Redis store at the edge. Replace
   reflect-any-origin CORS with an allowlist derived from `WEB_PORT` (M12).
 - **Logging.** Replace `console.*` in gateway and auth with `createLogger()`
@@ -126,10 +139,17 @@ command that can actually fail.
   phone numbers, and emails (L2 plus the PII half of M12).
 
 **Exit criteria:** an unauthenticated call to any non-public route returns 401; register → login →
-`GET /users/me` works through port 8000; a `BUYER` token is rejected from a `TECHNICIAN`-only route.
+`GET /users/me` works through port 8000; a `BUYER` token is rejected from a `TECHNICIAN`-only route;
+and — added after C5 — a call sent **directly** to `auth-service` carrying only `x-ff-user-id` and no
+bearer token returns 401 rather than that user's profile. The first three criteria all passed while
+the fourth was failing, which is the reason it is now written down: they test the happy path through
+the boundary, not the paths around it.
 
 **Verify:** supertest integration suite in `apps/auth-service` against Dockerised MySQL, plus a
-manual `curl` sequence through the gateway.
+manual `curl` sequence through the gateway. Unit-level regression guards for the C5 class of bug
+live in `apps/auth-service/test/users.controller.spec.ts` and
+`apps/api-gateway/test/proxy.controller.spec.ts`; the key-handling guards are in
+`apps/api-gateway/test/jwt-secret.spec.ts`.
 
 ---
 
@@ -250,8 +270,10 @@ mismatch blocked, unauthorized caller blocked, and N concurrent release calls yi
   re-home that data as MSW fixtures so component tests and Playwright keep deterministic input.
 - **Real auth.** Login view, access token in memory with refresh rotation, replacing the mock token
   in `authSlice.ts`.
-- **Routing.** Add React Router; the five tabs are currently `useState` in `App.tsx` with no
-  addressable URLs.
+- **Routing.** Use the Next.js App Router — the five tabs are `useState` in `app/page.tsx` with no
+  addressable URLs. Promote each to a route segment under `src/app/`. (Superseded the original
+  "add React Router" task: the portal migrated from Vite to Next.js 16 App Router, so the router is
+  already present and `react-router` is not a dependency.)
 - Replace `Math.random()` ID generation with `crypto.randomUUID()`.
 - Keep `packages/ui` and `DESIGN.md` tokens as the styling source; follow
   `.agent/skills/stitch-design/SKILL.md` for any new component.
@@ -326,7 +348,10 @@ These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md`
 silence as completion.
 
 - **C1 remainder** — git history still contains the old `JWT_SECRET` and MySQL root password.
-  Rotation and history rewriting are external follow-up.
+  Rotation and history rewriting are external follow-up. The signing key is no longer _usable_
+  from history: `requireJwtSecret()` refuses the published values outright, so a stale copy of
+  `.env` fails startup rather than restoring the old boundary. The MySQL, RabbitMQ, and Grafana
+  credentials are unchanged and still need rotating.
 - **H8** — Kubernetes manifests have no Service objects, no `envFrom`, no probes, no resource
   limits, no `securityContext`, and no notification-service Deployment. They remain a render-only
   scaffold.
@@ -334,8 +359,10 @@ silence as completion.
 - **L4** — Terraform has no remote backend and no S3 public-access-block.
 - **Real provider SDKs** — Stripe, Twilio, FCM, SES, and S3 slot in behind the Phase 2/4 ports once
   credentials exist.
-- **Service-to-service authentication** — the Phase 1 gateway-header trust model is a
-  local-development boundary, not a production one.
+- **Service-to-service authentication** — no service authenticates its callers; reaching a service
+  port directly still bypasses the edge. Since C5, no service _depends_ on the network being
+  trusted — `/users/me` verifies the token itself — but nothing yet restricts who may open the
+  socket. A NetworkPolicy or mesh mTLS is the real fix and rides along with H8's manifest work.
 
 ---
 

@@ -9,6 +9,13 @@ build/
 .next/
 out/
 
+# Next.js generates next-env.d.ts and rewrites it on every dev/build/typecheck
+# run, with its own quote style. Committing it meant each `pnpm typecheck` left
+# the tree dirty and failed the next `pnpm format:check`. The Next.js docs say to
+# gitignore it and never edit it by hand; `tsc` does not need it present, since
+# tsconfig lists it under `include` (a glob) rather than `files`.
+next-env.d.ts
+
 # Environment files
 .env
 .env.local

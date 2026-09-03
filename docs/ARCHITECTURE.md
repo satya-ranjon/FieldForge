@@ -33,7 +33,7 @@ FieldForge/
 │   ├── dispatch-matching-service/# Redis GEOSEARCH matching, bidding, auto-route            (:8003)
 │   ├── billing-service/          # Escrow pre-auth / capture / payout / invoicing           (:8004)
 │   ├── notification-service/     # FCM/APNS push, Twilio SMS, SES email (RabbitMQ consumer) (:8005)
-│   ├── web-buyer-portal/         # React 19 + Redux Toolkit + Vite buyer dashboard          (:5173 intended)
+│   ├── web-buyer-portal/         # Next.js 16 App Router + React 19 + Redux Toolkit          (:5173)
 │   └── mobile-tech-app/          # React Native + Expo technician app (offline-first)
 ├── packages/
 │   ├── contracts/                # Shared DTOs, Zod validators, enums, RabbitMQ event interfaces
@@ -114,7 +114,7 @@ graph TD
 
 ### Clients
 
-- **web-buyer-portal** — React 19 + Redux Toolkit + Vite. Single static dashboard (`LiveDispatchBoard`, `SowBuilder`, `EscrowManager`) reading hardcoded Redux `initialState`. No router, no API layer, no RTK Query yet. Boots as an already-authenticated buyer with a mock token.
+- **web-buyer-portal** — Next.js 16 App Router with React 19 and Redux Toolkit; Tailwind v4 via `@tailwindcss/postcss`. Dev and start both bind port `5173`. Real JWT login/register is wired (`store/slices/authSlice.ts`, `store/services/authApi.ts`, `components/auth/AuthModal.tsx`) against the gateway through a hand-written typed fetch client — **not** RTK Query, despite `RULE-FE-04` calling for it. The remaining dashboard views (`LiveDispatchBoard`, `SowBuilder`, `TechnicianMatchingRadar`, `EscrowManager`, `SlaAuditView`) still read hardcoded Redux `initialState`. Navigation is `useState` tab switching inside the single `app/page.tsx` route, so the App Router is present but not yet used for routing.
 - **mobile-tech-app** — React Native + Expo. Static landing screen; an unmounted `ActiveJobScreen` demonstrates the geofence check-in UI. Ships a **correct Haversine** implementation (`services/geofencing.service.ts`, radius 6371 km → meters, `≤100 m`) and an in-memory offline queue (`services/offlineSync.service.ts`).
 
 ---

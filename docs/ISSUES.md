@@ -20,6 +20,15 @@
 > and the measured Dockerfile numbers under L3; each was re-verified against the
 > tree before being recorded here.
 
+> **Trust-boundary audit — 2026-09-03:** A re-read of the Phase 1 auth code found
+> two ways to defeat the boundary that C2 and H2 were recorded as having
+> established. Both are now closed: the hardcoded signing-key fallback that made
+> the committed default the key actually in use (folded into **C1**), and
+> `/users/me` preferring an unauthenticated header over the token, together with
+> the gateway forwarding that header unfiltered (new **C5**). The finding matters
+> because C2 and H2 read as "resolved" while the boundary they describe was
+> bypassable; their entries below now carry the correction.
+
 ---
 
 ## How to read this report
@@ -35,7 +44,7 @@ Because of that, findings fall into four kinds — tagged on each item:
 
 Severity reflects impact _if this project is taken toward the production system its docs describe_. A "not implemented" gap is only called out where the spec/PR-template claims it **is** done, or where it's load-bearing for a security guarantee.
 
-**Severity counts:** Critical 4 · High 9 · Medium 14 · Low 11
+**Severity counts:** Critical 5 · High 9 · Medium 14 · Low 12
 
 ---
 
@@ -47,6 +56,23 @@ Severity reflects impact _if this project is taken toward the production system 
 filename was removed, an ignored/example flow was added, and local services now
 require authenticated credentials from `.env`. Repository history still contains
 the old values, so rotation and history remediation remain external follow-up.
+
+**Update 2026-09-03 — the signing key specifically is now closed at runtime.**
+Removing the manifest was not enough on its own: both halves of the trust
+boundary still carried `process.env.JWT_SECRET || 'super_secret_jwt_key_fieldforge_2026'`
+in source, and `JWT_SECRET` is blank in `.env.example`. A default developer
+therefore ran with the committed literal as the live signing key — the manifest
+had been deleted, but the value it held was still the one in force, so C1's
+impact statement held in full. Both services now resolve the key through
+`requireJwtSecret()` (`packages/common/src/config/jwt-secret.ts`), which has no
+fallback and refuses an absent, too-short (< 32 bytes, RFC 7518 §3.2), or
+known-published value. A misconfigured service exits at startup instead of
+silently adopting a public key. `scripts/setup-dev.sh` generates a unique local
+key so the stricter check does not simply block new developers. The remaining
+C1 work — rotating the MySQL/RabbitMQ/Grafana credentials and purging history —
+is unchanged. The fallback-literal and fail-closed rules are now written into
+**NFR-SEC-003** and **NFR-SEC-004** in `docs/SRS.md` 1.1.0; SRS 1.0.0 prohibited
+"hardcoded credentials" without saying that a `||` fallback is one.
 
 `infra/k8s/base/secrets.yaml` is tracked in git and contains live-looking secrets in plaintext:
 
@@ -61,6 +87,12 @@ The Docker stack repeats the pattern: MySQL `root/fieldforge_secret`, RabbitMQ `
 ### C2 · 🔒/🐛 API Gateway performs no authentication
 
 **Status: resolved (Phase 1).** `JwtAuthGuard` is registered globally as `APP_GUARD` on the API Gateway, verifying HS256 JWTs and populating `request.user` with authenticated identity (`userId`, `email`, `role`). Public endpoints (`/api/v1/auth/register`, `/api/v1/auth/login`, `/api/v1/auth/refresh`, health probes, and routes annotated with `@Public()`) are explicitly permitted without a token, and `RolesGuard` is registered globally to enforce role-based access control against `@Roles()` decorators.
+
+**Caveat 2026-09-03:** the guard is real, but until C1's key handling and C5 were
+fixed it could be walked around rather than broken — by forging a token with the
+committed default key, or by skipping the gateway entirely and setting the
+identity header on a direct call. Verifying a signature only bounds access if
+the key is secret and the verification is the only way in.
 
 The gateway is the only intended trust boundary, but `JwtAuthGuard.canActivate()` unconditionally `return true`, the guard is **not registered** (no `APP_GUARD`), and `@nestjs/jwt`/`passport` are never used. There is also no `RolesGuard` anywhere in the repo, so the `@Roles()` decorator from `@fieldforge/common` decorates nothing.
 
@@ -81,6 +113,53 @@ The gateway is the only intended trust boundary, but `JwtAuthGuard.canActivate()
 **Impact:** once persistence is added naively, concurrent assign/bid/release will race (lost updates, double-assignment, double-spend).
 **Fix:** thread a Drizzle client through the services and wrap every lifecycle/escrow mutation in a transaction with row locks, per the rule.
 
+### C5 · 🔒 `/users/me` trusted a client-settable header over the JWT
+
+**Status: resolved (2026-09-03).** Found while re-reading the Phase 1 code that
+closed C2.
+
+`UsersController.getProfile()` read `x-ff-user-id` first and only fell back to
+verifying the bearer token when that header was absent. The header is written by
+the gateway after it verifies a token (H2), which makes it trustworthy _on that
+path_ — but `auth-service` listens on `0.0.0.0` with no NetworkPolicy, mesh, or
+mTLS in front of it, so it is not the only path. Anyone who could open a socket
+to the service port could send `x-ff-user-id: <guessed uuid>` with no
+`Authorization` header at all and read that user's profile.
+
+Two things had to be true for that to work, and both were:
+
+- **auth-service** preferred the header over the token, so no signature was ever
+  checked on a header-only request.
+- **api-gateway** never stripped the header. `express-http-proxy` copies inbound
+  headers onto the proxied request by default, and `proxyReqOptDecorator` only
+  _set_ `x-ff-user-*` when `req.user` existed. On a public route — where
+  `JwtAuthGuard` permits anonymous access and leaves `req.user` undefined — a
+  client-supplied `x-ff-user-id` was forwarded downstream untouched, so the
+  gateway itself could be used to deliver the spoof.
+
+**Impact:** unauthenticated read of any user profile by user-id guess; the C2
+trust boundary was bypassable end-to-end while recorded as resolved.
+
+**Fix (applied):** the token is now the only source of identity in
+`getProfile()` — verify first, then use `payload.sub`. The gateway header is
+still read, but only to detect disagreement: a mismatch means the request was
+tampered with between gateway and service and is refused rather than resolved in
+either direction. In the gateway, `proxyReqOptDecorator` now deletes every
+`x-ff-user-*` header before re-asserting the verified values, so a spoofed
+header cannot survive on a path where there is no verified identity to overwrite
+it with. Regression coverage: `apps/auth-service/test/users.controller.spec.ts`
+and `apps/api-gateway/test/proxy.controller.spec.ts`.
+
+**Remaining:** the fix removes the service's dependence on network trust, but
+does not establish network trust. Restricting who may reach `auth-service`
+directly (NetworkPolicy or mesh mTLS) is still worth doing and is tracked under
+H8's manifest work.
+
+**Requirements:** the rule this violated is now stated explicitly as
+**FR-AUTH-004** in `docs/SRS.md` 1.1.0, with the identity-source clause added to
+**FR-AUTH-002**. At SRS 1.0.0 neither existed, which is why the implementation
+passed review — see SRS §6 note 2.
+
 ---
 
 ## 🟠 High
@@ -94,6 +173,12 @@ No service attaches a RabbitMQ transport (`amqplib`/`@nestjs/microservices` unus
 ### H2 · 🐛 API Gateway does not proxy anything
 
 **Status: resolved (Phase 1).** `ProxyController` on the API Gateway reverse-proxies incoming routes (`/api/v1/auth/*`, `/api/v1/users/*`, `/api/v1/work-orders/*`, `/api/v1/dispatch/*`, `/api/v1/billing/*`, `/api/v1/notifications/*`) to their respective downstream microservice URLs defined in `gateway.config.ts`. The proxy pipeline preserves and forwards `x-correlation-id`, and injects verified `x-ff-user-id` and `x-ff-user-role` headers into downstream requests.
+
+**Correction 2026-09-03:** "injects verified headers" described only half of what
+the proxy did. It set those headers when an identity was verified, but never
+removed them when one was not, so on public routes an inbound `x-ff-user-id`
+passed straight through — see **C5**. The decorator now strips before it
+asserts.
 
 Despite `express-http-proxy` in `package.json`, no proxy/forwarding is configured. The gateway exposes only its own health routes; documented paths like `/api/v1/work-orders` **404**.
 **Impact:** clients cannot reach any service through the edge.
@@ -255,12 +340,12 @@ The 72-h auto-approval flow is absent (no scheduler; the SLA module isn't regist
 
 ### M9 · 📄 Port conflicts across the documented stack
 
-**Status: resolved.** Vite now uses `5173` with strict port binding, Grafana uses
-`3009`, and local documentation matches.
+**Status: resolved.** The buyer portal now uses `5173`, Grafana uses `3009`, and
+local documentation matches.
 
-Grafana publishes host `3009` (`docker-compose.observability.yml`) which no longer collides with any service. The buyer portal's Vite config binds `5173` with strict port binding. All application services now run on the `8000`–`8005` range.
+Grafana publishes host `3009` (`docker-compose.observability.yml`) which no longer collides with any service. The buyer portal binds `5173` via `next dev --port 5173` / `next start --port 5173` (previously a Vite `strictPort` config; the port survived the Next.js migration unchanged). All application services now run on the `8000`–`8005` range.
 **Impact:** you can't run the documented set together; quickstart is misleading.
-**Fix:** move Grafana to e.g. `3009`, pin Vite to `5173`, and reconcile the README.
+**Fix:** move Grafana to e.g. `3009`, pin the portal to `5173`, and reconcile the README.
 
 ### M10 · 📄 Version drift between ADRs/README and actual images
 
@@ -424,12 +509,28 @@ ref, cache the pnpm store and `.turbo`, and let the second job `needs:` the firs
 Setting `TURBO_TELEMETRY_DISABLED: 1` also stops a per-invocation call to
 `telemetry.vercel.com`.
 
+### L12 · 🐛 ~~Committed `next-env.d.ts` made `pnpm check` fail after `pnpm typecheck`~~ — FIXED 2026-09-03
+
+`apps/web-buyer-portal/next-env.d.ts` was tracked in git. Next.js regenerates that
+file on every `next dev`, `next build`, and `tsc` run using its own quote style, so
+each `pnpm typecheck` rewrote it and left the working tree dirty — which then failed
+the next `pnpm format:check`. The loop was reproducible and would have surfaced in CI
+as an unexplained formatting failure on a branch that changed no frontend code.
+**Impact:** running the repo's own verification commands in their documented order
+broke the tree.
+**Fix:** `git rm --cached` the file and add it to `.gitignore` and `.prettierignore`.
+The Next.js docs state it "should be included in your `tsconfig.json` `include`
+array, added to `.gitignore`, and not edited manually." `tsc --noEmit` still exits 0
+with the file absent, because `tsconfig.json` lists it under `include` (a glob, which
+skips missing entries) rather than `files` (which errors on them). Verified by running
+`pnpm typecheck` followed immediately by `pnpm format:check` — both clean.
+
 ---
 
 ## Suggested remediation order
 
 1. **Stop the bleeding (C1):** purge/rotate committed secrets, `.gitignore` them.
-2. **Make the trust boundary real (C2, H3):** implement auth-service, then gateway JWT + RolesGuard.
+2. **Make the trust boundary real (C2, C5, H3):** implement auth-service, then gateway JWT + RolesGuard, and keep identity sourced from the token rather than from headers a client can set.
 3. **Protect the money (C3, C4, M3):** transactional, idempotent, state-checked escrow with a UNIQUE constraint.
 4. **Make the system actually run end-to-end (H1, H2, H4, H5):** proxy, event bus wiring, DB-backed FSM, server-side geofence.
 5. **Stop data loss (H6).**

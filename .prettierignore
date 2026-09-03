@@ -5,6 +5,8 @@ dist/
 build/
 coverage/
 .expo/
+.next/
+next-env.d.ts
 pnpm-lock.yaml
 packages/database/src/migrations/
 
