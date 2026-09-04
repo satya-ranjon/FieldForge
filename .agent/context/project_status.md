@@ -1,16 +1,17 @@
 # FieldForge Implementation Status
 
-**Last reviewed:** 2026-09-04  
-**Phase:** Phase 2 complete — persistent, transactional work-order lifecycle. Next: Phase 3
-(event backbone). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Last reviewed:** 2026-09-05  
+**Phase:** Phase 4 complete — dispatch, bidding, and money. Next: Phase 5
+(buyer portal on real API). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
 - A pnpm/Turborepo monorepo with NestJS service shells, a Next.js App Router buyer
   portal (migrated off Vite; still served on port 5173), an Expo technician app, and
-  shared contracts, database, common, and UI packages.
+  shared contracts, database, common, messaging, and UI packages.
 - Drizzle schemas and migrations for users, work orders, status history, bids,
-  deliverables, escrow, refresh tokens, and technician certifications (`0000`, `0001`, `0002_auth.sql`, `0003_wo_history.sql`).
+  deliverables, escrow, refresh tokens, technician certifications, idempotency keys,
+  invoices, and payout ledger (`0000`, `0001`, `0002_auth.sql`, `0003_wo_history.sql`, `0004_long_marvel_boy.sql`).
 - Local Docker Compose definitions for MySQL, Redis, RabbitMQ, Jaeger,
   Prometheus, and Grafana.
 - Architecture rules, three accepted ADRs, and CI/build scaffolding.
@@ -22,48 +23,36 @@
 - **Real trust boundary at API Gateway.** `apps/api-gateway` enforces `JwtAuthGuard`,
   `RolesGuard` (RBAC), `ThrottlerGuard` rate limiting, strict CORS allowlist, PII redaction
   in structured Pino logging, and reverse-proxying with injected `x-ff-user-id`, `x-ff-user-role`,
-  and `x-correlation-id` downstream headers. The proxy **deletes any inbound `x-ff-user-*`
-  header before asserting its own**, because `express-http-proxy` copies inbound headers by
-  default and a public route leaves `req.user` undefined — without the strip, a client-supplied
-  identity header passed straight through.
-- **Identity comes from the token, never from a header.** `GET /users/me` and `apps/work-order-service`
-  controllers verify the bearer token and read `payload.sub`; `x-ff-user-id` is consulted only to detect
-  disagreement, and a mismatch is rejected. Downstream services must not treat `x-ff-user-*` as authoritative:
-  every service listens on `0.0.0.0` with no NetworkPolicy or mTLS, so those headers are
-  attacker-settable on a direct call. See **C5** in `docs/ISSUES.md`.
+  and `x-correlation-id` downstream headers.
+- **Identity comes from the token, never from a header.** `GET /users/me`, `apps/work-order-service`,
+  `apps/dispatch-matching-service`, and `apps/billing-service` controllers verify the bearer token
+  and read `payload.sub`; `x-ff-user-id` is checked for tampering and mismatch is rejected (C5).
 - **Persistent, transactional work-order lifecycle.** `apps/work-order-service` implements
   `POST /work-orders`, `GET /work-orders` (filtered on composite index), `GET /work-orders/:id`,
   `GET /work-orders/:id/history`, `POST /work-orders/:id/publish`, `POST /work-orders/:id/transition`,
   and `PATCH /work-orders/:id/status`. All mutations execute in `db.transaction()` with `SELECT … FOR UPDATE`
-  row-level locking. Transitions validate the persisted row against `WorkOrderFsmService.validateTransition`,
-  enforce ownership and role boundaries, write state updates, and log an audit entry in
-  `work_order_status_history`.
-- **Server-enforced geofence.** `packages/common/src/geo/haversine.ts` implements canonical
-  Haversine distance calculation. The `EN_ROUTE → ON_SITE` transition requires `latitude`/`longitude`
-  and enforces the 200m radius threshold against stored coordinates (SRS FR-MOB-001). Mobile app check is UX-only.
-- **Deliverables & Media Storage.** `MediaStoragePort` with `LocalDiskMediaStorageAdapter` generates
-  presigned upload URLs (`POST /work-orders/:id/deliverables/presigned-url`). Digital signatures
-  (`POST /work-orders/:id/signature` & `/deliverables/signature`) hash only stable contents (omitting timestamps,
-  resolving L5), storing `signed_at` in a separate column in `work_order_deliverables`.
-- **SLA escalation & sweep.** `SlaEscalationService` registered with `@nestjs/schedule` 5-minute cron
-  sweep; `checkSlaBreachRisk` correctly flags expired/breached work orders (`timeRemainingMs <= 0`) as well as
-  orders approaching breach.
-- **One shared JWT signing key, with no fallback.** `requireJwtSecret()`
-  (`packages/common/src/config/jwt-secret.ts`) is the single resolution path for signer and verifier.
-- **One work-order FSM.** `WorkOrderStatus` ends at `PAID` per SRS FR-WO-002;
-  `validTransitions` in `work-order-fsm.service.ts` is the single definition, verified across all 100 status pairs.
-- **One money representation.** Wire amounts are integer minor units named `*Minor`.
-- **One event envelope.** `EventEnvelope<T>` carries `eventId`, `eventType`, `occurredAt`, `correlationId`, `payload`.
-- **A test harness that can fail.** 324 automated unit and integration tests across 7 workspaces;
+  row-level locking.
+- **Geospatial Matching & Bidding (`apps/dispatch-matching-service`).**
+  - Redis `GEOADD` and `GEOSEARCH` on `tech:locations` with Haversine exact distance filtering.
+  - Multi-parameter contractor scoring algorithm: 40% distance, 30% rating, 15% completed jobs, 15% verified certifications.
+  - Transactional bid submission (`POST /dispatch/bids`) and atomic bid acceptance (`POST /dispatch/bids/:id/accept`) locking work order and bid rows `FOR UPDATE`, marking selected bid `ACCEPTED`, rejecting siblings, assigning technician, and publishing `work_order.lifecycle.assigned`.
+  - Auto-routing engine (`POST /dispatch/auto-route`) discovering and assigning top-scoring contractor within search radius (FR-DISP-003).
+- **Escrow & Money Safety (`apps/billing-service`).**
+  - Fully resolves **C3**; `releaseFunds()` executes inside a locked `db.transaction()` with `FOR UPDATE` on `escrow_accounts` and `work_orders`. Asserts `status === 'HELD'` and work order is `APPROVED`, verifies buyer caller authority, transitions escrow to `RELEASED` and work order to `PAID`, dispatches payout via `PaymentProviderPort` (`LedgerPaymentProvider`), and logs double-entry `payout_ledger` credit.
+  - Enforces request deduplication and replay via `idempotency_keys` table.
+  - Scheduled SLA review worker (`SlaAutoApprovalService`) auto-approving `COMPLETED` orders exceeding 72 hours and releasing escrow (FR-BILL-002).
+  - Deterministic SHA-256 content-hashed invoice generation (`InvoicesService`) and cryptographically verified PDF invoice generation via `pdfkit` (FR-BILL-003).
+  - Technician earnings ledger query (`GET /billing/technicians/:id/payouts`).
+- **Server-enforced geofence.** 200m radius threshold against stored coordinates (SRS FR-MOB-001).
+- **Deliverables & Media Storage.** Presigned upload URLs and SHA-256 digital signatures on stable deliverables content.
+- **Event Backbone (`packages/messaging`).** AMQP messaging module with publisher confirms, 7-day atomic Redis `SETNX` deduplication, bounded 3-retry backoff, DLQ routing, and cross-service producers/consumers.
+- **A test harness that can fail.** 376 automated unit and integration tests across 13 suites;
   no `--passWithNoTests` anywhere.
 
 ## What is not yet implemented
 
-- Escrow transactions in `apps/billing-service` (Phase 4).
-- A working RabbitMQ publish/consume pipeline with idempotency, retries, and DLQ (Phase 3).
-  The envelope exists; publisher currently logs events at transaction boundaries.
+- Buyer portal on real API via RTK Query (Phase 5).
 - Durable mobile offline sync queue (Phase 6).
-- Real billing provider integration, payout reconciliation, or immutable invoice generation (Phase 4).
 - Production observability exporters, dashboards, and evidence-backed SLO tests (Phase 7).
 - Coverage thresholds. Suites are real but `coverageThreshold` is unset; it rises
   per phase toward the SRS §5 target of 90% on business rules.

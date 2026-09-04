@@ -10,3 +10,8 @@ export const preAuthEscrowSchema = z.object({
   amountMinor: positiveMinorUnitsSchema,
   paymentMethodId: z.string().min(1)
 });
+
+export const releaseEscrowSchema = z.object({
+  workOrderId: z.uuid(),
+  payoutAmountMinor: positiveMinorUnitsSchema.optional()
+});

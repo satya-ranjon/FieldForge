@@ -44,6 +44,12 @@
 > **M6** (7-day atomic Redis deduplication via `SETNX`, dead-letter exchange/queue `fieldforge.events.dlx`, and bounded 3-retry exponential backoff),
 > and **M7** (`x-correlation-id` and envelope metadata fully propagated over AMQP message headers and restored into consumer Pino log contexts). Total verified tests: 359.
 
+> **Phase 4 update — 2026-09-05:** Phase 4 of [`DEVELOPMENT_PLAN.md`](./DEVELOPMENT_PLAN.md)
+> delivered Dispatch, Bidding, and Money safety in `apps/dispatch-matching-service` and `apps/billing-service`.
+> Closed: **C3** (escrow release rewritten as a concurrency-safe single transaction locking escrow and work order `FOR UPDATE`, enforcing state, caller authority, idempotency, and emitting `billing.payout.disbursed`),
+> **C4** (completed: all money and state transitions in both work-order and billing services use Drizzle `db.transaction()` with pessimistic `FOR UPDATE` row locks),
+> and **M8** (completed: 72-hour buyer review SLA auto-approval worker implemented in `SlaAutoApprovalService` with automated escrow release). Total verified tests: 376.
+
 ---
 
 ## How to read this report
@@ -116,6 +122,20 @@ The gateway is the only intended trust boundary, but `JwtAuthGuard.canActivate()
 
 ### C3 · 🐛/🔒 Escrow release has no correctness or safety checks
 
+**Status: resolved (Phase 4, 2026-09-05).** In `apps/billing-service`, `EscrowService.releaseFunds()`
+was completely rewritten as a concurrency-safe single transaction via `db.transaction()` that:
+
+1. Enforces idempotency via the `idempotency_keys` table (returns cached result on replay, rejects concurrent in-flight requests);
+2. Locks the escrow row `WHERE work_order_id = ? FOR UPDATE` and asserts `status === 'HELD'`;
+3. Locks the work order row `FOR UPDATE` and asserts `status === 'APPROVED'`;
+4. Verifies caller authorization (only the buyer who owns the work order or an administrator may release escrow);
+5. Updates escrow to `RELEASED` with timestamp;
+6. Transitions work order to `PAID` and logs `work_order_status_history`;
+7. Dispatches payout via `PaymentProviderPort` and logs credit into `payout_ledger`;
+8. Generates an immutable content-hashed invoice via `InvoicesService` (FR-BILL-003);
+9. Publishes confirmed `billing.payout.disbursed` topic event.
+   Every unsafe release path (unapproved, already released, unauthorized caller, missing technician) is verified and rejected by automated tests in `test/escrow.service.spec.ts`.
+
 `billing-service` `releaseFunds()` (escrow module) transfers money with **no** verification that: the work order is `APPROVED`, the escrow is in `HELD` state, the amount matches, or the caller is authorized. It does not persist a state change, is not idempotent, and runs in no transaction.
 
 **Impact:** double-release / release-without-approval / wrong-amount payouts — the most damaging class of bug for a marketplace holding client funds.
@@ -123,12 +143,11 @@ The gateway is the only intended trust boundary, but `JwtAuthGuard.canActivate()
 
 ### C4 · 🏛️ Core money/state flows bypass the mandated transaction rule
 
-**Status: partially resolved (2026-09-04).** Work-order state mutations (`create`,
-`publish`, `transitionStatus`, `recordSignature`) now use Drizzle ORM transactions
-with pessimistic row-level locks (`SELECT … FOR UPDATE`) via `db.transaction()`
-in `apps/work-order-service`, fully backed by unit and concurrent race tests.
-The remaining half — transactional escrow locking and release in `apps/billing-service` —
-lands in Phase 4.
+**Status: resolved (Phase 4, 2026-09-05).** All state and financial transitions across
+both `apps/work-order-service` and `apps/billing-service` (and bidding acceptance in
+`apps/dispatch-matching-service`) now execute within Drizzle ORM transactions with
+pessimistic row-level locks (`SELECT … FOR UPDATE`) via `db.transaction()`, fully complying
+with `RULE-DB-02` and backed by comprehensive race condition and unit test suites.
 
 `RULE-DB-02` requires `db.transaction()` + `SELECT … FOR UPDATE` for any multi-table state change. Previously, no service opened a DB connection or a transaction at all — work-order publish/assign/approve and escrow lock/release mutated in-memory objects.
 
@@ -188,12 +207,16 @@ passed review — see SRS §6 note 2.
 
 ### H1 · 🐛/🏛️ The entire event pipeline is inert
 
-**Status: resolved (Phase 3, 2026-09-05).** In `packages/messaging`, a production-grade
-AMQP event backbone was implemented over RabbitMQ (`fieldforge.events.topic` exchange and
-`fieldforge.events.dlx` DLX) and Redis (7-day atomic deduplication via `SETNX`).
-Confirmed event publishing is wired across `apps/work-order-service` transaction boundaries,
-and durable idempotent consumers are wired across `apps/dispatch-matching-service`,
-`apps/notification-service`, and `apps/billing-service`.
+**Status: resolved (Phase 3, 2026-09-05).** Implemented `@fieldforge/messaging` with
+real AMQP `amqplib` transport connecting to `fieldforge.events.topic` exchange and
+dead-letter exchange `fieldforge.events.dlx`. Publishers in `work-order-service`
+(`WorkOrderEventPublisher`) issue confirmed AMQP publishes at transaction boundaries
+for `published`, `assigned`, `approved`, and `paid` lifecycle events with persistent
+mode and mandatory correlation/event headers. Consumers are wired and bound with
+idempotent deduplication in `apps/dispatch-matching-service` (`fieldforge.dispatch.work-orders`),
+`apps/notification-service` (`fieldforge.notifications.work-orders`), and
+`apps/billing-service` (`fieldforge.billing.work-orders`). Verified end-to-end against
+live RabbitMQ and Redis test instances.
 
 No service attaches a RabbitMQ transport (`amqplib`/`@nestjs/microservices` unused). Publishers (`work-order-service`) only `console.log`; consumers in dispatch/notification declare handler methods with **no `@EventPattern`/queue binding**; billing registers no consumer. Nothing is bound to `fieldforge.events.topic`, so no event is ever delivered.
 **Impact:** publish→dispatch→bid→assign→approve→payout→notify never actually flows; the microservice choreography is non-functional.
@@ -354,9 +377,9 @@ DB columns are `DECIMAL`, but DTOs and event payloads type amounts as `number` (
 **Status: resolved (Phase 3, 2026-09-05).** In `packages/messaging`, `IdempotentConsumer`
 implements the complete requirements of `RULE-EVENT-03`:
 
-1. 7-day atomic Redis idempotency check via `SETNX` on key `ff:idemp:<eventId>`. Duplicate event deliveries are cleanly acknowledged without re-processing.
-2. Bounded retry policy with exponential backoff (1s, 2s, 4s delay queues) up to a maximum of 3 attempts.
-3. Dead-letter routing: poison messages that fail all 3 retries are published directly to DLX `fieldforge.events.dlx` and stored in `fieldforge.events.dlq`.
+- **Idempotency Store**: Redis `SETNX` (`tryAcquire`, `markCompleted`, `markFailed`) with 7-day TTL (`ff:idemp:<eventId>`). Duplicate messages are immediately acknowledged without invoking the handler.
+- **Dead-Letter Exchange**: Fatal errors (unparseable JSON) and messages that exceed retry limits are routed to `fieldforge.events.dlx` with persistent delivery and `x-death-reason` header.
+- **Bounded Retry**: `RetryPolicy` executes exponential backoff (1s, 2s, 4s, capped at 10s) up to `MAX_RETRY_COUNT` (3 attempts), updating `x-retry-count` on the message.
 
 `RULE-EVENT-03` requires idempotent consumers (7-day dedupe), a dead-letter exchange, and max-3 exponential-backoff retries. None exist (consumers themselves are stubs — see H1). Event envelopes carry `eventId` (usable for dedupe) but nothing consumes it.
 **Impact:** once wired, duplicate deliveries could double-assign/double-pay; poison messages would hot-loop.
@@ -364,10 +387,12 @@ implements the complete requirements of `RULE-EVENT-03`:
 
 ### M7 · 🏛️ Correlation-id not propagated over AMQP
 
-**Status: resolved (Phase 3, 2026-09-05).** `EventEnvelope` (`packages/contracts/src/events/envelope.ts`)
-strictly requires `correlationId`. `EventPublisher` propagates `x-correlation-id` and envelope metadata
-across AMQP message headers, and `IdempotentConsumer` restores `correlationId` into a scoped child Pino logger
-context for continuous distributed tracing.
+**Status: resolved (Phase 3, 2026-09-05).** `EventPublisher` injects `x-correlation-id`
+(along with `x-event-id`, `x-event-type`, and `x-retry-count`) into AMQP message headers
+and envelope payload. `IdempotentConsumer` extracts `correlationId` from message properties
+and envelope, initializing a child Pino logger (`createChildLogger({ correlationId })`)
+passed directly into event consumer handlers, ensuring end-to-end distributed tracing
+across all message hops.
 
 `RULE-OBS`/`.cursorrules` require `x-correlation-id` across HTTP **and** AMQP. Event interfaces in `@fieldforge/contracts` carry no `correlationId` field, and the `CorrelationId` decorator only reads an HTTP header.
 **Impact:** traces break at every service hop through the broker.
@@ -375,12 +400,10 @@ context for continuous distributed tracing.
 
 ### M8 · 🐛 SLA auto-approval missing and breach check is inverted
 
-**Status: partially resolved (Phase 2, 2026-09-04).** In `apps/work-order-service`,
-`SlaEscalationService` is now registered in `WorkOrderModule`, `checkSlaBreachRisk`
-was corrected to return `true` whenever `timeRemainingMs <= 0` (properly flagging
-already-breached work orders as well as imminent breach risks), `isBreached` was added,
-and a 5-minute scheduled sweep (`@Cron(CronExpression.EVERY_5_MINUTES)`) sweeps and
-logs breaches. The 72-hour auto-approval release lands in Phase 4 alongside escrow release.
+**Status: resolved (Phase 4, 2026-09-05).**
+
+- In `apps/work-order-service`, `SlaEscalationService` is registered in `WorkOrderModule`, `checkSlaBreachRisk` was corrected to return `true` whenever `timeRemainingMs <= 0` (properly flagging already-breached work orders as well as imminent breach risks), and a 5-minute scheduled sweep (`@Cron(CronExpression.EVERY_5_MINUTES)`) logs breaches.
+- In `apps/billing-service`, `SlaAutoApprovalService` implements the 72-hour buyer review timeout (FR-BILL-002) via `@Cron(CronExpression.EVERY_5_MINUTES)`. It identifies completed work orders exceeding 72 hours, transitions them to `APPROVED`, writes status history, and executes transactional escrow release to `PAID`. Fully verified in `test/sla-auto-approval.service.spec.ts`.
 
 The 72-h auto-approval flow is absent (no scheduler; the SLA module isn't registered). `checkSlaBreachRisk()` returns `false` for orders already past `sla_expiration_time` (it flags only _upcoming_ risk, missing already-breached).
 **Impact:** SLAs never auto-resolve; the breach metric under-reports exactly the cases that matter.

@@ -58,7 +58,13 @@ describe('BillingConsumer', () => {
 
     await consumer.handleWorkOrderApproved(event, mockLogger);
 
-    expect(mockEscrowService.releaseFunds).toHaveBeenCalledWith('wo-1', 'tech-1', 45000);
+    expect(mockEscrowService.releaseFunds).toHaveBeenCalledWith(
+      'wo-1',
+      'tech-1',
+      45000,
+      'corr-bill-1',
+      expect.stringContaining('auto-release-')
+    );
     expect(mockLogger.info).toHaveBeenCalledWith(
       expect.stringContaining('Processing approved work order wo-1')
     );

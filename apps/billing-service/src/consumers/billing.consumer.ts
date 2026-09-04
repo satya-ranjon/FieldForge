@@ -44,8 +44,14 @@ export class BillingConsumer implements OnApplicationBootstrap {
         `[BillingConsumer] Processing approved work order ${workOrderId} for payout release to technician ${techId}`
       );
     }
-    // Phase 4 will execute the transactional releaseFunds
-    await this.escrowService.releaseFunds(workOrderId, techId, payoutAmountMinor);
+    // Phase 4 executes the transactional releaseFunds
+    await this.escrowService.releaseFunds(
+      workOrderId,
+      techId,
+      payoutAmountMinor,
+      event.correlationId,
+      `auto-release-${event.eventId}`
+    );
   }
 
   async handleWorkOrderAssigned(

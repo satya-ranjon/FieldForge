@@ -22,3 +22,29 @@ export interface NearbyTechnicianDto {
   isAvailable: boolean;
   certifications: string[];
 }
+
+export interface UpdateTechnicianLocationDto {
+  latitude: number;
+  longitude: number;
+}
+
+export interface NearbyTechniciansQueryDto {
+  latitude: number;
+  longitude: number;
+  radiusMiles?: number;
+}
+
+export interface AutoRouteDto {
+  workOrderId: string;
+  maxRadiusMiles?: number;
+}
+
+export interface BidDetailsDto {
+  id: string;
+  workOrderId: string;
+  technicianId: string;
+  bidAmountMinor: MinorUnits;
+  counterNote?: string | null;
+  bidStatus: string;
+  createdAt: string;
+}
