@@ -49,20 +49,54 @@
 
 ## 3. Dispatch & Geospatial Matching Service (`dispatch-matching-service`)
 
-| Method | Endpoint                       | Description                                       | Auth / RBAC           | Payload Schema             |
-| :----- | :----------------------------- | :------------------------------------------------ | :-------------------- | :------------------------- |
-| `GET`  | `/dispatch/technicians/nearby` | Redis `GEOSEARCH` available certified contractors | `BUYER`, `DISPATCHER` | `?lat=..&lng=..&radius=25` |
-| `POST` | `/dispatch/bids`               | Submit technician bid with rate & counter-note    | `TECHNICIAN`          | `submitBidSchema`          |
-| `POST` | `/dispatch/bids/:id/accept`    | Accept technician bid & trigger assignment event  | `BUYER`               | None                       |
-| `POST` | `/dispatch/auto-route`         | Trigger automated rule-based ticket dispatch      | `BUYER`, `DISPATCHER` | `{ workOrderId }`          |
+| Method | Endpoint                         | Description                                             | Auth / RBAC           | Payload Schema                   |
+| :----- | :------------------------------- | :------------------------------------------------------ | :-------------------- | :------------------------------- |
+| `POST` | `/dispatch/technicians/location` | Update live contractor geospatial coordinates           | `TECHNICIAN`          | `updateTechnicianLocationSchema` |
+| `GET`  | `/dispatch/technicians/nearby`   | Redis `GEOSEARCH` matching with composite score rank    | `BUYER`, `DISPATCHER` | `nearbyTechniciansQuerySchema`   |
+| `POST` | `/dispatch/bids`                 | Submit technician bid with rate & counter-note          | `TECHNICIAN`          | `submitBidSchema`                |
+| `POST` | `/dispatch/bids/:id/accept`      | Accept technician bid, reject siblings, assign job      | `BUYER`               | None                             |
+| `POST` | `/dispatch/auto-route`           | Trigger automated rule-based ticket dispatch ($\le 5$m) | `BUYER`, `DISPATCHER` | `autoRouteSchema`                |
 
 ---
 
 ## 4. Billing, Escrow & Invoicing Service (`billing-service`)
 
-| Method | Endpoint                           | Description                                     | Auth / RBAC      | Payload Schema        |
-| :----- | :--------------------------------- | :---------------------------------------------- | :--------------- | :-------------------- |
-| `POST` | `/billing/escrow/preauth`          | Pre-authorize and hold funds in escrow          | `BUYER`          | `preAuthEscrowSchema` |
-| `POST` | `/billing/escrow/release`          | Release escrow funds to technician wallet       | `BUYER`, `ADMIN` | `{ workOrderId }`     |
-| `GET`  | `/billing/invoices/:id`            | Generate and download immutable PDF tax invoice | `BUYER`, `ADMIN` | None                  |
-| `GET`  | `/billing/technicians/:id/payouts` | Retrieve 1099 earnings and settlement ledger    | `TECHNICIAN`     | None                  |
+| Method | Endpoint                           | Description                                  | Auth / RBAC           | Payload Schema        |
+| :----- | :--------------------------------- | :------------------------------------------- | :-------------------- | :-------------------- |
+| `POST` | `/billing/escrow/preauth`          | Pre-authorize and hold funds in escrow       | `BUYER`               | `preAuthEscrowSchema` |
+| `POST` | `/billing/escrow/release`          | Transactional release of escrow funds (C3)   | `BUYER`, `ADMIN`      | `releaseEscrowSchema` |
+| `GET`  | `/billing/escrow/:workOrderId`     | Retrieve escrow hold status & details        | Authenticated         | None                  |
+| `GET`  | `/billing/invoices/:id`            | Retrieve immutable invoice with content hash | Authenticated         | None                  |
+| `GET`  | `/billing/invoices/:id/pdf`        | Stream immutable PDF/A invoice document      | Authenticated         | None                  |
+| `GET`  | `/billing/technicians/:id/payouts` | Retrieve 1099 earnings and settlement ledger | `TECHNICIAN`, `ADMIN` | None                  |
+
+---
+
+## 5. AMQP Event Backbone & Message Topology (`@fieldforge/messaging`)
+
+> **Exchanges**:
+>
+> - Topic Exchange: `fieldforge.events.topic` (durable, persistent delivery)
+> - Dead-Letter Exchange (DLX): `fieldforge.events.dlx` (direct, durable)
+> - Dead-Letter Queue (DLQ): `fieldforge.events.dlq` (bound to DLX)
+
+| Routing Key                      | Event Type                       | Publisher                   | Consumer Queue                         | Consumer Service            | Payload Contract              |
+| :------------------------------- | :------------------------------- | :-------------------------- | :------------------------------------- | :-------------------------- | :---------------------------- |
+| `work_order.lifecycle.published` | `work_order.lifecycle.published` | `work-order-service`        | `fieldforge.dispatch.work-orders`      | `dispatch-matching-service` | `WorkOrderPublishedPayload`   |
+| `work_order.lifecycle.published` | `work_order.lifecycle.published` | `work-order-service`        | `fieldforge.notifications.work-orders` | `notification-service`      | `WorkOrderPublishedPayload`   |
+| `work_order.lifecycle.assigned`  | `work_order.lifecycle.assigned`  | `work-order-service`        | `fieldforge.notifications.work-orders` | `notification-service`      | `WorkOrderAssignedPayload`    |
+| `work_order.lifecycle.assigned`  | `work_order.lifecycle.assigned`  | `work-order-service`        | `fieldforge.billing.work-orders`       | `billing-service`           | `WorkOrderAssignedPayload`    |
+| `work_order.lifecycle.approved`  | `work_order.lifecycle.approved`  | `work-order-service`        | `fieldforge.billing.work-orders`       | `billing-service`           | `WorkOrderApprovedPayload`    |
+| `work_order.lifecycle.paid`      | `work_order.lifecycle.paid`      | `work-order-service`        | `fieldforge.notifications.work-orders` | `notification-service`      | `WorkOrderPaidPayload`        |
+| `tech.bidding.submitted`         | `tech.bidding.submitted`         | `dispatch-matching-service` | `fieldforge.notifications.work-orders` | `notification-service`      | `TechBiddingSubmittedPayload` |
+| `billing.escrow.funded`          | `billing.escrow.funded`          | `billing-service`           | `fieldforge.work-orders.billing`       | `work-order-service`        | `EscrowFundedPayload`         |
+| `billing.payout.disbursed`       | `billing.payout.disbursed`       | `billing-service`           | `fieldforge.work-orders.billing`       | `work-order-service`        | `PayoutDisbursedPayload`      |
+
+> **Header & Trace Propagation Invariant (`RULE-EVENT-03`, `RULE-OBS`)**:
+> Every published message envelope includes:
+>
+> - `x-correlation-id`: Request correlation ID propagated from HTTP caller or prior event.
+> - `x-event-id`: Unique UUID v4 identifying the event instance for 7-day Redis deduplication (`ff:idemp:<eventId>`).
+> - `x-event-type`: Strict event type matching contract enum.
+> - `x-retry-count`: Current retry invocation counter (0 for initial publish, max 3).
+> - Delivery mode: Persistent (`deliveryMode = 2`).

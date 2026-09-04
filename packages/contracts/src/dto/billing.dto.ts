@@ -19,3 +19,35 @@ export interface EscrowDetailsDto {
   createdAt: string;
   releasedAt?: string;
 }
+
+export interface ReleaseEscrowDto {
+  workOrderId: string;
+  payoutAmountMinor?: MinorUnits;
+}
+
+export interface InvoiceDetailsDto {
+  id: string;
+  workOrderId: string;
+  buyerId: string;
+  invoiceNumber: string;
+  amountMinor: MinorUnits;
+  contentHash: string;
+  issuedAt: string;
+  createdAt: string;
+}
+
+export interface PayoutLedgerItemDto {
+  id: string;
+  technicianId: string;
+  workOrderId: string;
+  amountMinor: MinorUnits;
+  type: 'CREDIT' | 'DEBIT';
+  description?: string | null;
+  createdAt: string;
+}
+
+export interface TechnicianEarningsDto {
+  technicianId: string;
+  totalEarningsMinor: MinorUnits;
+  payouts: PayoutLedgerItemDto[];
+}
