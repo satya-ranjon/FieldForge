@@ -9,3 +9,4 @@ export * from './guards/roles.guard';
 export * from './database/drizzle.module';
 export * from './exceptions/http-exception.filter';
 export * from './health/health.controller';
+export * from './geo/haversine';

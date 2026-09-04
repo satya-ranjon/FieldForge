@@ -31,7 +31,7 @@ FieldForge is an enterprise field service marketplace and autonomous dispatch pl
 
 - **⚡ Low-Latency Dispatch Matching:** Redis `GEOSEARCH` proximity matching paired with multi-parameter contractor scoring (certifications, ratings, hourly rate, distance).
 - **📋 Deterministic Finite State Machine (FSM):** Strict, ACID-backed work order state progression with zero race conditions.
-- **📍 GPS Geofence Check-In & Proof of Work:** Native mobile verification requiring $\le 100\text{m}$ of site proximity, photo deliverables, checklist milestone verification, and SHA-256 signed client approvals.
+- **📍 GPS Geofence Check-In & Proof of Work:** Server-verified location requiring $\le 200\text{m}$ of site proximity (SRS FR-MOB-001), photo deliverables, checklist milestone verification, and SHA-256 signed client approvals.
 - **💳 Guaranteed Escrow Settlement:** Automated pre-authorization, fund locking on assignment, and 72-hour auto-disbursement with PDF invoice generation.
 - **📊 99.9% SLI/SLO Reliability Target:** Planned OpenTelemetry tracing, Prometheus metrics, Pino structured logging, and distributed `x-correlation-id` propagation.
 
@@ -162,7 +162,7 @@ sequenceDiagram
     rect rgb(240, 253, 244)
     Note over Core, Tech: 3️⃣ Transit & GPS Check-in (ASSIGNED → EN_ROUTE → ON_SITE)
     Tech->>Core: 7. Start Trip (Status: EN_ROUTE)
-    Tech->>Core: 8. GPS Geofence Check-in (Verified ≤ 100m Site Geofence)
+    Tech->>Core: 8. GPS Geofence Check-in (Verified ≤ 200m Site Geofence)
     Tech->>Core: 9. Upload Proof of Work (Photos & Client Signature)
     Core->>MQ: 10. Publish "work_order.lifecycle.completed"
     end

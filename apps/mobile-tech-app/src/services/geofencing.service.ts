@@ -22,10 +22,14 @@ export class GeofenceService {
     return R * c;
   }
 
+  /**
+   * Client-side UX check for geofence proximity (SRS FR-MOB-001).
+   * Note: The authoritative security boundary is enforced server-side.
+   */
   static isWithinGeofence(
     techLocation: Coordinates,
     jobLocation: Coordinates,
-    radiusMeters = 100
+    radiusMeters = 200
   ): boolean {
     const distance = this.calculateDistanceMeters(techLocation, jobLocation);
     return distance <= radiusMeters;

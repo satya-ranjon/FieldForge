@@ -46,6 +46,10 @@ turn a setup task into feature implementation.
 - Never commit real secrets. `.env.example` and `*.example.yaml` may contain
   development-only placeholders; real values stay in ignored local files or a
   secrets manager.
+- Never manually author or manipulate database migration SQL files or metadata
+  snapshots. Whenever schemas in `packages/database/src/schemas/` change, always
+  generate migrations via `pnpm run db:generate` and apply them via `pnpm run db:migrate`
+  (see `RULE-DB-02`).
 
 Detailed rules live in `.agent/rules/`. Read only the rules relevant to the
 files being changed, but always apply the architecture, security, and feature
@@ -127,8 +131,8 @@ from `.env.example`.
 - Comprehensive automated tests (unit, integration, contracts) are implemented
   and pass (no `--passWithNoTests`).
 - Formatting, linting, and type checking pass (`pnpm check`).
-- Public contracts in `@fieldforge/contracts` and database migrations agree with
-  the change.
+- Public contracts in `@fieldforge/contracts` and database migrations (generated
+  exclusively via `pnpm run db:generate`, never handwritten) agree with the change.
 - Required living documentation is updated: `docs/DEVELOPMENT_PLAN.md`,
   `README.md`, `.agent/context/api_contracts.md`,
   `.agent/context/project_status.md`, `docs/SRS.md`, and `docs/ISSUES.md` (and

@@ -53,3 +53,41 @@ export const workOrders = mysqlTable(
   // leave MySQL to filesort the schedule. See .agent rules RULE-DB-02.
   (table) => [index('idx_wo_status_sched').on(table.status, table.scheduledStartTime)]
 );
+
+export const workOrderStatusHistory = mysqlTable(
+  'work_order_status_history',
+  {
+    id: varchar('id', { length: 36 }).primaryKey(),
+    workOrderId: varchar('work_order_id', { length: 36 })
+      .references(() => workOrders.id, { onDelete: 'cascade' })
+      .notNull(),
+    fromStatus: mysqlEnum('from_status', [
+      'DRAFT',
+      'PUBLISHED',
+      'ASSIGNED',
+      'EN_ROUTE',
+      'ON_SITE',
+      'COMPLETED',
+      'APPROVED',
+      'PAID',
+      'CANCELLED',
+      'DISPUTED'
+    ]),
+    toStatus: mysqlEnum('to_status', [
+      'DRAFT',
+      'PUBLISHED',
+      'ASSIGNED',
+      'EN_ROUTE',
+      'ON_SITE',
+      'COMPLETED',
+      'APPROVED',
+      'PAID',
+      'CANCELLED',
+      'DISPUTED'
+    ]).notNull(),
+    changedBy: varchar('changed_by', { length: 36 }).notNull(),
+    reason: text('reason'),
+    createdAt: timestamp('created_at').defaultNow().notNull()
+  },
+  (table) => [index('idx_wosh_wo_created').on(table.workOrderId, table.createdAt)]
+);

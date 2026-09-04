@@ -104,6 +104,7 @@ A feature cannot be merged or marked done until all items below are checked:
 
 - [ ] **Functional Implementation:** Cleanly adheres to bounded context and architectural rules.
 - [ ] **Shared Contracts:** DTOs, Zod validators, and event envelopes exported from `@fieldforge/contracts`.
+- [ ] **Database Migrations:** If schemas were modified in `packages/database/src/schemas/`, migrations were generated automatically via `pnpm run db:generate` and verified with `pnpm run db:migrate` (never manually authored).
 - [ ] **Tests Implemented & Passing:** Comprehensive unit and integration tests written with real assertions; zero `--passWithNoTests`.
 - [ ] **Development Plan:** `docs/DEVELOPMENT_PLAN.md` updated with progress and sequencing.
 - [ ] **README Updated:** `README.md` reflects any changes to ports, features, or environment variables.
