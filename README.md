@@ -179,6 +179,18 @@ sequenceDiagram
 
 ---
 
+### 📬 Event Backbone & Messaging Architecture (`@fieldforge/messaging`)
+
+FieldForge uses an asynchronous event-driven messaging architecture built on RabbitMQ topic exchanges, confirmed delivery channels, and Redis idempotency locks (`RULE-EVENT-03`):
+
+- **Central Topic Exchange (`fieldforge.events.topic`)**: Durable topic exchange routing all domain events with persistent delivery (`deliveryMode = 2`).
+- **Dead-Letter Exchange (`fieldforge.events.dlx`) & DLQ (`fieldforge.events.dlq`)**: Traps malformed messages and unrecoverable delivery errors with `x-death-reason` diagnostics.
+- **7-Day Redis Idempotency Store**: Every message consumer performs an atomic `SETNX` key acquisition (`ff:idemp:<eventId>`) with a 7-day TTL (`604800s`). Duplicate deliveries are acknowledged immediately without re-invoking domain logic.
+- **Bounded Retries with Exponential Backoff**: Transient errors trigger exponential backoff (1s, 2s, 4s, capped at 10s) up to `MAX_RETRY_COUNT = 3` before routing to the DLQ.
+- **Distributed Trace Propagation**: Restores `x-correlation-id` from message headers into Pino child loggers for complete trace continuity across HTTP and AMQP boundaries (`RULE-OBS`).
+
+---
+
 ### 🗄️ Database Entity-Relationship (ER) Model
 
 ```mermaid
@@ -311,11 +323,16 @@ graph LR
         Contracts["@fieldforge/contracts<br/>(DTOs, Zod Validators, Event Interfaces)"]
         Database["@fieldforge/database<br/>(Drizzle ORM, MySQL Schemas, Seeds)"]
         Common["@fieldforge/common<br/>(Pino Logger, Interceptors, Probes)"]
+        Messaging["@fieldforge/messaging<br/>(RabbitMQ Topic, DLQ, Redis Idempotency)"]
         UI["@fieldforge/ui<br/>(Tailwind React Primitives)"]
     end
 
     Apps --> Contracts
     Apps --> Common
+    WOSvc --> Messaging
+    DispSvc --> Messaging
+    BillSvc --> Messaging
+    NotifSvc --> Messaging
     AuthSvc --> Database
     WOSvc --> Database
     BillSvc --> Database
@@ -325,6 +342,7 @@ graph LR
 ```
 packages/
 ├── contracts/       # Shared DTOs, Zod runtime validators, Enums & RabbitMQ event interfaces
+├── messaging/       # AMQP topic exchange publisher, idempotent consumers, Redis 7-day deduplication & DLQ
 ├── database/        # MySQL 8.0 Drizzle ORM typed schema definitions, seeds & migrations
 ├── common/          # Structured Pino logger, OpenTelemetry APM interceptors, /healthz probes
 ├── ui/              # Shared Tailwind CSS React design system (Buttons, Modals, StatusBadges)

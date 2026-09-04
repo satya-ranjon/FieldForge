@@ -1,23 +1,21 @@
-import { Injectable } from '@nestjs/common';
-import { EVENT_EXCHANGE } from '@fieldforge/contracts';
+import { Injectable, Optional } from '@nestjs/common';
 import type {
   EventEnvelope,
   WorkOrderPublishedEvent,
   WorkOrderAssignedEvent,
-  WorkOrderApprovedEvent
+  WorkOrderApprovedEvent,
+  WorkOrderPaidEvent
 } from '@fieldforge/contracts';
+import { EventPublisher } from '@fieldforge/messaging';
 
 /**
- * Publishes work order lifecycle events.
- *
- * The broker connection itself is not wired yet — see docs/DEVELOPMENT_PLAN.md
- * Phase 3, which replaces `emit` with a confirmed publish from
- * `packages/messaging`. What matters now is that every event leaves here inside
- * an envelope and that the routing key is read off `eventType` rather than
- * retyped at each call site.
+ * Publishes work order lifecycle events to the central RabbitMQ topic exchange
+ * with publisher confirms and persistent delivery.
  */
 @Injectable()
 export class WorkOrderEventPublisher {
+  constructor(@Optional() private readonly eventPublisher?: EventPublisher) {}
+
   async publishWorkOrderPublished(event: WorkOrderPublishedEvent): Promise<void> {
     await this.emit(event);
   }
@@ -30,10 +28,13 @@ export class WorkOrderEventPublisher {
     await this.emit(event);
   }
 
+  async publishWorkOrderPaid(event: WorkOrderPaidEvent): Promise<void> {
+    await this.emit(event);
+  }
+
   private async emit(event: EventEnvelope<unknown>): Promise<void> {
-    console.log(
-      `[-> ${EVENT_EXCHANGE}] routingKey=${event.eventType} eventId=${event.eventId} correlationId=${event.correlationId}`,
-      event.payload
-    );
+    if (this.eventPublisher) {
+      await this.eventPublisher.publish(event);
+    }
   }
 }

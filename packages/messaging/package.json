@@ -1,10 +1,16 @@
 {
-  "name": "@fieldforge/billing-service",
+  "name": "@fieldforge/messaging",
   "version": "1.0.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
-    "build": "nest build",
-    "start": "nest start",
-    "dev": "nest start --watch",
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watchman=false",
     "clean": "rm -rf dist .turbo coverage"
@@ -12,23 +18,19 @@
   "dependencies": {
     "@fieldforge/common": "workspace:*",
     "@fieldforge/contracts": "workspace:*",
-    "@fieldforge/database": "workspace:*",
-    "@fieldforge/messaging": "workspace:*",
     "@nestjs/common": "^12.0.1",
     "@nestjs/core": "^12.0.1",
-    "@nestjs/microservices": "^12.0.1",
-    "pdfkit": "^0.20.2",
+    "amqplib": "^2.0.1",
+    "ioredis": "^6.0.0",
+    "pino": "^10.3.1",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2",
-    "stripe": "^22.6.0"
+    "rxjs": "^7.8.2"
   },
   "devDependencies": {
     "@fieldforge/jest-config": "workspace:*",
     "@fieldforge/tsconfig": "workspace:*",
-    "@nestjs/cli": "^12.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^26.4.0",
-    "@types/pdfkit": "^0.17.6",
     "jest": "^30.5.0",
     "ts-jest": "^29.4.12",
     "typescript": "^5.7.3"

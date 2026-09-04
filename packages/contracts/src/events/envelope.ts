@@ -40,6 +40,8 @@ export enum EventType {
   WORK_ORDER_PUBLISHED = 'work_order.lifecycle.published',
   WORK_ORDER_ASSIGNED = 'work_order.lifecycle.assigned',
   WORK_ORDER_APPROVED = 'work_order.lifecycle.approved',
+  WORK_ORDER_PAID = 'work_order.lifecycle.paid',
+  TECH_BIDDING_SUBMITTED = 'tech.bidding.submitted',
   ESCROW_FUNDED = 'billing.escrow.funded',
   PAYOUT_DISBURSED = 'billing.payout.disbursed'
 }
@@ -49,6 +51,16 @@ export enum EventType {
  * publishers, queue bindings, and tests cannot disagree about it.
  */
 export const EVENT_EXCHANGE = 'fieldforge.events.topic';
+
+/**
+ * The dead-letter exchange for poisoned or exhausted retry messages.
+ */
+export const EVENT_DEAD_LETTER_EXCHANGE = 'fieldforge.events.dlx';
+
+/**
+ * The default dead-letter queue name bound to the dead-letter exchange.
+ */
+export const DEFAULT_DEAD_LETTER_QUEUE = 'fieldforge.events.dlq';
 
 /**
  * Wrap a payload in an envelope.

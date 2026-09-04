@@ -38,6 +38,12 @@
 > and **M8** (`SlaEscalationService.checkSlaBreachRisk` inverted check fixed for already-breached orders,
 > `@nestjs/schedule` sweep registered; 72-h auto-approval lands in Phase 4). Total verified tests: 306.
 
+> **Phase 3 update — 2026-09-05:** Phase 3 of [`DEVELOPMENT_PLAN.md`](./DEVELOPMENT_PLAN.md)
+> delivered the production event backbone across RabbitMQ and Redis in `packages/messaging`.
+> Closed: **H1** (entire event pipeline is now wired with confirmed topic publishes and consumers across work-order, dispatch, notification, and billing services),
+> **M6** (7-day atomic Redis deduplication via `SETNX`, dead-letter exchange/queue `fieldforge.events.dlx`, and bounded 3-retry exponential backoff),
+> and **M7** (`x-correlation-id` and envelope metadata fully propagated over AMQP message headers and restored into consumer Pino log contexts). Total verified tests: 359.
+
 ---
 
 ## How to read this report
@@ -181,6 +187,13 @@ passed review — see SRS §6 note 2.
 ## 🟠 High
 
 ### H1 · 🐛/🏛️ The entire event pipeline is inert
+
+**Status: resolved (Phase 3, 2026-09-05).** In `packages/messaging`, a production-grade
+AMQP event backbone was implemented over RabbitMQ (`fieldforge.events.topic` exchange and
+`fieldforge.events.dlx` DLX) and Redis (7-day atomic deduplication via `SETNX`).
+Confirmed event publishing is wired across `apps/work-order-service` transaction boundaries,
+and durable idempotent consumers are wired across `apps/dispatch-matching-service`,
+`apps/notification-service`, and `apps/billing-service`.
 
 No service attaches a RabbitMQ transport (`amqplib`/`@nestjs/microservices` unused). Publishers (`work-order-service`) only `console.log`; consumers in dispatch/notification declare handler methods with **no `@EventPattern`/queue binding**; billing registers no consumer. Nothing is bound to `fieldforge.events.topic`, so no event is ever delivered.
 **Impact:** publish→dispatch→bid→assign→approve→payout→notify never actually flows; the microservice choreography is non-functional.
@@ -338,19 +351,23 @@ DB columns are `DECIMAL`, but DTOs and event payloads type amounts as `number` (
 
 ### M6 · 🏛️ No idempotency, DLQ, or bounded retry on consumers
 
+**Status: resolved (Phase 3, 2026-09-05).** In `packages/messaging`, `IdempotentConsumer`
+implements the complete requirements of `RULE-EVENT-03`:
+
+1. 7-day atomic Redis idempotency check via `SETNX` on key `ff:idemp:<eventId>`. Duplicate event deliveries are cleanly acknowledged without re-processing.
+2. Bounded retry policy with exponential backoff (1s, 2s, 4s delay queues) up to a maximum of 3 attempts.
+3. Dead-letter routing: poison messages that fail all 3 retries are published directly to DLX `fieldforge.events.dlx` and stored in `fieldforge.events.dlq`.
+
 `RULE-EVENT-03` requires idempotent consumers (7-day dedupe), a dead-letter exchange, and max-3 exponential-backoff retries. None exist (consumers themselves are stubs — see H1). Event envelopes carry `eventId` (usable for dedupe) but nothing consumes it.
 **Impact:** once wired, duplicate deliveries could double-assign/double-pay; poison messages would hot-loop.
 **Fix:** implement a dedupe store keyed on `eventId`, a DLX, and retry/backoff policy.
 
 ### M7 · 🏛️ Correlation-id not propagated over AMQP
 
-**Status: partially remediated — the field now exists; propagation lands in
-Phase 3.** `EventEnvelope<T>` in `packages/contracts/src/events/envelope.ts` carries
-`eventId`, `eventType`, `occurredAt`, `correlationId`, and `payload`, and the five
-event interfaces were reshaped as payloads inside it. `createEvent()` requires a
-correlationId at the call site rather than defaulting one. Actually publishing over
-the broker and restoring the id into the Pino context on consume is Phase 3 of
-`docs/DEVELOPMENT_PLAN.md`; today the publisher still logs.
+**Status: resolved (Phase 3, 2026-09-05).** `EventEnvelope` (`packages/contracts/src/events/envelope.ts`)
+strictly requires `correlationId`. `EventPublisher` propagates `x-correlation-id` and envelope metadata
+across AMQP message headers, and `IdempotentConsumer` restores `correlationId` into a scoped child Pino logger
+context for continuous distributed tracing.
 
 `RULE-OBS`/`.cursorrules` require `x-correlation-id` across HTTP **and** AMQP. Event interfaces in `@fieldforge/contracts` carry no `correlationId` field, and the `CorrelationId` decorator only reads an HTTP header.
 **Impact:** traces break at every service hop through the broker.

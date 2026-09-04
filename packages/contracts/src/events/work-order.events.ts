@@ -30,6 +30,22 @@ export interface WorkOrderApprovedPayload {
   payoutAmountMinor: MinorUnits;
 }
 
+export interface WorkOrderPaidPayload {
+  workOrderId: string;
+  buyerId: string;
+  techId: string;
+  payoutAmountMinor: MinorUnits;
+}
+
+export interface TechBiddingSubmittedPayload {
+  bidId: string;
+  workOrderId: string;
+  techId: string;
+  bidAmountMinor: MinorUnits;
+}
+
 export type WorkOrderPublishedEvent = EventEnvelope<WorkOrderPublishedPayload>;
 export type WorkOrderAssignedEvent = EventEnvelope<WorkOrderAssignedPayload>;
 export type WorkOrderApprovedEvent = EventEnvelope<WorkOrderApprovedPayload>;
+export type WorkOrderPaidEvent = EventEnvelope<WorkOrderPaidPayload>;
+export type TechBiddingSubmittedEvent = EventEnvelope<TechBiddingSubmittedPayload>;

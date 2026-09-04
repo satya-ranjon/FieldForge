@@ -527,6 +527,22 @@ export class WorkOrdersService {
           );
           await this.eventPublisher.publishWorkOrderApproved(event);
         });
+      } else if (dto.nextStatus === WorkOrderStatus.PAID) {
+        const payoutAmountMinor = toMinor(Number(wo.budgetAmount));
+        const assignedTechId = wo.assignedTechnicianId || '';
+        eventsToPublish.push(async () => {
+          const event = createEvent(
+            EventType.WORK_ORDER_PAID,
+            {
+              workOrderId: wo.id,
+              buyerId: wo.buyerId,
+              techId: assignedTechId,
+              payoutAmountMinor
+            },
+            correlationId
+          );
+          await this.eventPublisher.publishWorkOrderPaid(event);
+        });
       }
     });
 
