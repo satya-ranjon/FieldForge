@@ -1,3 +1,5 @@
+import { EventType } from '@fieldforge/contracts';
+import type { IdempotentConsumer } from '@fieldforge/messaging';
 import { PushNotificationChannel } from '../src/channels/push.channel';
 import { SmsNotificationChannel } from '../src/channels/sms.channel';
 import { NotificationConsumer } from '../src/consumers/notification.consumer';
@@ -85,6 +87,62 @@ describe('NotificationConsumer', () => {
         'Emergency POS Terminal Swap'
       );
       expect(sendSms).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('AMQP event handlers', () => {
+    it('handles WorkOrderPublished event by dispatching SMS', async () => {
+      const handleDispatch = jest.spyOn(consumer, 'handleDispatchNotification').mockResolvedValue();
+
+      await consumer.handlePublishedEvent({
+        eventId: 'event-pub-1',
+        eventType: EventType.WORK_ORDER_PUBLISHED,
+        occurredAt: new Date().toISOString(),
+        correlationId: 'corr-pub-1',
+        payload: {
+          workOrderId: 'wo-1',
+          buyerId: 'b-1',
+          title: 'Storefront Display Fix',
+          maxBudgetMinor: 35000,
+          latitude: 37.7,
+          longitude: -122.4
+        }
+      });
+
+      expect(handleDispatch).toHaveBeenCalledWith('+14155550123', 'Storefront Display Fix', 35000);
+    });
+
+    it('handles WorkOrderAssigned event by dispatching Push notification', async () => {
+      const handlePush = jest.spyOn(consumer, 'handlePushNotification').mockResolvedValue();
+
+      await consumer.handleAssignedEvent({
+        eventId: 'event-assign-1',
+        eventType: EventType.WORK_ORDER_ASSIGNED,
+        occurredAt: new Date().toISOString(),
+        correlationId: 'corr-assign-1',
+        payload: {
+          workOrderId: 'wo-99',
+          techId: 'tech-42',
+          agreedRateMinor: 35000
+        }
+      });
+
+      expect(handlePush).toHaveBeenCalledWith('fcm-device-token-tech-42', 'Job Assignment: wo-99');
+    });
+
+    it('subscribes to notifications queue on bootstrap when consumer is present', async () => {
+      const mockConsumer = {
+        subscribe: jest.fn().mockResolvedValue('tag-123')
+      } as unknown as IdempotentConsumer;
+
+      const wiredConsumer = new NotificationConsumer(push, sms, mockConsumer);
+      await wiredConsumer.onApplicationBootstrap();
+
+      expect(mockConsumer.subscribe).toHaveBeenCalledWith(
+        expect.stringContaining('notifications'),
+        expect.arrayContaining(['work_order.lifecycle.published', 'work_order.lifecycle.assigned']),
+        expect.any(Function)
+      );
     });
   });
 });

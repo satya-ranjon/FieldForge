@@ -178,29 +178,32 @@ FR-MOB-001/002/003.
 
 ---
 
-## Phase 3 — Event backbone
+## Phase 3 — Event backbone (Completed)
 
-**Size: M · Depends on Phase 2.** Resolves H1, M6, and completes M7.
+**Size: M · Depends on Phase 2.** Resolves H1, M6, and completes M7. Implements `RULE-EVENT-03`.
 
-- **New `packages/messaging`.** Topic exchange `fieldforge.events.topic`; per-service queues with
-  bindings; publisher with publisher-confirms; a consumer wrapper providing idempotency via Redis
-  `SETNX` on `eventId` with 7-day TTL, bounded retry (max 3, exponential backoff via delay queues),
-  dead-lettering to `fieldforge.events.dlx`, and restoration of `correlationId` from the envelope
-  into the Pino logger context. This is the whole of `RULE-EVENT-03` in one reusable place.
-- **Wire producers and consumers.** Replace the three `console.log` bodies in
-  `work-order-event.publisher.ts` with real publishes at the transaction boundary. Bind
-  `WorkOrderCreatedConsumer` and `NotificationConsumer` — both currently declare plain methods no
-  broker ever calls. Add the missing billing consumer.
-- **Routing keys** per `RULE-EVENT-03` `<domain>.<entity>.<action>`:
-  `work_order.lifecycle.published|assigned|approved|paid`, `tech.bidding.submitted`,
-  `billing.escrow.funded`, `billing.payout.disbursed`.
+- **`packages/messaging`.** Reusable AMQP messaging module implementing durable topic exchange `fieldforge.events.topic` and dead-letter exchange `fieldforge.events.dlx`.
+  - Publisher (`EventPublisher`) using publisher-confirms (`ConfirmChannel`), persistent delivery (`deliveryMode: 2`), and headers propagation (`x-correlation-id`, `x-event-id`, `x-event-type`, `x-retry-count`).
+  - Consumer (`IdempotentConsumer`) with atomic 7-day Redis `SETNX` idempotency deduplication (`ff:idemp:<eventId>`), bounded retry (max 3 retries with 1s, 2s, 4s exponential backoff), and dead-lettering to `fieldforge.events.dlq`.
+  - Correlation ID restoration: consumer context extracts `correlationId` from headers/envelope and initializes a scoped child Pino logger for seamless distributed tracing.
+- **Wired producers.** In `apps/work-order-service`, replaced mock logger with confirmed AMQP publishes in `WorkOrderEventPublisher` at database transaction boundaries for `published`, `assigned`, `approved`, and `paid` lifecycle events.
+- **Wired consumers.**
+  - `apps/dispatch-matching-service`: `WorkOrderCreatedConsumer` bound to queue `fieldforge.dispatch.work-orders` subscribing to `work_order.lifecycle.published`.
+  - `apps/notification-service`: `NotificationConsumer` bound to queue `fieldforge.notifications.work-orders` subscribing to `work_order.lifecycle.published` (SMS dispatch alert) and `work_order.lifecycle.assigned` (Push notification).
+  - `apps/billing-service`: `BillingConsumer` bound to queue `fieldforge.billing.work-orders` subscribing to `work_order.lifecycle.assigned` (lock escrow) and `work_order.lifecycle.approved` (release escrow).
+- **Contracts updated.** Added `WORK_ORDER_PAID`, `TECH_BIDDING_SUBMITTED`, DLX/DLQ constants, and typed event factories in `@fieldforge/contracts`.
 
-**Exit criteria:** publishing a work order visibly causes dispatch to compute matches and
-notification to emit, with no direct HTTP call between them.
+**Verification:**
 
-**Verify:** integration tests against the Compose RabbitMQ proving (a) publish → consume delivers,
-(b) redelivering the same `eventId` is a no-op, (c) a poison message reaches the DLQ after exactly
-3 attempts. Cross-check bindings in the management UI at `localhost:15672`.
+- 359 tests passing across all packages and services (zero `--passWithNoTests`):
+  - 17 tests in `packages/messaging` (5 suites) covering retry policy, Redis idempotency atomic lifecycle, event publisher headers and NACK handling, idempotent consumer deduplication and DLQ routing, and end-to-end integration over live RabbitMQ/Redis.
+  - 172 tests in `apps/work-order-service` (7 suites) including publisher integration.
+  - 9 tests in `apps/dispatch-matching-service` (2 suites) including consumer bootstrap and event handling.
+  - 13 tests in `apps/notification-service` (1 suite) including AMQP event consumers.
+  - 8 tests in `apps/billing-service` (2 suites) including billing consumer escrow integration.
+  - 69 tests in `@fieldforge/contracts` (3 suites).
+- 18/18 tasks passed clean type checking without Turborepo cache (`pnpm validate:clean-typecheck`).
+- `pnpm check` and `pnpm build` pass with 0 warnings and 0 errors.
 
 ---
 

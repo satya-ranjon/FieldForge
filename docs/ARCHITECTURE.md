@@ -66,7 +66,7 @@ FieldForge/
 
 ```mermaid
 graph TD
-    Buyer["🏢 Buyer Portal (React 19)"] -->|HTTPS REST| APIGW
+    Buyer["🏢 Buyer Portal (Next.js 16)"] -->|HTTPS REST| APIGW
     Tech["📱 Tech App (React Native)"] -->|HTTPS REST| APIGW
     APIGW["⚡ API Gateway :8000<br/>JWT · rate-limit · x-correlation-id"]
 
@@ -78,18 +78,23 @@ graph TD
     AuthSvc --> MySQL[("MySQL 8 InnoDB")]
     WOSvc --> MySQL
     BillSvc --> MySQL
-    DispSvc --> Redis[("Redis 7 (geo)")]
+    DispSvc --> Redis[("Redis 8 (geo & idemp)")]
 
-    WOSvc -->|publish| MQ{{"RabbitMQ topic<br/>fieldforge.events.topic"}}
+    WOSvc -->|confirmed publish| MQ{{"RabbitMQ Topic<br/>fieldforge.events.topic"}}
     MQ -->|consume| DispSvc
     MQ -->|consume| BillSvc
     MQ -->|consume| NotifSvc["🔔 notification-service :8005"]
+
+    MQ -.->|retry exhausted / poison| DLX{{"RabbitMQ DLX<br/>fieldforge.events.dlx"}}
+    DLX --> DLQ[("fieldforge.events.dlq")]
 
     subgraph Observability
       Prom["Prometheus"] --> Graf["Grafana"]
       Jaeger["Jaeger"]
     end
 ```
+
+> 📖 **Detailed Message Flows**: Complete sequence flows for work order publication, bid assignment, escrow release, retry backoff, and dead-letter routing are documented in [`docs/MESSAGE_FLOW.md`](./MESSAGE_FLOW.md).
 
 **Communication rules** (from `.agent/rules/01_architecture_rules.md`):
 
@@ -121,11 +126,12 @@ graph TD
 
 ## 5. Shared packages
 
-- **`@fieldforge/contracts`** — Enums (`UserRole`, `WorkOrderStatus`, `BidStatus`, `EscrowStatus`, `PriorityLevel`, …), request/response DTO interfaces, Zod validators (`createWorkOrderSchema`, `registerUserSchema`, `loginSchema`, `submitBidSchema`, `preAuthEscrowSchema`), and event envelopes (`WorkOrderPublished/Assigned/ApprovedEvent`, `EscrowFundedEvent`, `PayoutDisbursedEvent`). ⚠️ `transitionStatusSchema` referenced by the API catalogue does not exist here; event envelopes carry no `correlationId`.
-- **`@fieldforge/database`** — Drizzle MySQL schemas (`users`, `buyer_profiles`, `technician_profiles`, `work_orders`, `work_order_bids`, `work_order_deliverables`, `escrow_accounts`), a single generated migration, a seed script, and `createDbClient(uri)` (mysql2 pool + Drizzle).
-- **`@fieldforge/common`** — `createLogger()` (Pino JSON), `MetricsInterceptor` (currently `console.log` timing, not OTEL/Prometheus), `CorrelationId` param decorator (HTTP header only), `Roles` decorator (⚠️ **no `RolesGuard` enforces it**), `GlobalHttpExceptionFilter`, and `HealthController` (`/healthz`, `/readyz`).
-- **`@fieldforge/ui`** — `Button`, `StatusBadge` (⚠️ handles `BIDDING`/`SETTLED`/`OPEN`/`IN_PROGRESS` which are **not** in the backend enum), and a `cn()` classname joiner.
-- **`@fieldforge/tsconfig`**, **`@fieldforge/eslint-config`** — shared configs.
+- **`@fieldforge/contracts`** — Enums (`UserRole`, `WorkOrderStatus`, `BidStatus`, `EscrowStatus`, `PriorityLevel`, …), request/response DTO interfaces, Zod validators (`createWorkOrderSchema`, `registerUserSchema`, `loginSchema`, `submitBidSchema`, `preAuthEscrowSchema`, `transitionStatusSchema`), and typed event envelopes (`EventEnvelope<T>`, `WorkOrderPublishedEvent`, `WorkOrderAssignedEvent`, `WorkOrderApprovedEvent`, `WorkOrderPaidEvent`, `TechBiddingSubmittedEvent`).
+- **`@fieldforge/messaging`** — Central AMQP topic messaging, confirmed publisher (`EventPublisher`), idempotent consumer wrapper (`IdempotentConsumer`), 7-day Redis deduplication (`RedisIdempotencyClient`), bounded retry policy (`RetryPolicy`), and dead-letter exchange/queue bindings (`fieldforge.events.dlx`/`fieldforge.events.dlq`).
+- **`@fieldforge/database`** — Drizzle MySQL schemas (`users`, `buyer_profiles`, `technician_profiles`, `work_orders`, `work_order_status_history`, `work_order_bids`, `work_order_deliverables`, `escrow_accounts`, `refresh_tokens`, `technician_certifications`), migrations (`0000`–`0003_wo_history.sql`), seed scripts, and `createDbClient(uri)`.
+- **`@fieldforge/common`** — `createLogger()` (Pino JSON), `MetricsInterceptor`, `CorrelationId` param decorator, `Roles` decorator & `RolesGuard`, `GlobalHttpExceptionFilter`, `HealthController` (`/healthz`, `/readyz`), canonical Haversine geofence calculation (`haversine.ts`), and fail-closed JWT secret configuration (`requireJwtSecret`).
+- **`@fieldforge/ui`** — Tailwind React primitives (`Button`, `Card`, `Input`, `Modal`, `StatusBadge`), and `cn()` utility.
+- **`@fieldforge/tsconfig`**, **`@fieldforge/eslint-config`** — standardized TypeScript and ESLint configs.
 
 ---
 
@@ -142,19 +148,16 @@ erDiagram
     WORK_ORDERS ||--|| ESCROW_ACCOUNTS : secured_by
 ```
 
-- **PKs:** `VARCHAR(36)` UUID strings. **Money:** `DECIMAL(10,2)` / `(12,2)` in the DB (but `number`/float in the TS/event layer — see Issues).
-- **Enums (as coded):** `WorkOrderStatus` = `DRAFT, PUBLISHED, ASSIGNED, EN_ROUTE, ON_SITE, COMPLETED, APPROVED, CANCELLED, DISPUTED` — **no `BIDDING`, no `SETTLED`**. `EscrowStatus` = `HELD, RELEASED, REFUNDED, DISPUTED`.
-- **Indexes:** two single-column indexes on `work_orders` (`idx_wo_status`, `idx_wo_schedule`). ⚠️ `RULE-DB-02` requires a **composite** `(status, scheduled_start_time)` index.
-- **Constraints:** `escrow_accounts.work_order_id` is a plain FK — ⚠️ **not `UNIQUE`** despite the modelled 1:1 with a work order.
-- Two schema definitions exist for the DB: the Drizzle TS schema + generated migration under `packages/database`, and a hand-written `infra/docker/mysql-init/01_init_schema.sql` used by the Docker MySQL container.
+- **PKs:** `VARCHAR(36)` UUID strings. **Money:** `DECIMAL(10,2)` in the DB; integer minor units (`*Minor`) in TS DTOs and event envelopes.
+- **Enums:** `WorkOrderStatus` = `DRAFT, PUBLISHED, ASSIGNED, EN_ROUTE, ON_SITE, COMPLETED, APPROVED, PAID, CANCELLED, DISPUTED`. `EscrowStatus` = `HELD, RELEASED, REFUNDED, DISPUTED`.
+- **Indexes:** Composite `idx_wo_status_sched (status, scheduled_start_time)` on `work_orders` per `RULE-DB-02`.
+- **Constraints:** `escrow_accounts.work_order_id` has `UNIQUE` constraint `uq_escrow_work_order` enforcing strict 1:1 relationship with work orders.
 
 ---
 
 ## 7. Work Order finite state machine
 
-There are **three divergent definitions** of the FSM in this repo. This is a documentation hazard worth resolving.
-
-**A. As implemented** (`work-order-service/src/modules/fsm/work-order-fsm.service.ts`):
+Standardized single FSM definition implemented in `WorkOrderFsmService.validateTransition` (`apps/work-order-service`):
 
 ```
 DRAFT     → PUBLISHED, CANCELLED
@@ -163,26 +166,31 @@ ASSIGNED  → EN_ROUTE, DISPUTED, CANCELLED
 EN_ROUTE  → ON_SITE, DISPUTED
 ON_SITE   → COMPLETED, DISPUTED
 COMPLETED → APPROVED, DISPUTED
-APPROVED  → (terminal)
+APPROVED  → PAID
 DISPUTED  → APPROVED, CANCELLED
+PAID      → (terminal)
 CANCELLED → (terminal)
 ```
 
-**B. README diagram** adds `APPROVED → SETTLED → [*]` (a `SETTLED` terminal state that the enum/DB cannot store).
-
-**C. `domain_entities.md` diagram** adds both `PUBLISHED → BIDDING → ASSIGNED` and `APPROVED → SETTLED` (neither `BIDDING` nor `SETTLED` exists in the enum/DB).
-
-The guard is pure graph validation — it does **not** read the persisted status, check ownership, enforce the ≤100 m geofence on `ON_SITE`, or run inside a transaction.
+All status mutations run inside `db.transaction()` using `SELECT … FOR UPDATE` row locks, validating caller ownership/assignment permissions and enforcing the server-side $\le 200\text{m}$ Haversine geofence threshold on `EN_ROUTE → ON_SITE`. Every transition logs an immutable entry to `work_order_status_history`.
 
 ---
 
-## 8. Eventing
+## 8. Eventing & Message Backbone
 
-- **Exchange:** `fieldforge.events.topic` (RabbitMQ topic). **Routing key schema:** `<domain>.<entity>.<action>`.
-- **Declared events** (`@fieldforge/contracts`): `WorkOrderPublishedEvent`, `WorkOrderAssignedEvent`, `WorkOrderApprovedEvent`, `EscrowFundedEvent`, `PayoutDisbursedEvent` — each carries an `eventId` (usable for idempotency) but **no `correlationId`**.
-- **Publishers (stubbed):** `work-order-service` logs `work_order.lifecycle.{published,assigned,approved}`; only `published` is ever invoked, and with a **hardcoded** payload (fixed SF coordinates, `$450`).
-- **Consumers (unbound):** dispatch and notification define handler methods but with **no `@EventPattern`/queue binding**; billing registers **no consumer at all**. Nothing is bound to any routing key, so no event is ever delivered.
-- **Rules not yet met:** idempotency (7-day dedupe), dead-letter exchange + bounded ret/backoff (max 3), correlation-id propagation.
+FieldForge implements an asynchronous event-driven architecture using RabbitMQ and Redis (`RULE-EVENT-03`), encapsulated in the shared package [`@fieldforge/messaging`](file:///home/satya/development/FieldForge/packages/messaging). Comprehensive message flow diagrams, failure topographies, and sequencing are detailed in [`docs/MESSAGE_FLOW.md`](./MESSAGE_FLOW.md).
+
+- **Exchange Topology**:
+  - `fieldforge.events.topic` (RabbitMQ topic exchange, durable) routes all domain events across services with persistent delivery mode (`deliveryMode: 2`).
+  - `fieldforge.events.dlx` (dead-letter exchange, direct, durable) traps unparseable messages, corrupt payloads, and messages that exceed retry limits.
+  - `fieldforge.events.dlq` (dead-letter queue) stores rejected messages with `x-death-reason` diagnostic headers.
+- **Declared Event Contracts** (`@fieldforge/contracts`): Every event is packaged inside an `EventEnvelope<T>` containing `eventId`, `eventType`, `occurredAt`, `correlationId`, and typed `payload`. Supported lifecycle types: `work_order.lifecycle.{published,assigned,approved,paid}`, `tech.bidding.submitted`, `billing.escrow.funded`, and `billing.payout.disbursed`.
+- **Publisher Confirms (`EventPublisher`)**: `work-order-service` publishes events using `ConfirmChannel`, waiting for broker ACK before resolving transaction boundaries. Persistent message headers include `x-correlation-id`, `x-event-id`, `x-event-type`, and `x-retry-count`.
+- **Idempotent Consumers (`IdempotentConsumer`)**:
+  - Atomic deduplication via Redis `SETNX` on `ff:idemp:<eventId>` with a 7-day TTL (`604800s`). Duplicate message redeliveries are acknowledged immediately without re-invoking business logic.
+  - Subscribed service queues: `fieldforge.dispatch.work-orders` (dispatch matching), `fieldforge.notifications.work-orders` (SMS & Push alerts), and `fieldforge.billing.work-orders` (escrow lock & payout release).
+- **Bounded Retry Policy (`RetryPolicy`)**: Handlers catch transient errors and re-queue with exponential backoff (1s, 2s, 4s, max 10s) up to `MAX_RETRY_COUNT = 3`.
+- **Correlation ID Propagation**: `IdempotentConsumer` extracts `correlationId` from message properties and restores it into a child Pino logger context, ensuring unbroken distributed tracing across HTTP and AMQP boundaries (`RULE-OBS`).
 
 ---
 
@@ -233,30 +241,30 @@ Default endpoints: Buyer Portal `:5173`, API Gateway `:8000/api/v1`, RabbitMQ UI
 
 Legend: ✅ implemented · 🟡 partial/stub · ❌ absent
 
-| Capability                                | Status | Notes                                                              |
-| :---------------------------------------- | :----: | :----------------------------------------------------------------- |
-| Health probes (`/healthz`, `/readyz`)     |   ✅   | Via `@fieldforge/common` (all services except notification/auth)   |
-| Shared contracts / DB schema / migration  |   ✅   | Types, Zod, Drizzle schema + one migration all present             |
-| Geofence Haversine math (client)          |   ✅   | Correct; but mock inputs & client-only enforcement                 |
-| API Gateway JWT auth                      |   ❌   | Guard always returns `true`, not registered; no JWT lib            |
-| API Gateway proxy/routing                 |   ❌   | No proxy wired; real paths 404                                     |
-| Rate limiting                             |   ❌   | No throttler dependency                                            |
-| auth-service endpoints (register/login/…) |   ❌   | Module is empty; no DB/bcrypt/JWT usage                            |
-| Work-order persistence & transactions     |   ❌   | In-memory objects; no DB writes; no `db.transaction()`             |
-| FSM enforcement against real state        |   🟡   | Graph validation only; hardcoded DRAFT→PUBLISHED in `publish()`    |
-| Server-side geofence enforcement          |   ❌   | Not present in work-order-service                                  |
-| SLA watcher / 72 h auto-approval          |   ❌   | Service unregistered; no scheduler; breach logic bug               |
-| Escrow lock/release correctness           |   ❌   | No state/amount/approval checks, no persistence, no idempotency    |
-| RabbitMQ transport / bindings             |   ❌   | No transport attached; publishers/consumers are `console.log`      |
-| Consumer idempotency / DLQ / retry        |   ❌   | None                                                               |
-| correlation-id over AMQP                  |   ❌   | Events carry no `correlationId`                                    |
-| Dispatch GEOSEARCH + scoring              | 🟡→❌  | Returns 2 hardcoded techs; no Redis call, no scoring               |
-| Notification channels (SMS/push/email)    |   🟡   | SMS/push are `console.log`; module empty so unregistered; no email |
-| Buyer portal data / auth flow             |   🟡   | Hardcoded Redux state, mock JWT, no API/RTK Query/router           |
-| Mobile offline sync                       | 🟡→❌  | In-memory queue; `flushQueue()` **discards** items                 |
-| k8s deploy path                           |   ❌   | No Services, missing kustomization, config not injected            |
-| CI tests                                  |   ❌   | `--passWithNoTests`, zero tests                                    |
-| Observability (Prometheus/OTEL)           |   🟡   | Interceptor `console.log`s; `prometheus.yml` missing               |
+| Capability                                | Status | Notes                                                               |
+| :---------------------------------------- | :----: | :------------------------------------------------------------------ |
+| Health probes (`/healthz`, `/readyz`)     |   ✅   | Via `@fieldforge/common` across microservices                       |
+| Shared contracts / DB schema / migration  |   ✅   | Contracts, Zod schemas, Drizzle schema & migrations (`0000`–`0003`) |
+| Geofence Haversine math (client)          |   ✅   | Canonical Haversine in `@fieldforge/common/geo/haversine`           |
+| API Gateway JWT auth                      |   ✅   | `JwtAuthGuard` & `RolesGuard` globally registered (Phase 1)         |
+| API Gateway proxy/routing                 |   ✅   | `ProxyController` reverse proxy with header sanitization (Phase 1)  |
+| Rate limiting                             |   ✅   | `ThrottlerGuard` rate limiter registered on gateway (Phase 1)       |
+| auth-service endpoints (register/login/…) |   ✅   | DB-backed bcrypt hashing, rotating refresh tokens, badges (Phase 1) |
+| Work-order persistence & transactions     |   ✅   | Drizzle ORM, `db.transaction()` + `SELECT … FOR UPDATE` (Phase 2)   |
+| FSM enforcement against real state        |   ✅   | `WorkOrderFsmService`, ownership checks, history audit (Phase 2)    |
+| Server-side geofence enforcement          |   ✅   | Server enforces $\le 200\text{m}$ on `ON_SITE` check-in (Phase 2)   |
+| SLA watcher / 72 h auto-approval          |   🟡   | `SlaEscalationService` + cron sweep; 72h auto-approval in Phase 4   |
+| Escrow lock/release correctness           |   ❌   | Hardened transactional release lands in Phase 4                     |
+| RabbitMQ transport / bindings             |   ✅   | `@fieldforge/messaging` confirmed publisher & consumers (Phase 3)   |
+| Consumer idempotency / DLQ / retry        |   ✅   | 7-day Redis `SETNX`, DLX/DLQ, max 3 backoff retries (Phase 3)       |
+| correlation-id over AMQP                  |   ✅   | Headers propagated, restored into Pino child loggers (Phase 3)      |
+| Dispatch GEOSEARCH + scoring              |   ❌   | Redis GEOADD/GEOSEARCH matching lands in Phase 4                    |
+| Notification channels (SMS/push/email)    |   🟡   | AMQP consumers wired; Twilio/FCM vendor SDKs land in Phase 5        |
+| Buyer portal data / auth flow             |   🟡   | Next.js App Router, real auth wired; views use Redux state          |
+| Mobile offline sync                       | 🟡→❌  | Persistent SQLite/MMKV replay queue lands in Phase 6                |
+| k8s deploy path                           |   ❌   | Scaffold manifests only; production manifests in future phase       |
+| CI tests                                  |   ✅   | 359 automated unit & integration tests, zero `--passWithNoTests`    |
+| Observability (Prometheus/OTEL)           |   🟡   | Structured Pino logs + x-correlation-id; Prometheus exporter P7     |
 
 ---
 

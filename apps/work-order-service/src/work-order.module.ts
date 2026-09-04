@@ -8,6 +8,7 @@ import {
   GlobalHttpExceptionFilter,
   requireJwtSecret
 } from '@fieldforge/common';
+import { MessagingModule } from '@fieldforge/messaging';
 import { WorkOrdersController } from './modules/work-orders/work-orders.controller';
 import { WorkOrdersService } from './modules/work-orders/work-orders.service';
 import { WorkOrderFsmService } from './modules/fsm/work-order-fsm.service';
@@ -21,6 +22,7 @@ import { LocalDiskMediaStorageAdapter } from './modules/deliverables/local-disk-
   imports: [
     DrizzleModule.forRoot(),
     ScheduleModule.forRoot(),
+    MessagingModule.forRoot({ serviceName: 'work-order-service' }),
     JwtModule.registerAsync({
       useFactory: () => ({
         secret: requireJwtSecret(),

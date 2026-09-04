@@ -13,6 +13,7 @@
     "@fieldforge/common": "workspace:*",
     "@fieldforge/contracts": "workspace:*",
     "@fieldforge/database": "workspace:*",
+    "@fieldforge/messaging": "workspace:*",
     "@nestjs/common": "^12.0.1",
     "@nestjs/core": "^12.0.1",
     "@nestjs/microservices": "^12.0.1",
