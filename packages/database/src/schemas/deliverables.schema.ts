@@ -13,5 +13,8 @@ export const workOrderDeliverables = mysqlTable('work_order_deliverables', {
     'SIGNATURE'
   ]).notNull(),
   s3Url: varchar('s3_url', { length: 512 }).notNull(),
+  signatureHash: varchar('signature_hash', { length: 64 }),
+  clientName: varchar('client_name', { length: 255 }),
+  signedAt: timestamp('signed_at'),
   uploadedAt: timestamp('uploaded_at').defaultNow().notNull()
 });

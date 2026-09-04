@@ -11,7 +11,7 @@
     "verify:pre-push": "pnpm format && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:e2e && pnpm validate:clean-typecheck && pnpm build && pnpm check",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "turbo run typecheck",
-    "test": "turbo run test",
+    "test": "CI=1 turbo run test",
     "test:e2e": "turbo run test:e2e",
     "validate:clean-typecheck": "./.agent/skills/turborepo/scripts/validate-clean-typecheck.sh",
     "format": "prettier --write . --ignore-unknown",

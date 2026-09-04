@@ -24,6 +24,8 @@ export default tseslint.config(
       '**/.turbo/**',
       '**/.expo/**',
       '**/.next/**',
+      '**/playwright-report/**',
+      '**/test-results/**',
       'packages/database/src/migrations/**'
     ]
   },

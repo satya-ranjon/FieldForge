@@ -34,6 +34,7 @@ export interface TransitionWorkOrderDto {
   latitude?: number;
   longitude?: number;
   reason?: string;
+  assignedTechnicianId?: string;
 }
 
 export interface WorkOrderResponseDto {
@@ -61,4 +62,51 @@ export interface CreateDeliverableDto {
   deliverableType: DeliverableType;
   s3Url: string;
   signatureHash?: string;
+}
+
+export interface ListWorkOrdersQueryDto {
+  status?: WorkOrderStatus;
+  buyerId?: string;
+  assignedTechnicianId?: string;
+  scheduledStartTimeFrom?: string;
+  scheduledStartTimeTo?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface WorkOrderStatusHistoryDto {
+  id: string;
+  workOrderId: string;
+  fromStatus: WorkOrderStatus | null;
+  toStatus: WorkOrderStatus;
+  changedBy: string;
+  reason?: string | null;
+  createdAt: string;
+}
+
+export interface GeneratePresignedUrlDto {
+  deliverableType: DeliverableType;
+  filename: string;
+}
+
+export interface PresignedUrlResponseDto {
+  uploadUrl: string;
+  mediaUrl: string;
+  key: string;
+}
+
+export interface RecordSignatureDto {
+  signatureSvg: string;
+  clientName: string;
+}
+
+export interface DeliverableResponseDto {
+  id: string;
+  workOrderId: string;
+  deliverableType: DeliverableType;
+  mediaUrl: string;
+  signatureHash?: string | null;
+  clientName?: string | null;
+  signedAt?: string | null;
+  uploadedAt: string;
 }

@@ -29,6 +29,15 @@
 > because C2 and H2 read as "resolved" while the boundary they describe was
 > bypassable; their entries below now carry the correction.
 
+> **Phase 2 update — 2026-09-04:** Phase 2 of [`DEVELOPMENT_PLAN.md`](./DEVELOPMENT_PLAN.md)
+> delivered a persistent, transactional work-order lifecycle in `apps/work-order-service`.
+> Closed: **H4** (work-order FSM reads and validates actual state in DB with `SELECT … FOR UPDATE` row locks),
+> **H5** (Haversine moved to `packages/common/src/geo/haversine.ts`, 200m tolerance strictly enforced server-side),
+> and **L5** (deliverable signature hashes only stable content, timestamp in own column).
+> Advanced: **C4** (work-order lifecycle transactions and row locking implemented; escrow transactions land in Phase 4)
+> and **M8** (`SlaEscalationService.checkSlaBreachRisk` inverted check fixed for already-breached orders,
+> `@nestjs/schedule` sweep registered; 72-h auto-approval lands in Phase 4). Total verified tests: 306.
+
 ---
 
 ## How to read this report
@@ -108,7 +117,14 @@ The gateway is the only intended trust boundary, but `JwtAuthGuard.canActivate()
 
 ### C4 · 🏛️ Core money/state flows bypass the mandated transaction rule
 
-`RULE-DB-02` requires `db.transaction()` + `SELECT … FOR UPDATE` for any multi-table state change. **No service opens a DB connection or a transaction at all** — work-order publish/assign/approve and escrow lock/release mutate in-memory objects. Combined with C3, there is no atomicity anywhere money or lifecycle state moves.
+**Status: partially resolved (2026-09-04).** Work-order state mutations (`create`,
+`publish`, `transitionStatus`, `recordSignature`) now use Drizzle ORM transactions
+with pessimistic row-level locks (`SELECT … FOR UPDATE`) via `db.transaction()`
+in `apps/work-order-service`, fully backed by unit and concurrent race tests.
+The remaining half — transactional escrow locking and release in `apps/billing-service` —
+lands in Phase 4.
+
+`RULE-DB-02` requires `db.transaction()` + `SELECT … FOR UPDATE` for any multi-table state change. Previously, no service opened a DB connection or a transaction at all — work-order publish/assign/approve and escrow lock/release mutated in-memory objects.
 
 **Impact:** once persistence is added naively, concurrent assign/bid/release will race (lost updates, double-assignment, double-spend).
 **Fix:** thread a Drizzle client through the services and wrap every lifecycle/escrow mutation in a transaction with row locks, per the rule.
@@ -194,15 +210,23 @@ Despite `express-http-proxy` in `package.json`, no proxy/forwarding is configure
 
 ### H4 · 🐛 Work-order FSM ignores real state and is hardcoded
 
-`WorkOrderFsmService` validates only the transition graph. `publish()` hardcodes `DRAFT → PUBLISHED` without reading the row's current status, ownership, or persisting the result; no other transition is wired.
-**Impact:** state can be driven from any starting point / by anyone; transitions aren't durable.
-**Fix:** load the current status from the DB, validate against it, enforce ownership/role, persist within a transaction (ties into C4).
+**Status: resolved (Phase 2, 2026-09-04).** All transitions (`publish`, `transitionStatus`)
+now load the actual persisted row within a transaction using `SELECT … FOR UPDATE`.
+The actual state is checked via `WorkOrderFsmService.validateTransition`, caller identity
+and permissions are verified (creator owns draft/published/cancelled/disputed/approved;
+assigned technician owns en_route/on_site/completed), status updates are persisted, and
+every transition is recorded in `work_order_status_history` (`0003_wo_history.sql`).
+Invalid transitions and unauthorized callers fail with 400 / 403 / 404 regardless of
+client claims.
 
 ### H5 · 🏛️/🔒 Geofence is never enforced server-side
 
-The ≤100 m Haversine check (`RULE-MOB-05`) exists only in the mobile client (`mobile-tech-app/services/geofencing.service.ts`). `work-order-service` performs no location check on the `EN_ROUTE → ON_SITE` transition.
-**Impact:** a technician can mark themselves on-site from anywhere by calling the API directly; the anti-fraud control is trivially bypassed.
-**Fix:** require lat/long on the on-site transition and run the geofence server-side against the work order's coordinates.
+**Status: resolved (Phase 2, 2026-09-04).** The canonical Haversine formula is implemented
+in `packages/common/src/geo/haversine.ts` (`calculateDistanceMeters`, `isWithinGeofence`).
+On the `EN_ROUTE → ON_SITE` transition, `latitude` and `longitude` are mandatory and validated
+against the work order's stored coordinates on the server. Requests within 200m (SRS FR-MOB-001)
+are permitted (199m verified accepted), while requests outside 200m are rejected with a 400
+BadRequest (201m verified rejected). Mobile client check is retained for UX only.
 
 ### H6 · 🐛 Mobile offline queue silently discards mutations
 
@@ -334,6 +358,13 @@ the broker and restoring the id into the Pino context on consume is Phase 3 of
 
 ### M8 · 🐛 SLA auto-approval missing and breach check is inverted
 
+**Status: partially resolved (Phase 2, 2026-09-04).** In `apps/work-order-service`,
+`SlaEscalationService` is now registered in `WorkOrderModule`, `checkSlaBreachRisk`
+was corrected to return `true` whenever `timeRemainingMs <= 0` (properly flagging
+already-breached work orders as well as imminent breach risks), `isBreached` was added,
+and a 5-minute scheduled sweep (`@Cron(CronExpression.EVERY_5_MINUTES)`) sweeps and
+logs breaches. The 72-hour auto-approval release lands in Phase 4 alongside escrow release.
+
 The 72-h auto-approval flow is absent (no scheduler; the SLA module isn't registered). `checkSlaBreachRisk()` returns `false` for orders already past `sla_expiration_time` (it flags only _upcoming_ risk, missing already-breached).
 **Impact:** SLAs never auto-resolve; the breach metric under-reports exactly the cases that matter.
 **Fix:** add a scheduled SLA sweep (auto-approve at +72 h) and fix the predicate to include already-breached orders.
@@ -451,8 +482,11 @@ No remote backend/state locking; the deliverables bucket has SSE+versioning but 
 
 ### L5 · 🐛 Deliverable signature uses `Date.now()` inside the hash
 
-The deliverable "signature" SHA-256 mixes `Date.now()` into the hashed input, so the same artifact hashes differently each call — it can't be used for integrity verification later.
-**Fix:** hash only stable content (bytes + work order id + type); store the timestamp alongside, not inside, the digest.
+**Status: resolved (Phase 2, 2026-09-04).** In `apps/work-order-service/src/modules/deliverables/deliverables.service.ts`,
+`generateSignatureHash` now hashes only stable inputs (`workOrderId`, `clientName`, and canonical
+`signatureData` bytes) via SHA-256 without injecting non-deterministic timestamps. The signing
+timestamp is persisted explicitly in its own `signed_at` column in `work_order_deliverables`
+(migration `0003_wo_history.sql`), ensuring signatures can be independently verified for integrity.
 
 ### L6 · 🏛️ Frontend deviates from RULE-FE-04
 

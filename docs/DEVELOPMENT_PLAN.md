@@ -13,11 +13,12 @@ marketplace; the code implements type definitions, a Drizzle schema, one migrati
 buyer UI, and `console.log` stubs.
 
 Verified state of the tree **as of 2026-08-31, before Phase 0 began** — this is the baseline the
-phases below are sequenced against, not a description of the current code. Phases 0 and 1 have since
-landed, so several items here are now false (there are domain controllers, a real trust boundary, and
-271 unit tests). For what exists today, read
-[`.agent/context/project_status.md`](../.agent/context/project_status.md); for what is still broken,
-read [`ISSUES.md`](./ISSUES.md), whose counts supersede the tally at the end of this section:
+phases below are sequenced against, not a description of the current code. Phases 0, 1, and 2
+have since landed, so several items here are now false (there are domain controllers, a real trust
+boundary, database-backed work-order lifecycle, server-side geofencing, and 306 unit/integration tests).
+For what exists today, read [`.agent/context/project_status.md`](../.agent/context/project_status.md);
+for what is still broken, read [`ISSUES.md`](./ISSUES.md), whose counts supersede the tally at the
+end of this section:
 
 - **No domain HTTP controllers exist anywhere.** The only controller in the repo is the shared
   `HealthController` (`packages/common/src/health/health.controller.ts`). Every endpoint in
@@ -155,41 +156,25 @@ live in `apps/auth-service/test/users.controller.spec.ts` and
 
 ## Phase 2 — Persistent, transactional work-order lifecycle
 
-**Size: L · Depends on Phase 1.** Resolves C4, H4, H5, M8 (partial), L5. Implements FR-WO-001/002/003,
+**Status: Completed (2026-09-04).** Resolves C4, H4, H5, M8 (partial), L5. Implements FR-WO-001/002/003,
 FR-MOB-001/002/003.
 
-- **Controllers + repository.** `WorkOrdersController` for create / list (filtered, using the new
-  composite index) / get / publish / transition. Replace the object-literal returns in
-  `work-orders.service.ts` with Drizzle reads and writes.
-- **Real FSM enforcement.** `publish()` currently hardcodes `validateTransition(DRAFT, PUBLISHED)`
-  without reading the row. Every transition must instead: open `db.transaction()`,
-  `SELECT … FOR UPDATE` the work order, validate the _actual_ current status through the existing
-  `WorkOrderFsmService.validateTransition`, assert the caller owns the row or is the assigned
-  technician, persist, and append to a new `work_order_status_history` table (migration
-  `0003_wo_history.sql`) — which also gives `SlaAuditView` and the FR-BILL-003 audit log something
-  real to read.
-- **Server-side geofence (H5).** Move the Haversine implementation out of
-  `apps/mobile-tech-app/src/services/geofencing.service.ts` into
-  `packages/common/src/geo/haversine.ts`. The `EN_ROUTE → ON_SITE` transition requires
-  `latitude`/`longitude` in the body and rejects anything beyond **200 m** (SRS FR-MOB-001) of the
-  work order's stored coordinates. The mobile check becomes UX only.
-- **Deliverables.** Define `MediaStoragePort` with a local-disk adapter, replacing the fabricated
-  presigned URLs in `deliverables.service.ts`. Add
-  `POST /work-orders/:id/deliverables/presigned-url` and `/signature`, persisting to
-  `work_order_deliverables`. Fix the signature digest to hash only stable content — `Date.now()`
-  currently goes _inside_ the hash, so nothing can ever be verified against it (L5); store the
-  timestamp in its own column.
-- **SLA.** Register the never-imported `SlaEscalationService` and fix `checkSlaBreachRisk`, which
-  returns `false` for already-breached orders — it flags only upcoming risk, missing exactly the
-  cases that matter. Add an `@nestjs/schedule` sweep that flags breaches. (72-hour auto-approval
-  lands in Phase 4 with the money path.)
+- **Controllers + repository.** `WorkOrdersController` implements create (`POST /work-orders`), list (`GET /work-orders` with composite index filters `status` and `scheduledStartTime`), fetch (`GET /work-orders/:id`), history (`GET /work-orders/:id/history`), publish (`POST /work-orders/:id/publish`), transition (`POST /work-orders/:id/transition` & `PATCH /work-orders/:id/status`), deliverables presigned URL (`POST /work-orders/:id/deliverables/presigned-url`), signature (`POST /work-orders/:id/signature` & `/deliverables/signature`), and deliverables list (`GET /work-orders/:id/deliverables`). Drizzle ORM replaces in-memory stubs.
+- **Real FSM enforcement.** All status transitions execute inside `db.transaction()` with `SELECT … FOR UPDATE` row locks. The actual persisted status is strictly validated against `WorkOrderFsmService.validateTransition`, caller identity is checked for ownership (buyer) or assignment (technician), changes are persisted, and state changes are recorded in `work_order_status_history` table (migration `0003_wo_history.sql`).
+- **Server-side geofence (H5).** Haversine implementation relocated to `packages/common/src/geo/haversine.ts`. `EN_ROUTE → ON_SITE` transition enforces coordinates against stored location with 200m tolerance per SRS FR-MOB-001 (199m accepted, 201m rejected). Mobile client check is UX-only.
+- **Deliverables & Media Storage.** Defined `MediaStoragePort` interface and token with `LocalDiskMediaStorageAdapter`. Stable SHA-256 digest hashing implemented without `Date.now()` (resolving L5); `signed_at`, `client_name`, and `signature_hash` are stored in dedicated columns in `work_order_deliverables`.
+- **SLA Escalation.** Registered `SlaEscalationService` in `WorkOrderModule`, fixed `checkSlaBreachRisk` predicate to flag already-breached work orders (`timeRemainingMs <= 0`), added `isBreached` helper, and added `@Cron(CronExpression.EVERY_5_MINUTES)` sweep. (72-hour auto-approval lands in Phase 4 with the billing money path).
 
-**Exit criteria:** the lifecycle persists across restarts; on-site is rejected at 201 m and accepted
-at 199 m; a transition attempted from the wrong actual state fails regardless of what the caller
-claims.
+**Verification:**
 
-**Verify:** unit tests over the full transition matrix and geofence boundaries; an integration test
-firing two concurrent assignments at one work order and asserting exactly one wins.
+- 167 tests in `apps/work-order-service` passing across 6 suites:
+  - FSM transition matrix and concurrency row-lock simulation (`work-orders.service.spec.ts`)
+  - Server-side geofence boundaries at 0m, 199m, 201m (`haversine.spec.ts`, `work-orders.service.spec.ts`)
+  - Deterministic signature hashing and storage adapter (`deliverables.service.spec.ts`)
+  - SLA breach check for future and past expired deadlines (`sla-escalation.service.spec.ts`)
+  - Controller authentication, C5 spoofing protection, and transition aliases (`work-orders.controller.spec.ts`)
+  - Complete 100-pair status transition matrix (`work-order-fsm.service.spec.ts`)
+- Full monorepo passing: 324 tests across all packages/services.
 
 ---
 

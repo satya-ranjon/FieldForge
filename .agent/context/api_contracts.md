@@ -31,15 +31,19 @@
 
 ## 2. Work Order Lifecycle Service (`work-order-service`)
 
-| Method | Endpoint                                      | Description                                           | Auth / RBAC           | Payload Schema           |
-| :----- | :-------------------------------------------- | :---------------------------------------------------- | :-------------------- | :----------------------- |
-| `POST` | `/work-orders`                                | Create a new work order draft                         | `BUYER`               | `createWorkOrderSchema`  |
-| `GET`  | `/work-orders`                                | List & filter work orders (by status, date, location) | Authenticated         | Query Params             |
-| `GET`  | `/work-orders/:id`                            | Fetch complete work order details & deliverables      | Authenticated         | None                     |
-| `POST` | `/work-orders/:id/publish`                    | Lock escrow and transition status to `PUBLISHED`      | `BUYER`               | None                     |
-| `POST` | `/work-orders/:id/transition`                 | Execute validated FSM state transition                | `BUYER`, `TECHNICIAN` | `transitionStatusSchema` |
-| `POST` | `/work-orders/:id/deliverables/presigned-url` | Generate S3 pre-signed upload URL                     | `TECHNICIAN`          | `{ type, filename }`     |
-| `POST` | `/work-orders/:id/deliverables/signature`     | Submit cryptographic digital signature                | `TECHNICIAN`          | `{ svg, clientName }`    |
+| Method  | Endpoint                                      | Description                                           | Auth / RBAC           | Payload Schema               |
+| :------ | :-------------------------------------------- | :---------------------------------------------------- | :-------------------- | :--------------------------- |
+| `POST`  | `/work-orders`                                | Create a new work order draft                         | `BUYER`               | `createWorkOrderSchema`      |
+| `GET`   | `/work-orders`                                | List & filter work orders (by status, date, location) | Authenticated         | `listWorkOrdersQuerySchema`  |
+| `GET`   | `/work-orders/:id`                            | Fetch complete work order details                     | Authenticated         | None                         |
+| `GET`   | `/work-orders/:id/history`                    | Fetch immutable state transition audit history        | Authenticated         | None                         |
+| `POST`  | `/work-orders/:id/publish`                    | Transition draft work order to `PUBLISHED`            | `BUYER`               | None                         |
+| `POST`  | `/work-orders/:id/transition`                 | Execute validated FSM state transition                | `BUYER`, `TECHNICIAN` | `transitionStatusSchema`     |
+| `PATCH` | `/work-orders/:id/status`                     | Alias to execute validated FSM state transition       | `BUYER`, `TECHNICIAN` | `transitionStatusSchema`     |
+| `POST`  | `/work-orders/:id/deliverables/presigned-url` | Generate pre-signed upload URL for media storage      | `TECHNICIAN`          | `generatePresignedUrlSchema` |
+| `POST`  | `/work-orders/:id/deliverables/signature`     | Submit cryptographic digital signature artifact       | `TECHNICIAN`          | `recordSignatureSchema`      |
+| `POST`  | `/work-orders/:id/signature`                  | Alias to submit digital signature artifact            | `TECHNICIAN`          | `recordSignatureSchema`      |
+| `GET`   | `/work-orders/:id/deliverables`               | Fetch deliverables for work order                     | Authenticated         | None                         |
 
 ---
 
