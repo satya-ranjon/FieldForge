@@ -1,35 +1,35 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: auth-service
+  name: notification-service
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: auth-service
+      app: notification-service
   template:
     metadata:
       labels:
-        app: auth-service
+        app: notification-service
     spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 1001
       containers:
-        - name: auth-service
-          image: fieldforge/auth-service:latest
+        - name: notification-service
+          image: fieldforge/notification-service:latest
           ports:
-            - containerPort: 8001
+            - containerPort: 8005
           livenessProbe:
             httpGet:
               path: /healthz
-              port: 8001
+              port: 8005
             initialDelaySeconds: 10
             periodSeconds: 15
           readinessProbe:
             httpGet:
               path: /readyz
-              port: 8001
+              port: 8005
             initialDelaySeconds: 5
             periodSeconds: 10
           resources:
@@ -43,11 +43,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: auth-service
+  name: notification-service
 spec:
   selector:
-    app: auth-service
+    app: notification-service
   ports:
     - protocol: TCP
-      port: 8001
-      targetPort: 8001
+      port: 8005
+      targetPort: 8005

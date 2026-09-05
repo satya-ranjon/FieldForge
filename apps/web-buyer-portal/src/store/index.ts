@@ -6,6 +6,7 @@ import workOrderReducer, {
 } from './slices/workOrderSlice';
 import dispatchReducer, { type DispatchState, type ExtendedBid } from './slices/dispatchSlice';
 import billingReducer, { type BillingState, type EscrowTransaction } from './slices/billingSlice';
+import { fieldForgeApi } from './services/api';
 
 export type {
   AuthState,
@@ -22,8 +23,10 @@ export const store = configureStore({
     auth: authReducer,
     workOrders: workOrderReducer,
     dispatch: dispatchReducer,
-    billing: billingReducer
-  }
+    billing: billingReducer,
+    [fieldForgeApi.reducerPath]: fieldForgeApi.reducer
+  },
+  middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(fieldForgeApi.middleware)
 });
 
 export type RootState = ReturnType<typeof store.getState>;

@@ -12,8 +12,42 @@ spec:
       labels:
         app: work-order-service
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
       containers:
         - name: work-order-service
           image: fieldforge/work-order-service:latest
           ports:
             - containerPort: 8002
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8002
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8002
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: work-order-service
+spec:
+  selector:
+    app: work-order-service
+  ports:
+    - protocol: TCP
+      port: 8002
+      targetPort: 8002

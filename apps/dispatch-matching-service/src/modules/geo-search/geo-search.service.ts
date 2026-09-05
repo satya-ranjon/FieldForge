@@ -1,8 +1,7 @@
 import { Injectable, Inject, Optional, OnApplicationShutdown } from '@nestjs/common';
 import Redis from 'ioredis';
-import { loadEnv } from '@fieldforge/common';
+import { loadEnv, createLogger, DRIZZLE } from '@fieldforge/common';
 import type { NearbyTechnicianDto } from '@fieldforge/contracts';
-import { DRIZZLE } from '@fieldforge/common';
 import type { MySql2Database } from 'drizzle-orm/mysql2';
 import { technicianProfiles, technicianCertifications, users } from '@fieldforge/database';
 import { eq, inArray } from 'drizzle-orm';
@@ -12,6 +11,7 @@ export const TECH_LOCATIONS_KEY = 'tech:locations';
 
 @Injectable()
 export class GeoSearchService implements OnApplicationShutdown {
+  private readonly logger = createLogger('dispatch-geo-search');
   private readonly redis: Redis;
 
   constructor(
@@ -34,7 +34,7 @@ export class GeoSearchService implements OnApplicationShutdown {
       });
       this.redis.connect().catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
-        console.warn(`[GeoSearchService] Redis connect failed: ${msg}`);
+        this.logger.warn(`[GeoSearchService] Redis connect failed: ${msg}`);
       });
     }
   }

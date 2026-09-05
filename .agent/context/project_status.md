@@ -11,7 +11,7 @@
   shared contracts, database, common, messaging, and UI packages.
 - Drizzle schemas and migrations for users, work orders, status history, bids,
   deliverables, escrow, refresh tokens, technician certifications, idempotency keys,
-  invoices, and payout ledger (`0000`, `0001`, `0002_auth.sql`, `0003_wo_history.sql`, `0004_long_marvel_boy.sql`).
+  invoices, and payout ledger (`0000`, `0001`, `0002_auth.sql`, `0003_wo_history.sql`, `0004_long_marvel_boy.sql`, `0005_chubby_iron_lad.sql`).
 - Local Docker Compose definitions for MySQL, Redis, RabbitMQ, Jaeger,
   Prometheus, and Grafana.
 - Architecture rules, three accepted ADRs, and CI/build scaffolding.
@@ -46,14 +46,24 @@
 - **Server-enforced geofence.** 200m radius threshold against stored coordinates (SRS FR-MOB-001).
 - **Deliverables & Media Storage.** Presigned upload URLs and SHA-256 digital signatures on stable deliverables content.
 - **Event Backbone (`packages/messaging`).** AMQP messaging module with publisher confirms, 7-day atomic Redis `SETNX` deduplication, bounded 3-retry backoff, DLQ routing, and cross-service producers/consumers.
-- **A test harness that can fail.** 376 automated unit and integration tests across 13 suites;
-  no `--passWithNoTests` anywhere.
+- **A test harness that can fail.** 374 automated unit/integration tests across 13 suites
+  plus 24 Playwright E2E tests (398 total verified tests); no `--passWithNoTests` anywhere.
+- **Section 13 Quality Remediations (Branch `fix/bugs-and-issues`).**
+  - Durable mobile offline sync mutation queue with persistent idempotency keys and retry handling (FF-BUG-01).
+  - Production-ready Kubernetes manifests with Services, health/readiness probes, resource limits, and notification-service (FF-BUG-02).
+  - RTK Query API client slice in web-buyer-portal with auto auth and correlation ID injection (FF-BUG-03).
+  - Schema UNIQUE constraint `uq_invoice_work_order` preventing duplicate work order invoices (FF-BUG-04).
+  - Dynamic `/readyz` system metrics (memory/uptime) and Prometheus scrape targets (FF-BUG-05).
+  - SLA auto-approval rollback to `COMPLETED` on failed escrow release (FF-BUG-06).
+  - Centralized structured Pino logging replacing all ad-hoc console logging (FF-BUG-07).
+  - React peer dependency declared in `@fieldforge/ui` (FF-BUG-08).
+  - Clean Redis client disconnection in messaging shutdown hooks (FF-BUG-09).
 
 ## What is not yet implemented
 
-- Buyer portal on real API via RTK Query (Phase 5).
-- Durable mobile offline sync queue (Phase 6).
-- Production observability exporters, dashboards, and evidence-backed SLO tests (Phase 7).
+- Buyer portal full migration of legacy mock slices to RTK Query endpoints (Phase 5).
+- Mobile SQLite persistence layer for offline sync queue (Phase 6).
+- Production observability dashboards, Alertmanager, and evidence-backed SLO tests (Phase 7).
 - Coverage thresholds. Suites are real but `coverageThreshold` is unset; it rises
   per phase toward the SRS §5 target of 90% on business rules.
 - A deployable production Kubernetes platform.

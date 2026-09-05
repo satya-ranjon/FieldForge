@@ -36,6 +36,13 @@
       "when": 1788549757778,
       "tag": "0004_long_marvel_boy",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1788628409839,
+      "tag": "0005_chubby_iron_lad",
+      "breakpoints": true
     }
   ]
 }

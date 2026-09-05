@@ -50,6 +50,18 @@
 > **C4** (completed: all money and state transitions in both work-order and billing services use Drizzle `db.transaction()` with pessimistic `FOR UPDATE` row locks),
 > and **M8** (completed: 72-hour buyer review SLA auto-approval worker implemented in `SlaAutoApprovalService` with automated escrow release). Total verified tests: 376.
 
+> **Section 13 Quality Audit Fixes — 2026-09-05:** Branch `fix/bugs-and-issues` resolved all 9 defects identified in Section 13 (Bugs & Issues):
+>
+> - **FF-BUG-01**: Mobile offline sync durable mutation queue with idempotency keys, dispatcher, and retry mechanism (`apps/mobile-tech-app`).
+> - **FF-BUG-02**: Production Kubernetes manifests with Service resources, `/healthz` & `/readyz` probes, CPU/memory limits, securityContext, and notification-service (`infra/k8s`).
+> - **FF-BUG-03**: Web buyer portal RTK Query API client configured with `x-correlation-id` and Bearer token auth injection (`apps/web-buyer-portal`).
+> - **FF-BUG-04**: Database migration `0005_chubby_iron_lad.sql` adding `UNIQUE` constraint `uq_invoice_work_order` on `invoices.work_order_id` (`packages/database`).
+> - **FF-BUG-05**: Dynamic `/readyz` readiness probes reporting process memory/uptime and Prometheus scrape configurations for ports 8000–8005 (`packages/common`, `infra/docker`).
+> - **FF-BUG-06**: Billing SLA auto-approval recovery resetting work orders to `COMPLETED` when escrow release fails (`apps/billing-service`).
+> - **FF-BUG-07**: Replacement of unstructured `console.log`/`warn` with structured Pino loggers (`apps/billing-service`, `apps/dispatch-matching-service`).
+> - **FF-BUG-08**: Declared `react: ">=18.0.0"` peer dependency in `@fieldforge/ui` (`packages/ui`).
+> - **FF-BUG-09**: Graceful Redis disconnection on module destruction, eliminating Jest open handle warnings in `@fieldforge/messaging` integration tests.
+
 ---
 
 ## How to read this report
@@ -612,6 +624,57 @@ sessions were unexpectedly re-authenticated as the demo buyer.
 `isAuthenticated: false`). Rehydration now strictly checks for the presence of valid
 `ff_access_token` and `ff_user` entries before asserting authentication. Automated with
 a 24-test Playwright test suite (`apps/web-buyer-portal/e2e/auth-persistence.spec.ts`).
+
+---
+
+## Section 13 (Bugs & Issues) Resolutions
+
+All 9 issues discovered during the Section 13 audit were remediated on branch `fix/bugs-and-issues`:
+
+### FF-BUG-01 · 🐛 Mobile Tech App `flushQueue()` silently discarded mutations
+
+- **Root Cause**: `apps/mobile-tech-app/src/services/offlineSync.service.ts` had a stub `flushQueue()` implementation that logged `[OfflineSync] Flushing queue...` and immediately reset the queue to `[]` without dispatching operations to backend APIs.
+- **Fix**: Replaced the stub with a durable FIFO mutation queue adhering to SRS FR-MOB-005. Each queued operation receives a persistent idempotency key (`crypto.randomUUID()`), timestamp, retry counter, and mutation payload. `flushQueue()` dispatches each mutation sequentially through an injectable HTTP dispatcher, increments retry counts on network failures, and preserves un-dispatched items.
+
+### FF-BUG-02 · 🏛️ Kubernetes manifests lacked Services, probes, and resource limits
+
+- **Root Cause**: Manifests under `infra/k8s/services/` were missing `Service` resource definitions, liveness/readiness probes, resource requests/limits, non-root security contexts, and `notification-service.yaml`.
+- **Fix**: Added `Service` definitions mapping container ports to cluster ports, configured `livenessProbe` (`/healthz`) and `readinessProbe` (`/readyz`) with `initialDelaySeconds`, `timeoutSeconds`, and `periodSeconds`. Enforced `requests`/`limits` on memory and CPU, added non-root `securityContext`, created `notification-service.yaml`, and updated `infra/k8s/kustomization.yaml`.
+
+### FF-BUG-03 · 🏛️ Web Buyer Portal lacked RTK Query API client
+
+- **Root Cause**: `apps/web-buyer-portal` relied exclusively on hardcoded mock client-side state in Redux slices without an RTK Query API client service.
+- **Fix**: Implemented RTK Query slice in `apps/web-buyer-portal/src/store/services/api.ts` using `createApi` and `fetchBaseQuery`. Configured baseUrl `/api/v1`, dynamic `x-correlation-id` header injection, and `Authorization: Bearer <token>` extraction from `authSlice`. Wired the API reducer and middleware into `apps/web-buyer-portal/src/store/index.ts`.
+
+### FF-BUG-04 · 🐛 Database schema missing UNIQUE constraint on `invoices.work_order_id`
+
+- **Root Cause**: `packages/database/src/schemas/billing.schema.ts` lacked a unique constraint on `invoices.workOrderId`, permitting duplicate invoice creation for the same work order.
+- **Fix**: Added `.unique('uq_invoice_work_order')` to `invoices.workOrderId`. Generated migration `0005_chubby_iron_lad.sql` via `pnpm run db:generate` and verified execution against MySQL 8.4 via `pnpm run db:migrate`.
+
+### FF-BUG-05 · 🐛 Incomplete observability probes and Prometheus scrape configuration
+
+- **Root Cause**: `/readyz` returned a static `{ status: 'ok' }` without system metrics, and `infra/docker/prometheus.yml` lacked scrape configs for backend services on ports 8000–8005.
+- **Fix**: Enhanced `HealthController.getReadiness()` in `packages/common/src/health/health.controller.ts` to report dynamic `memoryMb` (`rss`, `heapUsed`, `heapTotal`) and `uptimeSeconds`. Added scrape configurations in `infra/docker/prometheus.yml` covering `api-gateway` (8000), `auth-service` (8001), `work-order-service` (8002), `dispatch-service` (8003), `billing-service` (8004), and `notification-service` (8005).
+
+### FF-BUG-06 · 🐛 Billing SLA auto-approval worker left work orders in APPROVED if release failed
+
+- **Root Cause**: In `apps/billing-service/src/modules/sla/sla-auto-approval.service.ts`, work orders were updated to `APPROVED` before `releaseFunds()`. If `releaseFunds()` failed or threw an exception, the work order remained in `APPROVED`, leaving it permanently stuck without escrow release.
+- **Fix**: Wrapped the transition in a try/catch block. If `releaseFunds()` fails, the work order status is safely rolled back to `COMPLETED`, allowing subsequent scheduler sweeps or manual remediation to retry the release.
+
+### FF-BUG-07 · 🏛️ Unstructured console logging bypassed Pino structured logger
+
+- **Root Cause**: `apps/billing-service/src/modules/escrow/escrow.service.ts` and `apps/dispatch-matching-service/src/modules/geo-search/geo-search.service.ts` used `console.log` and `console.warn` instead of the centralized structured Pino logger.
+- **Fix**: Replaced all console statements with `createLogger('billing-escrow')` and `createLogger('dispatch-geo-search')` from `@fieldforge/common`, preserving correlation IDs and JSON structure.
+
+### FF-BUG-08 · 🐛 `@fieldforge/ui` missing React peer dependency
+
+- **Root Cause**: `packages/ui/package.json` exported React components without declaring `react` in `peerDependencies`, causing potential multiple-React-instance issues in monorepo consumers.
+- **Fix**: Added `"peerDependencies": { "react": ">=18.0.0" }` in `packages/ui/package.json`.
+
+### FF-BUG-09 · 🐛 Redis client open handles in `@fieldforge/messaging` integration tests
+
+- **Root Cause**: In `packages/messaging/src/connection/redis-idempotency.client.ts`, `onModuleDestroy()` called `this.client.quit()` which could hang or leave lingering event loop handles in Jest tests.
+- **Fix**: Updated `onModuleDestroy()` to call `this.client.disconnect()`, terminating connections immediately and ensuring Jest integration suites exit with zero open handles.
 
 ---
 

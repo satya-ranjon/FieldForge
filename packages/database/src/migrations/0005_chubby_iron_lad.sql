@@ -1,0 +1,1 @@
+ALTER TABLE `invoices` ADD CONSTRAINT `uq_invoice_work_order` UNIQUE(`work_order_id`);

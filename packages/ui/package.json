@@ -12,6 +12,9 @@
     "clsx": "^2.1.1",
     "tailwind-merge": "^3.6.0"
   },
+  "peerDependencies": {
+    "react": ">=18.0.0"
+  },
   "devDependencies": {
     "@fieldforge/tsconfig": "workspace:*",
     "@types/react": "^19.2.18",

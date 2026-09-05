@@ -9,6 +9,12 @@ export class HealthController {
 
   @Get('/readyz')
   getReadiness() {
-    return { status: 'READY', uptime: process.uptime() };
+    const memoryUsage = process.memoryUsage();
+    return {
+      status: 'READY',
+      uptimeSeconds: Math.floor(process.uptime()),
+      memoryMb: Math.round(memoryUsage.rss / (1024 * 1024)),
+      timestamp: new Date().toISOString()
+    };
   }
 }

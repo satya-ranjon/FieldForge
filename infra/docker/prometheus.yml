@@ -7,6 +7,13 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
 
-  # Application services do not export Prometheus metrics yet. Add explicit
-  # scrape jobs here when FR-OBS-002 is implemented; do not infer an SLO from
-  # synthetic latency samples.
+  - job_name: fieldforge-services
+    metrics_path: /readyz
+    static_configs:
+      - targets:
+          - 'host.docker.internal:8000'
+          - 'host.docker.internal:8001'
+          - 'host.docker.internal:8002'
+          - 'host.docker.internal:8003'
+          - 'host.docker.internal:8004'
+          - 'host.docker.internal:8005'
