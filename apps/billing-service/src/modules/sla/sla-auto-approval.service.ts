@@ -94,6 +94,40 @@ export class SlaAutoApprovalService {
         const msg = err instanceof Error ? err.message : String(err);
         const stack = err instanceof Error ? err.stack : undefined;
         this.logger.error(`Failed to process auto-approval for work order ${wo.id}: ${msg}`, stack);
+
+        // Revert work order status to COMPLETED if escrow release failed, preserving retryability for next sweep
+        try {
+          await this.db.transaction(async (tx) => {
+            const now = new Date();
+            await tx
+              .update(workOrdersSchema.workOrders)
+              .set({
+                status: 'COMPLETED',
+                updatedAt: now
+              })
+              .where(
+                and(
+                  eq(workOrdersSchema.workOrders.id, wo.id),
+                  eq(workOrdersSchema.workOrders.status, 'APPROVED')
+                )
+              );
+
+            await tx.insert(workOrdersSchema.workOrderStatusHistory).values({
+              id: randomUUID(),
+              workOrderId: wo.id,
+              fromStatus: 'APPROVED',
+              toStatus: 'COMPLETED',
+              changedBy: 'system',
+              reason: `SLA auto-approval escrow release failed: ${msg}. Reverted to COMPLETED for retry.`,
+              createdAt: now
+            });
+          });
+        } catch (revertErr: unknown) {
+          const revertMsg = revertErr instanceof Error ? revertErr.message : String(revertErr);
+          this.logger.error(
+            `Failed to revert work order ${wo.id} after auto-approval failure: ${revertMsg}`
+          );
+        }
       }
     }
 

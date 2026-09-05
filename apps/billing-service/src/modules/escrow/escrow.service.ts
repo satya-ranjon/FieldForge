@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
-import { DRIZZLE, type DrizzleClient } from '@fieldforge/common';
+import { DRIZZLE, type DrizzleClient, createLogger } from '@fieldforge/common';
 import {
   billingSchema,
   idempotencySchema,
@@ -45,6 +45,8 @@ export interface EscrowReleaseResult {
 
 @Injectable()
 export class EscrowService {
+  private readonly logger = createLogger('billing-escrow');
+
   constructor(
     @Inject(DRIZZLE) private readonly db: DrizzleClient,
     @Inject(PAYMENT_PROVIDER) private readonly paymentProvider: PaymentProviderPort,
@@ -101,7 +103,7 @@ export class EscrowService {
         createdAt: new Date()
       });
 
-      console.log(
+      this.logger.info(
         `[Escrow] holding ${formatMinor(amountMinor)} for work order ${workOrderId} (buyer ${buyerId})`
       );
 
@@ -114,7 +116,7 @@ export class EscrowService {
         );
         await this.producer.publish(event).catch((err: unknown) => {
           const msg = err instanceof Error ? err.message : String(err);
-          console.error(`[Escrow] Failed to publish ESCROW_FUNDED event: ${msg}`);
+          this.logger.error(`[Escrow] Failed to publish ESCROW_FUNDED event: ${msg}`);
         });
       }
 
@@ -295,7 +297,7 @@ export class EscrowService {
         amountMinor
       });
 
-      console.log(
+      this.logger.info(
         `[Payout] released ${formatMinor(amountMinor)} to technician ${workOrder.assignedTechnicianId} for work order ${workOrderId}`
       );
 
@@ -332,7 +334,7 @@ export class EscrowService {
         );
         await this.producer.publish(event).catch((err: unknown) => {
           const msg = err instanceof Error ? err.message : String(err);
-          console.error(`[Escrow] Failed to publish PAYOUT_DISBURSED event: ${msg}`);
+          this.logger.error(`[Escrow] Failed to publish PAYOUT_DISBURSED event: ${msg}`);
         });
       }
 

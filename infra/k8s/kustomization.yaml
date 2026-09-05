@@ -8,3 +8,4 @@ resources:
   - services/billing-service.yaml
   - services/dispatch-service.yaml
   - services/work-order-service.yaml
+  - services/notification-service.yaml

@@ -79,9 +79,9 @@ export class RedisIdempotencyClient implements OnApplicationShutdown {
 
   async onApplicationShutdown(): Promise<void> {
     try {
-      await this.client.quit();
-    } catch {
       this.client.disconnect();
+    } catch {
+      // Ignored
     }
   }
 }

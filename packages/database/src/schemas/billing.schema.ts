@@ -23,7 +23,8 @@ export const invoices = mysqlTable('invoices', {
   id: varchar('id', { length: 36 }).primaryKey(),
   workOrderId: varchar('work_order_id', { length: 36 })
     .references(() => workOrders.id, { onDelete: 'cascade' })
-    .notNull(),
+    .notNull()
+    .unique('uq_invoice_work_order'),
   buyerId: varchar('buyer_id', { length: 36 })
     .references(() => buyerProfiles.id)
     .notNull(),
