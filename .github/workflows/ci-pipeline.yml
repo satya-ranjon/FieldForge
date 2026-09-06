@@ -22,6 +22,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Copy environment template
+        run: cp .env.example .env
+
+      - name: Start backing infrastructure (Redis & RabbitMQ)
+        run: docker compose --env-file .env -f infra/docker/docker-compose.yml up -d redis rabbitmq --wait
+
       - name: Run formatting, lint, type, and test checks
         run: pnpm check
 

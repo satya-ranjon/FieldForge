@@ -61,6 +61,7 @@
 > - **FF-BUG-07**: Replacement of unstructured `console.log`/`warn` with structured Pino loggers (`apps/billing-service`, `apps/dispatch-matching-service`).
 > - **FF-BUG-08**: Declared `react: ">=18.0.0"` peer dependency in `@fieldforge/ui` (`packages/ui`).
 > - **FF-BUG-09**: Graceful Redis disconnection on module destruction, eliminating Jest open handle warnings in `@fieldforge/messaging` integration tests.
+> - **FF-BUG-10**: GitHub Actions CI workflow backing service provisioning (Redis & RabbitMQ) for integration tests (`.github/workflows/ci-pipeline.yml`).
 
 ---
 
@@ -675,6 +676,11 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
 
 - **Root Cause**: In `packages/messaging/src/connection/redis-idempotency.client.ts`, `onModuleDestroy()` called `this.client.quit()` which could hang or leave lingering event loop handles in Jest tests.
 - **Fix**: Updated `onModuleDestroy()` to call `this.client.disconnect()`, terminating connections immediately and ensuring Jest integration suites exit with zero open handles.
+
+### FF-BUG-10 · 🐛 GitHub Actions CI missing backing service provisioning for `@fieldforge/messaging` integration tests
+
+- **Root Cause**: `.github/workflows/ci-pipeline.yml` executed `pnpm check` on standard Ubuntu GitHub runners without starting Redis or RabbitMQ instances, causing `@fieldforge/messaging` integration tests (`test/messaging.integration.spec.ts` and `test/redis-idempotency.spec.ts`) to fail with `ECONNREFUSED` on ports 6379 and 5672.
+- **Fix**: Added step to copy `.env.example` to `.env` and start healthy Redis and RabbitMQ containers via `docker compose --env-file .env -f infra/docker/docker-compose.yml up -d redis rabbitmq --wait` prior to executing `pnpm check`.
 
 ---
 
