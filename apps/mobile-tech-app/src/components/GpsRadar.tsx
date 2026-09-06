@@ -12,7 +12,7 @@ export const GpsRadar: React.FC<GpsRadarProps> = ({ distanceMeters, isVerified }
       <Text style={styles.label}>GPS Geofence Radar</Text>
       <Text style={[styles.status, isVerified ? styles.verified : styles.unverified]}>
         {isVerified
-          ? '✅ Within Site Radius (<100m)'
+          ? '✅ Within Site Radius (<200m)'
           : `📍 ${distanceMeters.toFixed(0)}m from Site`}
       </Text>
     </View>

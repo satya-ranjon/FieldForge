@@ -1,32 +1,24 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Provider } from 'react-redux';
+import { StatusBar } from 'expo-status-bar';
+import { store } from './store/store';
+import { AppNavigator } from './navigation/AppNavigator';
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>FieldForge Technician</Text>
-      <Text style={styles.subtitle}>Autonomous On-Field Dispatch & Offline Check-In</Text>
-    </View>
+    <Provider store={store}>
+      <View style={styles.rootContainer}>
+        <StatusBar style="light" />
+        <AppNavigator />
+      </View>
+    </Provider>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  rootContainer: {
     flex: 1,
-    backgroundColor: '#0f172a',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#38bdf8',
-    marginBottom: 8
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#94a3b8',
-    textAlign: 'center'
+    backgroundColor: '#0f172a'
   }
 });

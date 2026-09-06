@@ -12,13 +12,25 @@
       "backgroundColor": "#0f172a"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "FieldForge requires location access to verify technician presence at the job site for geofenced check-in.",
+        "NSCameraUsageDescription": "FieldForge requires camera access to capture proof-of-work photos and deliverables.",
+        "NSPhotoLibraryUsageDescription": "FieldForge requires photo library access to upload deliverable attachments."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0f172a"
-      }
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     }
   }
 }

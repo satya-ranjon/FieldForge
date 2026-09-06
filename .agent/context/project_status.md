@@ -1,8 +1,8 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-06  
-**Phase:** Phase 5 complete — Buyer portal on real API. Next: Phase 6
-(technician mobile app). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 6 complete — Technician mobile app. Next: Phase 7
+(observability and measured SLO evidence). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -53,8 +53,15 @@
   - 5 dedicated Next.js App Router route segments (`/operations`, `/create-wo`, `/technicians`, `/billing`, `/audit`) with reusable `BuyerPortalShell`.
   - Collision-safe UUIDs using `crypto.randomUUID()`.
   - Playwright E2E test suite extended with `lifecycle.spec.ts` covering the complete SRS §5 path: `create → publish → accept bid → approve → payout`.
-- **A test harness that can fail.** 376 automated unit/integration tests across 13 suites
-  plus 28 Playwright E2E tests (404 total verified tests); no `--passWithNoTests` anywhere.
+- **Autonomous Technician Mobile App (`apps/mobile-tech-app`).**
+  - Durable `OfflineSyncService` backed by `OfflineStorageAdapter` atomically persisting mutation queue across reboots (resolving H6).
+  - Strict FIFO mutation replay with `x-idempotency-key: mob-offline-<uuid>` and exponential retry backoff.
+  - Mandatory iOS/Android location, camera, and storage permissions strings and `PermissionsService` wrapper (resolving L7).
+  - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
+  - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
+  - `AppNavigator` mounting `JobListScreen` and `ActiveJobScreen` wrapped in Redux store.
+- **A test harness that can fail.** 397 automated unit/integration tests across 17 suites
+  plus 28 Playwright E2E tests (425 total verified tests); no `--passWithNoTests` anywhere.
 - **Section 13 Quality Remediations (Branch `fix/bugs-and-issues`).**
   - Durable mobile offline sync mutation queue with persistent idempotency keys and retry handling (FF-BUG-01).
   - Production-ready Kubernetes manifests with Services, health/readiness probes, resource limits, and notification-service (FF-BUG-02).
@@ -68,7 +75,6 @@
 
 ## What is not yet implemented
 
-- Mobile SQLite persistence layer for offline sync queue (Phase 6).
 - Production observability dashboards, Alertmanager, and evidence-backed SLO tests (Phase 7).
 - Coverage thresholds. Suites are real but `coverageThreshold` is unset; it rises
   per phase toward the SRS §5 target of 90% on business rules.

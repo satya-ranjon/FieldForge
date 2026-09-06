@@ -12,3 +12,4 @@ export * from './validators/work-order.schema';
 export * from './validators/auth.schema';
 export * from './validators/dispatch.schema';
 export * from './validators/billing.schema';
+export * from './geo';

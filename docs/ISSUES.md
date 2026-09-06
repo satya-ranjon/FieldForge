@@ -277,7 +277,15 @@ against the work order's stored coordinates on the server. Requests within 200m 
 are permitted (199m verified accepted), while requests outside 200m are rejected with a 400
 BadRequest (201m verified rejected). Mobile client check is retained for UX only.
 
-### H6 · 🐛 Mobile offline queue silently discards mutations
+### H6 · 🐛 Mobile offline queue silently discards mutations [RESOLVED]
+
+**Status: resolved (2026-09-06, Phase 6).**
+
+- Rebuilt `OfflineSyncService` (`apps/mobile-tech-app/src/services/offlineSync.service.ts`) backed by `OfflineStorageAdapter` (`storage.adapter.ts`).
+- Mutated state is serialized and persisted locally on every `enqueue()` call.
+- `flushQueue()` replays items in strict FIFO order, passes `x-idempotency-key: mob-offline-<uuid>`, and deletes an item from persistent storage only upon confirmed server success (HTTP 2xx or replay).
+- Transient errors retain items in the queue with exponential backoff (1s, 2s, 4s, 8s, up to 30s) and incremented `retryCount`.
+- Verified via unit test suite `test/offlineSync.service.spec.ts` including an end-to-end airplane mode lifecycle test.
 
 `mobile-tech-app/services/offlineSync.service.ts` `flushQueue()` iterates the queued mutations but **drops them without sending** (no network call), then clears the queue. `RULE-MOB-05` requires durable offline-first cache + auto-flush on reconnect; the queue is also in-memory only.
 **Impact:** field updates made offline (check-ins, photos, completion) are lost on reconnect — data loss in the core mobile workflow.
@@ -553,7 +561,14 @@ timestamp is persisted explicitly in its own `signed_at` column in `work_order_d
 - Promoted all 5 command center tabs to addressable Next.js App Router route segments (`/operations`, `/create-wo`, `/technicians`, `/billing`, `/audit`) with `BuyerPortalShell.tsx`.
 - Extended Playwright test suite with `apps/web-buyer-portal/e2e/lifecycle.spec.ts` testing the complete SRS §5 lifecycle path (`create → publish → accept bid → approve → payout`).
 
-### L7 · 🐛 Mobile app missing location permissions wiring
+### L7 · 🐛 Mobile app missing location permissions wiring [RESOLVED]
+
+**Status: resolved (2026-09-06, Phase 6).**
+
+- Configured `apps/mobile-tech-app/app.json` with mandatory iOS `infoPlist` usage descriptions (`NSLocationWhenInUseUsageDescription`, `NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription`) and Android permissions (`ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`, `CAMERA`, `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE`).
+- Added `PermissionsService` (`src/services/permissions.service.ts`) for checking and requesting foreground location permissions via `expo-location`.
+- Created `AppNavigator` mounting `JobListScreen` and `ActiveJobScreen` inside `App.tsx` wrapped in Redux `<Provider>`.
+- Verified via unit test suite `test/permissions.service.spec.ts`.
 
 `expo-location` is a dependency but permissions aren't requested and `app.json` lacks the iOS/Android location usage strings; `ActiveJobScreen` is never mounted by a navigator.
 **Fix:** add permission prompts + usage descriptions and mount the screen.

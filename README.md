@@ -406,7 +406,7 @@ stateDiagram-v2
 | **`DRAFT`**     | `PUBLISHED`, `CANCELLED`            | Buyer                   | Stripe escrow pre-authorization locked                | `work_order.lifecycle.published`          |
 | **`PUBLISHED`** | `ASSIGNED`, `CANCELLED`             | Buyer / Dispatch Engine | Contractor bid accepted or auto-assigned              | `work_order.lifecycle.assigned`           |
 | **`ASSIGNED`**  | `EN_ROUTE`, `DISPUTED`, `CANCELLED` | Technician / Buyer      | Technician accepts and initiates transit              | `work_order.lifecycle.en_route`           |
-| **`EN_ROUTE`**  | `ON_SITE`, `DISPUTED`               | Technician              | Device GPS Haversine verification ($\le 100\text{m}$) | `work_order.lifecycle.on_site`            |
+| **`EN_ROUTE`**  | `ON_SITE`, `DISPUTED`               | Technician              | Device GPS Haversine verification ($\le 200\text{m}$) | `work_order.lifecycle.on_site`            |
 | **`ON_SITE`**   | `COMPLETED`, `DISPUTED`             | Technician              | Before/after photos + SHA-256 client sign-off         | `work_order.lifecycle.completed`          |
 | **`COMPLETED`** | `APPROVED`, `DISPUTED`              | Buyer / SLA Worker      | Buyer approves deliverables OR 72h inactivity timeout | `work_order.lifecycle.approved`           |
 | **`APPROVED`**  | `PAID`                              | `billing-service`       | Escrow capture succeeded & payout ledger credited     | `billing.payout.disbursed`                |
