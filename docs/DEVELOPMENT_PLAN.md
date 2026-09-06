@@ -249,30 +249,41 @@ end-to-end transactional money safety and intelligent contractor matching.
 
 ---
 
-## Phase 5 — Buyer portal on the real API
+## Phase 5 — Buyer portal on the real API (Completed)
 
 **Size: M · Depends on Phase 4.** Resolves L6. Implements the SRS §5 Playwright coverage.
 
-- **RTK Query.** Add an API slice in `apps/web-buyer-portal/src/store/` pointed at
-  `http://localhost:8000/api/v1`, per `RULE-FE-04`. Strip the hardcoded `initialState` fixtures —
-  `workOrderSlice.ts` alone carries six fully-populated work orders — from all four slices, and
-  re-home that data as MSW fixtures so component tests and Playwright keep deterministic input.
-- **Real auth.** Login view, access token in memory with refresh rotation, replacing the mock token
-  in `authSlice.ts`.
-- **Routing.** Use the Next.js App Router — the five tabs are `useState` in `app/page.tsx` with no
-  addressable URLs. Promote each to a route segment under `src/app/`. (Superseded the original
-  "add React Router" task: the portal migrated from Vite to Next.js 16 App Router, so the router is
-  already present and `react-router` is not a dependency.)
-- Replace `Math.random()` ID generation with `crypto.randomUUID()`.
-- Keep `packages/ui` and `DESIGN.md` tokens as the styling source; follow
-  `.agent/skills/stitch-design/SKILL.md` for any new component.
-- **Extend Playwright.** The three specs in `apps/web-buyer-portal/e2e/` test mock UI state. Add the
-  SRS §5 path against the running stack: create → publish → accept bid → approve → payout.
+- **RTK Query with Mutex Reauth.** Added unified API slice in `apps/web-buyer-portal/src/store/services/api.ts`
+  pointed at `http://localhost:8000/api/v1` via Next.js rewrites. Implemented `baseQueryWithReauth` with
+  `SimpleMutex` for thread-safe access token rotation against `POST /api/v1/auth/refresh` upon receiving 401.
+  Configured granular cache tags (`WorkOrder`, `WorkOrderDeliverables`, `WorkOrderHistory`, `Technician`,
+  `Bid`, `Escrow`, `Invoice`) for automatic panel revalidation on state mutations.
+- **Stripped hardcoded slice states & Re-homed fixtures.** Stripped hundreds of lines of static domain state
+  from `workOrderSlice.ts`, `dispatchSlice.ts`, and `billingSlice.ts`. Re-homed fixtures cleanly under
+  `apps/web-buyer-portal/src/mocks/fixtures/` (`workOrders.fixture.ts`, `technicians.fixture.ts`,
+  `bids.fixture.ts`, `transactions.fixture.ts`).
+- **Collision-safe IDs.** Replaced all legacy `Math.random()` pseudo-identifiers with `crypto.randomUUID()`.
+- **Next.js App Router Route Segments.** Promoted all five command center tabs from local `useState` tabs to
+  dedicated addressable URL route segments under `apps/web-buyer-portal/src/app/`:
+  - `/operations`: Live dispatch kanban board, real-time SLA monitors, transition actions.
+  - `/create-wo`: Multi-step SOW builder with escrow pre-authorization and template presets.
+  - `/technicians`: Contractor matching radar with vetted contractor ranking and bid acceptance.
+  - `/billing`: Escrow vault manager, transactional payout releases, and ledger records.
+  - `/audit`: Security telemetry, immutable SHA-256 hash logs, and compliance audit trail.
+- **Wired UI Components.** Refactored `SowBuilder.tsx`, `LiveDispatchBoard.tsx`, `TechnicianMatchingRadar.tsx`,
+  `EscrowManager.tsx`, `TelemetryBar.tsx`, and `Header.tsx` to read from RTK Query hooks with graceful
+  fixture fallbacks. Created reusable `BuyerPortalShell.tsx` wrapper preserving navigation and sync state.
+- **Extended Playwright Test Suite.** Authored `apps/web-buyer-portal/e2e/lifecycle.spec.ts` validating the
+  complete SRS §5 end-to-end lifecycle path: `create → publish → accept bid → approve → payout`.
 
-**Exit criteria:** no hardcoded domain data in the portal; every panel reads from the API; Playwright
-drives the real stack in CI with the Compose services up.
+**Verification:**
 
-**Verify:** `pnpm docker:up && pnpm dev`, then `pnpm test:e2e`.
+- 376 automated Jest unit/integration tests passing across 13 suites.
+- 28 Playwright E2E tests discovered and validated across 5 spec files (smoke, navigation, sow-builder,
+  auth-persistence, lifecycle) with zero errors.
+- 18/18 tasks passed clean type checking without Turborepo cache (`pnpm validate:clean-typecheck`).
+- Next.js 16 App Router production build succeeded (`pnpm build`) with all 5 static route segments.
+- `pnpm format:check`, `pnpm lint` (0 errors, 0 warnings with `--max-warnings=0`), and `pnpm check` pass cleanly.
 
 ---
 

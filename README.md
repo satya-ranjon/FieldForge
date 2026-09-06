@@ -475,6 +475,11 @@ pnpm dev
 ### 3. Service Endpoints
 
 - **Enterprise Buyer Portal:** `http://localhost:5173`
+  - `/operations`: Live dispatch kanban board, SLA monitors & FSM status transitions
+  - `/create-wo`: SOW builder wizard, template presets & escrow pre-auth
+  - `/technicians`: Contractor matching radar with composite scoring & bid acceptance
+  - `/billing`: Escrow vault manager, transactional payout releases & ledger queries
+  - `/audit`: Real-time cryptographic deliverable hashes & FSM transition logs
 - **API Gateway (Public REST API):** `http://localhost:8000/api/v1`
 - **RabbitMQ Management UI:** `http://localhost:15672` (credentials from `.env`)
 - **Jaeger Tracing Console:** `http://localhost:16686`

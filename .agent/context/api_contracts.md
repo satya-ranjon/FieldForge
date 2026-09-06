@@ -100,3 +100,43 @@
 > - `x-event-type`: Strict event type matching contract enum.
 > - `x-retry-count`: Current retry invocation counter (0 for initial publish, max 3).
 > - Delivery mode: Persistent (`deliveryMode = 2`).
+
+---
+
+## 6. Enterprise Buyer Portal RTK Query Client Bindings (`apps/web-buyer-portal`)
+
+> **Client Architecture** • Next.js 16 App Router (`port 5173`) • Reverse proxy `/api/:path*` to `http://localhost:8000/api/:path*` • RTK Query Service Slice (`api.ts`).
+
+### Addressable Route Segments
+
+| Route Segment  | View Component             | Capabilities                                                      |
+| :------------- | :------------------------- | :---------------------------------------------------------------- |
+| `/operations`  | `LiveDispatchBoard`        | Active work order kanban, SLA escalation monitors, FSM actions    |
+| `/create-wo`   | `SowBuilder`               | SOW wizard, template presets, budget & escrow pre-authorization   |
+| `/technicians` | `TechnicianMatchingRadar`  | Geospatial contractor radar, verified scoring, bid acceptance     |
+| `/billing`     | `EscrowManager`            | Escrow vault holds, transactional payout disbursement, ledger     |
+| `/audit`       | `AuditTrail` / Status Pane | SHA-256 deliverable verification, FSM history logs, tamper alerts |
+
+### Client RTK Query Endpoints & Cache Tags
+
+| RTK Query Hook                     | Method | Path                            | Cache Tag Provided / Invalidated                  |
+| :--------------------------------- | :----- | :------------------------------ | :------------------------------------------------ |
+| `useGetWorkOrdersQuery`            | `GET`  | `/work-orders`                  | Provides: `{ type: 'WorkOrder', id: 'LIST' }`     |
+| `useGetWorkOrderByIdQuery`         | `GET`  | `/work-orders/:id`              | Provides: `{ type: 'WorkOrder', id }`             |
+| `useGetWorkOrderHistoryQuery`      | `GET`  | `/work-orders/:id/history`      | Provides: `{ type: 'WorkOrderHistory', id }`      |
+| `useGetWorkOrderDeliverablesQuery` | `GET`  | `/work-orders/:id/deliverables` | Provides: `{ type: 'WorkOrderDeliverables', id }` |
+| `useCreateWorkOrderMutation`       | `POST` | `/work-orders`                  | Invalidates: `['WorkOrder']`                      |
+| `usePublishWorkOrderMutation`      | `POST` | `/work-orders/:id/publish`      | Invalidates: `['WorkOrder']`                      |
+| `useTransitionWorkOrderMutation`   | `POST` | `/work-orders/:id/transition`   | Invalidates: `['WorkOrder', 'WorkOrderHistory']`  |
+| `useGetNearbyTechniciansQuery`     | `GET`  | `/dispatch/technicians/nearby`  | Provides: `{ type: 'Technician', id: 'LIST' }`    |
+| `useAcceptBidMutation`             | `POST` | `/dispatch/bids/:id/accept`     | Invalidates: `['Bid', 'WorkOrder', 'Technician']` |
+| `useAutoRouteMutation`             | `POST` | `/dispatch/auto-route`          | Invalidates: `['WorkOrder', 'Technician']`        |
+| `usePreAuthEscrowMutation`         | `POST` | `/billing/escrow/preauth`       | Invalidates: `['Escrow']`                         |
+| `useReleaseEscrowMutation`         | `POST` | `/billing/escrow/release`       | Invalidates: `['Escrow', 'WorkOrder', 'Invoice']` |
+| `useGetEscrowStatusQuery`          | `GET`  | `/billing/escrow/:workOrderId`  | Provides: `{ type: 'Escrow', id: workOrderId }`   |
+| `useGetInvoiceQuery`               | `GET`  | `/billing/invoices/:id`         | Provides: `{ type: 'Invoice', id }`               |
+
+> **401 Token Refresh Mutex Guard**: `baseQueryWithReauth` protects concurrent client requests using a `SimpleMutex`.
+> When any query receives a `401 Unauthorized`, subsequent calls wait on the mutex lock while a single refresh
+> request runs against `POST /api/v1/auth/refresh`. On success, new tokens are dispatched to `authSlice` and
+> buffered requests retry seamlessly; on failure, credentials are cleared to trigger re-authentication.

@@ -1,8 +1,8 @@
 # FieldForge Implementation Status
 
-**Last reviewed:** 2026-09-05  
-**Phase:** Phase 4 complete — dispatch, bidding, and money. Next: Phase 5
-(buyer portal on real API). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Last reviewed:** 2026-09-06  
+**Phase:** Phase 5 complete — Buyer portal on real API. Next: Phase 6
+(technician mobile app). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -46,8 +46,15 @@
 - **Server-enforced geofence.** 200m radius threshold against stored coordinates (SRS FR-MOB-001).
 - **Deliverables & Media Storage.** Presigned upload URLs and SHA-256 digital signatures on stable deliverables content.
 - **Event Backbone (`packages/messaging`).** AMQP messaging module with publisher confirms, 7-day atomic Redis `SETNX` deduplication, bounded 3-retry backoff, DLQ routing, and cross-service producers/consumers.
-- **A test harness that can fail.** 374 automated unit/integration tests across 13 suites
-  plus 24 Playwright E2E tests (398 total verified tests); no `--passWithNoTests` anywhere.
+- **Enterprise Buyer Portal on Real API (`apps/web-buyer-portal`).**
+  - Unified RTK Query API slice (`apps/web-buyer-portal/src/store/services/api.ts`) with `baseQueryWithReauth` and `SimpleMutex` for automatic 401 JWT token refresh against `/api/v1/auth/refresh`.
+  - Cache tag revalidation across `WorkOrder`, `WorkOrderDeliverables`, `WorkOrderHistory`, `Technician`, `Bid`, `Escrow`, `Invoice`.
+  - Hardcoded fixture state cleanly stripped from Redux slices (`workOrderSlice.ts`, `dispatchSlice.ts`, `billingSlice.ts`) and re-homed to `apps/web-buyer-portal/src/mocks/fixtures/`.
+  - 5 dedicated Next.js App Router route segments (`/operations`, `/create-wo`, `/technicians`, `/billing`, `/audit`) with reusable `BuyerPortalShell`.
+  - Collision-safe UUIDs using `crypto.randomUUID()`.
+  - Playwright E2E test suite extended with `lifecycle.spec.ts` covering the complete SRS §5 path: `create → publish → accept bid → approve → payout`.
+- **A test harness that can fail.** 376 automated unit/integration tests across 13 suites
+  plus 28 Playwright E2E tests (404 total verified tests); no `--passWithNoTests` anywhere.
 - **Section 13 Quality Remediations (Branch `fix/bugs-and-issues`).**
   - Durable mobile offline sync mutation queue with persistent idempotency keys and retry handling (FF-BUG-01).
   - Production-ready Kubernetes manifests with Services, health/readiness probes, resource limits, and notification-service (FF-BUG-02).
@@ -61,7 +68,6 @@
 
 ## What is not yet implemented
 
-- Buyer portal full migration of legacy mock slices to RTK Query endpoints (Phase 5).
 - Mobile SQLite persistence layer for offline sync queue (Phase 6).
 - Production observability dashboards, Alertmanager, and evidence-backed SLO tests (Phase 7).
 - Coverage thresholds. Suites are real but `coverageThreshold` is unset; it rises

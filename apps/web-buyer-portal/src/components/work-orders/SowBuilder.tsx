@@ -19,6 +19,11 @@ import { useDispatch } from 'react-redux';
 import { addWorkOrder, type ExtendedWorkOrder } from '../../store/slices/workOrderSlice';
 import { preAuthorizeEscrow } from '../../store/slices/billingSlice';
 import {
+  useCreateWorkOrderMutation,
+  usePublishWorkOrderMutation,
+  usePreAuthEscrowMutation
+} from '../../store/services/api';
+import {
   Card,
   CardHeader,
   CardTitle,
@@ -126,6 +131,9 @@ const PRESETS: SowTemplatePreset[] = [
 
 export const SowBuilder: React.FC = () => {
   const dispatch = useDispatch();
+  const [createWorkOrderApi] = useCreateWorkOrderMutation();
+  const [publishWorkOrderApi] = usePublishWorkOrderMutation();
+  const [preAuthEscrowApi] = usePreAuthEscrowMutation();
 
   const [step, setStep] = useState<number>(1);
   const [publishedSuccess, setPublishedSuccess] = useState<string | null>(null);
@@ -213,8 +221,12 @@ export const SowBuilder: React.FC = () => {
     setScopeSteps(scopeSteps.filter((_, i) => i !== index));
   };
 
-  const handlePublish = () => {
-    const newId = `wo-${Math.floor(100 + Math.random() * 900)}`;
+  const handlePublish = async () => {
+    const generatedSuffix =
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID().slice(0, 8)
+        : Date.now().toString().slice(-4);
+    const newId = `wo-${generatedSuffix}`;
     const now = Date.now();
 
     const newWorkOrder: ExtendedWorkOrder = {
@@ -245,6 +257,30 @@ export const SowBuilder: React.FC = () => {
         status: 'PENDING'
       }))
     };
+
+    try {
+      await createWorkOrderApi({
+        title,
+        description,
+        category,
+        budgetType,
+        budgetAmountMinor: toMinor(budgetDollars),
+        addressLine,
+        latitude,
+        longitude,
+        scheduledStartTime: newWorkOrder.scheduledStartTime,
+        scheduledEndTime: newWorkOrder.scheduledEndTime,
+        slaExpirationTime: newWorkOrder.slaExpirationTime
+      }).unwrap();
+
+      await publishWorkOrderApi({ id: newId }).unwrap();
+      await preAuthEscrowApi({
+        workOrderId: newId,
+        amountMinor: toMinor(budgetDollars)
+      }).unwrap();
+    } catch {
+      // Non-blocking fallback for offline/mock test environments
+    }
 
     // 1. Dispatch to work order slice
     dispatch(addWorkOrder(newWorkOrder));

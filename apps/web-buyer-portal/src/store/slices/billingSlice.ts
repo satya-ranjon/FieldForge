@@ -26,81 +26,12 @@ export interface BillingState {
   selectedTransactionId: string | null;
 }
 
-// Fixed baseline timestamp for deterministic SSR hydration parity
-const now = 1772496000000;
-
-const initialTransactions: EscrowTransaction[] = [
-  {
-    id: 'esc-001',
-    workOrderId: 'wo-101',
-    workOrderTitle: 'Emergency POS Terminal Swap & Cat6 Cabling',
-    amountMinor: 45_000,
-    status: EscrowStatus.HELD,
-    paymentMethod: 'Corporate Visa ending in 9842',
-    createdAt: new Date(now - 3600000).toISOString(),
-    idempotencyKey: 'idemp-wo-101-auth'
-  },
-  {
-    id: 'esc-002',
-    workOrderId: 'wo-102',
-    workOrderTitle: 'Fiber Optic Patching & Core Switch SFP+ Replacement',
-    amountMinor: 62_000,
-    status: EscrowStatus.HELD,
-    paymentMethod: 'Corporate Visa ending in 9842',
-    createdAt: new Date(now - 14400000).toISOString(),
-    idempotencyKey: 'idemp-wo-102-auth'
-  },
-  {
-    id: 'esc-003',
-    workOrderId: 'wo-103',
-    workOrderTitle: 'Self-Checkout Barcode Scanner & Scale Calibration',
-    amountMinor: 38_000,
-    status: EscrowStatus.HELD,
-    paymentMethod: 'Corporate Visa ending in 9842',
-    createdAt: new Date(now - 18000000).toISOString(),
-    idempotencyKey: 'idemp-wo-103-auth'
-  },
-  {
-    id: 'esc-004',
-    workOrderId: 'wo-104',
-    workOrderTitle: 'HVAC Server Room Temperature Sensor Replacement',
-    amountMinor: 55_000,
-    status: EscrowStatus.HELD,
-    paymentMethod: 'Corporate Visa ending in 9842',
-    createdAt: new Date(now - 86400000).toISOString(),
-    autoReleaseDeadline: new Date(now + 172800000).toISOString(), // 48h left of 72h window
-    idempotencyKey: 'idemp-wo-104-auth'
-  },
-  {
-    id: 'esc-005',
-    workOrderId: 'wo-106',
-    workOrderTitle: 'Drive-Thru Digital Menu Board High-Voltage Inverter Check',
-    amountMinor: 35_000,
-    status: EscrowStatus.DISPUTED,
-    paymentMethod: 'Corporate Visa ending in 9842',
-    createdAt: new Date(now - 120000000).toISOString(),
-    idempotencyKey: 'idemp-wo-106-auth'
-  },
-  {
-    id: 'esc-000',
-    workOrderId: 'wo-historical-099',
-    workOrderTitle: 'Access Control Card Reader Upgrade (Store #12)',
-    amountMinor: 89_000,
-    status: EscrowStatus.RELEASED,
-    paymentMethod: 'Corporate Visa ending in 9842',
-    createdAt: new Date(now - 432000000).toISOString(),
-    releasedAt: new Date(now - 345600000).toISOString(),
-    invoiceNumber: 'INV-2026-08942',
-    idempotencyKey: 'idemp-hist-099-rel'
-  }
-];
-
 const initialState: BillingState = {
-  totalLockedMinor: 200_000, // 45_000 + 62_000 + 38_000 + 55_000
-  totalReleasedMinor: 8_432_000,
-  totalDisputedMinor: 35_000,
+  totalLockedMinor: 0,
+  totalReleasedMinor: 0,
+  totalDisputedMinor: 0,
   paymentMethod: 'Corporate Visa •••• 9842 (Apex Retail Corp)',
-  transactions: initialTransactions,
+  transactions: [],
   selectedTransactionId: null
 };
 
@@ -108,6 +39,21 @@ export const billingSlice = createSlice({
   name: 'billing',
   initialState,
   reducers: {
+    setTransactions: (state, action: PayloadAction<EscrowTransaction[]>) => {
+      state.transactions = action.payload;
+    },
+    setTotals: (
+      state,
+      action: PayloadAction<{
+        locked: MinorUnits;
+        released: MinorUnits;
+        disputed: MinorUnits;
+      }>
+    ) => {
+      state.totalLockedMinor = action.payload.locked;
+      state.totalReleasedMinor = action.payload.released;
+      state.totalDisputedMinor = action.payload.disputed;
+    },
     preAuthorizeEscrow: (
       state,
       action: PayloadAction<{
@@ -116,15 +62,19 @@ export const billingSlice = createSlice({
         amountMinor: MinorUnits;
       }>
     ) => {
+      const randomSuffix =
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID().slice(0, 8)
+          : Date.now().toString().slice(-4);
       const newTx: EscrowTransaction = {
-        id: `esc-${Date.now().toString().slice(-4)}`,
+        id: `esc-${randomSuffix}`,
         workOrderId: action.payload.workOrderId,
         workOrderTitle: action.payload.workOrderTitle,
         amountMinor: action.payload.amountMinor,
         status: EscrowStatus.HELD,
         paymentMethod: state.paymentMethod,
         createdAt: new Date().toISOString(),
-        idempotencyKey: `idemp-${action.payload.workOrderId}-${Date.now()}`
+        idempotencyKey: `idemp-${action.payload.workOrderId}-${randomSuffix}`
       };
       state.transactions.unshift(newTx);
       state.totalLockedMinor += action.payload.amountMinor;
@@ -132,9 +82,13 @@ export const billingSlice = createSlice({
     releaseEscrow: (state, action: PayloadAction<{ workOrderId: string }>) => {
       const tx = state.transactions.find((t) => t.workOrderId === action.payload.workOrderId);
       if (tx && tx.status === EscrowStatus.HELD) {
+        const invSuffix =
+          typeof crypto !== 'undefined' && crypto.randomUUID
+            ? crypto.randomUUID().slice(0, 8).toUpperCase()
+            : Date.now().toString().slice(-6);
         tx.status = EscrowStatus.RELEASED;
         tx.releasedAt = new Date().toISOString();
-        tx.invoiceNumber = `INV-2026-${Math.floor(10000 + Math.random() * 90000)}`;
+        tx.invoiceNumber = `INV-2026-${invSuffix}`;
         state.totalLockedMinor = Math.max(0, state.totalLockedMinor - tx.amountMinor);
         state.totalReleasedMinor += tx.amountMinor;
       }
@@ -150,6 +104,7 @@ export const billingSlice = createSlice({
   }
 });
 
-export const { preAuthorizeEscrow, releaseEscrow, disputeEscrow } = billingSlice.actions;
+export const { setTransactions, setTotals, preAuthorizeEscrow, releaseEscrow, disputeEscrow } =
+  billingSlice.actions;
 
 export default billingSlice.reducer;

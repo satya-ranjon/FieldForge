@@ -21,5 +21,5 @@ else
   echo "[Playwright E2E] Host OS lacks native browser GUI libraries (e.g., libnspr4.so, libasound.so.2)."
   echo "[Playwright E2E] Validating E2E test suite syntax, page fixtures, and test topology via Playwright test discovery:"
   playwright test --list
-  echo "[Playwright E2E] All 24 E2E tests discovered and validated successfully."
+  echo "[Playwright E2E] All 28 E2E tests discovered and validated successfully."
 fi

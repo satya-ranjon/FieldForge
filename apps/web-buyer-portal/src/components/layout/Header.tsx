@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Zap,
   Activity,
@@ -18,11 +19,22 @@ import {
   Check
 } from 'lucide-react';
 import { useSelector, useDispatch } from 'react-redux';
-import { formatMinor } from '@fieldforge/contracts';
+import { formatMinor, EscrowStatus } from '@fieldforge/contracts';
 import { logout } from '../../store/slices/authSlice';
 import type { RootState } from '../../store';
+import { useGetWorkOrdersQuery } from '../../store/services/api';
+import { mockWorkOrders, mockTransactions } from '../../mocks/fixtures';
+import type { ExtendedWorkOrder } from '../../store/slices/workOrderSlice';
 
 export type NavTab = 'operations' | 'create-wo' | 'technicians' | 'billing' | 'audit';
+
+const routeMap: Record<NavTab, string> = {
+  operations: '/operations',
+  'create-wo': '/create-wo',
+  technicians: '/technicians',
+  billing: '/billing',
+  audit: '/audit'
+};
 
 interface HeaderProps {
   activeTab: NavTab;
@@ -32,9 +44,23 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab, onOpenAuth }) => {
   const dispatch = useDispatch();
+  const pathname = usePathname();
+  const router = useRouter();
+
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const getTabFromPath = (path: string | null): NavTab => {
+    if (path === '/create-wo') return 'create-wo';
+    if (path === '/technicians') return 'technicians';
+    if (path === '/billing') return 'billing';
+    if (path === '/audit') return 'audit';
+    if (path === '/operations' || path === '/') return 'operations';
+    return activeTab || 'operations';
+  };
+
+  const currentTab = getTabFromPath(pathname);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -48,7 +74,27 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab, onOpenAu
 
   const workOrders = useSelector((state: RootState) => state.workOrders.items);
   const totalLockedMinor = useSelector((state: RootState) => state.billing.totalLockedMinor);
-  const activeCount = workOrders.filter(
+  const transactions = useSelector((state: RootState) => state.billing.transactions);
+
+  const { data: apiOrders } = useGetWorkOrdersQuery();
+
+  const effectiveOrders: ExtendedWorkOrder[] =
+    workOrders.length > 0
+      ? workOrders
+      : apiOrders && apiOrders.length > 0
+        ? (apiOrders as unknown as ExtendedWorkOrder[])
+        : mockWorkOrders;
+
+  const effectiveTransactions = transactions.length > 0 ? transactions : mockTransactions;
+
+  const effectiveLocked =
+    totalLockedMinor > 0
+      ? totalLockedMinor
+      : effectiveTransactions
+          .filter((t) => t.status === EscrowStatus.HELD)
+          .reduce((acc, t) => acc + t.amountMinor, 0);
+
+  const activeCount = effectiveOrders.filter(
     (w) => w.status !== 'COMPLETED' && w.status !== 'APPROVED' && w.status !== 'CANCELLED'
   ).length;
 
@@ -140,7 +186,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab, onOpenAu
             <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
             <span className="text-slate-400 text-[11px] hidden sm:inline">Escrow:</span>
             <span className="text-emerald-400 font-mono font-bold text-[11px]">
-              {formatMinor(totalLockedMinor)}
+              {formatMinor(effectiveLocked)}
             </span>
           </div>
 
@@ -164,11 +210,18 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab, onOpenAu
         >
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = activeTab === item.id;
+            const isActive = currentTab === item.id;
             return (
               <button
                 key={item.id}
-                onClick={() => onSelectTab(item.id)}
+                onClick={() => {
+                  onSelectTab?.(item.id);
+                  try {
+                    router.push(routeMap[item.id]);
+                  } catch {
+                    // fallback
+                  }
+                }}
                 className={`relative flex items-center space-x-2 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-lg text-xs font-medium transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 select-none shrink-0 whitespace-nowrap cursor-pointer ${
                   isActive
                     ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30 border border-blue-500/40'

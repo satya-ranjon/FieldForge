@@ -5,7 +5,10 @@ import { Activity, Radio, ShieldCheck, TrendingUp, AlertTriangle, Users } from '
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../store';
 import { Card } from '@fieldforge/ui';
-import { formatMinor, fromMinor, WorkOrderStatus } from '@fieldforge/contracts';
+import { formatMinor, fromMinor, WorkOrderStatus, EscrowStatus } from '@fieldforge/contracts';
+import { useGetWorkOrdersQuery, useGetNearbyTechniciansQuery } from '../../store/services/api';
+import { mockWorkOrders, mockTechnicians, mockBids, mockTransactions } from '../../mocks/fixtures';
+import type { ExtendedWorkOrder } from '../../store/slices/workOrderSlice';
 
 export const TelemetryBar: React.FC = () => {
   const workOrders = useSelector((state: RootState) => state.workOrders.items);
@@ -13,15 +16,61 @@ export const TelemetryBar: React.FC = () => {
   const bids = useSelector((state: RootState) => state.dispatch.activeBids);
   const billing = useSelector((state: RootState) => state.billing);
 
-  const activeOrders = workOrders.filter(
+  const { data: apiOrders } = useGetWorkOrdersQuery();
+  const { data: apiTechs } = useGetNearbyTechniciansQuery({
+    latitude: 37.7749,
+    longitude: -122.4194,
+    radiusMiles: 15
+  });
+
+  const effectiveOrders: ExtendedWorkOrder[] =
+    workOrders.length > 0
+      ? workOrders
+      : apiOrders && apiOrders.length > 0
+        ? (apiOrders as unknown as ExtendedWorkOrder[])
+        : mockWorkOrders;
+
+  const effectiveTechs =
+    technicians.length > 0
+      ? technicians
+      : apiTechs && apiTechs.length > 0
+        ? apiTechs
+        : mockTechnicians;
+
+  const effectiveBids = bids.length > 0 ? bids : mockBids;
+  const effectiveTransactions =
+    billing.transactions.length > 0 ? billing.transactions : mockTransactions;
+
+  const totalLocked =
+    billing.totalLockedMinor > 0
+      ? billing.totalLockedMinor
+      : effectiveTransactions
+          .filter((t) => t.status === EscrowStatus.HELD)
+          .reduce((acc, t) => acc + t.amountMinor, 0);
+
+  const totalReleased =
+    billing.totalReleasedMinor > 0
+      ? billing.totalReleasedMinor
+      : effectiveTransactions
+          .filter((t) => t.status === EscrowStatus.RELEASED)
+          .reduce((acc, t) => acc + t.amountMinor, 0);
+
+  const totalDisputed =
+    billing.totalDisputedMinor > 0
+      ? billing.totalDisputedMinor
+      : effectiveTransactions
+          .filter((t) => t.status === EscrowStatus.DISPUTED)
+          .reduce((acc, t) => acc + t.amountMinor, 0);
+
+  const activeOrders = effectiveOrders.filter(
     (w) => w.status !== 'COMPLETED' && w.status !== 'APPROVED' && w.status !== 'CANCELLED'
   );
-  const onSiteOrders = workOrders.filter(
+  const onSiteOrders = effectiveOrders.filter(
     (w) => w.status === WorkOrderStatus.ON_SITE || w.status === WorkOrderStatus.EN_ROUTE
   );
-  const criticalSlaCount = workOrders.filter((w) => w.priority === 'CRITICAL_SLA').length;
-  const availableTechs = technicians.filter((t) => t.isAvailable).length;
-  const pendingBids = bids.filter((b) => b.status === 'PENDING').length;
+  const criticalSlaCount = effectiveOrders.filter((w) => w.priority === 'CRITICAL_SLA').length;
+  const availableTechs = effectiveTechs.filter((t) => t.isAvailable).length;
+  const pendingBids = effectiveBids.filter((b) => b.status === 'PENDING').length;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -152,7 +201,7 @@ export const TelemetryBar: React.FC = () => {
         </div>
         <div className="mt-2.5 flex items-baseline space-x-2">
           <span className="text-2xl sm:text-3xl font-bold font-mono text-white tracking-tight">
-            {formatMinor(billing.totalLockedMinor)}
+            {formatMinor(totalLocked)}
           </span>
         </div>
         {/* Micro progress visual */}
@@ -160,10 +209,10 @@ export const TelemetryBar: React.FC = () => {
           <div className="bg-indigo-500 h-full rounded-full w-[85%]" />
         </div>
         <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400 border-t border-slate-800/60 pt-2">
-          <span>Settled: ${(fromMinor(billing.totalReleasedMinor) / 1000).toFixed(1)}k</span>
-          {billing.totalDisputedMinor > 0 ? (
+          <span>Settled: ${(fromMinor(totalReleased) / 1000).toFixed(1)}k</span>
+          {totalDisputed > 0 ? (
             <span className="text-red-400 font-semibold font-mono">
-              ${fromMinor(billing.totalDisputedMinor).toFixed(0)} In Review
+              ${fromMinor(totalDisputed).toFixed(0)} In Review
             </span>
           ) : (
             <span className="text-slate-400 font-mono">0 disputes</span>

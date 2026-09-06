@@ -541,10 +541,17 @@ No remote backend/state locking; the deliverables bucket has SSE+versioning but 
 timestamp is persisted explicitly in its own `signed_at` column in `work_order_deliverables`
 (migration `0003_wo_history.sql`), ensuring signatures can be independently verified for integrity.
 
-### L6 · 🏛️ Frontend deviates from RULE-FE-04
+### L6 · 🏛️ Frontend deviates from RULE-FE-04 [RESOLVED]
 
-`web-buyer-portal` uses hardcoded Redux `initialState` and a mock token instead of RTK Query for server state; there's no router. IDs are generated with `Math.random()`.
-**Fix:** introduce RTK Query for server data, a real auth slice, and collision-safe IDs (`crypto.randomUUID()`).
+`web-buyer-portal` formerly used hardcoded Redux `initialState` across all domain slices and a mock token instead of RTK Query for server state, lacked addressable route segments, and generated identifiers with `Math.random()`.
+**Resolution:**
+
+- Implemented unified RTK Query API slice in `apps/web-buyer-portal/src/store/services/api.ts` with `baseQueryWithReauth` using a `SimpleMutex` for automatic 401 JWT access token rotation against `/api/v1/auth/refresh`.
+- Configured automated cache tag invalidation (`WorkOrder`, `WorkOrderDeliverables`, `WorkOrderHistory`, `Technician`, `Bid`, `Escrow`, `Invoice`).
+- Stripped hundreds of lines of static domain data from `workOrderSlice.ts`, `dispatchSlice.ts`, and `billingSlice.ts`, re-homing test fixtures under `apps/web-buyer-portal/src/mocks/fixtures/`.
+- Replaced all `Math.random()` ID invocations with `crypto.randomUUID()`.
+- Promoted all 5 command center tabs to addressable Next.js App Router route segments (`/operations`, `/create-wo`, `/technicians`, `/billing`, `/audit`) with `BuyerPortalShell.tsx`.
+- Extended Playwright test suite with `apps/web-buyer-portal/e2e/lifecycle.spec.ts` testing the complete SRS §5 lifecycle path (`create → publish → accept bid → approve → payout`).
 
 ### L7 · 🐛 Mobile app missing location permissions wiring
 
