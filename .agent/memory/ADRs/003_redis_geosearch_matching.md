@@ -1,8 +1,8 @@
 # 📝 ADR 003: Redis 7 GEOSEARCH for Sub-Millisecond Technician Dispatch
 
-| Status       | Date        | Decision Maker         |
-| :----------- | :---------- | :--------------------- |
-| **ACCEPTED** | August 2026 | Satya Ranjan Debsharma |
+| Status                    | Date        | Decision Maker         |
+| :------------------------ | :---------- | :--------------------- |
+| **SUPERSEDED by ADR 004** | August 2026 | Satya Ranjan Debsharma |
 
 ---
 

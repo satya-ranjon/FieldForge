@@ -140,3 +140,13 @@
 > When any query receives a `401 Unauthorized`, subsequent calls wait on the mutex lock while a single refresh
 > request runs against `POST /api/v1/auth/refresh`. On success, new tokens are dispatched to `authSlice` and
 > buffered requests retry seamlessly; on failure, credentials are cleared to trigger re-authentication.
+
+---
+
+## 7. Observability, Health & Telemetry Probes (Shared `HealthController`)
+
+| Method | Endpoint   | Description                                                                                    | Auth / RBAC | Response Schema / Format                                        |
+| :----- | :--------- | :--------------------------------------------------------------------------------------------- | :---------- | :-------------------------------------------------------------- |
+| `GET`  | `/healthz` | Kubernetes liveness probe asserting application process responsiveness                         | Public      | `{ status: 'UP', timestamp: string }`                           |
+| `GET`  | `/readyz`  | Honest readiness probe validating active MySQL pool (`SELECT 1`), Redis, and RabbitMQ channels | Public      | `{ status: 'READY', checks: { ... }, uptimeSeconds, memoryMb }` |
+| `GET`  | `/metrics` | Prometheus metrics exposition scraped by Prometheus (`infra/docker/prometheus.yml`)            | Public      | `text/plain; version=0.0.4; charset=utf-8`                      |

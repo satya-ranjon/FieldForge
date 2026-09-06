@@ -46,7 +46,7 @@ FieldForge/
 │   ├── docker/                   # docker-compose (mysql/redis/rabbitmq/jaeger) + observability + mysql-init
 │   ├── k8s/                      # base/ (configmap, secrets, ingress), services/ (Deployments), helm/ (empty)
 │   └── terraform/                # AWS VPC module + S3 deliverables bucket
-├── scripts/                      # seed-database.sh, setup-dev.sh, simulate-dispatch-load.js
+├── scripts/                      # seed-database.sh, setup-dev.sh, run-load-test.sh, k6/dispatch-load.js
 ├── .agent/                       # Agentic guardrails: rules/, context/ (living specs), memory/ADRs, workflows/
 ├── .github/workflows/            # CI (lint/test), docker build, k8s deploy
 ├── .cursorrules                  # Top-level agent directives

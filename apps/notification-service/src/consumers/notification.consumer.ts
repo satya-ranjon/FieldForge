@@ -5,6 +5,7 @@ import type {
   WorkOrderAssignedEvent
 } from '@fieldforge/contracts';
 import { EventType, formatMinor } from '@fieldforge/contracts';
+import { metricsRegistry } from '@fieldforge/common';
 import { IdempotentConsumer } from '@fieldforge/messaging';
 import { PushNotificationChannel } from '../channels/push.channel';
 import { SmsNotificationChannel } from '../channels/sms.channel';
@@ -50,6 +51,14 @@ export class NotificationConsumer implements OnApplicationBootstrap {
     }
     // Broadcast notification demo dispatch to nearby tech placeholder
     await this.handleDispatchNotification('+14155550123', title, maxBudgetMinor);
+
+    if (event.occurredAt) {
+      const durationSeconds = Math.max(
+        0,
+        (Date.now() - new Date(event.occurredAt).getTime()) / 1000
+      );
+      metricsRegistry.recordDispatchFanoutLatency(event.eventType, durationSeconds);
+    }
   }
 
   async handleAssignedEvent(event: WorkOrderAssignedEvent, logger?: ContextLogger): Promise<void> {

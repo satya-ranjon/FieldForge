@@ -441,7 +441,9 @@ Grafana publishes host `3009` (`docker-compose.observability.yml`) which no long
 
 ### M10 · 📄 Version drift between ADRs/README and actual images
 
-ADRs/README specify MySQL 8.0, Redis 7.0, RabbitMQ 3.13; compose pulls `mysql:8.4`, `redis:7.4`, `rabbitmq:4.0`. RabbitMQ 4.x is a major jump from the ADR's 3.13.
+**Status: resolved (2026-09-06, Phase 7).** Reconciled via ADR 004 (`004_upgrade_infrastructure_versions.md`), superseding ADRs 001, 002, and 003. The runtime stack baseline is codified as MySQL 8.4 LTS, Redis 8.0, and RabbitMQ 4.1 across `docker-compose.yml`, Kubernetes manifests, and README.
+
+ADRs/README historically specified MySQL 8.0, Redis 7.0, RabbitMQ 3.13; compose pulls `mysql:8.4`, `redis:8.0-alpine`, `rabbitmq:4.1-management-alpine`.
 **Impact:** behavior/config drift from what's documented and decided.
 **Fix:** pin images to the ADR versions or supersede the ADRs deliberately.
 
@@ -509,11 +511,13 @@ record explicitly that `@fieldforge/ui` is web-only and amend rule 07 §2 to mat
 
 ### L1 · 🏛️ Observability is stubbed
 
-**Status: partially remediated.** A minimal `prometheus.yml` now lets Prometheus
-start, but application exporters, dashboards, and measured SLO tests remain absent.
+**Status: resolved (2026-09-06, Phase 7).**
 
-`MetricsInterceptor` (`packages/common/src/apm/metrics.interceptor.ts`) `console.log`s timings with a "In production: push to Prometheus/OTEL" comment; no exporter is wired. `prometheus.yml` referenced by the observability compose **doesn't exist**, so Prometheus won't start.
-**Fix:** add an OTEL/Prom exporter and the missing scrape config.
+- Replaced console-log stub with centralized `prom-client` `MetricsRegistry` and production `MetricsInterceptor` in `@fieldforge/common`.
+- Exposed `/metrics` (Prometheus text format) and honest dependency-aware `/readyz` probes across microservices validating MySQL pools (`SELECT 1`), Redis, and RabbitMQ.
+- Configured Prometheus scraping on `/metrics` (ports 8000–8005) and defined SLI recording rules (`infra/docker/rules.yml`).
+- Provisioned Grafana datasources and custom dashboard (`infra/docker/grafana/dashboards/fieldforge-slos.json`) visualising the 5 SLIs in `.agent/context/sli_slo_definitions.md`.
+- Implemented real k6 load testing harness (`scripts/k6/dispatch-load.js`) measuring 1,000 concurrent dispatches against the real API.
 
 ### L2 · 🏛️ Structured logging bypassed
 
@@ -575,8 +579,14 @@ timestamp is persisted explicitly in its own `signed_at` column in `work_order_d
 
 ### L8 · 🐛 SLO verification is theater; `bootstrap()` rejections unhandled
 
-`scripts/simulate-dispatch-load.js` fabricates latency samples with `Math.random()` and reports them as SLO evidence. Separately, each service's `bootstrap()` promise is unhandled — a startup failure exits silently without a non-zero signal in some paths.
-**Fix:** measure real requests (or label the script clearly as a mock) and add `.catch()` to `bootstrap()` with `process.exit(1)`.
+**Status: resolved (2026-09-06, Phase 7).**
+
+- Deleted `scripts/simulate-dispatch-load.js` and replaced it with `scripts/k6/dispatch-load.js` driving 1,000 real concurrent dispatches across the API Gateway with measured latency/availability thresholds.
+- Added `scripts/run-load-test.sh` for native or containerized execution.
+- Added `.catch(err => { logger.fatal({ err }, 'Failed to start ...'); process.exit(1); })` to every service's `main.ts` `bootstrap()` call.
+
+`scripts/simulate-dispatch-load.js` formerly fabricated latency samples with `Math.random()` and reported them as SLO evidence.
+**Fix:** measure real requests with k6 and ensure `bootstrap()` rejections exit with code 1.
 
 ### L9 · 🐛 `.env.example` omits `PORT`, which every service reads [RESOLVED]
 

@@ -1,8 +1,8 @@
 # 📝 ADR 002: RabbitMQ Topic Exchanges for Event-Driven Microservices
 
-| Status       | Date        | Decision Maker         |
-| :----------- | :---------- | :--------------------- |
-| **ACCEPTED** | August 2026 | Satya Ranjan Debsharma |
+| Status                    | Date        | Decision Maker         |
+| :------------------------ | :---------- | :--------------------- |
+| **SUPERSEDED by ADR 004** | August 2026 | Satya Ranjan Debsharma |
 
 ---
 

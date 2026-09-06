@@ -6,6 +6,7 @@ services:
       - --config.file=/etc/prometheus/prometheus.yml
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./rules.yml:/etc/prometheus/rules.yml:ro
     ports:
       - '${PROMETHEUS_PORT:-9090}:9090'
 
@@ -19,6 +20,9 @@ services:
       - '${GRAFANA_PORT:-3009}:3000'
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
 
 volumes:
   grafana_data:

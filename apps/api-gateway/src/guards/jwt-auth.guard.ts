@@ -11,8 +11,10 @@ const PUBLIC_PREFIXES = [
   '/api/v1/auth/refresh',
   '/api/v1/healthz',
   '/api/v1/readyz',
+  '/api/v1/metrics',
   '/healthz',
-  '/readyz'
+  '/readyz',
+  '/metrics'
 ];
 
 @Injectable()

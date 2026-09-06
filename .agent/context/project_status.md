@@ -1,8 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-06  
-**Phase:** Phase 6 complete — Technician mobile app. Next: Phase 7
-(observability and measured SLO evidence). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 7 complete — Observability and measured SLO evidence. Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -60,8 +59,16 @@
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
   - `AppNavigator` mounting `JobListScreen` and `ActiveJobScreen` wrapped in Redux store.
-- **A test harness that can fail.** 397 automated unit/integration tests across 17 suites
-  plus 28 Playwright E2E tests (425 total verified tests); no `--passWithNoTests` anywhere.
+- **A test harness that can fail.** 408 automated unit/integration tests across 19 suites
+  plus 28 Playwright E2E tests (436 total verified tests); zero `--passWithNoTests` anywhere.
+- **Production Observability & Measured SLO Evidence (Phase 7).**
+  - Production `MetricsRegistry` and `MetricsInterceptor` in `@fieldforge/common` powered by `prom-client`.
+  - Emits `http_requests_total`, `http_request_duration_seconds` (read and write SLI buckets), `dispatch_fanout_latency_seconds`, and `billing_reconciliation_failures_total`.
+  - Honest `/readyz` probes validating active MySQL pools (`SELECT 1`), Redis, and RabbitMQ dependencies, returning 503 on dependency degradation.
+  - Native Prometheus scraping across all 6 microservices (8000–8005) on `/metrics` with SLI recording rules in `infra/docker/rules.yml`.
+  - Auto-provisioned Grafana datasource and dashboard (`infra/docker/grafana/dashboards/fieldforge-slos.json`) on port 3009 visualising the 5 core platform SLIs.
+  - Real k6 load testing harness (`scripts/k6/dispatch-load.js`, `scripts/run-load-test.sh`) driving 1,000 concurrent iterations against the live API Gateway stack.
+  - Reconciled ADRs via ADR 004 superseding ADRs 001–003 for MySQL 8.4 LTS, Redis 8.0, and RabbitMQ 4.1.
 - **Section 13 Quality Remediations (Branch `fix/bugs-and-issues`).**
   - Durable mobile offline sync mutation queue with persistent idempotency keys and retry handling (FF-BUG-01).
   - Production-ready Kubernetes manifests with Services, health/readiness probes, resource limits, and notification-service (FF-BUG-02).
@@ -75,7 +82,6 @@
 
 ## What is not yet implemented
 
-- Production observability dashboards, Alertmanager, and evidence-backed SLO tests (Phase 7).
 - Coverage thresholds. Suites are real but `coverageThreshold` is unset; it rises
   per phase toward the SRS §5 target of 90% on business rules.
 - A deployable production Kubernetes platform.
@@ -87,8 +93,7 @@ feature completion from types, dependencies, UI mock data, or console-log stubs.
 
 - Geofence tolerance is now standardized to 200 metres server-side and client-side per SRS FR-MOB-001.
 - SRS v1.0.0 requires 99.9% availability; older SLO text uses 99.95%.
-- Runtime image versions differ from the older version-specific ADR wording;
-  Phase 7 supersedes ADRs 001–003 rather than leaving the drift recorded.
+- Runtime image versions are now unified via ADR 004 (MySQL 8.4 LTS, Redis 8.0, RabbitMQ 4.1).
 
 Terminal-state terminology is no longer drift: the SRS won, `PAID` is the terminal
 state, and `SETTLED`/`BIDDING`/`OPEN`/`IN_PROGRESS` are gone from the docs and UI.

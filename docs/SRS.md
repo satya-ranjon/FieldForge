@@ -129,21 +129,23 @@ technician accreditation verification.
 ### 3.6 Observability and reliability
 
 - **FR-OBS-001 — Structured logging:** Emit structured Pino JSON with an
-  `x-correlation-id` across all services.
-- **FR-OBS-002 — Metrics:** Export Prometheus metrics for at least:
-  - API availability: non-5xx requests divided by all requests, at least 99.9%.
-  - API latency: p95 below 200 milliseconds.
+  `x-correlation-id` across all services. (Implemented via `packages/common/src/logger/` and correlation ID middleware).
+- **FR-OBS-002 — Metrics:** Export Prometheus metrics (`GET /metrics`) for at least:
+  - API availability: non-5xx requests divided by all requests, at least 99.9% (`http_requests_total`).
+  - API latency: p95 below 200 milliseconds (`http_request_duration_seconds`).
   - Dispatch queue latency: publication to technician notification no more than
-    1.5 seconds.
+    1.5 seconds (`dispatch_fanout_latency_seconds`).
+  - Financial ledger: 0 dropped transactions (`billing_reconciliation_failures_total`).
+    (Implemented via `packages/common/src/apm/` and Grafana dashboards).
 - **FR-OBS-003 — Probes:** Expose `/healthz` and `/readyz`; readiness validates
-  database pools, Redis, and RabbitMQ channels.
+  database pools, Redis, and RabbitMQ channels. (Implemented in `HealthController` with dynamic dependency validation).
 
 ## 4. Non-functional requirements
 
 ### Performance and scalability
 
 - **NFR-PERF-001:** p95 read queries complete below 100 milliseconds and p95
-  writes below 200 milliseconds.
+  writes below 200 milliseconds. (Validated via `scripts/k6/dispatch-load.js` driving 1,000 concurrent iterations).
 - **NFR-PERF-002:** Node.js containers scale horizontally under Kubernetes HPA.
 - **NFR-PERF-003:** Composite indexes prevent table scans on tables above 100,000
   rows.

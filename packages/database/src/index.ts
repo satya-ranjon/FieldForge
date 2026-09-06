@@ -21,6 +21,8 @@ export const createDbClient = (connectionUri: string) => {
   return drizzle(pool, { schema, mode: 'default' });
 };
 
+export { sql } from 'drizzle-orm';
+
 export {
   usersSchema,
   workOrdersSchema,

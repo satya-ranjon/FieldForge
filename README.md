@@ -33,7 +33,7 @@ FieldForge is an enterprise field service marketplace and autonomous dispatch pl
 - **📋 Deterministic Finite State Machine (FSM):** Strict, ACID-backed work order state progression with zero race conditions.
 - **📍 GPS Geofence Check-In & Proof of Work:** Server-verified location requiring $\le 200\text{m}$ of site proximity (SRS FR-MOB-001), photo deliverables, checklist milestone verification, and SHA-256 signed client approvals.
 - **💳 Guaranteed Escrow Settlement:** Automated pre-authorization, fund locking on assignment, and 72-hour auto-disbursement with PDF invoice generation.
-- **📊 99.9% SLI/SLO Reliability Target:** Planned OpenTelemetry tracing, Prometheus metrics, Pino structured logging, and distributed `x-correlation-id` propagation.
+- **📊 99.9% SLI/SLO Reliability:** Production Prometheus metrics (`/metrics`), live Grafana dashboard (`http://localhost:3009`), Pino structured logging, distributed `x-correlation-id` propagation, and k6-driven 1,000 concurrent dispatch load validation.
 
 ---
 
@@ -418,13 +418,15 @@ stateDiagram-v2
 
 ## 📊 Service Level Objectives (SLOs) & Reliability Matrix
 
-| Service Level Metric        | Target Objective (SLO) | Indicator Definition (SLI)                              | Max Error Budget                          |
-| :-------------------------- | :--------------------: | :------------------------------------------------------ | :---------------------------------------- |
-| **Platform Availability**   |   **at least 99.9%**   | Successful non-5xx requests / total requests            | 43.2 minutes / month                      |
-| **Read Latency (p95)**      |   **$< 100	ext{ms}$**   | Duration of REST read endpoints                         | $95\%$ requests under $100\text{ms}$      |
-| **Write Latency (p95)**     |   **$< 200	ext{ms}$**   | Duration of relational transaction endpoints            | $95\%$ writes under $200\text{ms}$        |
-| **Dispatch Queue Latency**  |  **$\le 1.5	ext{s}$**   | Time from work order publication to push notification   | $99\%$ notifications in $\le 1.5\text{s}$ |
-| **Redis GEOSEARCH Latency** |   **$< 120	ext{ms}$**   | Proximity lookup across 50,000+ cached technician nodes | $p95 < 120\text{ms}$                      |
+| Service Level Metric        | Target Objective (SLO) | Indicator Definition (SLI)                            | Validation & Evidence Source               |
+| :-------------------------- | :--------------------: | :---------------------------------------------------- | :----------------------------------------- |
+| **Platform Availability**   |   **at least 99.9%**   | Successful non-5xx requests / total requests          | Prometheus `rate(http_requests_total)`     |
+| **Read Latency (p95)**      |      **< 100ms**       | Duration of REST read endpoints (`method="GET"`)      | Measured via `scripts/k6/dispatch-load.js` |
+| **Write Latency (p95)**     |      **< 200ms**       | Duration of relational transaction endpoints (`POST`) | Measured via `scripts/k6/dispatch-load.js` |
+| **Dispatch Queue Latency**  |       **≤ 1.5s**       | Time from work order publication to push notification | Metric `dispatch_fanout_latency_seconds`   |
+| **Financial Ledger Safety** |     **0 failures**     | Unreconciled escrow transactions or ledger breaches   | Metric `billing_reconciliation_failures`   |
+
+> **SLO Load Testing:** Run `./scripts/run-load-test.sh` to drive 1,000 concurrent iterations against the live stack and assert SLO thresholds. View live metrics in Grafana at `http://localhost:3009`.
 
 ---
 

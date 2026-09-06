@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
-import { DRIZZLE, type DrizzleClient, createLogger } from '@fieldforge/common';
+import { DRIZZLE, type DrizzleClient, createLogger, metricsRegistry } from '@fieldforge/common';
 import {
   billingSchema,
   idempotencySchema,
@@ -158,188 +158,203 @@ export class EscrowService {
 
     const { workOrderId, callerUserId, callerRole, correlationId, idempotencyKey } = params;
 
-    return await this.db.transaction(async (tx) => {
-      // 1. Idempotency Check
-      if (idempotencyKey) {
-        const [existingKey] = await tx
-          .select()
-          .from(idempotencySchema.idempotencyKeys)
-          .where(eq(idempotencySchema.idempotencyKeys.key, idempotencyKey))
-          .limit(1);
+    try {
+      return await this.db.transaction(async (tx) => {
+        // 1. Idempotency Check
+        if (idempotencyKey) {
+          const [existingKey] = await tx
+            .select()
+            .from(idempotencySchema.idempotencyKeys)
+            .where(eq(idempotencySchema.idempotencyKeys.key, idempotencyKey))
+            .limit(1);
 
-        if (existingKey) {
-          if (existingKey.status === 'COMPLETED' && existingKey.responsePayload) {
-            return existingKey.responsePayload as EscrowReleaseResult;
+          if (existingKey) {
+            if (existingKey.status === 'COMPLETED' && existingKey.responsePayload) {
+              return existingKey.responsePayload as EscrowReleaseResult;
+            }
+            if (existingKey.status === 'IN_PROGRESS') {
+              throw new ConflictException(
+                `A payout release with idempotency key ${idempotencyKey} is already in progress`
+              );
+            }
+          } else {
+            await tx.insert(idempotencySchema.idempotencyKeys).values({
+              key: idempotencyKey,
+              scope: 'ESCROW_RELEASE',
+              resourceId: workOrderId,
+              status: 'IN_PROGRESS',
+              createdAt: new Date()
+            });
           }
-          if (existingKey.status === 'IN_PROGRESS') {
-            throw new ConflictException(
-              `A payout release with idempotency key ${idempotencyKey} is already in progress`
-            );
-          }
-        } else {
-          await tx.insert(idempotencySchema.idempotencyKeys).values({
-            key: idempotencyKey,
-            scope: 'ESCROW_RELEASE',
-            resourceId: workOrderId,
-            status: 'IN_PROGRESS',
-            createdAt: new Date()
-          });
         }
-      }
 
-      // 2. Lock Escrow FOR UPDATE
-      const [escrow] = await tx
-        .select()
-        .from(billingSchema.escrowAccounts)
-        .where(eq(billingSchema.escrowAccounts.workOrderId, workOrderId))
-        .for('update');
-
-      if (!escrow) {
-        throw new NotFoundException(`Escrow account not found for work order ${workOrderId}`);
-      }
-
-      if (escrow.status !== 'HELD') {
-        throw new ConflictException(
-          `Escrow cannot be released: current status is ${escrow.status} (expected HELD)`
-        );
-      }
-
-      // 3. Lock Work Order FOR UPDATE
-      const [workOrder] = await tx
-        .select()
-        .from(workOrdersSchema.workOrders)
-        .where(eq(workOrdersSchema.workOrders.id, workOrderId))
-        .for('update');
-
-      if (!workOrder) {
-        throw new NotFoundException(`Work order ${workOrderId} not found`);
-      }
-
-      if (workOrder.status !== 'APPROVED') {
-        throw new ConflictException(
-          `Work order must be APPROVED before escrow release: current status is ${workOrder.status}`
-        );
-      }
-
-      if (!workOrder.assignedTechnicianId) {
-        throw new BadRequestException(`Work order ${workOrderId} has no assigned technician`);
-      }
-
-      // 4. Caller Authority Verification (C3)
-      if (callerRole && callerRole !== 'ADMIN' && callerRole !== 'SYSTEM') {
-        // Must be the buyer who owns the work order
-        const [buyer] = await tx
+        // 2. Lock Escrow FOR UPDATE
+        const [escrow] = await tx
           .select()
-          .from(usersSchema.buyerProfiles)
-          .where(eq(usersSchema.buyerProfiles.userId, callerUserId || ''))
-          .limit(1);
+          .from(billingSchema.escrowAccounts)
+          .where(eq(billingSchema.escrowAccounts.workOrderId, workOrderId))
+          .for('update');
 
-        if (!buyer || buyer.id !== workOrder.buyerId) {
-          throw new ForbiddenException(
-            'Only the work order buyer or an administrator may authorize escrow release'
+        if (!escrow) {
+          throw new NotFoundException(`Escrow account not found for work order ${workOrderId}`);
+        }
+
+        if (escrow.status !== 'HELD') {
+          throw new ConflictException(
+            `Escrow cannot be released: current status is ${escrow.status} (expected HELD)`
           );
         }
-      }
 
-      const amountMinor = Math.round(Number(escrow.amountLocked) * 100);
+        // 3. Lock Work Order FOR UPDATE
+        const [workOrder] = await tx
+          .select()
+          .from(workOrdersSchema.workOrders)
+          .where(eq(workOrdersSchema.workOrders.id, workOrderId))
+          .for('update');
 
-      // 5. Update Escrow Status
-      const now = new Date();
-      await tx
-        .update(billingSchema.escrowAccounts)
-        .set({
-          status: 'RELEASED',
-          releasedAt: now
-        })
-        .where(eq(billingSchema.escrowAccounts.id, escrow.id));
+        if (!workOrder) {
+          throw new NotFoundException(`Work order ${workOrderId} not found`);
+        }
 
-      // 6. Update Work Order Status to PAID and record status history
-      await tx
-        .update(workOrdersSchema.workOrders)
-        .set({
-          status: 'PAID',
-          updatedAt: now
-        })
-        .where(eq(workOrdersSchema.workOrders.id, workOrder.id));
+        if (workOrder.status !== 'APPROVED') {
+          throw new ConflictException(
+            `Work order must be APPROVED before escrow release: current status is ${workOrder.status}`
+          );
+        }
 
-      await tx.insert(workOrdersSchema.workOrderStatusHistory).values({
-        id: randomUUID(),
-        workOrderId: workOrder.id,
-        fromStatus: 'APPROVED',
-        toStatus: 'PAID',
-        changedBy: callerUserId || 'system',
-        reason: 'Escrow released upon completion approval',
-        createdAt: now
-      });
+        if (!workOrder.assignedTechnicianId) {
+          throw new BadRequestException(`Work order ${workOrderId} has no assigned technician`);
+        }
 
-      // 7. Disburse Payout via Provider
-      await this.paymentProvider.disbursePayout({
-        workOrderId: workOrder.id,
-        technicianId: workOrder.assignedTechnicianId,
-        amountMinor
-      });
+        // 4. Caller Authority Verification (C3)
+        if (callerRole && callerRole !== 'ADMIN' && callerRole !== 'SYSTEM') {
+          // Must be the buyer who owns the work order
+          const [buyer] = await tx
+            .select()
+            .from(usersSchema.buyerProfiles)
+            .where(eq(usersSchema.buyerProfiles.userId, callerUserId || ''))
+            .limit(1);
 
-      // 8. Record Double-Entry Payout Ledger Entry
-      await tx.insert(billingSchema.payoutLedger).values({
-        id: randomUUID(),
-        technicianId: workOrder.assignedTechnicianId,
-        workOrderId: workOrder.id,
-        amount: escrow.amountLocked,
-        type: 'CREDIT',
-        description: 'Work order completion payout',
-        createdAt: now
-      });
+          if (!buyer || buyer.id !== workOrder.buyerId) {
+            throw new ForbiddenException(
+              'Only the work order buyer or an administrator may authorize escrow release'
+            );
+          }
+        }
 
-      // 9. Generate Immutable Content-Hashed Invoice (FR-BILL-003)
-      const invoice = await this.invoicesService.generateInvoiceWithTx(tx, {
-        workOrderId: workOrder.id,
-        buyerId: workOrder.buyerId,
-        amountMinor
-      });
+        const amountMinor = Math.round(Number(escrow.amountLocked) * 100);
 
-      this.logger.info(
-        `[Payout] released ${formatMinor(amountMinor)} to technician ${workOrder.assignedTechnicianId} for work order ${workOrderId}`
-      );
-
-      const result: EscrowReleaseResult = {
-        workOrderId: workOrder.id,
-        techId: workOrder.assignedTechnicianId,
-        disbursedAmountMinor: amountMinor,
-        status: EscrowStatus.RELEASED,
-        invoiceId: invoice.id
-      };
-
-      // 10. Update Idempotency Record
-      if (idempotencyKey) {
+        // 5. Update Escrow Status
+        const now = new Date();
         await tx
-          .update(idempotencySchema.idempotencyKeys)
+          .update(billingSchema.escrowAccounts)
           .set({
-            status: 'COMPLETED',
-            responsePayload: result
+            status: 'RELEASED',
+            releasedAt: now
           })
-          .where(eq(idempotencySchema.idempotencyKeys.key, idempotencyKey));
-      }
+          .where(eq(billingSchema.escrowAccounts.id, escrow.id));
 
-      // 11. Publish PAYOUT_DISBURSED Event
-      if (this.producer) {
-        const event = createEvent(
-          EventType.PAYOUT_DISBURSED,
-          {
-            escrowId: escrow.id,
-            workOrderId: workOrder.id,
-            techId: workOrder.assignedTechnicianId,
-            amountMinor
-          },
-          correlationId || randomUUID()
-        );
-        await this.producer.publish(event).catch((err: unknown) => {
-          const msg = err instanceof Error ? err.message : String(err);
-          this.logger.error(`[Escrow] Failed to publish PAYOUT_DISBURSED event: ${msg}`);
+        // 6. Update Work Order Status to PAID and record status history
+        await tx
+          .update(workOrdersSchema.workOrders)
+          .set({
+            status: 'PAID',
+            updatedAt: now
+          })
+          .where(eq(workOrdersSchema.workOrders.id, workOrder.id));
+
+        await tx.insert(workOrdersSchema.workOrderStatusHistory).values({
+          id: randomUUID(),
+          workOrderId: workOrder.id,
+          fromStatus: 'APPROVED',
+          toStatus: 'PAID',
+          changedBy: callerUserId || 'system',
+          reason: 'Escrow released upon completion approval',
+          createdAt: now
         });
-      }
 
-      return result;
-    });
+        // 7. Disburse Payout via Provider
+        await this.paymentProvider.disbursePayout({
+          workOrderId: workOrder.id,
+          technicianId: workOrder.assignedTechnicianId,
+          amountMinor
+        });
+
+        // 8. Record Double-Entry Payout Ledger Entry
+        await tx.insert(billingSchema.payoutLedger).values({
+          id: randomUUID(),
+          technicianId: workOrder.assignedTechnicianId,
+          workOrderId: workOrder.id,
+          amount: escrow.amountLocked,
+          type: 'CREDIT',
+          description: 'Work order completion payout',
+          createdAt: now
+        });
+
+        // 9. Generate Immutable Content-Hashed Invoice (FR-BILL-003)
+        const invoice = await this.invoicesService.generateInvoiceWithTx(tx, {
+          workOrderId: workOrder.id,
+          buyerId: workOrder.buyerId,
+          amountMinor
+        });
+
+        this.logger.info(
+          `[Payout] released ${formatMinor(amountMinor)} to technician ${workOrder.assignedTechnicianId} for work order ${workOrderId}`
+        );
+
+        const result: EscrowReleaseResult = {
+          workOrderId: workOrder.id,
+          techId: workOrder.assignedTechnicianId,
+          disbursedAmountMinor: amountMinor,
+          status: EscrowStatus.RELEASED,
+          invoiceId: invoice.id
+        };
+
+        // 10. Update Idempotency Record
+        if (idempotencyKey) {
+          await tx
+            .update(idempotencySchema.idempotencyKeys)
+            .set({
+              status: 'COMPLETED',
+              responsePayload: result
+            })
+            .where(eq(idempotencySchema.idempotencyKeys.key, idempotencyKey));
+        }
+
+        // 11. Publish PAYOUT_DISBURSED Event
+        if (this.producer) {
+          const event = createEvent(
+            EventType.PAYOUT_DISBURSED,
+            {
+              escrowId: escrow.id,
+              workOrderId: workOrder.id,
+              techId: workOrder.assignedTechnicianId,
+              amountMinor
+            },
+            correlationId || randomUUID()
+          );
+          await this.producer.publish(event).catch((err: unknown) => {
+            const msg = err instanceof Error ? err.message : String(err);
+            this.logger.error(`[Escrow] Failed to publish PAYOUT_DISBURSED event: ${msg}`);
+          });
+        }
+
+        return result;
+      });
+    } catch (error) {
+      if (
+        !(error instanceof ConflictException) &&
+        !(error instanceof BadRequestException) &&
+        !(error instanceof ForbiddenException) &&
+        !(error instanceof NotFoundException)
+      ) {
+        metricsRegistry.incrementBillingReconciliationFailure(
+          'escrow_release',
+          (error as Error)?.name || 'unknown'
+        );
+      }
+      throw error;
+    }
   }
 
   async getEscrowByWorkOrder(workOrderId: string): Promise<EscrowDetailsDto> {
