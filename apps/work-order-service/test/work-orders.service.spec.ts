@@ -607,7 +607,7 @@ describe('WorkOrdersService (Persistent, Transactional Lifecycle)', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('rejects non-admin attempting to transition to PAID', async () => {
+    it('rejects manual transition to PAID via API (PAID is strictly event-driven upon payout disbursement)', async () => {
       const created = await service.create(BUYER_USER_ID, defaultDto);
       const woId = created.id;
       await service.publish(woId, BUYER_USER_ID, 'BUYER', CORRELATION_ID);
@@ -651,6 +651,7 @@ describe('WorkOrdersService (Persistent, Transactional Lifecycle)', () => {
         CORRELATION_ID
       );
 
+      // Buyer cannot manually transition to PAID
       await expect(
         service.transition(
           woId,
@@ -660,6 +661,68 @@ describe('WorkOrdersService (Persistent, Transactional Lifecycle)', () => {
           CORRELATION_ID
         )
       ).rejects.toThrow(ForbiddenException);
+
+      // Admin cannot manually transition to PAID either (settlement is strictly event-driven)
+      await expect(
+        service.transition(
+          woId,
+          'u0000000-0000-4000-8000-000000000099',
+          'ADMIN',
+          { nextStatus: WorkOrderStatus.PAID },
+          CORRELATION_ID
+        )
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('allows SYSTEM role to approve a completed work order for 72h SLA review timeout', async () => {
+      const created = await service.create(BUYER_USER_ID, defaultDto);
+      const woId = created.id;
+      await service.publish(woId, BUYER_USER_ID, 'BUYER', CORRELATION_ID);
+      await service.transition(
+        woId,
+        BUYER_USER_ID,
+        'BUYER',
+        { nextStatus: WorkOrderStatus.ASSIGNED, assignedTechnicianId: TECH_PROFILE_ID },
+        CORRELATION_ID
+      );
+      await service.transition(
+        woId,
+        TECH_USER_ID,
+        'TECHNICIAN',
+        { nextStatus: WorkOrderStatus.EN_ROUTE },
+        CORRELATION_ID
+      );
+      await service.transition(
+        woId,
+        TECH_USER_ID,
+        'TECHNICIAN',
+        {
+          nextStatus: WorkOrderStatus.ON_SITE,
+          latitude: defaultDto.latitude,
+          longitude: defaultDto.longitude
+        },
+        CORRELATION_ID
+      );
+      await service.transition(
+        woId,
+        TECH_USER_ID,
+        'TECHNICIAN',
+        { nextStatus: WorkOrderStatus.COMPLETED },
+        CORRELATION_ID
+      );
+
+      const approved = await service.transition(
+        woId,
+        'system',
+        'SYSTEM',
+        {
+          nextStatus: WorkOrderStatus.APPROVED,
+          reason: '72-hour buyer review SLA timeout auto-approval'
+        },
+        CORRELATION_ID
+      );
+
+      expect(approved.status).toBe(WorkOrderStatus.APPROVED);
     });
   });
 

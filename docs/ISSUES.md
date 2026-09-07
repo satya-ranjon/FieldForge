@@ -102,6 +102,17 @@
 > Preserved the 6-microservice platform topology with zero database schema migrations (`RULE-DB-02`).
 > Documented under ADR 008. Total verified tests: 470 unit/integration + 28 E2E = 498 tests.
 
+> **Phase 13 update — 2026-09-07:** Phase 13 of [`DEVELOPMENT_PLAN.md`](./DEVELOPMENT_PLAN.md)
+> delivered Event-Driven Order Settlement Choreography and SLA Review Relocation (Resolves **FF-ARCH-05 / Finding 5**).
+> Relocated `SlaAutoApprovalService` (72-hour buyer review timeout SLA) from `apps/billing-service` to `apps/work-order-service`,
+> eliminating direct cross-service SQL mutations and table rollback queries on `work_orders`. Auto-approval now executes
+> via `WorkOrdersService.transition()` with `role = 'SYSTEM'`, recording audit history and emitting canonical
+> `work_order.lifecycle.approved` events to trigger billing escrow release. Strictly rejected manual transitions to `PAID` via
+> `POST /work-orders/:id/transition`, ensuring `PAID` is exclusively reached via `settlePaid()` upon consuming `billing.payout.disbursed`.
+> Subscribed `NotificationConsumer` in `apps/notification-service` to `work_order.lifecycle.paid` (`EventType.WORK_ORDER_PAID`),
+> dispatching push and SMS payout receipts to technicians upon completion. Zero schema migrations (`RULE-DB-02`).
+> Documented under ADR 009. Total verified tests: 474 unit/integration + 28 E2E = 502 tests.
+
 ---
 
 ## How to read this report
@@ -776,6 +787,19 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   2. `ProfilesModule` (`src/modules/profiles/`): Manages buyer and technician domain profiles, self-profile lookup (`GET /users/me`), and profile provisioning port (`UsersController`, `ProfilesService`).
   3. `ContractorVettingModule` (`src/modules/vetting/`): Manages contractor compliance badges, certification lifecycle, and technician directory batch lookups (`CertificationsController`, `CertificationsService`).
      Decoupled `AuthService` by injecting `ProfilesService` to delegate profile creation and profile ID resolution, eliminating direct SQL queries on profile tables from the IAM service. Grouped schemas in `packages/database` into `iamSchema`, `profileSchema`, and `vettingSchema` with zero database migrations (`RULE-DB-02`) (ADR 008).
+
+### FF-ARCH-05 · 🏛️ Broken Event Lifecycle for Order Settlement (PAID Status) (Finding 5)
+
+- **Root Cause**: The order settlement lifecycle leading to `PAID` work order status suffered from cross-service SQL mutations, incomplete event choreography, and circumvention of state machine guarantees:
+  1. `apps/billing-service` hosted `SlaAutoApprovalService`, which directly updated `workOrdersSchema.workOrders` and `workOrdersSchema.workOrderStatusHistory` using Drizzle ORM, violating bounded context data isolation and bypassing `WorkOrderFsmService`. If escrow release failed, it rolled back `work_orders` to `COMPLETED`. It never emitted canonical `work_order.lifecycle.approved` events.
+  2. `WorkOrdersService.transitionStatus()` permitted users with `role === 'ADMIN'` to manually transition work orders to `PAID` via `POST /work-orders/:id/transition`, bypassing financial settlement entirely (no escrow release, no ledger transactions, no invoice).
+  3. `apps/notification-service` (`NotificationConsumer`) never subscribed to `WORK_ORDER_PAID`, leaving technicians without payout receipts upon completion.
+- **Fix**: Reconciled the event-driven order settlement choreography:
+  1. Relocated `SlaAutoApprovalService` from `billing-service` to `apps/work-order-service/src/modules/sla/sla-auto-approval.service.ts`. The sweep now calls `WorkOrdersService.transition()` with `role = 'SYSTEM'`, recording status history and emitting canonical `work_order.lifecycle.approved`.
+  2. Deleted `SlaAutoApprovalService` and its direct SQL mutations from `apps/billing-service`.
+  3. Strictly blocked manual transitions to `PAID` via API: `WorkOrdersService.transition()` throws `ForbiddenException('Work order cannot be manually transitioned to PAID via API; settlement to PAID is exclusively event-driven upon payout disbursement (billing.payout.disbursed)')`. `settlePaid()` remains the sole canonical method to enter `PAID`, triggered exclusively by `WorkOrderEventsConsumer` upon receiving `PAYOUT_DISBURSED`.
+  4. Subscribed `NotificationConsumer` to `EventType.WORK_ORDER_PAID` (`work_order.lifecycle.paid`), sending push and SMS receipts to technicians upon payout.
+  5. Zero database migrations (`RULE-DB-02`) (ADR 009).
 
 ---
 

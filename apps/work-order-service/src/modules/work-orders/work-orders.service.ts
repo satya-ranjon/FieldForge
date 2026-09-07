@@ -415,7 +415,7 @@ export class WorkOrdersService {
           }
         }
       } else if (dto.nextStatus === WorkOrderStatus.APPROVED) {
-        if (role !== 'ADMIN') {
+        if (role !== 'ADMIN' && role !== 'SYSTEM') {
           const resolvedBuyerId =
             callerProfileId ??
             (
@@ -490,11 +490,9 @@ export class WorkOrdersService {
           throw new ForbiddenException('Unauthorized to dispute this work order');
         }
       } else if (dto.nextStatus === WorkOrderStatus.PAID) {
-        if (role !== 'ADMIN') {
-          throw new ForbiddenException(
-            'Only the billing settlement engine or admin can mark work order as PAID'
-          );
-        }
+        throw new ForbiddenException(
+          'Work order cannot be manually transitioned to PAID via API; settlement to PAID is exclusively event-driven upon payout disbursement (billing.payout.disbursed)'
+        );
       }
 
       const now = new Date();
@@ -556,22 +554,6 @@ export class WorkOrdersService {
             correlationId
           );
           await this.eventPublisher.publishWorkOrderApproved(event);
-        });
-      } else if (dto.nextStatus === WorkOrderStatus.PAID) {
-        const payoutAmountMinor = toMinor(Number(wo.budgetAmount));
-        const assignedTechId = wo.assignedTechnicianId || '';
-        eventsToPublish.push(async () => {
-          const event = createEvent(
-            EventType.WORK_ORDER_PAID,
-            {
-              workOrderId: wo.id,
-              buyerId: wo.buyerId,
-              techId: assignedTechId,
-              payoutAmountMinor
-            },
-            correlationId
-          );
-          await this.eventPublisher.publishWorkOrderPaid(event);
         });
       }
     });

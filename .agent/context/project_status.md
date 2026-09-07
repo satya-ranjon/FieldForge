@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-07  
-**Phase:** Phase 12 complete — IAM, Domain Profiles, and Contractor Vetting Separation (Resolves Finding 4, ADR 008). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 13 complete — Event-Driven Order Settlement Choreography and SLA Review Relocation (Resolves Finding 5, ADR 009). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -13,7 +13,7 @@
   invoices, and payout ledger (`0000`, `0001`, `0002_auth.sql`, `0003_wo_history.sql`, `0004_long_marvel_boy.sql`, `0005_chubby_iron_lad.sql`).
 - Local Docker Compose definitions for MySQL, Redis, RabbitMQ, Jaeger,
   Prometheus, and Grafana.
-- Architecture rules, eight accepted ADRs (including ADR 005, ADR 006, ADR 007, and ADR 008 `008_iam_profile_vetting_domain_separation.md`), and CI/build scaffolding.
+- Architecture rules, nine accepted ADRs (including ADR 005, ADR 006, ADR 007, ADR 008, and ADR 009 `009_event_driven_settlement_choreography.md`), and CI/build scaffolding.
 - **Shared Drizzle module.** `packages/common/src/database/drizzle.module.ts` provides
   the centralized `DRIZZLE` injection token using `createDbClient` and loads local `.env`.
 - **Identity & Auth service (`apps/auth-service`).** Decoupled into three encapsulated domain modules:
@@ -32,22 +32,28 @@
 - **Persistent, transactional work-order lifecycle (`apps/work-order-service`).** Implements
   `POST /work-orders`, `GET /work-orders` (filtered on composite index), `GET /work-orders/:id`,
   `GET /work-orders/:id/history`, `POST /work-orders/:id/publish`, `POST /work-orders/:id/transition`,
-  and `PATCH /work-orders/:id/status`. Houses commercial bidding (`POST /work-orders/:id/bids`,
-  `GET /work-orders/:id/bids`, `POST /work-orders/:id/bids/:bidId/accept`). Atomic bid acceptance
-  locks bids `FOR UPDATE`, marks winner `ACCEPTED`, rejects siblings, executes FSM `PUBLISHED → ASSIGNED`
+  and `PATCH /work-orders/:id/status`. Strictly rejects manual API transitions to `PAID` via API;
+  settlement to `PAID` is exclusively driven by `settlePaid()` upon consuming `billing.payout.disbursed`.
+  Houses `SlaAutoApprovalService` running every 5 minutes to sweep `COMPLETED` work orders older than
+  the 72-hour review SLA and trigger FSM `COMPLETED → APPROVED` transitions via `WorkOrdersService.transition()`
+  with `role = 'SYSTEM'`, emitting canonical `work_order.lifecycle.approved` events.
+  Houses commercial bidding (`POST /work-orders/:id/bids`, `GET /work-orders/:id/bids`, `POST /work-orders/:id/bids/:bidId/accept`).
+  Atomic bid acceptance locks bids `FOR UPDATE`, marks winner `ACCEPTED`, rejects siblings, executes FSM `PUBLISHED → ASSIGNED`
   via `WorkOrderFsmService`, and records status history in `work_order_status_history` within one ACID transaction.
   Sole mutator of `work_orders`, `work_order_bids`, and `work_order_status_history`. Sole emitter of
-  `work_order.lifecycle.assigned`, `tech.bid.accepted`, and `work_order.lifecycle.paid`.
+  `work_order.lifecycle.assigned`, `work_order.lifecycle.approved`, `tech.bid.accepted`, and `work_order.lifecycle.paid`.
 - **Pure Geospatial Matching Engine (`apps/dispatch-matching-service`).**
   - Redis `GEOADD` and `GEOSEARCH` on `tech:locations` with Haversine exact distance filtering.
   - Multi-parameter contractor scoring algorithm: 40% distance, 30% rating, 15% completed jobs, 15% verified certifications.
   - Endpoints: `POST /dispatch/technicians/location`, `GET /dispatch/technicians/nearby`, and `POST /dispatch/auto-route`.
 - **Escrow & Money Safety (`apps/billing-service`).**
-  - Fully resolves **C3**; `releaseFunds()` executes inside a locked `db.transaction()` with `FOR UPDATE` on `escrow_accounts`. Asserts `status === 'HELD'`, verifies buyer caller authority, transitions escrow to `RELEASED`, dispatches payout via `PaymentProviderPort` (`LedgerPaymentProvider`), logs double-entry `payout_ledger` credit, and emits `billing.payout.disbursed` (ADR 005).
+  - Fully resolves **C3**; `releaseFunds()` executes inside a locked `db.transaction()` with `FOR UPDATE` on `escrow_accounts`. Asserts `status === 'HELD'`, verifies buyer caller authority, transitions escrow to `RELEASED`, dispatches payout via `PaymentProviderPort` (`LedgerPaymentProvider`), logs double-entry `payout_ledger` credit, and emits `billing.payout.disbursed` (ADR 005). Consumes `work_order.lifecycle.approved` via `BillingConsumer`. Completely decoupled from `work_orders` table mutations (ADR 009).
   - Enforces request deduplication and replay via `idempotency_keys` table.
-  - Scheduled SLA review worker (`SlaAutoApprovalService`) auto-approving `COMPLETED` orders exceeding 72 hours and releasing escrow (FR-BILL-002).
   - Deterministic SHA-256 content-hashed invoice generation (`InvoicesService`) and cryptographically verified PDF invoice generation via `pdfkit` (FR-BILL-003).
   - Technician earnings ledger query (`GET /billing/technicians/:id/payouts`).
+- **Notification Backbone (`apps/notification-service`).**
+  - `NotificationConsumer` subscribes to `WORK_ORDER_PUBLISHED`, `WORK_ORDER_ASSIGNED`, and `WORK_ORDER_PAID`.
+  - Dispatches FCM Push notifications and SMS receipts (`SmsNotificationChannel`) to technicians upon payout disbursement.
 - **Server-enforced geofence.** 200m radius threshold against stored coordinates (SRS FR-MOB-001).
 - **Deliverables & Media Storage.** Presigned upload URLs and SHA-256 digital signatures on stable deliverables content.
 - **Event Backbone (`packages/messaging`).** AMQP messaging module with publisher confirms, 7-day atomic Redis `SETNX` deduplication, bounded 3-retry backoff, DLQ routing, and cross-service producers/consumers.

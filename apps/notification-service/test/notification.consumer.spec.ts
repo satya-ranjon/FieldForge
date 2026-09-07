@@ -130,6 +130,34 @@ describe('NotificationConsumer', () => {
       expect(handlePush).toHaveBeenCalledWith('fcm-device-token-tech-42', 'Job Assignment: wo-99');
     });
 
+    it('handles WorkOrderPaid event by dispatching push and SMS notifications with formatted payout amount', async () => {
+      const sendPush = jest.spyOn(push, 'sendPush').mockResolvedValue();
+      const sendSms = jest.spyOn(sms, 'sendSms').mockResolvedValue();
+
+      await consumer.handlePaidEvent({
+        eventId: 'event-paid-1',
+        eventType: EventType.WORK_ORDER_PAID,
+        occurredAt: new Date().toISOString(),
+        correlationId: 'corr-paid-1',
+        payload: {
+          workOrderId: 'wo-paid-99',
+          buyerId: 'buyer-1',
+          techId: 'tech-42',
+          payoutAmountMinor: 45000
+        }
+      });
+
+      expect(sendPush).toHaveBeenCalledWith(
+        'fcm-device-token-tech-42',
+        'Payout Disbursed',
+        'Payout of $450.00 for work order wo-paid-99 has been disbursed to your account.'
+      );
+      expect(sendSms).toHaveBeenCalledWith(
+        '+14155550123',
+        '[FieldForge] Payout of $450.00 for work order wo-paid-99 has been disbursed to your account.'
+      );
+    });
+
     it('subscribes to notifications queue on bootstrap when consumer is present', async () => {
       const mockConsumer = {
         subscribe: jest.fn().mockResolvedValue('tag-123')
@@ -140,7 +168,11 @@ describe('NotificationConsumer', () => {
 
       expect(mockConsumer.subscribe).toHaveBeenCalledWith(
         expect.stringContaining('notifications'),
-        expect.arrayContaining(['work_order.lifecycle.published', 'work_order.lifecycle.assigned']),
+        expect.arrayContaining([
+          'work_order.lifecycle.published',
+          'work_order.lifecycle.assigned',
+          'work_order.lifecycle.paid'
+        ]),
         expect.any(Function)
       );
     });

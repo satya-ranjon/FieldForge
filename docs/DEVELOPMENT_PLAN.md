@@ -515,6 +515,45 @@ NFR-PERF-001.
 
 ---
 
+## Phase 13 — Architecture Boundary Remediation: Event-Driven Order Settlement Choreography and SLA Review Relocation
+
+**Status: Completed (2026-09-07).** Resolves **Finding 5 (Broken Event Lifecycle for Order Settlement / PAID Status)** / `FF-ARCH-05` and aligns services with `AGENTS.md` bounded context rules and ADR 009 (`.agent/memory/ADRs/009_event_driven_settlement_choreography.md`).
+
+- **Relocate SLA Auto-Approval to Work Order Service Aggregate Root (`apps/work-order-service`).**
+  - Relocated `SlaAutoApprovalService` from `apps/billing-service` to `apps/work-order-service/src/modules/sla/sla-auto-approval.service.ts`.
+  - Sweeps `COMPLETED` work orders older than the 72-hour buyer review timeout (SRS FR-WO-005, FR-BILL-002) and executes FSM transitions via `WorkOrdersService.transition()` with `role = 'SYSTEM'`.
+  - Generates immutable `work_order_status_history` audit records and emits canonical `EventType.WORK_ORDER_APPROVED` (`work_order.lifecycle.approved`).
+  - Completely eliminated cross-service SQL mutations and table rollback queries on `work_orders` from `billing-service`.
+- **Enforce Event-Driven Settlement & Block Manual API Transitions to `PAID` (`apps/work-order-service`).**
+  - In `WorkOrdersService.transition()`, strictly reject manual transitions where `dto.nextStatus === WorkOrderStatus.PAID` from any API caller with `ForbiddenException('Work order cannot be manually transitioned to PAID via API; settlement to PAID is exclusively event-driven upon payout disbursement (billing.payout.disbursed)')`.
+  - `settlePaid()` remains the sole canonical method to transition a work order to `PAID`, invoked strictly by `WorkOrderEventsConsumer` upon receiving `PAYOUT_DISBURSED` from `billing-service`.
+- **Clean up Billing Service Boundaries (`apps/billing-service`).**
+  - Deleted misplaced `SlaAutoApprovalService` and its spec file from `apps/billing-service`.
+  - Removed `SlaAutoApprovalService` and unused `ScheduleModule` from `BillingModule`.
+- **Wire Settlement Notifications Choreography (`apps/notification-service`).**
+  - Subscribed `NotificationConsumer` to `EventType.WORK_ORDER_PAID` (`work_order.lifecycle.paid`).
+  - Implemented `handlePaidEvent()` to format payout minor units into currency strings (`formatMinor`), dispatch FCM Push notifications to the technician's device token, and send SMS receipts via `SmsNotificationChannel`.
+- **Zero Database Schema Migrations (`RULE-DB-02`).**
+  - All event definitions, entity columns, and messaging topics existed in `@fieldforge/contracts` and `@fieldforge/database`, requiring zero DDL alterations.
+
+**Verification:**
+
+- 474 automated unit/integration tests passing across 15 packages/apps in monorepo (zero `--passWithNoTests`):
+  - 198 tests in `apps/work-order-service` (11 suites, including new `sla-auto-approval.service.spec.ts`).
+  - 18 tests in `apps/billing-service` (3 suites).
+  - 14 tests in `apps/notification-service` (1 suite).
+  - 56 tests in `apps/auth-service` (6 suites).
+  - 16 tests in `apps/dispatch-matching-service` (3 suites).
+  - 43 tests in `apps/api-gateway` (4 suites).
+  - 17 tests in `@fieldforge/messaging` (5 suites).
+  - 67 tests in `@fieldforge/contracts` (2 suites).
+  - 87 tests in `@fieldforge/common` (3 suites).
+  - 104 tests in `apps/web-buyer-portal` (1 suite).
+- 28 Playwright E2E tests validated (`pnpm test:e2e`). Total verified tests: 502 tests.
+- `pnpm check && pnpm build` pass cleanly.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

@@ -2,7 +2,8 @@ import { Injectable, OnApplicationBootstrap, Optional } from '@nestjs/common';
 import type {
   MinorUnits,
   WorkOrderPublishedEvent,
-  WorkOrderAssignedEvent
+  WorkOrderAssignedEvent,
+  WorkOrderPaidEvent
 } from '@fieldforge/contracts';
 import { EventType, formatMinor } from '@fieldforge/contracts';
 import { metricsRegistry } from '@fieldforge/common';
@@ -29,12 +30,14 @@ export class NotificationConsumer implements OnApplicationBootstrap {
     if (this.consumer) {
       await this.consumer.subscribe<unknown>(
         NOTIFICATIONS_WORK_ORDERS_QUEUE,
-        [EventType.WORK_ORDER_PUBLISHED, EventType.WORK_ORDER_ASSIGNED],
+        [EventType.WORK_ORDER_PUBLISHED, EventType.WORK_ORDER_ASSIGNED, EventType.WORK_ORDER_PAID],
         async (event, logger) => {
           if (event.eventType === EventType.WORK_ORDER_PUBLISHED) {
             await this.handlePublishedEvent(event as unknown as WorkOrderPublishedEvent, logger);
           } else if (event.eventType === EventType.WORK_ORDER_ASSIGNED) {
             await this.handleAssignedEvent(event as unknown as WorkOrderAssignedEvent, logger);
+          } else if (event.eventType === EventType.WORK_ORDER_PAID) {
+            await this.handlePaidEvent(event as unknown as WorkOrderPaidEvent, logger);
           }
         }
       );
@@ -72,6 +75,33 @@ export class NotificationConsumer implements OnApplicationBootstrap {
       `fcm-device-token-${techId}`,
       `Job Assignment: ${workOrderId}`
     );
+  }
+
+  async handlePaidEvent(event: WorkOrderPaidEvent, logger?: ContextLogger): Promise<void> {
+    const { workOrderId, techId, payoutAmountMinor } = event.payload;
+    const formattedAmount = formatMinor(payoutAmountMinor);
+    if (logger?.info) {
+      logger.info(
+        `[Notifications] Payout disbursed for work order ${workOrderId} to technician ${techId} (${formattedAmount})`
+      );
+    }
+    await this.pushChannel.sendPush(
+      `fcm-device-token-${techId}`,
+      'Payout Disbursed',
+      `Payout of ${formattedAmount} for work order ${workOrderId} has been disbursed to your account.`
+    );
+    await this.smsChannel.sendSms(
+      '+14155550123',
+      `[FieldForge] Payout of ${formattedAmount} for work order ${workOrderId} has been disbursed to your account.`
+    );
+
+    if (event.occurredAt) {
+      const durationSeconds = Math.max(
+        0,
+        (Date.now() - new Date(event.occurredAt).getTime()) / 1000
+      );
+      metricsRegistry.recordDispatchFanoutLatency(event.eventType, durationSeconds);
+    }
   }
 
   async handleDispatchNotification(

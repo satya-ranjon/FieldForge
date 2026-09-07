@@ -17,6 +17,7 @@ import { WorkOrderFsmService } from './modules/fsm/work-order-fsm.service';
 import { WorkOrderEventPublisher } from './events/work-order-event.publisher';
 import { DeliverablesService } from './modules/deliverables/deliverables.service';
 import { SlaEscalationService } from './modules/sla/sla-escalation.service';
+import { SlaAutoApprovalService } from './modules/sla/sla-auto-approval.service';
 import { MEDIA_STORAGE_PORT } from './modules/deliverables/media-storage.port';
 import { LocalDiskMediaStorageAdapter } from './modules/deliverables/local-disk-media-storage.adapter';
 
@@ -50,6 +51,7 @@ import { WorkOrderEventsConsumer } from './consumers/work-order-events.consumer'
     WorkOrderEventPublisher,
     DeliverablesService,
     SlaEscalationService,
+    SlaAutoApprovalService,
     WorkOrderEventsConsumer
   ],
   exports: [
@@ -58,6 +60,7 @@ import { WorkOrderEventsConsumer } from './consumers/work-order-events.consumer'
     WorkOrderFsmService,
     DeliverablesService,
     SlaEscalationService,
+    SlaAutoApprovalService,
     WorkOrderEventsConsumer
   ]
 })
