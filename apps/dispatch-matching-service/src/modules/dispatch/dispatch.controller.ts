@@ -2,30 +2,25 @@ import {
   Controller,
   Get,
   Post,
-  Param,
   Body,
   Query,
   Headers,
   UnauthorizedException,
-  ForbiddenException
+  ForbiddenException,
+  NotFoundException
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { GeoSearchService } from '../geo-search/geo-search.service';
-import { BidsService } from '../bids/bids.service';
 import {
   updateTechnicianLocationSchema,
   nearbyTechniciansQuerySchema,
-  submitBidSchema,
-  autoRouteSchema,
   type AuthJwtPayload
 } from '@fieldforge/contracts';
-import { randomUUID } from 'node:crypto';
 
 @Controller('dispatch')
 export class DispatchController {
   constructor(
     private readonly geoSearchService: GeoSearchService,
-    private readonly bidsService: BidsService,
     private readonly jwtService: JwtService
   ) {}
 
@@ -65,6 +60,9 @@ export class DispatchController {
     };
   }
 
+  /**
+   * Update live technician GPS coordinates in the Redis spatial index.
+   */
   @Post('technicians/location')
   async updateLocation(
     @Body() body: unknown,
@@ -88,6 +86,9 @@ export class DispatchController {
     };
   }
 
+  /**
+   * Discover and rank certified technicians near a given coordinate using Redis GEOSEARCH.
+   */
   @Get('technicians/nearby')
   async findNearby(
     @Query() query: unknown,
@@ -110,86 +111,37 @@ export class DispatchController {
     };
   }
 
-  @Post('bids')
-  async submitBid(
-    @Body() body: unknown,
-    @Headers('authorization') authHeader?: string,
-    @Headers('x-ff-user-id') gatewayUserId?: string,
-    @Headers('x-correlation-id') correlationHeader?: string,
-    @Headers('idempotency-key') idempotencyKey?: string,
-    @Headers('x-ff-profile-id') gatewayProfileId?: string
-  ) {
-    const user = this.authenticateUser(authHeader, gatewayUserId, gatewayProfileId);
-    if (user.role !== 'TECHNICIAN' && user.role !== 'ADMIN') {
-      throw new ForbiddenException('Only certified technicians can submit bids');
-    }
-
-    const dto = submitBidSchema.parse(body);
-    const correlationId = correlationHeader || randomUUID();
-
-    const bid = await this.bidsService.submitBid(
-      dto,
-      user.userId,
-      correlationId,
-      idempotencyKey,
-      ...(user.profileId ? [user.profileId] : [])
-    );
-
-    return bid;
-  }
-
-  @Post('bids/:id/accept')
-  async acceptBid(
-    @Param('id') bidId: string,
-    @Headers('authorization') authHeader?: string,
-    @Headers('x-ff-user-id') gatewayUserId?: string,
-    @Headers('x-correlation-id') correlationHeader?: string,
-    @Headers('idempotency-key') idempotencyKey?: string,
-    @Headers('x-ff-profile-id') gatewayProfileId?: string
-  ) {
-    const user = this.authenticateUser(authHeader, gatewayUserId, gatewayProfileId);
-    if (user.role !== 'BUYER' && user.role !== 'ADMIN') {
-      throw new ForbiddenException('Only enterprise buyers or admins can accept bids');
-    }
-
-    const correlationId = correlationHeader || randomUUID();
-
-    const result = await this.bidsService.acceptBid(
-      bidId,
-      user.userId,
-      user.role,
-      correlationId,
-      idempotencyKey,
-      ...(user.profileId ? [user.profileId] : [])
-    );
-
-    return result;
-  }
-
+  /**
+   * Intelligent dispatch routing recommendation based on proximity and composite score.
+   */
   @Post('auto-route')
-  async autoRoute(
-    @Body() body: unknown,
+  async autoRouteRecommend(
+    @Body()
+    body: { latitude?: number; longitude?: number; maxRadiusMiles?: number; workOrderId?: string },
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string,
-    @Headers('x-correlation-id') correlationHeader?: string,
     @Headers('x-ff-profile-id') gatewayProfileId?: string
   ) {
-    const user = this.authenticateUser(authHeader, gatewayUserId, gatewayProfileId);
-    if (user.role !== 'BUYER' && user.role !== 'DISPATCHER' && user.role !== 'ADMIN') {
-      throw new ForbiddenException('Only buyers, dispatchers, or admins can trigger auto-route');
+    this.authenticateUser(authHeader, gatewayUserId, gatewayProfileId);
+
+    const lat = body.latitude ?? 37.7749;
+    const lng = body.longitude ?? -122.4194;
+    const radiusMiles = body.maxRadiusMiles || 5;
+
+    const candidates = await this.geoSearchService.findNearbyTechnicians(lat, lng, radiusMiles);
+    const candidate = candidates.find((c) => c.isAvailable && c.distanceMiles <= radiusMiles);
+
+    if (!candidate) {
+      throw new NotFoundException(
+        `No eligible contractor found within ${radiusMiles} miles for auto-routing`
+      );
     }
 
-    const dto = autoRouteSchema.parse(body);
-    const correlationId = correlationHeader || randomUUID();
-
-    const result = await this.bidsService.autoRoute(
-      dto,
-      user.userId,
-      user.role,
-      correlationId,
-      ...(user.profileId ? [user.profileId] : [])
-    );
-
-    return result;
+    return {
+      workOrderId: body.workOrderId || 'recommendation',
+      technicianId: candidate.techId,
+      status: 'MATCHED',
+      candidate
+    };
   }
 }

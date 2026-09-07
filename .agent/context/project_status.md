@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-07  
-**Phase:** Phase 10 complete — Bounded Context Data Isolation & Directory-Based Profile Lookup (Resolves Finding 2, ADR 006). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 11 complete — Marketplace Bidding Relocation & Work Order Aggregate Cohesion (Resolves Finding 3, ADR 007). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -13,7 +13,7 @@
   invoices, and payout ledger (`0000`, `0001`, `0002_auth.sql`, `0003_wo_history.sql`, `0004_long_marvel_boy.sql`, `0005_chubby_iron_lad.sql`).
 - Local Docker Compose definitions for MySQL, Redis, RabbitMQ, Jaeger,
   Prometheus, and Grafana.
-- Architecture rules, four accepted ADRs + ADR 005 and ADR 006 (`006_bounded_context_data_isolation.md`), and CI/build scaffolding.
+- Architecture rules, seven accepted ADRs (including ADR 005, ADR 006, and ADR 007 `007_marketplace_bidding_work_order_cohesion.md`), and CI/build scaffolding.
 - **Shared Drizzle module.** `packages/common/src/database/drizzle.module.ts` provides
   the centralized `DRIZZLE` injection token using `createDbClient` and loads local `.env`.
 - **Identity & Auth service.** `apps/auth-service` implements `POST /auth/register`,
@@ -28,23 +28,24 @@
   `RolesGuard` (RBAC), `ThrottlerGuard` rate limiting, strict CORS allowlist, PII redaction
   in structured Pino logging, and reverse-proxying with injected `x-ff-user-id`, `x-ff-user-role`,
   and `x-correlation-id` downstream headers. Routes `/api/v1/auth/phone` are permitted publicly,
-  and `technicians` endpoints route directly to `auth-service`.
+  and `technicians` endpoints route directly to `auth-service`. Proxies `/dispatch/bids` transparently
+  to `work-order-service` for zero-downtime backward compatibility.
 - **Identity comes from the token, never from a header.** `GET /users/me`, `apps/work-order-service`,
   `apps/dispatch-matching-service`, and `apps/billing-service` controllers verify the bearer token
   and read `payload.sub`; `x-ff-user-id` is checked for tampering and mismatch is rejected (C5).
 - **Persistent, transactional work-order lifecycle (`apps/work-order-service`).** Implements
   `POST /work-orders`, `GET /work-orders` (filtered on composite index), `GET /work-orders/:id`,
   `GET /work-orders/:id/history`, `POST /work-orders/:id/publish`, `POST /work-orders/:id/transition`,
-  and `PATCH /work-orders/:id/status`. All mutations execute in `db.transaction()` with `SELECT … FOR UPDATE`
-  row-level locking. Sole mutator of the `work_orders` and `work_order_status_history` tables.
-  `WorkOrderEventsConsumer` listens to `fieldforge.work-orders.lifecycle-events` to transactionally settle
-  orders to `PAID` upon `PAYOUT_DISBURSED` and assign technicians upon `TECH_BID_ACCEPTED`. Sole emitter of
-  `work_order.lifecycle.assigned` and `work_order.lifecycle.paid`.
-- **Geospatial Matching & Bidding (`apps/dispatch-matching-service`).**
+  and `PATCH /work-orders/:id/status`. Houses commercial bidding (`POST /work-orders/:id/bids`,
+  `GET /work-orders/:id/bids`, `POST /work-orders/:id/bids/:bidId/accept`). Atomic bid acceptance
+  locks bids `FOR UPDATE`, marks winner `ACCEPTED`, rejects siblings, executes FSM `PUBLISHED → ASSIGNED`
+  via `WorkOrderFsmService`, and records status history in `work_order_status_history` within one ACID transaction.
+  Sole mutator of `work_orders`, `work_order_bids`, and `work_order_status_history`. Sole emitter of
+  `work_order.lifecycle.assigned`, `tech.bid.accepted`, and `work_order.lifecycle.paid`.
+- **Pure Geospatial Matching Engine (`apps/dispatch-matching-service`).**
   - Redis `GEOADD` and `GEOSEARCH` on `tech:locations` with Haversine exact distance filtering.
   - Multi-parameter contractor scoring algorithm: 40% distance, 30% rating, 15% completed jobs, 15% verified certifications.
-  - Transactional bid submission (`POST /dispatch/bids`) and atomic bid acceptance (`POST /dispatch/bids/:id/accept`) locking `work_order_bids` rows `FOR UPDATE`, marking selected bid `ACCEPTED`, rejecting siblings, and publishing `tech.bidding.accepted` (ADR 005).
-  - Auto-routing engine (`POST /dispatch/auto-route`) discovering and assigning top-scoring contractor within search radius (FR-DISP-003) publishing `tech.bidding.accepted`.
+  - Endpoints: `POST /dispatch/technicians/location`, `GET /dispatch/technicians/nearby`, and `POST /dispatch/auto-route`.
 - **Escrow & Money Safety (`apps/billing-service`).**
   - Fully resolves **C3**; `releaseFunds()` executes inside a locked `db.transaction()` with `FOR UPDATE` on `escrow_accounts`. Asserts `status === 'HELD'`, verifies buyer caller authority, transitions escrow to `RELEASED`, dispatches payout via `PaymentProviderPort` (`LedgerPaymentProvider`), logs double-entry `payout_ledger` credit, and emits `billing.payout.disbursed` (ADR 005).
   - Enforces request deduplication and replay via `idempotency_keys` table.
@@ -68,14 +69,19 @@
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
   - `AppNavigator` mounting `JobListScreen` and `ActiveJobScreen` wrapped in Redux store.
-- **A test harness that can fail.** 442 automated unit/integration tests across 15 packages/apps
-  plus 28 Playwright E2E tests (470 total verified tests); zero `--passWithNoTests` anywhere.
+- **A test harness that can fail.** 451 automated unit/integration tests across 15 packages/apps
+  plus 28 Playwright E2E tests (479 total verified tests); zero `--passWithNoTests` anywhere.
+- **Marketplace Bidding Relocation & Work Order Aggregate Cohesion (Phase 11, Resolves Finding 3, ADR 007).**
+  - Re-homed commercial bidding logic to `apps/work-order-service`, establishing `Bid` as a cohesive entity within the `WorkOrder` aggregate root.
+  - Implemented atomic transactional bid acceptance (`POST /work-orders/:id/bids/:bidId/accept`) executing bid acceptance, sibling rejection, FSM transition (`PUBLISHED → ASSIGNED`), and audit history logging inside one ACID transaction.
+  - Purified `apps/dispatch-matching-service` to strictly provide geospatial matching (Redis `GEOSEARCH`), live coordinates, and automated routing.
+  - API Gateway path rewriting ensures seamless backwards compatibility for `/dispatch/bids` and legacy consumers.
 - **Bounded Context Data Isolation & Profile Propagation (Phase 10, Resolves Finding 2, ADR 006).**
   - Eliminated synthetic profile generation (`Default Buyer Co` removed from `work-orders.service.ts`; un-onboarded buyers receive clean `NotFoundException`).
   - Added `profileId` claim to JWT payload in `auth-service` upon registration, login, and token refresh.
   - Propagated `x-ff-profile-id` header downstream from `api-gateway` in asserted gateway headers.
   - Replaced cross-service SQL joins across `technicianProfiles`, `users`, and `technicianCertifications` in `dispatch-matching-service` with `TechnicianDirectoryService` calling `POST /technicians/batch` on `auth-service`.
-  - Added caller `profileId` fast-path across `work-order-service`, `dispatch-matching-service`, and `billing-service` to eliminate foreign user table lookups and preserve bounded context independence.
+  - Added caller profileId fast-path across work-order-service, dispatch-matching-service, and billing-service to eliminate foreign user table lookups and preserve bounded context independence.
 - **Work Order Aggregate Boundary Reconciliation & Event-Driven Settlement (Phase 9, Resolves Finding 1, ADR 005).**
   - Added shared contracts (`TechnicianBadgeDto`, `CreateCertificationDto`, `VerifyCertificationDto`, `SendPhoneOtpDto`, `VerifyPhoneOtpDto`) and Zod schemas in `@fieldforge/contracts`.
   - Created `CertificationsController` in `apps/auth-service` with `GET /technicians/:id/badges`, `POST /technicians/certifications`, `PATCH /technicians/certifications/:id/verify`, and `GET /technicians/certifications/pending`.

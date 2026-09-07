@@ -254,7 +254,7 @@ export const fieldForgeApi = createApi({
 
     acceptBid: builder.mutation<BidDetailsDto, { bidId: string; workOrderId: string }>({
       query: ({ bidId }) => ({
-        url: `/dispatch/bids/${bidId}/accept`,
+        url: `/work-orders/bids/${bidId}/accept`,
         method: 'POST'
       }),
       invalidatesTags: (_result, _err, { workOrderId }) => [

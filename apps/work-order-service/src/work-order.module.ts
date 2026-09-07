@@ -11,6 +11,8 @@ import {
 import { MessagingModule } from '@fieldforge/messaging';
 import { WorkOrdersController } from './modules/work-orders/work-orders.controller';
 import { WorkOrdersService } from './modules/work-orders/work-orders.service';
+import { BidsController } from './modules/bids/bids.controller';
+import { BidsService } from './modules/bids/bids.service';
 import { WorkOrderFsmService } from './modules/fsm/work-order-fsm.service';
 import { WorkOrderEventPublisher } from './events/work-order-event.publisher';
 import { DeliverablesService } from './modules/deliverables/deliverables.service';
@@ -32,7 +34,7 @@ import { WorkOrderEventsConsumer } from './consumers/work-order-events.consumer'
       })
     })
   ],
-  controllers: [WorkOrdersController, HealthController],
+  controllers: [WorkOrdersController, BidsController, HealthController],
   providers: [
     {
       provide: APP_FILTER,
@@ -43,6 +45,7 @@ import { WorkOrderEventsConsumer } from './consumers/work-order-events.consumer'
       useClass: LocalDiskMediaStorageAdapter
     },
     WorkOrdersService,
+    BidsService,
     WorkOrderFsmService,
     WorkOrderEventPublisher,
     DeliverablesService,
@@ -51,6 +54,7 @@ import { WorkOrderEventsConsumer } from './consumers/work-order-events.consumer'
   ],
   exports: [
     WorkOrdersService,
+    BidsService,
     WorkOrderFsmService,
     DeliverablesService,
     SlaEscalationService,

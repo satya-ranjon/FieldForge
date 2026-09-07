@@ -28,6 +28,8 @@ export {
   usersSchema as identitySchema,
   workOrdersSchema,
   bidsSchema,
+  bidsSchema as workOrderBidsSchema,
+  bidsSchema as marketplaceSchema,
   bidsSchema as dispatchSchema,
   deliverablesSchema,
   billingSchema,

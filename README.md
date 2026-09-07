@@ -66,8 +66,8 @@ flowchart TD
     subgraph Services[" 🚀 Core Domain Microservices Cluster (NestJS) "]
         direction TB
         AuthSvc["🔐 Auth & Identity (:8001)<br/><i>RBAC · Identity · Vetting</i>"]:::serviceStyle
-        WOSvc["📋 Work Order FSM (:8002)<br/><i>State Machine · SOW · SLA</i>"]:::serviceStyle
-        DispSvc["📍 Dispatch & Matching (:8003)<br/><i>Geo Routing · Bidding</i>"]:::serviceStyle
+        WOSvc["📋 Work Order FSM (:8002)<br/><i>State Machine · Bidding · SOW</i>"]:::serviceStyle
+        DispSvc["📍 Dispatch & Matching (:8003)<br/><i>Geo Routing · Spatial Index</i>"]:::serviceStyle
         BillSvc["💳 Billing & Escrow (:8004)<br/><i>Escrow · Ledger · Invoicing</i>"]:::serviceStyle
         NotifSvc["🔔 Notification Service (:8005)<br/><i>Event Consumer · Push/SMS</i>"]:::serviceStyle
     end
@@ -112,8 +112,8 @@ flowchart TD
     DispSvc -->|RESP / GEOSEARCH| Redis
 
     %% Async Event Publish & Consume
-    WOSvc -.->|Pub: work_order.lifecycle.*| RabbitMQ
-    DispSvc -.->|Pub: dispatch.* / tech.bidding.*| RabbitMQ
+    WOSvc -.->|Pub: work_order.* / tech.bid.*| RabbitMQ
+    DispSvc -.->|Pub: dispatch.*| RabbitMQ
     BillSvc -.->|Pub: billing.escrow.*| RabbitMQ
 
     RabbitMQ -.->|Sub: work_order.lifecycle.*| DispSvc
@@ -296,14 +296,14 @@ erDiagram
 
 ## 🚀 Microservices Ecosystem
 
-| Microservice                    |  Port  | Domain Responsibilities                                                                                                      | Primary Data Store                    |
-| :------------------------------ | :----: | :--------------------------------------------------------------------------------------------------------------------------- | :------------------------------------ |
-| **`api-gateway`**               | `8000` | Edge reverse proxy, JWT validation, rate limiting, correlation ID injection                                                  | In-Memory / Redis                     |
-| **`auth-service`**              | `8001` | User onboarding, Phone OTP verification, RBAC tokens, compliance vetting (OSHA 10, Cisco CCNA, Badges) & certification audit | MySQL (`users`, `profiles`)           |
-| **`work-order-service`**        | `8002` | Work order lifecycle FSM, SOW templates, S3 deliverable uploads, SLA timeout watchers                                        | MySQL (`work_orders`, `deliverables`) |
-| **`dispatch-matching-service`** | `8003` | Geospatial contractor matching (`GEOSEARCH`), bidding negotiation, auto-routing rules                                        | Redis 7 & RabbitMQ                    |
-| **`billing-service`**           | `8004` | Escrow pre-authorizations, fund capture, technician payouts, automated PDF invoicing                                         | MySQL (`escrow_accounts`)             |
-| **`notification-service`**      | `8005` | Push notifications (FCM/APNS), SMS dispatch alerts (Twilio), Email receipts (SES)                                            | RabbitMQ Topic Consumer               |
+| Microservice                    |  Port  | Domain Responsibilities                                                                                                      | Primary Data Store                                       |
+| :------------------------------ | :----: | :--------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------- |
+| **`api-gateway`**               | `8000` | Edge reverse proxy, JWT validation, rate limiting, correlation ID injection                                                  | In-Memory / Redis                                        |
+| **`auth-service`**              | `8001` | User onboarding, Phone OTP verification, RBAC tokens, compliance vetting (OSHA 10, Cisco CCNA, Badges) & certification audit | MySQL (`users`, `profiles`)                              |
+| **`work-order-service`**        | `8002` | Work order lifecycle FSM, contractor bidding negotiation, SOW templates, S3 uploads, SLA watchers                            | MySQL (`work_orders`, `work_order_bids`, `deliverables`) |
+| **`dispatch-matching-service`** | `8003` | Geospatial contractor matching (`GEOSEARCH`), live GPS tracking, auto-routing rules                                          | Redis 7 & RabbitMQ                                       |
+| **`billing-service`**           | `8004` | Escrow pre-authorizations, fund capture, technician payouts, automated PDF invoicing                                         | MySQL (`escrow_accounts`)                                |
+| **`notification-service`**      | `8005` | Push notifications (FCM/APNS), SMS dispatch alerts (Twilio), Email receipts (SES)                                            | RabbitMQ Topic Consumer                                  |
 
 ---
 

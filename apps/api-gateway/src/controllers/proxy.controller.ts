@@ -25,7 +25,12 @@ const GATEWAY_ASSERTED_HEADERS = ['x-ff-user-id', 'x-ff-user-role', 'x-ff-profil
 const createServiceProxy = (targetUrl: string): RequestHandler => {
   return proxy(targetUrl, {
     proxyReqPathResolver: (req: Request) => {
-      const stripped = req.originalUrl.replace(/^\/api\/v1/, '');
+      let stripped = req.originalUrl.replace(/^\/api\/v1/, '');
+      if (stripped.startsWith('/dispatch/bids')) {
+        stripped = stripped.replace(/^\/dispatch\/bids/, '/work-orders/bids');
+      } else if (stripped.startsWith('/bids')) {
+        stripped = stripped.replace(/^\/bids/, '/work-orders/bids');
+      }
       return stripped.startsWith('/') ? stripped : `/${stripped}`;
     },
     proxyReqOptDecorator: (proxyReqOpts, srcReq: Request) => {
@@ -65,6 +70,7 @@ export class ProxyController {
       users: createServiceProxy(gatewayConfig.services.auth),
       technicians: createServiceProxy(gatewayConfig.services.auth),
       'work-orders': createServiceProxy(gatewayConfig.services.workOrder),
+      bids: createServiceProxy(gatewayConfig.services.workOrder),
       dispatch: createServiceProxy(gatewayConfig.services.dispatch),
       billing: createServiceProxy(gatewayConfig.services.billing),
       notifications: createServiceProxy(gatewayConfig.services.notifications)
@@ -80,6 +86,8 @@ export class ProxyController {
     'technicians/{*path}',
     'work-orders',
     'work-orders/{*path}',
+    'bids',
+    'bids/{*path}',
     'dispatch',
     'dispatch/{*path}',
     'billing',
@@ -89,6 +97,9 @@ export class ProxyController {
   ])
   forward(@Req() req: Request, @Res() res: Response, @Next() next: NextFunction) {
     const rawPath = req.originalUrl.replace(/^\/api\/v1\/?/, '');
+    if (rawPath.startsWith('dispatch/bids')) {
+      return this.proxies['work-orders'](req, res, next);
+    }
     const serviceSegment = rawPath.split('/')[0]?.split('?')[0];
 
     const proxyHandler = serviceSegment ? this.proxies[serviceSegment] : undefined;

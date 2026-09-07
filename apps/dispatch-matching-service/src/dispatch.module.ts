@@ -11,7 +11,6 @@ import { MessagingModule } from '@fieldforge/messaging';
 import { GeoSearchService } from './modules/geo-search/geo-search.service';
 import { TechnicianDirectoryService } from './modules/geo-search/technician-directory.service';
 import { WorkOrderCreatedConsumer } from './modules/consumers/work-order-created.consumer';
-import { BidsService } from './modules/bids/bids.service';
 import { DispatchController } from './modules/dispatch/dispatch.controller';
 
 @Module({
@@ -33,9 +32,8 @@ import { DispatchController } from './modules/dispatch/dispatch.controller';
     },
     TechnicianDirectoryService,
     GeoSearchService,
-    BidsService,
     WorkOrderCreatedConsumer
   ],
-  exports: [GeoSearchService, BidsService, TechnicianDirectoryService]
+  exports: [GeoSearchService, TechnicianDirectoryService]
 })
 export class DispatchModule {}

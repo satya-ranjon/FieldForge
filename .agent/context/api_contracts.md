@@ -50,6 +50,12 @@
 | `POST`  | `/work-orders/:id/deliverables/signature`     | Submit cryptographic digital signature artifact       | `TECHNICIAN`          | `recordSignatureSchema`      |
 | `POST`  | `/work-orders/:id/signature`                  | Alias to submit digital signature artifact            | `TECHNICIAN`          | `recordSignatureSchema`      |
 | `GET`   | `/work-orders/:id/deliverables`               | Fetch deliverables for work order                     | Authenticated         | None                         |
+| `POST`  | `/work-orders/:id/bids`                       | Submit contractor bid for work order                  | `TECHNICIAN`          | `submitBidSchema`            |
+| `GET`   | `/work-orders/:id/bids`                       | List all bids submitted for work order                | Authenticated         | None                         |
+| `POST`  | `/work-orders/:id/bids/:bidId/accept`         | Atomic bid accept, reject siblings, assign job (FSM)  | `BUYER`               | None                         |
+| `POST`  | `/work-orders/bids`                           | Legacy route alias to submit bid                      | `TECHNICIAN`          | `submitBidSchema`            |
+| `GET`   | `/work-orders/bids/:id`                       | Legacy route alias to fetch bid by ID                 | Authenticated         | None                         |
+| `POST`  | `/work-orders/bids/:id/accept`                | Legacy route alias to accept bid                      | `BUYER`               | None                         |
 
 ---
 
@@ -59,9 +65,9 @@
 | :----- | :------------------------------- | :------------------------------------------------------ | :-------------------- | :------------------------------- |
 | `POST` | `/dispatch/technicians/location` | Update live contractor geospatial coordinates           | `TECHNICIAN`          | `updateTechnicianLocationSchema` |
 | `GET`  | `/dispatch/technicians/nearby`   | Redis `GEOSEARCH` matching with composite score rank    | `BUYER`, `DISPATCHER` | `nearbyTechniciansQuerySchema`   |
-| `POST` | `/dispatch/bids`                 | Submit technician bid with rate & counter-note          | `TECHNICIAN`          | `submitBidSchema`                |
-| `POST` | `/dispatch/bids/:id/accept`      | Accept technician bid, reject siblings, assign job      | `BUYER`               | None                             |
 | `POST` | `/dispatch/auto-route`           | Trigger automated rule-based ticket dispatch ($\le 5$m) | `BUYER`, `DISPATCHER` | `autoRouteSchema`                |
+
+> _Note: Legacy `/dispatch/bids` requests are transparently rewritten and proxied to `/work-orders/bids` by `api-gateway`._
 
 ---
 
@@ -136,7 +142,7 @@
 | `usePublishWorkOrderMutation`      | `POST` | `/work-orders/:id/publish`      | Invalidates: `['WorkOrder']`                      |
 | `useTransitionWorkOrderMutation`   | `POST` | `/work-orders/:id/transition`   | Invalidates: `['WorkOrder', 'WorkOrderHistory']`  |
 | `useGetNearbyTechniciansQuery`     | `GET`  | `/dispatch/technicians/nearby`  | Provides: `{ type: 'Technician', id: 'LIST' }`    |
-| `useAcceptBidMutation`             | `POST` | `/dispatch/bids/:id/accept`     | Invalidates: `['Bid', 'WorkOrder', 'Technician']` |
+| `useAcceptBidMutation`             | `POST` | `/work-orders/bids/:id/accept`  | Invalidates: `['Bid', 'WorkOrder', 'Technician']` |
 | `useAutoRouteMutation`             | `POST` | `/dispatch/auto-route`          | Invalidates: `['WorkOrder', 'Technician']`        |
 | `usePreAuthEscrowMutation`         | `POST` | `/billing/escrow/preauth`       | Invalidates: `['Escrow']`                         |
 | `useReleaseEscrowMutation`         | `POST` | `/billing/escrow/release`       | Invalidates: `['Escrow', 'WorkOrder', 'Invoice']` |

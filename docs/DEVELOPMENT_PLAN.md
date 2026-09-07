@@ -439,6 +439,48 @@ NFR-PERF-001.
 
 ---
 
+## Phase 11 — Architecture Boundary Remediation: Marketplace Bidding Relocation & Work Order Aggregate Cohesion
+
+**Status: Completed (2026-09-07).** Resolves **Finding 3 (Misplaced Responsibility: Marketplace Bidding Inside Dispatch Service)** and aligns services with `AGENTS.md` bounded context rules and ADR 007 (`.agent/memory/ADRs/007_marketplace_bidding_work_order_cohesion.md`).
+
+- **Bidding as First-Class Work Order Domain Feature (`apps/work-order-service`).**
+  - Re-homed `BidsService` to `apps/work-order-service/src/modules/bids/`.
+  - Introduced `BidsController` mounting canonical aggregate endpoints:
+    - `POST /work-orders/:id/bids` (submit bid)
+    - `GET /work-orders/:id/bids` (list bids for work order)
+    - `POST /work-orders/:id/bids/:bidId/accept` (accept winning bid)
+    - Legacy route aliases: `POST /work-orders/bids`, `GET /work-orders/bids/:id`, `POST /work-orders/bids/:id/accept`.
+  - Exported `bidsSchema as workOrderBidsSchema` and `bidsSchema as marketplaceSchema` alongside `bidsSchema` from `@fieldforge/database`. Zero database migrations (`RULE-DB-02`).
+- **Atomic Single-Transaction Bid Acceptance (`apps/work-order-service`).**
+  - Wrapped bid acceptance, sibling bid rejection, work order FSM state transition (`PUBLISHED → ASSIGNED`), assignment audit history logging (`work_order_status_history`), and event publishing within a single ACID transaction (`db.transaction()`).
+  - Emits `tech.bid.accepted` and `work_order.assigned` domain events to RabbitMQ topic exchange.
+- **Purification of Dispatch Matching Engine (`apps/dispatch-matching-service`).**
+  - Removed all bidding logic, services, modules, and tests from `apps/dispatch-matching-service`.
+  - Refactored `DispatchController` to strictly handle geospatial operations:
+    - `POST /dispatch/technicians/location` (record live GPS coordinates into Redis geospatial index)
+    - `GET /dispatch/technicians/nearby` (query nearby active technicians via Redis `GEOSEARCH` with multi-parameter contractor scoring)
+    - `POST /dispatch/auto-route` (calculate contractor travel time and recommend dispatch routes)
+- **Transparent API Gateway Forwarding (`apps/api-gateway`).**
+  - Configured `proxyReqPathResolver` in `apps/api-gateway` to rewrite `/dispatch/bids` and `/bids` to `/work-orders/bids`.
+  - Forwarded legacy and portal bidding traffic directly to `work-order-service`, preserving 100% backward compatibility with zero downtime.
+- **Buyer Portal & E2E Validation (`apps/web-buyer-portal`).**
+  - Updated RTK Query API client `acceptBid` endpoint to target `/work-orders/bids/${bidId}/accept`.
+  - Updated Playwright E2E route mocks to support `/work-orders/bids/*/accept`.
+
+**Verification:**
+
+- 451 automated unit/integration tests passing across 15 packages/apps in monorepo (zero `--passWithNoTests`):
+  - 194 tests in `apps/work-order-service` (10 suites, including `bids.service.spec.ts` and `bids.controller.spec.ts`).
+  - 16 tests in `apps/dispatch-matching-service` (3 suites, including `dispatch.controller.spec.ts`).
+  - 43 tests in `apps/api-gateway` (4 suites).
+  - 46 tests in `apps/auth-service` (5 suites).
+  - 20 tests in `apps/billing-service` (4 suites).
+  - 75 tests in `@fieldforge/contracts` (3 suites).
+- 28 Playwright E2E tests validated (`pnpm test:e2e`). Total verified tests: 479 tests.
+- `pnpm check && pnpm build` pass cleanly.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

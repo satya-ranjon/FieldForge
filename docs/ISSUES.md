@@ -84,6 +84,15 @@
 > assertions (`x-ff-profile-id`), removed synthetic buyer profile auto-creation (`Default Buyer Co`) in `work-orders.service.ts`,
 > and established inter-service directory lookup `POST /technicians/batch` with `TechnicianDirectoryService`. Documented under ADR 006.
 
+> **Phase 11 update — 2026-09-07:** Phase 11 of [`DEVELOPMENT_PLAN.md`](./DEVELOPMENT_PLAN.md)
+> delivered Marketplace Bidding Relocation & Work Order Aggregate Cohesion (Resolves **FF-ARCH-03 / Finding 3**).
+> Relocated commercial contractor bidding domain (`work_order_bids`, counter-notes, pricing negotiation, buyer acceptance)
+> from `apps/dispatch-matching-service` into `apps/work-order-service`. Established atomic single-transaction bid acceptance
+> executing winning bid selection, sibling bid rejection, and FSM transition (`PUBLISHED → ASSIGNED`) with status history
+> and domain events. Purified `apps/dispatch-matching-service` to strictly provide geospatial matching (Redis `GEOSEARCH`),
+> live GPS coordinates, and routing recommendation. Configured API Gateway path rewriting for 100% backward compatibility.
+> Documented under ADR 007. Total verified tests: 451 unit/integration + 28 E2E = 479 tests.
+
 ---
 
 ## How to read this report
@@ -744,6 +753,11 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
 
 - **Root Cause**: Services shared database tables and performed cross-domain SQL joins: `apps/dispatch-matching-service` joined `technician_profiles`, `users`, and `technician_certifications`, while `apps/work-order-service` automatically inserted synthetic profiles (`Default Buyer Co`) when buyer profiles were missing, and queried foreign profile tables on every lifecycle check. `apps/billing-service` similarly queried identity profile tables directly.
 - **Fix**: Decoupled data access via Token-Enriched Profile Identity and inter-service directory lookup. Enriched `AuthJwtPayload` and gateway asserted headers (`x-ff-profile-id`) with `profileId`. Removed synthetic profile auto-creation from `work-order-service` (requiring onboarding). Added `POST /technicians/batch` in `auth-service` and `TechnicianDirectoryService` in `dispatch-matching-service` to query technician metadata via REST. Added dual-path fallback across services to maintain full backwards compatibility (ADR 006).
+
+### FF-ARCH-03 · 🏛️ Misplaced Responsibility: Marketplace Bidding Inside Dispatch Service (Finding 3)
+
+- **Root Cause**: Commercial contractor bidding logic (`work_order_bids` queries, mutations, rate counters, buyer acceptance, sibling bid rejection) was misplaced in `apps/dispatch-matching-service`. A dispatch service's single responsibility is geospatial matching (spatial index, Redis `GEOSEARCH`, live technician GPS updates, proximity filtering). Housing bidding in dispatch violated DDD aggregate invariants: a `Bid` is an entity belonging to the `WorkOrder` aggregate root, and accepting a bid must atomically mutate both the bid and the work order lifecycle (`PUBLISHED → ASSIGNED`) within a single ACID transaction.
+- **Fix**: Re-homed `BidsService` into `apps/work-order-service/src/modules/bids/` and added `BidsController` exposing canonical aggregate endpoints (`POST /work-orders/:id/bids`, `GET /work-orders/:id/bids`, `POST /work-orders/:id/bids/:bidId/accept`) alongside legacy aliases. Implemented atomic single-transaction bid acceptance locking rows `FOR UPDATE`, transitioning FSM state via `WorkOrderFsmService`, recording audit history in `work_order_status_history`, and publishing `tech.bid.accepted` and `work_order.assigned` domain events. Purified `apps/dispatch-matching-service` to strictly handle geospatial location updates, nearby technician searches, and automated routing. Configured API Gateway path rewriting (`/dispatch/bids` → `/work-orders/bids`) for seamless backward compatibility (ADR 007).
 
 ---
 

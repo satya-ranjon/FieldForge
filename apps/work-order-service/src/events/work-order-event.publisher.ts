@@ -32,6 +32,14 @@ export class WorkOrderEventPublisher {
     await this.emit(event);
   }
 
+  async publishTechBiddingSubmitted(event: EventEnvelope<unknown>): Promise<void> {
+    await this.emit(event);
+  }
+
+  async publishTechBidAccepted(event: EventEnvelope<unknown>): Promise<void> {
+    await this.emit(event);
+  }
+
   private async emit(event: EventEnvelope<unknown>): Promise<void> {
     if (this.eventPublisher) {
       await this.eventPublisher.publish(event);
