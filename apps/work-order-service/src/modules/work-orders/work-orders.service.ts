@@ -71,31 +71,29 @@ export class WorkOrdersService {
 
   /**
    * `buyerUserId` comes from the verified access token (FR-WO-001).
+   * If `callerProfileId` is provided (from Auth token), uses it directly without cross-service DB lookup.
    * Atomically registers the work order and initial status history in DRAFT.
    */
-  async create(buyerUserId: string, dto: CreateWorkOrderDto): Promise<WorkOrderResponseDto> {
-    let [buyerProfile] = await this.db
-      .select()
-      .from(buyerProfiles)
-      .where(eq(buyerProfiles.userId, buyerUserId))
-      .limit(1);
+  async create(
+    buyerUserId: string,
+    dto: CreateWorkOrderDto,
+    callerProfileId?: string
+  ): Promise<WorkOrderResponseDto> {
+    let resolvedBuyerId = callerProfileId;
 
-    if (!buyerProfile) {
-      const profileId = randomUUID();
-      await this.db.insert(buyerProfiles).values({
-        id: profileId,
-        userId: buyerUserId,
-        companyName: 'Default Buyer Co',
-        billingAddress: dto.addressLine || 'N/A',
-        escrowBalance: '0.00'
-      });
-      buyerProfile = {
-        id: profileId,
-        userId: buyerUserId,
-        companyName: 'Default Buyer Co',
-        billingAddress: dto.addressLine || 'N/A',
-        escrowBalance: '0.00'
-      };
+    if (!resolvedBuyerId) {
+      const [buyerProfile] = await this.db
+        .select({ id: buyerProfiles.id })
+        .from(buyerProfiles)
+        .where(eq(buyerProfiles.userId, buyerUserId))
+        .limit(1);
+
+      if (!buyerProfile) {
+        throw new NotFoundException(
+          'Buyer profile not found for user. Please complete buyer onboarding.'
+        );
+      }
+      resolvedBuyerId = buyerProfile.id;
     }
 
     const startTime = new Date(dto.scheduledStartTime);
@@ -114,7 +112,7 @@ export class WorkOrdersService {
 
     const newRecord: typeof workOrders.$inferInsert = {
       id: workOrderId,
-      buyerId: buyerProfile.id,
+      buyerId: resolvedBuyerId,
       title: dto.title,
       description: dto.description,
       category: dto.category,
@@ -226,7 +224,8 @@ export class WorkOrdersService {
     workOrderId: string,
     userId: string,
     role: string,
-    correlationId: string
+    correlationId: string,
+    callerProfileId?: string
   ): Promise<WorkOrderResponseDto> {
     let updatedOrder: WorkOrderResponseDto;
     let publishedEventPayload: {
@@ -250,13 +249,17 @@ export class WorkOrdersService {
       }
 
       if (role === 'BUYER') {
-        const [buyer] = await tx
-          .select()
-          .from(buyerProfiles)
-          .where(eq(buyerProfiles.userId, userId))
-          .limit(1);
+        const resolvedBuyerId =
+          callerProfileId ??
+          (
+            await tx
+              .select({ id: buyerProfiles.id })
+              .from(buyerProfiles)
+              .where(eq(buyerProfiles.userId, userId))
+              .limit(1)
+          )[0]?.id;
 
-        if (!buyer || buyer.id !== wo.buyerId) {
+        if (!resolvedBuyerId || resolvedBuyerId !== wo.buyerId) {
           throw new ForbiddenException(
             'Only the owning buyer or an admin can publish this work order'
           );
@@ -281,7 +284,7 @@ export class WorkOrdersService {
         fromStatus: currentStatus,
         toStatus: WorkOrderStatus.PUBLISHED,
         changedBy: userId,
-        reason: 'Work order published',
+        reason: 'Work order published to marketplace',
         createdAt: now
       });
 
@@ -312,8 +315,9 @@ export class WorkOrdersService {
   }
 
   /**
-   * Transactionally transition work order status with row lock (SELECT FOR UPDATE).
-   * Validates actual status against FSM graph, enforces ownership & roles,
+   * Universal status transition enforcement.
+   * Locks the work order aggregate row with SELECT ... FOR UPDATE (SRS-FR-WO-001/002),
+   * enforces role-based authorization invariants, verifies state via WorkOrderFsmService,
    * performs server-side geofence checks (SRS FR-MOB-001), and logs status history.
    */
   async transition(
@@ -321,7 +325,8 @@ export class WorkOrdersService {
     userId: string,
     role: string,
     dto: TransitionWorkOrderDto,
-    correlationId: string
+    correlationId: string,
+    callerProfileId?: string
   ): Promise<WorkOrderResponseDto> {
     let updatedOrder: WorkOrderResponseDto;
     const eventsToPublish: Array<() => Promise<void>> = [];
@@ -346,13 +351,17 @@ export class WorkOrdersService {
           throw new ForbiddenException('Only admin, dispatcher, or buyer can assign work orders');
         }
         if (role === 'BUYER') {
-          const [buyer] = await tx
-            .select()
-            .from(buyerProfiles)
-            .where(eq(buyerProfiles.userId, userId))
-            .limit(1);
+          const resolvedBuyerId =
+            callerProfileId ??
+            (
+              await tx
+                .select({ id: buyerProfiles.id })
+                .from(buyerProfiles)
+                .where(eq(buyerProfiles.userId, userId))
+                .limit(1)
+            )[0]?.id;
 
-          if (!buyer || buyer.id !== wo.buyerId) {
+          if (!resolvedBuyerId || resolvedBuyerId !== wo.buyerId) {
             throw new ForbiddenException(
               'Only the owning buyer, dispatcher, or admin can assign this work order'
             );
@@ -369,13 +378,17 @@ export class WorkOrdersService {
         dto.nextStatus === WorkOrderStatus.COMPLETED
       ) {
         if (role !== 'ADMIN') {
-          const [tech] = await tx
-            .select()
-            .from(technicianProfiles)
-            .where(eq(technicianProfiles.userId, userId))
-            .limit(1);
+          const resolvedTechId =
+            callerProfileId ??
+            (
+              await tx
+                .select({ id: technicianProfiles.id })
+                .from(technicianProfiles)
+                .where(eq(technicianProfiles.userId, userId))
+                .limit(1)
+            )[0]?.id;
 
-          if (!tech || tech.id !== wo.assignedTechnicianId) {
+          if (!resolvedTechId || resolvedTechId !== wo.assignedTechnicianId) {
             throw new ForbiddenException(
               'Only the assigned technician or an admin can perform this transition'
             );
@@ -403,13 +416,17 @@ export class WorkOrdersService {
         }
       } else if (dto.nextStatus === WorkOrderStatus.APPROVED) {
         if (role !== 'ADMIN') {
-          const [buyer] = await tx
-            .select()
-            .from(buyerProfiles)
-            .where(eq(buyerProfiles.userId, userId))
-            .limit(1);
+          const resolvedBuyerId =
+            callerProfileId ??
+            (
+              await tx
+                .select({ id: buyerProfiles.id })
+                .from(buyerProfiles)
+                .where(eq(buyerProfiles.userId, userId))
+                .limit(1)
+            )[0]?.id;
 
-          if (!buyer || buyer.id !== wo.buyerId) {
+          if (!resolvedBuyerId || resolvedBuyerId !== wo.buyerId) {
             throw new ForbiddenException(
               'Only the owning buyer or an admin can approve this work order'
             );
@@ -420,13 +437,17 @@ export class WorkOrdersService {
           throw new ForbiddenException('Technicians cannot cancel work orders');
         }
         if (role === 'BUYER') {
-          const [buyer] = await tx
-            .select()
-            .from(buyerProfiles)
-            .where(eq(buyerProfiles.userId, userId))
-            .limit(1);
+          const resolvedBuyerId =
+            callerProfileId ??
+            (
+              await tx
+                .select({ id: buyerProfiles.id })
+                .from(buyerProfiles)
+                .where(eq(buyerProfiles.userId, userId))
+                .limit(1)
+            )[0]?.id;
 
-          if (!buyer || buyer.id !== wo.buyerId) {
+          if (!resolvedBuyerId || resolvedBuyerId !== wo.buyerId) {
             throw new ForbiddenException(
               'Only the owning buyer or an admin can cancel this work order'
             );
@@ -434,25 +455,33 @@ export class WorkOrdersService {
         }
       } else if (dto.nextStatus === WorkOrderStatus.DISPUTED) {
         if (role === 'BUYER') {
-          const [buyer] = await tx
-            .select()
-            .from(buyerProfiles)
-            .where(eq(buyerProfiles.userId, userId))
-            .limit(1);
+          const resolvedBuyerId =
+            callerProfileId ??
+            (
+              await tx
+                .select({ id: buyerProfiles.id })
+                .from(buyerProfiles)
+                .where(eq(buyerProfiles.userId, userId))
+                .limit(1)
+            )[0]?.id;
 
-          if (!buyer || buyer.id !== wo.buyerId) {
+          if (!resolvedBuyerId || resolvedBuyerId !== wo.buyerId) {
             throw new ForbiddenException(
               'Only the owning buyer or assigned technician can dispute this work order'
             );
           }
         } else if (role === 'TECHNICIAN') {
-          const [tech] = await tx
-            .select()
-            .from(technicianProfiles)
-            .where(eq(technicianProfiles.userId, userId))
-            .limit(1);
+          const resolvedTechId =
+            callerProfileId ??
+            (
+              await tx
+                .select({ id: technicianProfiles.id })
+                .from(technicianProfiles)
+                .where(eq(technicianProfiles.userId, userId))
+                .limit(1)
+            )[0]?.id;
 
-          if (!tech || tech.id !== wo.assignedTechnicianId) {
+          if (!resolvedTechId || resolvedTechId !== wo.assignedTechnicianId) {
             throw new ForbiddenException(
               'Only the owning buyer or assigned technician can dispute this work order'
             );

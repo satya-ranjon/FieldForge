@@ -8,6 +8,7 @@ interface AuthenticatedRequest extends Request {
     userId: string;
     email: string;
     role: string;
+    profileId?: string;
   };
 }
 
@@ -19,7 +20,7 @@ interface AuthenticatedRequest extends Request {
  * the JWT guard allows anonymous access and so leaves `req.user` undefined —
  * would forward the caller's own `x-ff-user-id` untouched.
  */
-const GATEWAY_ASSERTED_HEADERS = ['x-ff-user-id', 'x-ff-user-role'] as const;
+const GATEWAY_ASSERTED_HEADERS = ['x-ff-user-id', 'x-ff-user-role', 'x-ff-profile-id'] as const;
 
 const createServiceProxy = (targetUrl: string): RequestHandler => {
   return proxy(targetUrl, {
@@ -44,6 +45,9 @@ const createServiceProxy = (targetUrl: string): RequestHandler => {
         if (authReq.user) {
           proxyReqOpts.headers['x-ff-user-id'] = authReq.user.userId;
           proxyReqOpts.headers['x-ff-user-role'] = authReq.user.role;
+          if (authReq.user.profileId) {
+            proxyReqOpts.headers['x-ff-profile-id'] = authReq.user.profileId;
+          }
         }
       }
       return proxyReqOpts;

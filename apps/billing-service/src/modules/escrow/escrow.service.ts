@@ -33,6 +33,7 @@ export interface ReleaseEscrowParams {
   callerRole?: string;
   correlationId?: string;
   idempotencyKey?: string;
+  callerProfileId?: string;
 }
 
 export interface EscrowReleaseResult {
@@ -156,7 +157,14 @@ export class EscrowService {
       params = workOrderIdOrParams;
     }
 
-    const { workOrderId, callerUserId, callerRole, correlationId, idempotencyKey } = params;
+    const {
+      workOrderId,
+      callerUserId,
+      callerRole,
+      correlationId,
+      idempotencyKey,
+      callerProfileId
+    } = params;
 
     try {
       return await this.db.transaction(async (tx) => {
@@ -182,13 +190,12 @@ export class EscrowService {
               key: idempotencyKey,
               scope: 'ESCROW_RELEASE',
               resourceId: workOrderId,
-              status: 'IN_PROGRESS',
-              createdAt: new Date()
+              status: 'IN_PROGRESS'
             });
           }
         }
 
-        // 2. Lock Escrow FOR UPDATE
+        // 2. Fetch Escrow Account
         const [escrow] = await tx
           .select()
           .from(billingSchema.escrowAccounts)
@@ -196,7 +203,13 @@ export class EscrowService {
           .for('update');
 
         if (!escrow) {
-          throw new NotFoundException(`Escrow account not found for work order ${workOrderId}`);
+          throw new NotFoundException(`Escrow record for work order ${workOrderId} not found`);
+        }
+
+        if (escrow.status === 'RELEASED') {
+          throw new ConflictException(
+            `Escrow for work order ${workOrderId} has already been released`
+          );
         }
 
         if (escrow.status !== 'HELD') {
@@ -205,7 +218,7 @@ export class EscrowService {
           );
         }
 
-        // 3. Lock Work Order FOR UPDATE
+        // 3. Work Order FSM Status Verification (C3)
         const [workOrder] = await tx
           .select()
           .from(workOrdersSchema.workOrders)
@@ -229,13 +242,17 @@ export class EscrowService {
         // 4. Caller Authority Verification (C3)
         if (callerRole && callerRole !== 'ADMIN' && callerRole !== 'SYSTEM') {
           // Must be the buyer who owns the work order
-          const [buyer] = await tx
-            .select()
-            .from(usersSchema.buyerProfiles)
-            .where(eq(usersSchema.buyerProfiles.userId, callerUserId || ''))
-            .limit(1);
+          const resolvedBuyerId =
+            callerProfileId ??
+            (
+              await tx
+                .select({ id: usersSchema.buyerProfiles.id })
+                .from(usersSchema.buyerProfiles)
+                .where(eq(usersSchema.buyerProfiles.userId, callerUserId || ''))
+                .limit(1)
+            )[0]?.id;
 
-          if (!buyer || buyer.id !== workOrder.buyerId) {
+          if (!resolvedBuyerId || resolvedBuyerId !== workOrder.buyerId) {
             throw new ForbiddenException(
               'Only the work order buyer or an administrator may authorize escrow release'
             );

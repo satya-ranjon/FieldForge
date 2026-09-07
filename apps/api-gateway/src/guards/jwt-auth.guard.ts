@@ -10,9 +10,11 @@ const PUBLIC_PREFIXES = [
   '/api/v1/auth/login',
   '/api/v1/auth/refresh',
   '/api/v1/auth/phone',
+  '/api/v1/technicians/batch',
   '/api/v1/healthz',
   '/api/v1/readyz',
   '/api/v1/metrics',
+  '/technicians/batch',
   '/healthz',
   '/readyz',
   '/metrics'
@@ -52,7 +54,8 @@ export class JwtAuthGuard implements CanActivate {
         request.user = {
           userId: payload.sub,
           email: payload.email,
-          role: payload.role
+          role: payload.role,
+          profileId: payload.profileId
         };
         return true;
       } catch {

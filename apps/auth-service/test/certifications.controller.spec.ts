@@ -41,7 +41,19 @@ describe('CertificationsController', () => {
         expiryDate: '2028-02-01',
         isVerified: true
       }),
-      listPendingCertifications: jest.fn().mockResolvedValue([])
+      listPendingCertifications: jest.fn().mockResolvedValue([]),
+      getTechniciansBatch: jest.fn().mockResolvedValue([
+        {
+          id: TECH_USER_ID,
+          firstName: 'Alex',
+          lastName: 'Rivas',
+          ratingAverage: '4.95',
+          jobsCompleted: 42,
+          hourlyRate: '85.00',
+          userStatus: 'ACTIVE',
+          badges: ['Cisco CCNA']
+        }
+      ])
     } as unknown as jest.Mocked<CertificationsService>;
 
     mockJwtService = {
@@ -167,6 +179,25 @@ describe('CertificationsController', () => {
 
     it('forbids technician from viewing pending review queue', async () => {
       await expect(controller.listPending('Bearer valid.jwt')).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('POST /technicians/batch', () => {
+    it('returns batch technician summaries for valid IDs', async () => {
+      const res = await controller.getBatchTechnicians({ ids: [TECH_USER_ID] });
+      expect(res.length).toBe(1);
+      expect(res[0]?.id).toBe(TECH_USER_ID);
+      expect(res[0]?.firstName).toBe('Alex');
+      expect(mockCertService.getTechniciansBatch).toHaveBeenCalledWith([TECH_USER_ID]);
+    });
+
+    it('rejects invalid payload format', async () => {
+      await expect(controller.getBatchTechnicians({ ids: [''] })).rejects.toThrow(
+        BadRequestException
+      );
+      await expect(controller.getBatchTechnicians({ ids: 'invalid' })).rejects.toThrow(
+        BadRequestException
+      );
     });
   });
 });

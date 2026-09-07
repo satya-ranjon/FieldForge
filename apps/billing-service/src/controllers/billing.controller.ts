@@ -47,8 +47,9 @@ export class BillingController {
    */
   private authenticateUser(
     authHeader?: string,
-    gatewayUserId?: string
-  ): { userId: string; role: string } {
+    gatewayUserId?: string,
+    gatewayProfileId?: string
+  ): { userId: string; role: string; profileId?: string } {
     if (!authHeader) {
       throw new UnauthorizedException('Missing Authorization header');
     }
@@ -71,7 +72,8 @@ export class BillingController {
 
     return {
       userId: payload.sub,
-      role: payload.role
+      role: payload.role,
+      profileId: payload.profileId || gatewayProfileId
     };
   }
 
@@ -80,29 +82,34 @@ export class BillingController {
     @Body() body: PreAuthEscrowDto,
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string,
-    @Headers('x-correlation-id') correlationId?: string
+    @Headers('x-correlation-id') correlationId?: string,
+    @Headers('x-ff-profile-id') gatewayProfileId?: string
   ) {
-    const user = this.authenticateUser(authHeader, gatewayUserId);
+    const user = this.authenticateUser(authHeader, gatewayUserId, gatewayProfileId);
     if (user.role !== 'BUYER' && user.role !== 'ADMIN') {
       throw new ForbiddenException('Only buyers or administrators can pre-authorize escrow');
     }
 
     const parsed = preAuthEscrowSchema.parse(body);
 
-    // Resolve buyer profile id
-    const [buyerProfile] = await this.db
-      .select()
-      .from(usersSchema.buyerProfiles)
-      .where(eq(usersSchema.buyerProfiles.userId, user.userId))
-      .limit(1);
+    // Resolve buyer profile id: fast-path via token profileId or fallback to query
+    let buyerProfileId = user.profileId;
+    if (!buyerProfileId) {
+      const [buyerProfile] = await this.db
+        .select({ id: usersSchema.buyerProfiles.id })
+        .from(usersSchema.buyerProfiles)
+        .where(eq(usersSchema.buyerProfiles.userId, user.userId))
+        .limit(1);
 
-    if (!buyerProfile) {
-      throw new NotFoundException(`Buyer profile not found for user ${user.userId}`);
+      if (!buyerProfile) {
+        throw new NotFoundException(`Buyer profile not found for user ${user.userId}`);
+      }
+      buyerProfileId = buyerProfile.id;
     }
 
     return await this.escrowService.lockFunds(
       parsed.workOrderId,
-      buyerProfile.id,
+      buyerProfileId,
       parsed.amountMinor,
       correlationId || randomUUID(),
       parsed.paymentMethodId
@@ -115,9 +122,10 @@ export class BillingController {
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string,
     @Headers('x-correlation-id') correlationId?: string,
-    @Headers('idempotency-key') idempotencyKey?: string
+    @Headers('idempotency-key') idempotencyKey?: string,
+    @Headers('x-ff-profile-id') gatewayProfileId?: string
   ): Promise<EscrowReleaseResult> {
-    const user = this.authenticateUser(authHeader, gatewayUserId);
+    const user = this.authenticateUser(authHeader, gatewayUserId, gatewayProfileId);
     if (user.role !== 'BUYER' && user.role !== 'ADMIN') {
       throw new ForbiddenException('Only buyers or administrators can release escrow');
     }
@@ -129,7 +137,8 @@ export class BillingController {
       callerUserId: user.userId,
       callerRole: user.role,
       correlationId: correlationId || randomUUID(),
-      idempotencyKey
+      idempotencyKey,
+      callerProfileId: user.profileId
     });
   }
 
@@ -173,19 +182,24 @@ export class BillingController {
   async getTechnicianPayouts(
     @Param('id') technicianId: string,
     @Headers('authorization') authHeader?: string,
-    @Headers('x-ff-user-id') gatewayUserId?: string
+    @Headers('x-ff-user-id') gatewayUserId?: string,
+    @Headers('x-ff-profile-id') gatewayProfileId?: string
   ): Promise<TechnicianEarningsDto> {
-    const user = this.authenticateUser(authHeader, gatewayUserId);
+    const user = this.authenticateUser(authHeader, gatewayUserId, gatewayProfileId);
 
     // If caller is technician, verify they are accessing their own profile
     if (user.role === 'TECHNICIAN') {
-      const [techProfile] = await this.db
-        .select()
-        .from(usersSchema.technicianProfiles)
-        .where(eq(usersSchema.technicianProfiles.userId, user.userId))
-        .limit(1);
+      const resolvedTechId =
+        user.profileId ??
+        (
+          await this.db
+            .select({ id: usersSchema.technicianProfiles.id })
+            .from(usersSchema.technicianProfiles)
+            .where(eq(usersSchema.technicianProfiles.userId, user.userId))
+            .limit(1)
+        )[0]?.id;
 
-      if (!techProfile || (techProfile.id !== technicianId && user.userId !== technicianId)) {
+      if (!resolvedTechId || (resolvedTechId !== technicianId && user.userId !== technicianId)) {
         throw new ForbiddenException('Technicians may only access their own payouts');
       }
     }

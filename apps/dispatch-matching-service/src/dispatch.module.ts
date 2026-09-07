@@ -9,6 +9,7 @@ import {
 } from '@fieldforge/common';
 import { MessagingModule } from '@fieldforge/messaging';
 import { GeoSearchService } from './modules/geo-search/geo-search.service';
+import { TechnicianDirectoryService } from './modules/geo-search/technician-directory.service';
 import { WorkOrderCreatedConsumer } from './modules/consumers/work-order-created.consumer';
 import { BidsService } from './modules/bids/bids.service';
 import { DispatchController } from './modules/dispatch/dispatch.controller';
@@ -30,10 +31,11 @@ import { DispatchController } from './modules/dispatch/dispatch.controller';
       provide: APP_FILTER,
       useClass: GlobalHttpExceptionFilter
     },
+    TechnicianDirectoryService,
     GeoSearchService,
     BidsService,
     WorkOrderCreatedConsumer
   ],
-  exports: [GeoSearchService, BidsService]
+  exports: [GeoSearchService, BidsService, TechnicianDirectoryService]
 })
 export class DispatchModule {}

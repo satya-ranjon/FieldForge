@@ -38,8 +38,25 @@ export interface AuthJwtPayload {
   sub: string;
   email: string;
   role: UserRole;
+  profileId?: string;
   iat?: number;
   exp?: number;
+}
+
+export interface BatchTechniciansDto {
+  ids: string[];
+}
+
+export interface TechnicianSummaryDto {
+  id: string;
+  firstName: string;
+  lastName: string;
+  ratingAverage: string;
+  jobsCompleted: number;
+  hourlyRate: string;
+  userStatus: string;
+  badges: string[];
+  certifications?: string[];
 }
 
 export interface TechnicianBadgeDto {

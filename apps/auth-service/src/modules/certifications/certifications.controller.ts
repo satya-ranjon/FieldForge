@@ -17,10 +17,12 @@ import { CertificationsService } from './certifications.service';
 import {
   createCertificationSchema,
   verifyCertificationSchema,
+  batchTechniciansSchema,
   type AuthJwtPayload,
   type CreateCertificationDto,
   type VerifyCertificationDto,
   type TechnicianBadgeDto,
+  type TechnicianSummaryDto,
   UserRole
 } from '@fieldforge/contracts';
 
@@ -136,5 +138,18 @@ export class CertificationsController {
     }
 
     return this.certService.listPendingCertifications();
+  }
+
+  /**
+   * Batch resolves technician directory details for dispatch matching.
+   */
+  @Post('batch')
+  @HttpCode(HttpStatus.OK)
+  async getBatchTechnicians(@Body() body: unknown): Promise<TechnicianSummaryDto[]> {
+    const parsed = batchTechniciansSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.issues);
+    }
+    return this.certService.getTechniciansBatch(parsed.data.ids);
   }
 }

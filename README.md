@@ -60,7 +60,7 @@ flowchart TD
     end
 
     subgraph Edge[" 🛡️ Edge Security & Gateway Tier "]
-        APIGW["⚡ API Gateway Microservice (:8000)<br/><b>Reverse Proxy · JWT Authentication · Rate Limiting</b><br/><i>x-correlation-id propagation</i>"]:::gatewayStyle
+        APIGW["⚡ API Gateway Microservice (:8000)<br/><b>Reverse Proxy · JWT Authentication · Rate Limiting</b><br/><i>x-correlation-id & asserted x-ff-* headers</i>"]:::gatewayStyle
     end
 
     subgraph Services[" 🚀 Core Domain Microservices Cluster (NestJS) "]

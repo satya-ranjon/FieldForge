@@ -405,6 +405,40 @@ NFR-PERF-001.
 
 ---
 
+## Phase 10 — Architecture Boundary Remediation: Bounded Context Data Isolation & Directory Lookup
+
+**Status: Completed (2026-09-07).** Resolves **Finding 2 (High Coupling and Database Sharing Across Services)** and aligns services with `AGENTS.md` bounded context rules and ADR 006 (`.agent/memory/ADRs/006_bounded_context_data_isolation.md`).
+
+- **Token-Enriched Profile Identity (`@fieldforge/contracts`, `apps/auth-service`, `apps/api-gateway`).**
+  - Added `profileId?: string` to `AuthJwtPayload` and added `BatchTechniciansDto`, `batchTechniciansSchema`, and `TechnicianSummaryDto`.
+  - `apps/auth-service` populates `profileId` on registration, login, and refresh.
+  - `apps/api-gateway` extracts `profileId` into `request.user` and propagates downstream via `x-ff-profile-id`.
+- **Strict Buyer Lifecycle & Decoupled Work Orders (`apps/work-order-service`).**
+  - Eliminated synthetic profile insertion (`companyName: 'Default Buyer Co'`) in `WorkOrdersService.create()`; rejects missing profiles with `NotFoundException`.
+  - Refactored `create()`, `publish()`, `transition()`, and `DeliverablesService` to use `callerProfileId` fast-path, bypassing foreign profile database queries.
+- **Inter-Service Directory Lookup & Decoupled Dispatch (`apps/dispatch-matching-service`, `apps/auth-service`).**
+  - `apps/auth-service` implements `POST /technicians/batch` (`getTechniciansBatch`) to serve bulk technician summaries.
+  - Implemented `TechnicianDirectoryService` in `apps/dispatch-matching-service` and integrated it into `GeoSearchService.findNearbyTechnicians()`, replacing direct cross-context SQL joins against `technician_profiles`, `users`, and `technician_certifications`.
+  - Refactored `BidsService.submitBid()`, `acceptBid()`, and `autoRoute()` to use `callerProfileId`.
+- **Decoupled Billing Escrow (`apps/billing-service`).**
+  - Added `callerProfileId` to `ReleaseEscrowParams` and prioritized it in `EscrowService.releaseFunds()` and `billing.controller.ts`, eliminating direct foreign buyer profile queries during escrow release and payout queries.
+- **Backwards-Compatible Dual-Path Fallback.**
+  - All services retain graceful read fallback when `callerProfileId` is omitted, ensuring zero test regressions or token compatibility breaks.
+
+**Verification:**
+
+- 442 automated unit/integration tests passing across 15 packages/apps in monorepo (zero `--passWithNoTests`):
+  - 179 tests in `apps/work-order-service` (8 suites).
+  - 46 tests in `apps/auth-service` (5 suites).
+  - 43 tests in `apps/api-gateway` (4 suites).
+  - 20 tests in `apps/billing-service` (4 suites).
+  - 17 tests in `apps/dispatch-matching-service` (3 suites).
+  - 75 tests in `@fieldforge/contracts` (3 suites).
+- 28 Playwright E2E tests validated (`pnpm test:e2e`). Total verified tests: 470 tests.
+- `pnpm check && pnpm build` pass cleanly.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

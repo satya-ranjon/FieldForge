@@ -333,6 +333,22 @@ describe('WorkOrdersService (Persistent, Transactional Lifecycle)', () => {
         /slaExpirationTime must not be before scheduledStartTime/i
       );
     });
+
+    it('creates work order using callerProfileId directly (bypassing foreign profile lookup)', async () => {
+      const customProfileId = 'bp-custom-from-token';
+      const created = await service.create(BUYER_USER_ID, defaultDto, customProfileId);
+
+      expect(created.buyerId).toBe(customProfileId);
+      const persisted = mockDbInfo.store.workOrders.get(created.id);
+      expect(persisted?.buyerId).toBe(customProfileId);
+    });
+
+    it('throws NotFoundException when callerProfileId is omitted and user has no buyer profile (no Default Buyer Co insert)', async () => {
+      const unknownUserId = 'u-nonexistent-buyer';
+      await expect(service.create(unknownUserId, defaultDto)).rejects.toThrow(
+        /Buyer profile not found for user/i
+      );
+    });
   });
 
   describe('list filtering (FR-WO-001, NFR-PERF-003)', () => {

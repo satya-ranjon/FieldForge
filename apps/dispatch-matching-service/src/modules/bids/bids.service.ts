@@ -41,7 +41,8 @@ export class BidsService {
     dto: SubmitBidDto,
     technicianUserId: string,
     correlationId: string,
-    idempotencyKey?: string
+    idempotencyKey?: string,
+    callerProfileId?: string
   ): Promise<BidDetailsDto> {
     return await this.db.transaction(async (tx) => {
       if (idempotencyKey) {
@@ -55,14 +56,18 @@ export class BidsService {
         }
       }
 
-      // 1. Resolve technician profile from user ID
-      const [tech] = await tx
-        .select()
-        .from(technicianProfiles)
-        .where(eq(technicianProfiles.userId, technicianUserId));
+      // 1. Resolve technician profile from callerProfileId or user ID
+      let techId = callerProfileId;
+      if (!techId) {
+        const [tech] = await tx
+          .select()
+          .from(technicianProfiles)
+          .where(eq(technicianProfiles.userId, technicianUserId));
 
-      if (!tech) {
-        throw new ForbiddenException('Only registered technicians can submit bids');
+        if (!tech) {
+          throw new ForbiddenException('Only registered technicians can submit bids');
+        }
+        techId = tech.id;
       }
 
       // 2. Lock work order FOR UPDATE
@@ -89,7 +94,7 @@ export class BidsService {
         .where(
           and(
             eq(workOrderBids.workOrderId, dto.workOrderId),
-            eq(workOrderBids.technicianId, tech.id),
+            eq(workOrderBids.technicianId, techId),
             eq(workOrderBids.bidStatus, 'PENDING')
           )
         );
@@ -104,7 +109,7 @@ export class BidsService {
       await tx.insert(workOrderBids).values({
         id: bidId,
         workOrderId: dto.workOrderId,
-        technicianId: tech.id,
+        technicianId: techId,
         bidAmount: bidAmountDecimal,
         counterNote: dto.counterNote || null,
         bidStatus: 'PENDING'
@@ -113,7 +118,7 @@ export class BidsService {
       const responseDto: BidDetailsDto = {
         id: bidId,
         workOrderId: dto.workOrderId,
-        technicianId: tech.id,
+        technicianId: techId,
         bidAmountMinor: dto.bidAmountMinor,
         counterNote: dto.counterNote || null,
         bidStatus: 'PENDING',
@@ -141,7 +146,7 @@ export class BidsService {
         {
           bidId,
           workOrderId: dto.workOrderId,
-          technicianId: tech.id,
+          technicianId: techId,
           bidAmountMinor: dto.bidAmountMinor,
           counterNote: dto.counterNote
         },
@@ -159,9 +164,11 @@ export class BidsService {
     buyerUserId: string,
     callerRole: string,
     correlationId: string,
-    idempotencyKey?: string
+    idempotencyKey?: string,
+    callerProfileId?: string
   ): Promise<BidDetailsDto> {
     return await this.db.transaction(async (tx) => {
+      // 1. Check idempotency
       if (idempotencyKey) {
         const [existing] = await tx
           .select()
@@ -173,7 +180,6 @@ export class BidsService {
         }
       }
 
-      // 1. Lock bid FOR UPDATE
       const [bid] = await tx
         .select()
         .from(workOrderBids)
@@ -186,7 +192,7 @@ export class BidsService {
 
       if (bid.bidStatus !== 'PENDING') {
         throw new BadRequestException(
-          `Bid ${bidId} cannot be accepted because it is already ${bid.bidStatus}`
+          `Cannot accept bid with status ${bid.bidStatus}. Only PENDING bids can be accepted.`
         );
       }
 
@@ -209,12 +215,16 @@ export class BidsService {
 
       // 3. Verify buyer ownership
       if (callerRole !== 'ADMIN') {
-        const [buyer] = await tx
-          .select()
-          .from(buyerProfiles)
-          .where(eq(buyerProfiles.userId, buyerUserId));
+        const resolvedBuyerId =
+          callerProfileId ??
+          (
+            await tx
+              .select({ id: buyerProfiles.id })
+              .from(buyerProfiles)
+              .where(eq(buyerProfiles.userId, buyerUserId))
+          )[0]?.id;
 
-        if (!buyer || buyer.id !== wo.buyerId) {
+        if (!resolvedBuyerId || resolvedBuyerId !== wo.buyerId) {
           throw new ForbiddenException('Only the work order buyer can accept bids');
         }
       }
@@ -285,7 +295,8 @@ export class BidsService {
     dto: AutoRouteDto,
     buyerUserId: string,
     callerRole: string,
-    correlationId: string
+    correlationId: string,
+    callerProfileId?: string
   ): Promise<{ workOrderId: string; technicianId: string; status: string }> {
     return await this.db.transaction(async (tx) => {
       // 1. Lock work order FOR UPDATE
@@ -306,12 +317,16 @@ export class BidsService {
       }
 
       if (callerRole !== 'ADMIN') {
-        const [buyer] = await tx
-          .select()
-          .from(buyerProfiles)
-          .where(eq(buyerProfiles.userId, buyerUserId));
+        const resolvedBuyerId =
+          callerProfileId ??
+          (
+            await tx
+              .select({ id: buyerProfiles.id })
+              .from(buyerProfiles)
+              .where(eq(buyerProfiles.userId, buyerUserId))
+          )[0]?.id;
 
-        if (!buyer || buyer.id !== wo.buyerId) {
+        if (!resolvedBuyerId || resolvedBuyerId !== wo.buyerId) {
           throw new ForbiddenException('Only the work order creator can auto-route');
         }
       }

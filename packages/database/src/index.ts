@@ -25,8 +25,10 @@ export { sql } from 'drizzle-orm';
 
 export {
   usersSchema,
+  usersSchema as identitySchema,
   workOrdersSchema,
   bidsSchema,
+  bidsSchema as dispatchSchema,
   deliverablesSchema,
   billingSchema,
   idempotencySchema

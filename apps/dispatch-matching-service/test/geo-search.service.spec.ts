@@ -1,6 +1,7 @@
 import { EventType, createEvent } from '@fieldforge/contracts';
 import { GeoSearchService } from '../src/modules/geo-search/geo-search.service';
 import { WorkOrderCreatedConsumer } from '../src/modules/consumers/work-order-created.consumer';
+import type { TechnicianDirectoryService } from '../src/modules/geo-search/technician-directory.service';
 import type Redis from 'ioredis';
 
 const CORRELATION_ID = '7f2b1c9e-0a41-4d3f-9c11-8b6d5e4a3210';
@@ -72,6 +73,36 @@ describe('GeoSearchService', () => {
     mockRedis.geosearch.mockResolvedValueOnce([]);
     const matches = await geo.findNearbyTechnicians(SF.latitude, SF.longitude, 1);
     expect(matches).toEqual([]);
+  });
+
+  it('enriches nearby technicians via TechnicianDirectoryService when provided', async () => {
+    const mockDirectory = {
+      getTechniciansBatch: jest.fn().mockResolvedValue([
+        {
+          id: 'tech-1',
+          firstName: 'Alice',
+          lastName: 'Smith',
+          ratingAverage: '4.95',
+          jobsCompleted: 42,
+          hourlyRate: '85.00',
+          certifications: ['FIBER_OPTIC', 'OSHA_10'],
+          userStatus: 'ACTIVE'
+        }
+      ])
+    };
+
+    const geoWithDir = new GeoSearchService(
+      mockRedis,
+      undefined,
+      mockDirectory as unknown as TechnicianDirectoryService
+    );
+    const matches = await geoWithDir.findNearbyTechnicians(SF.latitude, SF.longitude);
+
+    expect(mockDirectory.getTechniciansBatch).toHaveBeenCalledWith(['tech-1', 'tech-2']);
+    const tech1 = matches.find((m) => m.techId === 'tech-1');
+    expect(tech1?.rating).toBe(4.95);
+    expect(tech1?.completedJobsCount).toBe(42);
+    expect(tech1?.certifications).toEqual(['FIBER_OPTIC', 'OSHA_10']);
   });
 });
 

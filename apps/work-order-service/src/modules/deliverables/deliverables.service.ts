@@ -37,7 +37,8 @@ export class DeliverablesService {
     userId: string,
     role: string,
     type: DeliverableType,
-    filename: string
+    filename: string,
+    callerProfileId?: string
   ) {
     const [wo] = await this.db
       .select({
@@ -65,13 +66,17 @@ export class DeliverablesService {
     }
 
     if (role === 'TECHNICIAN') {
-      const [tech] = await this.db
-        .select()
-        .from(technicianProfiles)
-        .where(eq(technicianProfiles.userId, userId))
-        .limit(1);
+      const resolvedTechId =
+        callerProfileId ??
+        (
+          await this.db
+            .select({ id: technicianProfiles.id })
+            .from(technicianProfiles)
+            .where(eq(technicianProfiles.userId, userId))
+            .limit(1)
+        )[0]?.id;
 
-      if (!tech || tech.id !== wo.assignedTechnicianId) {
+      if (!resolvedTechId || resolvedTechId !== wo.assignedTechnicianId) {
         throw new ForbiddenException(
           'Only the assigned technician or an admin can upload deliverables for this work order'
         );
@@ -114,7 +119,8 @@ export class DeliverablesService {
     userId: string,
     role: string,
     signatureSvg: string,
-    clientName: string
+    clientName: string,
+    callerProfileId?: string
   ) {
     const [wo] = await this.db
       .select({
@@ -137,13 +143,17 @@ export class DeliverablesService {
     }
 
     if (role === 'TECHNICIAN') {
-      const [tech] = await this.db
-        .select()
-        .from(technicianProfiles)
-        .where(eq(technicianProfiles.userId, userId))
-        .limit(1);
+      const resolvedTechId =
+        callerProfileId ??
+        (
+          await this.db
+            .select({ id: technicianProfiles.id })
+            .from(technicianProfiles)
+            .where(eq(technicianProfiles.userId, userId))
+            .limit(1)
+        )[0]?.id;
 
-      if (!tech || tech.id !== wo.assignedTechnicianId) {
+      if (!resolvedTechId || resolvedTechId !== wo.assignedTechnicianId) {
         throw new ForbiddenException(
           'Only the assigned technician or an admin can record client signatures'
         );
@@ -190,7 +200,12 @@ export class DeliverablesService {
   /**
    * Fetch deliverables for a work order with authorization guards.
    */
-  async getDeliverablesByWorkOrderId(workOrderId: string, userId: string, role: string) {
+  async getDeliverablesByWorkOrderId(
+    workOrderId: string,
+    userId: string,
+    role: string,
+    callerProfileId?: string
+  ) {
     const [wo] = await this.db
       .select({
         id: workOrders.id,
@@ -206,25 +221,33 @@ export class DeliverablesService {
     }
 
     if (role === 'BUYER') {
-      const [buyer] = await this.db
-        .select()
-        .from(buyerProfiles)
-        .where(eq(buyerProfiles.userId, userId))
-        .limit(1);
+      const resolvedBuyerId =
+        callerProfileId ??
+        (
+          await this.db
+            .select({ id: buyerProfiles.id })
+            .from(buyerProfiles)
+            .where(eq(buyerProfiles.userId, userId))
+            .limit(1)
+        )[0]?.id;
 
-      if (!buyer || buyer.id !== wo.buyerId) {
+      if (!resolvedBuyerId || resolvedBuyerId !== wo.buyerId) {
         throw new ForbiddenException(
           'Only the owning buyer, assigned technician, or admin can view deliverables'
         );
       }
     } else if (role === 'TECHNICIAN') {
-      const [tech] = await this.db
-        .select()
-        .from(technicianProfiles)
-        .where(eq(technicianProfiles.userId, userId))
-        .limit(1);
+      const resolvedTechId =
+        callerProfileId ??
+        (
+          await this.db
+            .select({ id: technicianProfiles.id })
+            .from(technicianProfiles)
+            .where(eq(technicianProfiles.userId, userId))
+            .limit(1)
+        )[0]?.id;
 
-      if (!tech || tech.id !== wo.assignedTechnicianId) {
+      if (!resolvedTechId || resolvedTechId !== wo.assignedTechnicianId) {
         throw new ForbiddenException(
           'Only the owning buyer, assigned technician, or admin can view deliverables'
         );

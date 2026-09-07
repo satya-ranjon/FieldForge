@@ -5,6 +5,7 @@ import type { NearbyTechnicianDto } from '@fieldforge/contracts';
 import type { MySql2Database } from 'drizzle-orm/mysql2';
 import { technicianProfiles, technicianCertifications, users } from '@fieldforge/database';
 import { eq, inArray } from 'drizzle-orm';
+import { TechnicianDirectoryService } from './technician-directory.service';
 
 export const REDIS_CLIENT = 'DISPATCH_REDIS_CLIENT';
 export const TECH_LOCATIONS_KEY = 'tech:locations';
@@ -16,7 +17,8 @@ export class GeoSearchService implements OnApplicationShutdown {
 
   constructor(
     @Optional() @Inject(REDIS_CLIENT) redisClient?: Redis,
-    @Optional() @Inject(DRIZZLE) private readonly db?: MySql2Database<Record<string, unknown>>
+    @Optional() @Inject(DRIZZLE) private readonly db?: MySql2Database<Record<string, unknown>>,
+    @Optional() private readonly directoryService?: TechnicianDirectoryService
   ) {
     if (redisClient) {
       this.redis = redisClient;
@@ -101,7 +103,21 @@ export class GeoSearchService implements OnApplicationShutdown {
 
     const certMap = new Map<string, string[]>();
 
-    if (this.db) {
+    if (this.directoryService) {
+      const summaries = await this.directoryService.getTechniciansBatch(techIds);
+      dbTechs = summaries.map((s) => ({
+        id: s.id,
+        firstName: s.firstName,
+        lastName: s.lastName,
+        ratingAverage: s.ratingAverage,
+        jobsCompleted: s.jobsCompleted,
+        hourlyRate: s.hourlyRate,
+        userStatus: s.userStatus
+      }));
+      for (const s of summaries) {
+        certMap.set(s.id, s.certifications || []);
+      }
+    } else if (this.db) {
       const profiles = await this.db
         .select({
           id: technicianProfiles.id,

@@ -6,31 +6,32 @@
 
 ## 1. Authentication & Vetting Service (`auth-service`)
 
-| Method  | Endpoint                                 | Description                                      | Auth / RBAC           | Payload Schema              |
-| :------ | :--------------------------------------- | :----------------------------------------------- | :-------------------- | :-------------------------- |
-| `POST`  | `/auth/register`                         | Register new Buyer or Technician account         | Public                | `registerUserSchema`        |
-| `POST`  | `/auth/login`                            | Authenticate credentials & return JWT tokens     | Public                | `loginSchema`               |
-| `POST`  | `/auth/refresh`                          | Issue fresh access token from refresh token      | Public                | `{ refreshToken: string }`  |
-| `POST`  | `/auth/phone/send-otp`                   | Request 6-digit phone verification OTP           | Public                | `sendPhoneOtpSchema`        |
-| `POST`  | `/auth/phone/verify-otp`                 | Verify phone number with 6-digit OTP             | Public                | `verifyPhoneOtpSchema`      |
-| `GET`   | `/users/me`                              | Retrieve authenticated user profile              | Bearer JWT            | None                        |
-| `GET`   | `/technicians/:id/badges`                | Fetch technician certifications & vetting badges | Bearer JWT            | None                        |
-| `POST`  | `/technicians/certifications`            | Submit new technician certification for review   | `TECHNICIAN`, `ADMIN` | `createCertificationSchema` |
-| `PATCH` | `/technicians/certifications/:id/verify` | Verify or reject technician certification        | `ADMIN`, `DISPATCHER` | `verifyCertificationSchema` |
-| `GET`   | `/technicians/certifications/pending`    | List pending certifications awaiting review      | `ADMIN`, `DISPATCHER` | None                        |
+| Method  | Endpoint                                 | Description                                          | Auth / RBAC                               | Payload Schema              |
+| :------ | :--------------------------------------- | :--------------------------------------------------- | :---------------------------------------- | :-------------------------- |
+| `POST`  | `/auth/register`                         | Register new Buyer or Technician account             | Public                                    | `registerUserSchema`        |
+| `POST`  | `/auth/login`                            | Authenticate credentials & return JWT tokens         | Public                                    | `loginSchema`               |
+| `POST`  | `/auth/refresh`                          | Issue fresh access token from refresh token          | Public                                    | `{ refreshToken: string }`  |
+| `POST`  | `/auth/phone/send-otp`                   | Request 6-digit phone verification OTP               | Public                                    | `sendPhoneOtpSchema`        |
+| `POST`  | `/auth/phone/verify-otp`                 | Verify phone number with 6-digit OTP                 | Public                                    | `verifyPhoneOtpSchema`      |
+| `GET`   | `/users/me`                              | Retrieve authenticated user profile                  | Bearer JWT                                | None                        |
+| `GET`   | `/technicians/:id/badges`                | Fetch technician certifications & vetting badges     | Bearer JWT                                | None                        |
+| `POST`  | `/technicians/batch`                     | Batch lookup of verified technician summary profiles | Public (Gateway prefix / Direct internal) | `batchTechniciansSchema`    |
+| `POST`  | `/technicians/certifications`            | Submit new technician certification for review       | `TECHNICIAN`, `ADMIN`                     | `createCertificationSchema` |
+| `PATCH` | `/technicians/certifications/:id/verify` | Verify or reject technician certification            | `ADMIN`, `DISPATCHER`                     | `verifyCertificationSchema` |
+| `GET`   | `/technicians/certifications/pending`    | List pending certifications awaiting review          | `ADMIN`, `DISPATCHER`                     | None                        |
 
 > **"Bearer JWT" means the token, not the header.** `/users/me` resolves the
-> caller from the verified token's `sub` claim. The `x-ff-user-id` /
-> `x-ff-user-role` headers the gateway injects are **not** an accepted identity
-> source: the gateway sets them only after verifying a token, but every service
-> listens on `0.0.0.0` with no NetworkPolicy or mTLS, so a direct caller can set
-> them too. `/users/me` reads `x-ff-user-id` solely to detect disagreement with
-> the token and returns 401 on a mismatch. The gateway, for its part, strips any
-> inbound `x-ff-user-*` before asserting its own.
+> caller from the verified token's `sub` claim. The `x-ff-user-id`, `x-ff-user-role`,
+> and `x-ff-profile-id` headers the gateway injects are asserted downstream after
+> token verification (`RULE-AUTH-03`, ADR 006). Downstream domain services use the
+> token `profileId` claim (or the gateway-asserted `x-ff-profile-id` header) to identify
+> buyer and technician aggregates directly without cross-service SQL queries into
+> foreign user tables. Direct callers cannot bypass the token requirement. The gateway
+> strips any inbound `x-ff-*` before asserting its own.
 >
 > New endpoints in this catalogue inherit that rule — verify the token, use
-> `payload.sub`. `docs/ISSUES.md` **C5** records what happened when `/users/me`
-> did it the other way around.
+> `payload.sub` or `payload.profileId`. `docs/ISSUES.md` **C5** and **FF-ARCH-02**
+> record the bounded context and identity invariants.
 
 ---
 

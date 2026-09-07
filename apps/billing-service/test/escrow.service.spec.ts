@@ -429,5 +429,54 @@ describe('EscrowService', () => {
         })
       );
     });
+
+    it('successfully releases funds when callerProfileId is provided directly (bypassing buyer profile query)', async () => {
+      // 1. Escrow lock returns HELD
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            for: () =>
+              Promise.resolve([
+                {
+                  id: 'escrow-1',
+                  workOrderId: WORK_ORDER_ID,
+                  amountLocked: '450.00',
+                  status: 'HELD'
+                }
+              ])
+          })
+        })
+      });
+
+      // 2. Work order lock returns APPROVED with matching buyerId
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            for: () =>
+              Promise.resolve([
+                {
+                  id: WORK_ORDER_ID,
+                  status: 'APPROVED',
+                  buyerId: 'direct-profile-id',
+                  assignedTechnicianId: TECH_ID
+                }
+              ])
+          })
+        })
+      });
+
+      // Notice: NO 3rd mockTx.select call for buyerProfiles needed!
+
+      const result = await escrow.releaseFunds({
+        workOrderId: WORK_ORDER_ID,
+        callerUserId: 'buyer-user-id',
+        callerRole: 'BUYER',
+        correlationId: CORRELATION_ID,
+        callerProfileId: 'direct-profile-id'
+      });
+
+      expect(result.status).toBe(EscrowStatus.RELEASED);
+      expect(result.disbursedAmountMinor).toBe(45000);
+    });
   });
 });

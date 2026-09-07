@@ -1,9 +1,13 @@
 import { Injectable, Inject, Optional, NotFoundException } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { DRIZZLE, type DrizzleClient } from '@fieldforge/common';
-import { technicianCertifications, technicianProfiles } from '@fieldforge/database';
-import type { TechnicianBadgeDto, CreateCertificationDto } from '@fieldforge/contracts';
+import { technicianCertifications, technicianProfiles, users } from '@fieldforge/database';
+import type {
+  TechnicianBadgeDto,
+  CreateCertificationDto,
+  TechnicianSummaryDto
+} from '@fieldforge/contracts';
 
 export type TechnicianBadge = TechnicianBadgeDto;
 
@@ -204,5 +208,70 @@ export class CertificationsService {
       }
     }
     return pending;
+  }
+
+  /**
+   * Batch resolves technician profiles, ratings, jobs completed, and verified badge names.
+   * Serves as the bounded context directory API for external consumers like dispatch.
+   */
+  async getTechniciansBatch(ids: string[]): Promise<TechnicianSummaryDto[]> {
+    if (!ids || ids.length === 0) {
+      return [];
+    }
+
+    if (this.db) {
+      const profiles = await this.db
+        .select({
+          id: technicianProfiles.id,
+          firstName: technicianProfiles.firstName,
+          lastName: technicianProfiles.lastName,
+          ratingAverage: technicianProfiles.ratingAverage,
+          jobsCompleted: technicianProfiles.jobsCompleted,
+          hourlyRate: technicianProfiles.hourlyRate,
+          userStatus: users.status
+        })
+        .from(technicianProfiles)
+        .innerJoin(users, eq(technicianProfiles.userId, users.id))
+        .where(inArray(technicianProfiles.id, ids));
+
+      const certs = await this.db
+        .select({
+          technicianId: technicianCertifications.technicianId,
+          badgeName: technicianCertifications.name
+        })
+        .from(technicianCertifications)
+        .where(inArray(technicianCertifications.technicianId, ids));
+
+      const certMap = new Map<string, string[]>();
+      for (const c of certs) {
+        const existing = certMap.get(c.technicianId) || [];
+        existing.push(c.badgeName);
+        certMap.set(c.technicianId, existing);
+      }
+
+      return profiles.map((p) => ({
+        id: p.id,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        ratingAverage: p.ratingAverage,
+        jobsCompleted: p.jobsCompleted,
+        hourlyRate: p.hourlyRate,
+        userStatus: p.userStatus || 'ACTIVE',
+        badges: certMap.get(p.id) || [],
+        certifications: certMap.get(p.id) || []
+      }));
+    }
+
+    return ids.map((id) => ({
+      id,
+      firstName: 'Mock',
+      lastName: 'Technician',
+      ratingAverage: '5.00',
+      jobsCompleted: 10,
+      hourlyRate: '50.00',
+      userStatus: 'ACTIVE',
+      badges: (this.mockCertifications[id] || []).map((b) => b.name),
+      certifications: (this.mockCertifications[id] || []).map((b) => b.name)
+    }));
   }
 }

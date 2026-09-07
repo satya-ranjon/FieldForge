@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-07  
-**Phase:** Phase 9 complete — Work Order Aggregate Boundary Reconciliation & Event-Driven Settlement (Resolves Finding 1). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 10 complete — Bounded Context Data Isolation & Directory-Based Profile Lookup (Resolves Finding 2, ADR 006). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -13,7 +13,7 @@
   invoices, and payout ledger (`0000`, `0001`, `0002_auth.sql`, `0003_wo_history.sql`, `0004_long_marvel_boy.sql`, `0005_chubby_iron_lad.sql`).
 - Local Docker Compose definitions for MySQL, Redis, RabbitMQ, Jaeger,
   Prometheus, and Grafana.
-- Architecture rules, four accepted ADRs + ADR 005 (`005_work_order_aggregate_boundary_reconciliation.md`), and CI/build scaffolding.
+- Architecture rules, four accepted ADRs + ADR 005 and ADR 006 (`006_bounded_context_data_isolation.md`), and CI/build scaffolding.
 - **Shared Drizzle module.** `packages/common/src/database/drizzle.module.ts` provides
   the centralized `DRIZZLE` injection token using `createDbClient` and loads local `.env`.
 - **Identity & Auth service.** `apps/auth-service` implements `POST /auth/register`,
@@ -68,9 +68,15 @@
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
   - `AppNavigator` mounting `JobListScreen` and `ActiveJobScreen` wrapped in Redux store.
-- **A test harness that can fail.** 435 automated unit/integration tests across 15 packages/apps
-  plus 28 Playwright E2E tests (463 total verified tests); zero `--passWithNoTests` anywhere.
-- **Technician Compliance, Vetting Badges & Onboarding Verification (Phase 8).**
+- **A test harness that can fail.** 442 automated unit/integration tests across 15 packages/apps
+  plus 28 Playwright E2E tests (470 total verified tests); zero `--passWithNoTests` anywhere.
+- **Bounded Context Data Isolation & Profile Propagation (Phase 10, Resolves Finding 2, ADR 006).**
+  - Eliminated synthetic profile generation (`Default Buyer Co` removed from `work-orders.service.ts`; un-onboarded buyers receive clean `NotFoundException`).
+  - Added `profileId` claim to JWT payload in `auth-service` upon registration, login, and token refresh.
+  - Propagated `x-ff-profile-id` header downstream from `api-gateway` in asserted gateway headers.
+  - Replaced cross-service SQL joins across `technicianProfiles`, `users`, and `technicianCertifications` in `dispatch-matching-service` with `TechnicianDirectoryService` calling `POST /technicians/batch` on `auth-service`.
+  - Added caller `profileId` fast-path across `work-order-service`, `dispatch-matching-service`, and `billing-service` to eliminate foreign user table lookups and preserve bounded context independence.
+- **Work Order Aggregate Boundary Reconciliation & Event-Driven Settlement (Phase 9, Resolves Finding 1, ADR 005).**
   - Added shared contracts (`TechnicianBadgeDto`, `CreateCertificationDto`, `VerifyCertificationDto`, `SendPhoneOtpDto`, `VerifyPhoneOtpDto`) and Zod schemas in `@fieldforge/contracts`.
   - Created `CertificationsController` in `apps/auth-service` with `GET /technicians/:id/badges`, `POST /technicians/certifications`, `PATCH /technicians/certifications/:id/verify`, and `GET /technicians/certifications/pending`.
   - Implemented rate-limited in-memory `PhoneOtpService` in `apps/auth-service` with `POST /auth/phone/send-otp` and `POST /auth/phone/verify-otp` (FR-AUTH-001).

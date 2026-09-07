@@ -35,8 +35,9 @@ export class DispatchController {
    */
   private authenticateUser(
     authHeader?: string,
-    gatewayUserId?: string
-  ): { userId: string; role: string } {
+    gatewayUserId?: string,
+    gatewayProfileId?: string
+  ): { userId: string; role: string; profileId?: string } {
     if (!authHeader) {
       throw new UnauthorizedException('Missing Authorization header');
     }
@@ -59,7 +60,8 @@ export class DispatchController {
 
     return {
       userId: payload.sub,
-      role: payload.role
+      role: payload.role,
+      profileId: payload.profileId || gatewayProfileId
     };
   }
 
@@ -67,9 +69,10 @@ export class DispatchController {
   async updateLocation(
     @Body() body: unknown,
     @Headers('authorization') authHeader?: string,
-    @Headers('x-ff-user-id') gatewayUserId?: string
+    @Headers('x-ff-user-id') gatewayUserId?: string,
+    @Headers('x-ff-profile-id') gatewayProfileId?: string
   ) {
-    const user = this.authenticateUser(authHeader, gatewayUserId);
+    const user = this.authenticateUser(authHeader, gatewayUserId, gatewayProfileId);
     if (user.role !== 'TECHNICIAN' && user.role !== 'ADMIN') {
       throw new ForbiddenException('Only technicians can update location');
     }
@@ -89,9 +92,10 @@ export class DispatchController {
   async findNearby(
     @Query() query: unknown,
     @Headers('authorization') authHeader?: string,
-    @Headers('x-ff-user-id') gatewayUserId?: string
+    @Headers('x-ff-user-id') gatewayUserId?: string,
+    @Headers('x-ff-profile-id') gatewayProfileId?: string
   ) {
-    this.authenticateUser(authHeader, gatewayUserId);
+    this.authenticateUser(authHeader, gatewayUserId, gatewayProfileId);
 
     const parsedQuery = nearbyTechniciansQuerySchema.parse(query);
     const technicians = await this.geoSearchService.findNearbyTechnicians(
@@ -112,9 +116,10 @@ export class DispatchController {
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string,
     @Headers('x-correlation-id') correlationHeader?: string,
-    @Headers('idempotency-key') idempotencyKey?: string
+    @Headers('idempotency-key') idempotencyKey?: string,
+    @Headers('x-ff-profile-id') gatewayProfileId?: string
   ) {
-    const user = this.authenticateUser(authHeader, gatewayUserId);
+    const user = this.authenticateUser(authHeader, gatewayUserId, gatewayProfileId);
     if (user.role !== 'TECHNICIAN' && user.role !== 'ADMIN') {
       throw new ForbiddenException('Only certified technicians can submit bids');
     }
@@ -122,7 +127,13 @@ export class DispatchController {
     const dto = submitBidSchema.parse(body);
     const correlationId = correlationHeader || randomUUID();
 
-    const bid = await this.bidsService.submitBid(dto, user.userId, correlationId, idempotencyKey);
+    const bid = await this.bidsService.submitBid(
+      dto,
+      user.userId,
+      correlationId,
+      idempotencyKey,
+      ...(user.profileId ? [user.profileId] : [])
+    );
 
     return bid;
   }
@@ -133,9 +144,10 @@ export class DispatchController {
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string,
     @Headers('x-correlation-id') correlationHeader?: string,
-    @Headers('idempotency-key') idempotencyKey?: string
+    @Headers('idempotency-key') idempotencyKey?: string,
+    @Headers('x-ff-profile-id') gatewayProfileId?: string
   ) {
-    const user = this.authenticateUser(authHeader, gatewayUserId);
+    const user = this.authenticateUser(authHeader, gatewayUserId, gatewayProfileId);
     if (user.role !== 'BUYER' && user.role !== 'ADMIN') {
       throw new ForbiddenException('Only enterprise buyers or admins can accept bids');
     }
@@ -147,7 +159,8 @@ export class DispatchController {
       user.userId,
       user.role,
       correlationId,
-      idempotencyKey
+      idempotencyKey,
+      ...(user.profileId ? [user.profileId] : [])
     );
 
     return result;
@@ -158,9 +171,10 @@ export class DispatchController {
     @Body() body: unknown,
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string,
-    @Headers('x-correlation-id') correlationHeader?: string
+    @Headers('x-correlation-id') correlationHeader?: string,
+    @Headers('x-ff-profile-id') gatewayProfileId?: string
   ) {
-    const user = this.authenticateUser(authHeader, gatewayUserId);
+    const user = this.authenticateUser(authHeader, gatewayUserId, gatewayProfileId);
     if (user.role !== 'BUYER' && user.role !== 'DISPATCHER' && user.role !== 'ADMIN') {
       throw new ForbiddenException('Only buyers, dispatchers, or admins can trigger auto-route');
     }
@@ -168,7 +182,13 @@ export class DispatchController {
     const dto = autoRouteSchema.parse(body);
     const correlationId = correlationHeader || randomUUID();
 
-    const result = await this.bidsService.autoRoute(dto, user.userId, user.role, correlationId);
+    const result = await this.bidsService.autoRoute(
+      dto,
+      user.userId,
+      user.role,
+      correlationId,
+      ...(user.profileId ? [user.profileId] : [])
+    );
 
     return result;
   }

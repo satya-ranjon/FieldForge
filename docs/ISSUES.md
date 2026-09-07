@@ -77,6 +77,13 @@
 > via `WorkOrderEventsConsumer` and `WorkOrderFsmService`. Documented under ADR 005.
 > Total verified tests: 435 unit/integration + 28 E2E = 463 tests.
 
+> **Phase 10 update — 2026-09-07:** Phase 10 of [`DEVELOPMENT_PLAN.md`](./DEVELOPMENT_PLAN.md)
+> delivered Bounded Context Data Isolation & Token-Enriched Profile Identity (Resolves **FF-ARCH-02 / Finding 2**).
+> Eliminated cross-service database table joins and direct identity table lookups across `work-order-service`,
+> `dispatch-matching-service`, and `billing-service`. Introduced `profileId` into `AuthJwtPayload` and gateway header
+> assertions (`x-ff-profile-id`), removed synthetic buyer profile auto-creation (`Default Buyer Co`) in `work-orders.service.ts`,
+> and established inter-service directory lookup `POST /technicians/batch` with `TechnicianDirectoryService`. Documented under ADR 006.
+
 ---
 
 ## How to read this report
@@ -732,6 +739,11 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
 
 - **Root Cause**: In `apps/billing-service` (`EscrowService.releaseFunds()`) and `apps/dispatch-matching-service` (`BidsService.acceptBid()`, `autoRoute()`), services directly mutated rows in `workOrdersSchema.workOrders` and `workOrdersSchema.workOrderStatusHistory`, bypassing `WorkOrderFsmService` state transitions, emitting duplicate `work_order.lifecycle.assigned` events, and violating service bounded context invariants (`AGENTS.md` and `RULE-FEAT-09`).
 - **Fix**: Decoupled both services from foreign aggregate tables. Introduced `tech.bidding.accepted` (`TECH_BID_ACCEPTED`) event emitted by `dispatch-matching-service`. Added `WorkOrderEventsConsumer` in `apps/work-order-service` consuming `tech.bidding.accepted` and `billing.payout.disbursed`, driving transitions via `WorkOrderFsmService` with pessimistic locking (`SELECT … FOR UPDATE`), and making `work-order-service` the single canonical emitter for `work_order.lifecycle.assigned` and `work_order.lifecycle.paid` (ADR 005).
+
+### FF-ARCH-02 · 🏛️ High Coupling and Database Sharing Across Services (Finding 2)
+
+- **Root Cause**: Services shared database tables and performed cross-domain SQL joins: `apps/dispatch-matching-service` joined `technician_profiles`, `users`, and `technician_certifications`, while `apps/work-order-service` automatically inserted synthetic profiles (`Default Buyer Co`) when buyer profiles were missing, and queried foreign profile tables on every lifecycle check. `apps/billing-service` similarly queried identity profile tables directly.
+- **Fix**: Decoupled data access via Token-Enriched Profile Identity and inter-service directory lookup. Enriched `AuthJwtPayload` and gateway asserted headers (`x-ff-profile-id`) with `profileId`. Removed synthetic profile auto-creation from `work-order-service` (requiring onboarding). Added `POST /technicians/batch` in `auth-service` and `TechnicianDirectoryService` in `dispatch-matching-service` to query technician metadata via REST. Added dual-path fallback across services to maintain full backwards compatibility (ADR 006).
 
 ---
 
