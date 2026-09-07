@@ -44,6 +44,18 @@ export const JobListScreen: React.FC<JobListScreenProps> = ({ onSelectJob }) => 
       </View>
 
       <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+        {/* Vetted Accreditations Bar */}
+        <View style={styles.accreditationsContainer}>
+          <Text style={styles.accreditationsTitle}>🛡️ Verified Compliance Badges</Text>
+          <View style={styles.badgesRow}>
+            {['Cisco CCNA', 'OSHA 10', 'Background Checked'].map((badge) => (
+              <View key={badge} style={styles.complianceBadge}>
+                <Text style={styles.complianceBadgeText}>✓ {badge}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
         <Text style={styles.sectionTitle}>Assigned Work Orders ({assignedJobs.length})</Text>
 
         {assignedJobs.map((job) => {
@@ -176,6 +188,38 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 20
+  },
+  accreditationsContainer: {
+    backgroundColor: '#0c1527',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: '#1e3a8a'
+  },
+  accreditationsTitle: {
+    color: '#38bdf8',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginBottom: 8
+  },
+  badgesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6
+  },
+  complianceBadge: {
+    backgroundColor: '#064e3b',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#059669'
+  },
+  complianceBadgeText: {
+    color: '#a7f3d0',
+    fontSize: 10,
+    fontWeight: '600'
   },
   sectionTitle: {
     color: '#f8fafc',

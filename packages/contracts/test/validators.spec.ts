@@ -7,6 +7,12 @@ import {
   generatePresignedUrlSchema,
   recordSignatureSchema
 } from '../src/validators/work-order.schema';
+import {
+  createCertificationSchema,
+  verifyCertificationSchema,
+  sendPhoneOtpSchema,
+  verifyPhoneOtpSchema
+} from '../src/validators/auth.schema';
 import { BudgetType, DeliverableType, WorkOrderStatus } from '../src/enums';
 
 const WORK_ORDER_ID = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
@@ -228,5 +234,50 @@ describe('deliverables schemas', () => {
         clientName: 'J'
       })
     ).toThrow();
+  });
+});
+
+describe('certifications and phone OTP schemas', () => {
+  it('createCertificationSchema validates valid YYYY-MM-DD dates and trims name', () => {
+    const parsed = createCertificationSchema.parse({
+      name: '  Cisco CCNA  ',
+      issuedDate: '2025-01-15',
+      expiryDate: '2028-01-15'
+    });
+    expect(parsed.name).toBe('  Cisco CCNA  ');
+    expect(parsed.issuedDate).toBe('2025-01-15');
+    expect(parsed.expiryDate).toBe('2028-01-15');
+  });
+
+  it('createCertificationSchema rejects non-conforming date formats', () => {
+    expect(() =>
+      createCertificationSchema.parse({
+        name: 'OSHA 10',
+        issuedDate: '01/15/2025',
+        expiryDate: '2028-01-15'
+      })
+    ).toThrow();
+  });
+
+  it('verifyCertificationSchema accepts boolean and optional notes', () => {
+    const parsed = verifyCertificationSchema.parse({
+      isVerified: true,
+      verificationNotes: 'Checked against Cisco credential register.'
+    });
+    expect(parsed.isVerified).toBe(true);
+    expect(parsed.verificationNotes).toBe('Checked against Cisco credential register.');
+  });
+
+  it('sendPhoneOtpSchema validates valid phone numbers', () => {
+    const parsed = sendPhoneOtpSchema.parse({ phoneNumber: '+14155550199' });
+    expect(parsed.phoneNumber).toBe('+14155550199');
+  });
+
+  it('verifyPhoneOtpSchema requires code and phone number', () => {
+    const parsed = verifyPhoneOtpSchema.parse({
+      phoneNumber: '+14155550199',
+      code: '123456'
+    });
+    expect(parsed.code).toBe('123456');
   });
 });

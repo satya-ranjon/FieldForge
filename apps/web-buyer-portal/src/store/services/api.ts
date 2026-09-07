@@ -6,8 +6,10 @@ import type {
   NearbyTechnicianDto,
   BidDetailsDto,
   EscrowDetailsDto,
-  WorkOrderStatus
+  WorkOrderStatus,
+  TechnicianBadgeDto
 } from '@fieldforge/contracts';
+
 import { setToken, logout } from '../slices/authSlice';
 
 interface RootStateWithAuth {
@@ -132,8 +134,25 @@ const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQue
 export const fieldForgeApi = createApi({
   reducerPath: 'fieldForgeApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['WorkOrder', 'Bid', 'Escrow', 'Technician'],
+  tagTypes: ['WorkOrder', 'Bid', 'Escrow', 'Technician', 'TechnicianBadges'],
   endpoints: (builder) => ({
+    getTechnicianBadges: builder.query<TechnicianBadgeDto[], string>({
+      query: (techId) => `/technicians/${techId}/badges`,
+      providesTags: (_result, _err, techId) => [{ type: 'TechnicianBadges', id: techId }]
+    }),
+
+    verifyCertification: builder.mutation<
+      TechnicianBadgeDto,
+      { certId: string; isVerified: boolean; verificationNotes?: string }
+    >({
+      query: ({ certId, ...body }) => ({
+        url: `/technicians/certifications/${certId}/verify`,
+        method: 'PATCH',
+        body
+      }),
+      invalidatesTags: ['TechnicianBadges', 'Technician']
+    }),
+
     getWorkOrders: builder.query<
       WorkOrderResponseDto[],
       { status?: string; buyerId?: string; limit?: number; offset?: number } | void
@@ -323,5 +342,7 @@ export const {
   usePreAuthEscrowMutation,
   useGetEscrowByWorkOrderQuery,
   useReleaseEscrowMutation,
-  useGetInvoiceQuery
+  useGetInvoiceQuery,
+  useGetTechnicianBadgesQuery,
+  useVerifyCertificationMutation
 } = fieldForgeApi;

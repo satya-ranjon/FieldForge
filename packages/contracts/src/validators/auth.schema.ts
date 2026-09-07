@@ -22,3 +22,23 @@ export const loginSchema = z.object({
 export const refreshTokenSchema = z.object({
   refreshToken: z.string().min(1)
 });
+
+export const createCertificationSchema = z.object({
+  name: z.string().min(2).max(100),
+  issuedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD format'),
+  expiryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD format')
+});
+
+export const verifyCertificationSchema = z.object({
+  isVerified: z.boolean(),
+  verificationNotes: z.string().optional()
+});
+
+export const sendPhoneOtpSchema = z.object({
+  phoneNumber: z.string().min(8).max(30)
+});
+
+export const verifyPhoneOtpSchema = z.object({
+  phoneNumber: z.string().min(8).max(30),
+  code: z.string().min(4).max(8)
+});

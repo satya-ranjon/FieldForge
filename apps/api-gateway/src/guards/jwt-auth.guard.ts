@@ -9,6 +9,7 @@ const PUBLIC_PREFIXES = [
   '/api/v1/auth/register',
   '/api/v1/auth/login',
   '/api/v1/auth/refresh',
+  '/api/v1/auth/phone',
   '/api/v1/healthz',
   '/api/v1/readyz',
   '/api/v1/metrics',

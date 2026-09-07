@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
-**Last reviewed:** 2026-09-06  
-**Phase:** Phase 7 complete — Observability and measured SLO evidence. Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Last reviewed:** 2026-09-07  
+**Phase:** Phase 8 complete — Technician Compliance, Vetting Badges & Onboarding Verification. Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -18,11 +18,17 @@
   the centralized `DRIZZLE` injection token using `createDbClient` and loads local `.env`.
 - **Identity & Auth service.** `apps/auth-service` implements `POST /auth/register`,
   `POST /auth/login`, `POST /auth/refresh` (with rotating tokens in `refresh_tokens`),
-  `GET /users/me`, and database-backed technician certifications (`technician_certifications`).
+  `POST /auth/phone/send-otp`, `POST /auth/phone/verify-otp` (in-memory rate-limited phone OTP verification),
+  `GET /users/me`, and technician certifications & vetting:
+  `GET /technicians/:id/badges` (resolves user or profile ID, C5 protected),
+  `POST /technicians/certifications` (submits new credential),
+  `PATCH /technicians/certifications/:id/verify` (admin/dispatcher verification with expiry),
+  and `GET /technicians/certifications/pending`.
 - **Real trust boundary at API Gateway.** `apps/api-gateway` enforces `JwtAuthGuard`,
   `RolesGuard` (RBAC), `ThrottlerGuard` rate limiting, strict CORS allowlist, PII redaction
   in structured Pino logging, and reverse-proxying with injected `x-ff-user-id`, `x-ff-user-role`,
-  and `x-correlation-id` downstream headers.
+  and `x-correlation-id` downstream headers. Routes `/api/v1/auth/phone` are permitted publicly,
+  and `technicians` endpoints route directly to `auth-service`.
 - **Identity comes from the token, never from a header.** `GET /users/me`, `apps/work-order-service`,
   `apps/dispatch-matching-service`, and `apps/billing-service` controllers verify the bearer token
   and read `payload.sub`; `x-ff-user-id` is checked for tampering and mismatch is rejected (C5).
@@ -59,8 +65,16 @@
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
   - `AppNavigator` mounting `JobListScreen` and `ActiveJobScreen` wrapped in Redux store.
-- **A test harness that can fail.** 408 automated unit/integration tests across 19 suites
-  plus 28 Playwright E2E tests (436 total verified tests); zero `--passWithNoTests` anywhere.
+- **A test harness that can fail.** 430 automated unit/integration tests across 15 packages/apps
+  plus 28 Playwright E2E tests (458 total verified tests); zero `--passWithNoTests` anywhere.
+- **Technician Compliance, Vetting Badges & Onboarding Verification (Phase 8).**
+  - Added shared contracts (`TechnicianBadgeDto`, `CreateCertificationDto`, `VerifyCertificationDto`, `SendPhoneOtpDto`, `VerifyPhoneOtpDto`) and Zod schemas in `@fieldforge/contracts`.
+  - Created `CertificationsController` in `apps/auth-service` with `GET /technicians/:id/badges`, `POST /technicians/certifications`, `PATCH /technicians/certifications/:id/verify`, and `GET /technicians/certifications/pending`.
+  - Implemented rate-limited in-memory `PhoneOtpService` in `apps/auth-service` with `POST /auth/phone/send-otp` and `POST /auth/phone/verify-otp` (FR-AUTH-001).
+  - Routed `technicians` reverse proxying to `auth-service` in `apps/api-gateway` and whitelisted phone OTP endpoints as public.
+  - Enhanced Enterprise Buyer Portal (`TechnicianMatchingRadar.tsx`) with real-time verified badge chips (`ShieldCheck`, `CheckCircle2`) and RTK Query hooks.
+  - Enhanced Mobile Technician App (`JobListScreen.tsx`) with compliance badge indicator.
+  - Seeded verified industry certifications (`Cisco CCNA`, `OSHA 10`, `CompTIA A+`, `Fiber Optic Certified`, `Background Checked`) for seed technicians in `@fieldforge/database`.
 - **Production Observability & Measured SLO Evidence (Phase 7).**
   - Production `MetricsRegistry` and `MetricsInterceptor` in `@fieldforge/common` powered by `prom-client`.
   - Emits `http_requests_total`, `http_request_duration_seconds` (read and write SLI buckets), `dispatch_fanout_latency_seconds`, and `billing_reconciliation_failures_total`.

@@ -32,6 +32,8 @@ FieldForge is an enterprise field service marketplace and autonomous dispatch pl
 - **⚡ Low-Latency Dispatch Matching:** Redis `GEOSEARCH` proximity matching paired with multi-parameter contractor scoring (certifications, ratings, hourly rate, distance).
 - **📋 Deterministic Finite State Machine (FSM):** Strict, ACID-backed work order state progression with zero race conditions.
 - **📍 GPS Geofence Check-In & Proof of Work:** Server-verified location requiring $\le 200\text{m}$ of site proximity (SRS FR-MOB-001), photo deliverables, checklist milestone verification, and SHA-256 signed client approvals.
+- **🛡️ Technician Compliance & Vetting Badges:** Database-backed credentials (Cisco CCNA, OSHA 10, CompTIA A+, Background Checks), administrative verification workflows, and visual badge discovery across portal and mobile app.
+- **📱 Phone OTP Verification:** Cryptographically randomized, rate-limited 6-digit OTP verification for secure contractor onboarding.
 - **💳 Guaranteed Escrow Settlement:** Automated pre-authorization, fund locking on assignment, and 72-hour auto-disbursement with PDF invoice generation.
 - **📊 99.9% SLI/SLO Reliability:** Production Prometheus metrics (`/metrics`), live Grafana dashboard (`http://localhost:3009`), Pino structured logging, distributed `x-correlation-id` propagation, and k6-driven 1,000 concurrent dispatch load validation.
 
@@ -98,6 +100,7 @@ flowchart TD
 
     %% Gateway Routing
     APIGW -->|Route /auth| AuthSvc
+    APIGW -->|Route /technicians| AuthSvc
     APIGW -->|Route /work-orders| WOSvc
     APIGW -->|Route /dispatch| DispSvc
     APIGW -->|Route /billing| BillSvc
@@ -287,20 +290,20 @@ erDiagram
 
 - **Escrow 1:1 Invariant (`uq_escrow_work_order`)**: `escrow_accounts.work_order_id` is enforced by a `UNIQUE` constraint at the database layer to prevent double-funding or duplicate payout releases.
 - **Dispatch Composite Index (`idx_wo_status_sched`)**: Composite index on `work_orders(status, scheduled_start_time)` allows high-throughput querying of open work orders without filesorting.
-- **Geospatial Precision**: Site locations and technician coordinates use `DECIMAL(10, 8)` and `DECIMAL(11, 8)` for centimeter-level geofence accuracy ($\le 100\text{m}$).
+- **Geospatial Precision**: Site locations and technician coordinates use `DECIMAL(10, 8)` and `DECIMAL(11, 8)` for centimeter-level geofence accuracy ($\le 200\text{m}$).
 
 ---
 
 ## 🚀 Microservices Ecosystem
 
-| Microservice                    |  Port  | Domain Responsibilities                                                                   | Primary Data Store                    |
-| :------------------------------ | :----: | :---------------------------------------------------------------------------------------- | :------------------------------------ |
-| **`api-gateway`**               | `8000` | Edge reverse proxy, JWT validation, rate limiting, correlation ID injection               | In-Memory / Redis                     |
-| **`auth-service`**              | `8001` | User onboarding, RBAC tokens, compliance vetting (OSHA 10, Cisco CCNA, Background Checks) | MySQL (`users`, `profiles`)           |
-| **`work-order-service`**        | `8002` | Work order lifecycle FSM, SOW templates, S3 deliverable uploads, SLA timeout watchers     | MySQL (`work_orders`, `deliverables`) |
-| **`dispatch-matching-service`** | `8003` | Geospatial contractor matching (`GEOSEARCH`), bidding negotiation, auto-routing rules     | Redis 7 & RabbitMQ                    |
-| **`billing-service`**           | `8004` | Escrow pre-authorizations, fund capture, technician payouts, automated PDF invoicing      | MySQL (`escrow_accounts`)             |
-| **`notification-service`**      | `8005` | Push notifications (FCM/APNS), SMS dispatch alerts (Twilio), Email receipts (SES)         | RabbitMQ Topic Consumer               |
+| Microservice                    |  Port  | Domain Responsibilities                                                                                                      | Primary Data Store                    |
+| :------------------------------ | :----: | :--------------------------------------------------------------------------------------------------------------------------- | :------------------------------------ |
+| **`api-gateway`**               | `8000` | Edge reverse proxy, JWT validation, rate limiting, correlation ID injection                                                  | In-Memory / Redis                     |
+| **`auth-service`**              | `8001` | User onboarding, Phone OTP verification, RBAC tokens, compliance vetting (OSHA 10, Cisco CCNA, Badges) & certification audit | MySQL (`users`, `profiles`)           |
+| **`work-order-service`**        | `8002` | Work order lifecycle FSM, SOW templates, S3 deliverable uploads, SLA timeout watchers                                        | MySQL (`work_orders`, `deliverables`) |
+| **`dispatch-matching-service`** | `8003` | Geospatial contractor matching (`GEOSEARCH`), bidding negotiation, auto-routing rules                                        | Redis 7 & RabbitMQ                    |
+| **`billing-service`**           | `8004` | Escrow pre-authorizations, fund capture, technician payouts, automated PDF invoicing                                         | MySQL (`escrow_accounts`)             |
+| **`notification-service`**      | `8005` | Push notifications (FCM/APNS), SMS dispatch alerts (Twilio), Email receipts (SES)                                            | RabbitMQ Topic Consumer               |
 
 ---
 

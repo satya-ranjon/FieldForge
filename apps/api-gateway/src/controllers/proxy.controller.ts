@@ -59,6 +59,7 @@ export class ProxyController {
     this.proxies = {
       auth: createServiceProxy(gatewayConfig.services.auth),
       users: createServiceProxy(gatewayConfig.services.auth),
+      technicians: createServiceProxy(gatewayConfig.services.auth),
       'work-orders': createServiceProxy(gatewayConfig.services.workOrder),
       dispatch: createServiceProxy(gatewayConfig.services.dispatch),
       billing: createServiceProxy(gatewayConfig.services.billing),
@@ -71,6 +72,8 @@ export class ProxyController {
     'auth/{*path}',
     'users',
     'users/{*path}',
+    'technicians',
+    'technicians/{*path}',
     'work-orders',
     'work-orders/{*path}',
     'dispatch',

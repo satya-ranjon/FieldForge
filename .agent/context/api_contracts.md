@@ -6,13 +6,18 @@
 
 ## 1. Authentication & Vetting Service (`auth-service`)
 
-| Method | Endpoint                  | Description                                      | Auth / RBAC | Payload Schema             |
-| :----- | :------------------------ | :----------------------------------------------- | :---------- | :------------------------- |
-| `POST` | `/auth/register`          | Register new Buyer or Technician account         | Public      | `registerUserSchema`       |
-| `POST` | `/auth/login`             | Authenticate credentials & return JWT tokens     | Public      | `loginSchema`              |
-| `POST` | `/auth/refresh`           | Issue fresh access token from refresh token      | Public      | `{ refreshToken: string }` |
-| `GET`  | `/users/me`               | Retrieve authenticated user profile              | Bearer JWT  | None                       |
-| `GET`  | `/technicians/:id/badges` | Fetch technician certifications & vetting badges | Bearer JWT  | None                       |
+| Method  | Endpoint                                 | Description                                      | Auth / RBAC           | Payload Schema              |
+| :------ | :--------------------------------------- | :----------------------------------------------- | :-------------------- | :-------------------------- |
+| `POST`  | `/auth/register`                         | Register new Buyer or Technician account         | Public                | `registerUserSchema`        |
+| `POST`  | `/auth/login`                            | Authenticate credentials & return JWT tokens     | Public                | `loginSchema`               |
+| `POST`  | `/auth/refresh`                          | Issue fresh access token from refresh token      | Public                | `{ refreshToken: string }`  |
+| `POST`  | `/auth/phone/send-otp`                   | Request 6-digit phone verification OTP           | Public                | `sendPhoneOtpSchema`        |
+| `POST`  | `/auth/phone/verify-otp`                 | Verify phone number with 6-digit OTP             | Public                | `verifyPhoneOtpSchema`      |
+| `GET`   | `/users/me`                              | Retrieve authenticated user profile              | Bearer JWT            | None                        |
+| `GET`   | `/technicians/:id/badges`                | Fetch technician certifications & vetting badges | Bearer JWT            | None                        |
+| `POST`  | `/technicians/certifications`            | Submit new technician certification for review   | `TECHNICIAN`, `ADMIN` | `createCertificationSchema` |
+| `PATCH` | `/technicians/certifications/:id/verify` | Verify or reject technician certification        | `ADMIN`, `DISPATCHER` | `verifyCertificationSchema` |
+| `GET`   | `/technicians/certifications/pending`    | List pending certifications awaiting review      | `ADMIN`, `DISPATCHER` | None                        |
 
 > **"Bearer JWT" means the token, not the header.** `/users/me` resolves the
 > caller from the verified token's `sub` claim. The `x-ff-user-id` /

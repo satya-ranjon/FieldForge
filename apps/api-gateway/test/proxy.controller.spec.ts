@@ -83,4 +83,10 @@ describe('ProxyController identity headers', () => {
     expect(headers['x-correlation-id']).toBe(id);
     expect(headers['x-ff-user-id']).toBeUndefined();
   });
+
+  it('registers proxy handler for technicians route', () => {
+    const controller = new ProxyController();
+    // @ts-expect-error accessing private field for test
+    expect(controller.proxies['technicians']).toBeDefined();
+  });
 });

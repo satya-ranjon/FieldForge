@@ -10,8 +10,10 @@ import {
   Sliders,
   MapPin,
   X,
-  Navigation
+  Navigation,
+  ShieldCheck
 } from 'lucide-react';
+
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../../store';
 import {
@@ -432,12 +434,17 @@ export const TechnicianMatchingRadar: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                    <span className="text-[10px] text-emerald-400 font-mono flex items-center gap-1 font-semibold">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                      Vetted:
+                    </span>
                     {tech.certifications.map((c) => (
                       <span
                         key={c}
-                        className="text-[9px] px-1.5 py-0.2 rounded bg-blue-950/60 text-blue-300 border border-blue-900/40 font-mono"
+                        className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-950/60 text-emerald-300 border border-emerald-800/60 font-mono font-medium inline-flex items-center gap-1"
                       >
+                        <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" />
                         {c}
                       </span>
                     ))}

@@ -9,8 +9,10 @@ import {
 } from '@fieldforge/common';
 import { AuthController } from './modules/auth/auth.controller';
 import { AuthService } from './modules/auth/auth.service';
+import { PhoneOtpService } from './modules/auth/phone-otp.service';
 import { UsersController } from './modules/users/users.controller';
 import { UsersService } from './modules/users/users.service';
+import { CertificationsController } from './modules/certifications/certifications.controller';
 import { CertificationsService } from './modules/certifications/certifications.service';
 
 @Module({
@@ -26,16 +28,17 @@ import { CertificationsService } from './modules/certifications/certifications.s
       })
     })
   ],
-  controllers: [AuthController, UsersController, HealthController],
+  controllers: [AuthController, UsersController, CertificationsController, HealthController],
   providers: [
     {
       provide: APP_FILTER,
       useClass: GlobalHttpExceptionFilter
     },
     AuthService,
+    PhoneOtpService,
     UsersService,
     CertificationsService
   ],
-  exports: [AuthService, UsersService, CertificationsService]
+  exports: [AuthService, PhoneOtpService, UsersService, CertificationsService]
 })
 export class AuthModule {}

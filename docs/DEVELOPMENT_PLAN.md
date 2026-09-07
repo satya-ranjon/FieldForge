@@ -335,6 +335,47 @@ NFR-PERF-001.
 
 ---
 
+## Phase 8 — Technician Compliance, Vetting Badges & Onboarding Verification (Completed)
+
+**Status: Completed (2026-09-07).** Implements FR-AUTH-001 (phone OTP onboarding verification) and FR-AUTH-003 (technician vetting badges and certifications). Resolves unmounted endpoint `GET /technicians/:id/badges` from `.agent/context/api_contracts.md`.
+
+- **Shared Contracts & Validation (`@fieldforge/contracts`).** Added DTOs and Zod validation schemas for technician badges (`TechnicianBadgeDto`), certification submission (`CreateCertificationDto`, `createCertificationSchema`), certification verification (`VerifyCertificationDto`, `verifyCertificationSchema`), and phone OTP verification (`SendPhoneOtpDto`, `sendPhoneOtpSchema`, `VerifyPhoneOtpDto`, `verifyPhoneOtpSchema`, `PhoneOtpResponseDto`). Added 5 comprehensive validation unit tests in `validators.spec.ts`.
+- **Database Seed Enhancements (`@fieldforge/database`).** Seeded active verified certifications (`Cisco CCNA`, `OSHA 10`, `CompTIA A+`, `Fiber Optic Certified`, `Background Checked`) for technicians Alex Rivas and Jordan Lee across `technician_certifications`.
+- **Technician Certifications & Vetting Endpoints (`apps/auth-service`).**
+  - Created `CertificationsController` and expanded `CertificationsService`.
+  - Exposed `GET /technicians/:id/badges` allowing retrieval of verified compliance badges for any technician (resolving either by `users.id` or `technician_profiles.id`), enforcing Bearer auth and C5 identity mismatch protection.
+  - Exposed `POST /technicians/certifications` for technicians to submit new certifications (strictly deriving technician profile identity from verified token `payload.sub`).
+  - Exposed `PATCH /technicians/certifications/:id/verify` restricted to `ADMIN` and `DISPATCHER` roles for vetting and verifying submitted certifications with expiration dates.
+  - Exposed `GET /technicians/certifications/pending` restricted to `ADMIN` and `DISPATCHER` roles for administrative compliance auditing.
+- **Phone OTP Verification Service (`apps/auth-service`).**
+  - Implemented `PhoneOtpService` with secure 6-digit cryptographic OTP generation, 5-minute expiry TTL, maximum 3-attempt lock, and 10-minute rate limiting window.
+  - Exposed `POST /auth/phone/send-otp` and `POST /auth/phone/verify-otp` in `AuthController`.
+- **API Gateway Routing & Public Whitelist (`apps/api-gateway`).**
+  - Added `/api/v1/auth/phone` to `PUBLIC_PREFIXES` in `JwtAuthGuard` to allow unauthenticated phone OTP verification during registration.
+  - Configured reverse proxying for `technicians` and `technicians/{*path}` forwarding to `auth-service` with `x-correlation-id` and downstream user identity injection.
+- **Frontend Portal & Mobile Tech App Integration.**
+  - **Buyer Portal (`apps/web-buyer-portal`):** Added `TechnicianBadges` RTK Query API slice tag and `useGetTechnicianBadgesQuery` / `useVerifyCertificationMutation` hooks. Enhanced `TechnicianMatchingRadar.tsx` with dynamic `ShieldCheck` and `CheckCircle2` badges displaying verified technician credentials directly on dispatch cards.
+  - **Mobile Tech App (`apps/mobile-tech-app`):** Added verified compliance badge chips display (`🛡️ Verified Compliance Badges`) on `JobListScreen.tsx` highlighting the technician's active credentials.
+
+**Verification:**
+
+- 430 automated unit/integration tests passing across 15 packages/apps in monorepo (zero `--passWithNoTests`):
+  - 44 tests in `apps/auth-service` (4 suites) covering certification submission, verification RBAC, badge queries, phone OTP generation, attempt limits, expiry, rate-limiting, and registration/login flows.
+  - 43 tests in `apps/api-gateway` (4 suites) covering proxy routing, public endpoints, JWT validation, and RBAC guards.
+  - 74 tests in `@fieldforge/contracts` (3 suites) covering all DTO schemas, money, and geo utilities.
+  - 21 tests in `apps/mobile-tech-app` (4 suites).
+  - 172 tests in `apps/work-order-service` (7 suites).
+  - 19 tests in `apps/billing-service` (4 suites).
+  - 16 tests in `apps/dispatch-matching-service` (3 suites).
+  - 17 tests in `packages/messaging` (5 suites).
+  - 13 tests in `apps/notification-service` (1 suite).
+  - 11 tests in `@fieldforge/common` (2 suites).
+- 28 Playwright E2E tests validated across 5 spec files (`pnpm test:e2e`).
+- 18/18 tasks passed clean type checking without Turborepo cache (`pnpm validate:clean-typecheck`).
+- `pnpm format:check`, `pnpm lint` (0 errors, 0 warnings with `--max-warnings=0`), `pnpm build`, and `pnpm check` pass cleanly.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

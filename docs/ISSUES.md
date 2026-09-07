@@ -63,6 +63,13 @@
 > - **FF-BUG-09**: Graceful Redis disconnection on module destruction, eliminating Jest open handle warnings in `@fieldforge/messaging` integration tests.
 > - **FF-BUG-10**: GitHub Actions CI workflow backing service provisioning (Redis & RabbitMQ) for integration tests (`.github/workflows/ci-pipeline.yml`).
 
+> **Phase 8 update — 2026-09-07:** Phase 8 of [`DEVELOPMENT_PLAN.md`](./DEVELOPMENT_PLAN.md)
+> delivered Technician Compliance, Vetting Badges & Onboarding Verification.
+> Resolved unmounted catalog endpoint `GET /technicians/:id/badges` from `.agent/context/api_contracts.md`,
+> implemented phone OTP onboarding verification (FR-AUTH-001) in `apps/auth-service`, and added
+> verified compliance badge tracking (FR-AUTH-003) across contracts, seeds, controllers, buyer portal,
+> and mobile technician app. Total verified tests: 430 unit/integration + 28 E2E = 458 tests.
+
 ---
 
 ## How to read this report

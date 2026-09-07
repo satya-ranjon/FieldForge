@@ -1,7 +1,13 @@
 import { config } from 'dotenv';
 import { resolve } from 'node:path';
 import { createDbClient } from '../index';
-import { users, buyerProfiles, technicianProfiles } from '../schemas/users.schema';
+import {
+  users,
+  buyerProfiles,
+  technicianProfiles,
+  technicianCertifications
+} from '../schemas/users.schema';
+
 import { workOrders } from '../schemas/work-orders.schema';
 import { workOrderBids } from '../schemas/bids.schema';
 import { escrowAccounts } from '../schemas/billing.schema';
@@ -96,7 +102,63 @@ async function seed() {
     ])
     .onDuplicateKeyUpdate({ set: { ratingAverage: '4.95' } });
 
+  console.log('Inserting verified technician certifications...');
+  await db
+    .insert(technicianCertifications)
+    .values([
+      {
+        id: '60000000-0000-4000-8000-000000000001',
+        technicianId: tech1UserId,
+        name: 'Cisco CCNA',
+        issuedDate: new Date('2025-01-15'),
+        expiryDate: new Date('2028-01-15'),
+        isVerified: true
+      },
+      {
+        id: '60000000-0000-4000-8000-000000000002',
+        technicianId: tech1UserId,
+        name: 'OSHA 10',
+        issuedDate: new Date('2024-06-10'),
+        expiryDate: new Date('2027-06-10'),
+        isVerified: true
+      },
+      {
+        id: '60000000-0000-4000-8000-000000000003',
+        technicianId: tech1UserId,
+        name: 'Background Checked',
+        issuedDate: new Date('2026-02-01'),
+        expiryDate: new Date('2027-02-01'),
+        isVerified: true
+      },
+      {
+        id: '60000000-0000-4000-8000-000000000004',
+        technicianId: tech2UserId,
+        name: 'CompTIA A+',
+        issuedDate: new Date('2024-11-20'),
+        expiryDate: new Date('2027-11-20'),
+        isVerified: true
+      },
+      {
+        id: '60000000-0000-4000-8000-000000000005',
+        technicianId: tech2UserId,
+        name: 'Fiber Optic Certified',
+        issuedDate: new Date('2025-03-01'),
+        expiryDate: new Date('2028-03-01'),
+        isVerified: true
+      },
+      {
+        id: '60000000-0000-4000-8000-000000000006',
+        technicianId: tech2UserId,
+        name: 'Background Checked',
+        issuedDate: new Date('2026-01-10'),
+        expiryDate: new Date('2027-01-10'),
+        isVerified: true
+      }
+    ])
+    .onDuplicateKeyUpdate({ set: { isVerified: true } });
+
   console.log('Inserting sample active work order...');
+
   await db
     .insert(workOrders)
     .values({

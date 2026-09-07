@@ -86,9 +86,50 @@ describe('CertificationsService', () => {
     const badges = await serviceWithDb.getTechnicianBadges('t-123');
 
     expect(badges).toHaveLength(1);
-    expect(badges[0].badgeId).toBe('cert-1');
-    expect(badges[0].name).toBe('OSHA 10');
-    expect(badges[0].isVerified).toBe(true);
-    expect(badges[0].issuedDate).toBe('2025-01-01');
+    expect(badges[0]?.badgeId).toBe('cert-1');
+    expect(badges[0]?.name).toBe('OSHA 10');
+    expect(badges[0]?.isVerified).toBe(true);
+    expect(badges[0]?.issuedDate).toBe('2025-01-01');
+  });
+
+  it('adds a certification in unverified status', async () => {
+    const res = await certifications.addCertification('t-999', {
+      name: 'Fiber Optic Certified',
+      issuedDate: '2025-03-01',
+      expiryDate: '2028-03-01'
+    });
+
+    expect(res.name).toBe('Fiber Optic Certified');
+    expect(res.isVerified).toBe(false);
+    expect(res.technicianId).toBe('t-999');
+
+    const badges = await certifications.getTechnicianBadges('t-999');
+    expect(badges).toHaveLength(1);
+    expect(badges[0]?.isVerified).toBe(false);
+  });
+
+  it('verifies an existing certification', async () => {
+    const added = await certifications.addCertification('t-888', {
+      name: 'CompTIA A+',
+      issuedDate: '2024-11-20',
+      expiryDate: '2027-11-20'
+    });
+
+    const verified = await certifications.verifyCertification(added.badgeId, true);
+    expect(verified.isVerified).toBe(true);
+
+    const badges = await certifications.getTechnicianBadges('t-888');
+    expect(badges[0]?.isVerified).toBe(true);
+  });
+
+  it('lists pending certifications', async () => {
+    await certifications.addCertification('t-777', {
+      name: 'OSHA 10',
+      issuedDate: '2025-01-01',
+      expiryDate: '2028-01-01'
+    });
+
+    const pending = await certifications.listPendingCertifications();
+    expect(pending.some((p) => p.name === 'OSHA 10' && p.technicianId === 't-777')).toBe(true);
   });
 });

@@ -44,8 +44,35 @@ export interface AuthJwtPayload {
 
 export interface TechnicianBadgeDto {
   badgeId: string;
+  technicianId?: string;
   name: string;
   issuedDate: string;
   expiryDate: string;
   isVerified: boolean;
+}
+
+export interface CreateCertificationDto {
+  name: string;
+  issuedDate: string;
+  expiryDate: string;
+}
+
+export interface VerifyCertificationDto {
+  isVerified: boolean;
+  verificationNotes?: string;
+}
+
+export interface SendPhoneOtpDto {
+  phoneNumber: string;
+}
+
+export interface VerifyPhoneOtpDto {
+  phoneNumber: string;
+  code: string;
+}
+
+export interface PhoneOtpResponseDto {
+  success: boolean;
+  message: string;
+  expiresInSeconds?: number;
 }
