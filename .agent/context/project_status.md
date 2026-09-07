@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-07  
-**Phase:** Phase 8 complete — Technician Compliance, Vetting Badges & Onboarding Verification. Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 9 complete — Work Order Aggregate Boundary Reconciliation & Event-Driven Settlement (Resolves Finding 1). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -13,7 +13,7 @@
   invoices, and payout ledger (`0000`, `0001`, `0002_auth.sql`, `0003_wo_history.sql`, `0004_long_marvel_boy.sql`, `0005_chubby_iron_lad.sql`).
 - Local Docker Compose definitions for MySQL, Redis, RabbitMQ, Jaeger,
   Prometheus, and Grafana.
-- Architecture rules, three accepted ADRs, and CI/build scaffolding.
+- Architecture rules, four accepted ADRs + ADR 005 (`005_work_order_aggregate_boundary_reconciliation.md`), and CI/build scaffolding.
 - **Shared Drizzle module.** `packages/common/src/database/drizzle.module.ts` provides
   the centralized `DRIZZLE` injection token using `createDbClient` and loads local `.env`.
 - **Identity & Auth service.** `apps/auth-service` implements `POST /auth/register`,
@@ -32,18 +32,21 @@
 - **Identity comes from the token, never from a header.** `GET /users/me`, `apps/work-order-service`,
   `apps/dispatch-matching-service`, and `apps/billing-service` controllers verify the bearer token
   and read `payload.sub`; `x-ff-user-id` is checked for tampering and mismatch is rejected (C5).
-- **Persistent, transactional work-order lifecycle.** `apps/work-order-service` implements
+- **Persistent, transactional work-order lifecycle (`apps/work-order-service`).** Implements
   `POST /work-orders`, `GET /work-orders` (filtered on composite index), `GET /work-orders/:id`,
   `GET /work-orders/:id/history`, `POST /work-orders/:id/publish`, `POST /work-orders/:id/transition`,
   and `PATCH /work-orders/:id/status`. All mutations execute in `db.transaction()` with `SELECT … FOR UPDATE`
-  row-level locking.
+  row-level locking. Sole mutator of the `work_orders` and `work_order_status_history` tables.
+  `WorkOrderEventsConsumer` listens to `fieldforge.work-orders.lifecycle-events` to transactionally settle
+  orders to `PAID` upon `PAYOUT_DISBURSED` and assign technicians upon `TECH_BID_ACCEPTED`. Sole emitter of
+  `work_order.lifecycle.assigned` and `work_order.lifecycle.paid`.
 - **Geospatial Matching & Bidding (`apps/dispatch-matching-service`).**
   - Redis `GEOADD` and `GEOSEARCH` on `tech:locations` with Haversine exact distance filtering.
   - Multi-parameter contractor scoring algorithm: 40% distance, 30% rating, 15% completed jobs, 15% verified certifications.
-  - Transactional bid submission (`POST /dispatch/bids`) and atomic bid acceptance (`POST /dispatch/bids/:id/accept`) locking work order and bid rows `FOR UPDATE`, marking selected bid `ACCEPTED`, rejecting siblings, assigning technician, and publishing `work_order.lifecycle.assigned`.
-  - Auto-routing engine (`POST /dispatch/auto-route`) discovering and assigning top-scoring contractor within search radius (FR-DISP-003).
+  - Transactional bid submission (`POST /dispatch/bids`) and atomic bid acceptance (`POST /dispatch/bids/:id/accept`) locking `work_order_bids` rows `FOR UPDATE`, marking selected bid `ACCEPTED`, rejecting siblings, and publishing `tech.bidding.accepted` (ADR 005).
+  - Auto-routing engine (`POST /dispatch/auto-route`) discovering and assigning top-scoring contractor within search radius (FR-DISP-003) publishing `tech.bidding.accepted`.
 - **Escrow & Money Safety (`apps/billing-service`).**
-  - Fully resolves **C3**; `releaseFunds()` executes inside a locked `db.transaction()` with `FOR UPDATE` on `escrow_accounts` and `work_orders`. Asserts `status === 'HELD'` and work order is `APPROVED`, verifies buyer caller authority, transitions escrow to `RELEASED` and work order to `PAID`, dispatches payout via `PaymentProviderPort` (`LedgerPaymentProvider`), and logs double-entry `payout_ledger` credit.
+  - Fully resolves **C3**; `releaseFunds()` executes inside a locked `db.transaction()` with `FOR UPDATE` on `escrow_accounts`. Asserts `status === 'HELD'`, verifies buyer caller authority, transitions escrow to `RELEASED`, dispatches payout via `PaymentProviderPort` (`LedgerPaymentProvider`), logs double-entry `payout_ledger` credit, and emits `billing.payout.disbursed` (ADR 005).
   - Enforces request deduplication and replay via `idempotency_keys` table.
   - Scheduled SLA review worker (`SlaAutoApprovalService`) auto-approving `COMPLETED` orders exceeding 72 hours and releasing escrow (FR-BILL-002).
   - Deterministic SHA-256 content-hashed invoice generation (`InvoicesService`) and cryptographically verified PDF invoice generation via `pdfkit` (FR-BILL-003).
@@ -65,8 +68,8 @@
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
   - `AppNavigator` mounting `JobListScreen` and `ActiveJobScreen` wrapped in Redux store.
-- **A test harness that can fail.** 430 automated unit/integration tests across 15 packages/apps
-  plus 28 Playwright E2E tests (458 total verified tests); zero `--passWithNoTests` anywhere.
+- **A test harness that can fail.** 435 automated unit/integration tests across 15 packages/apps
+  plus 28 Playwright E2E tests (463 total verified tests); zero `--passWithNoTests` anywhere.
 - **Technician Compliance, Vetting Badges & Onboarding Verification (Phase 8).**
   - Added shared contracts (`TechnicianBadgeDto`, `CreateCertificationDto`, `VerifyCertificationDto`, `SendPhoneOtpDto`, `VerifyPhoneOtpDto`) and Zod schemas in `@fieldforge/contracts`.
   - Created `CertificationsController` in `apps/auth-service` with `GET /technicians/:id/badges`, `POST /technicians/certifications`, `PATCH /technicians/certifications/:id/verify`, and `GET /technicians/certifications/pending`.

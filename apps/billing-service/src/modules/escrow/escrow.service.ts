@@ -254,26 +254,7 @@ export class EscrowService {
           })
           .where(eq(billingSchema.escrowAccounts.id, escrow.id));
 
-        // 6. Update Work Order Status to PAID and record status history
-        await tx
-          .update(workOrdersSchema.workOrders)
-          .set({
-            status: 'PAID',
-            updatedAt: now
-          })
-          .where(eq(workOrdersSchema.workOrders.id, workOrder.id));
-
-        await tx.insert(workOrdersSchema.workOrderStatusHistory).values({
-          id: randomUUID(),
-          workOrderId: workOrder.id,
-          fromStatus: 'APPROVED',
-          toStatus: 'PAID',
-          changedBy: callerUserId || 'system',
-          reason: 'Escrow released upon completion approval',
-          createdAt: now
-        });
-
-        // 7. Disburse Payout via Provider
+        // 6. Disburse Payout via Provider
         await this.paymentProvider.disbursePayout({
           workOrderId: workOrder.id,
           technicianId: workOrder.assignedTechnicianId,

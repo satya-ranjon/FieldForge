@@ -10,7 +10,8 @@ import type {
   TransitionWorkOrderDto,
   ListWorkOrdersQueryDto,
   WorkOrderResponseDto,
-  WorkOrderStatusHistoryDto
+  WorkOrderStatusHistoryDto,
+  TechBidAcceptedPayload
 } from '@fieldforge/contracts';
 import {
   createEvent,
@@ -548,6 +549,168 @@ export class WorkOrdersService {
 
     for (const publishFn of eventsToPublish) {
       await publishFn();
+    }
+
+    return updatedOrder!;
+  }
+
+  /**
+   * Transitions work order to PAID upon receiving PAYOUT_DISBURSED from billing service.
+   * Enforces FSM transition rules, logs status history, and emits WORK_ORDER_PAID event.
+   */
+  async settlePaid(
+    workOrderId: string,
+    correlationId: string,
+    callerUserId = 'billing-service'
+  ): Promise<WorkOrderResponseDto> {
+    let updatedOrder: WorkOrderResponseDto;
+    let paidEventPayload:
+      | {
+          workOrderId: string;
+          buyerId: string;
+          techId: string;
+          payoutAmountMinor: number;
+        }
+      | undefined;
+
+    await this.db.transaction(async (tx) => {
+      const [wo] = await tx
+        .select()
+        .from(workOrders)
+        .where(eq(workOrders.id, workOrderId))
+        .for('update');
+
+      if (!wo) {
+        throw new NotFoundException(`Work order with ID ${workOrderId} not found`);
+      }
+
+      const currentStatus = wo.status as WorkOrderStatus;
+      if (currentStatus === WorkOrderStatus.PAID) {
+        updatedOrder = this.mapToResponseDto(wo);
+        return;
+      }
+
+      this.fsmService.validateTransition(currentStatus, WorkOrderStatus.PAID);
+
+      const now = new Date();
+      await tx
+        .update(workOrders)
+        .set({
+          status: WorkOrderStatus.PAID,
+          updatedAt: now
+        })
+        .where(eq(workOrders.id, workOrderId));
+
+      await tx.insert(workOrderStatusHistory).values({
+        id: randomUUID(),
+        workOrderId,
+        fromStatus: currentStatus,
+        toStatus: WorkOrderStatus.PAID,
+        changedBy: callerUserId,
+        reason: 'Escrow released upon completion approval',
+        createdAt: now
+      });
+
+      const updatedRow = {
+        ...wo,
+        status: WorkOrderStatus.PAID,
+        updatedAt: now
+      };
+      updatedOrder = this.mapToResponseDto(updatedRow as typeof workOrders.$inferSelect);
+
+      paidEventPayload = {
+        workOrderId: wo.id,
+        buyerId: wo.buyerId,
+        techId: wo.assignedTechnicianId || '',
+        payoutAmountMinor: toMinor(Number(wo.budgetAmount))
+      };
+    });
+
+    if (paidEventPayload) {
+      const event = createEvent(EventType.WORK_ORDER_PAID, paidEventPayload, correlationId);
+      await this.eventPublisher.publishWorkOrderPaid(event);
+    }
+
+    return updatedOrder!;
+  }
+
+  /**
+   * Transitions work order to ASSIGNED upon receiving TECH_BID_ACCEPTED from dispatch service.
+   * Enforces FSM transition rules, logs status history, and emits canonical WORK_ORDER_ASSIGNED event.
+   */
+  async assignTechnicianFromBid(
+    payload: TechBidAcceptedPayload,
+    correlationId: string
+  ): Promise<WorkOrderResponseDto> {
+    let updatedOrder: WorkOrderResponseDto;
+    let assignedEventPayload:
+      | {
+          workOrderId: string;
+          techId: string;
+          agreedRateMinor: number;
+        }
+      | undefined;
+
+    await this.db.transaction(async (tx) => {
+      const [wo] = await tx
+        .select()
+        .from(workOrders)
+        .where(eq(workOrders.id, payload.workOrderId))
+        .for('update');
+
+      if (!wo) {
+        throw new NotFoundException(`Work order with ID ${payload.workOrderId} not found`);
+      }
+
+      const currentStatus = wo.status as WorkOrderStatus;
+      if (
+        currentStatus === WorkOrderStatus.ASSIGNED &&
+        wo.assignedTechnicianId === payload.technicianId
+      ) {
+        updatedOrder = this.mapToResponseDto(wo);
+        return;
+      }
+
+      this.fsmService.validateTransition(currentStatus, WorkOrderStatus.ASSIGNED);
+
+      const now = new Date();
+      await tx
+        .update(workOrders)
+        .set({
+          assignedTechnicianId: payload.technicianId,
+          status: WorkOrderStatus.ASSIGNED,
+          updatedAt: now
+        })
+        .where(eq(workOrders.id, payload.workOrderId));
+
+      await tx.insert(workOrderStatusHistory).values({
+        id: randomUUID(),
+        workOrderId: payload.workOrderId,
+        fromStatus: currentStatus,
+        toStatus: WorkOrderStatus.ASSIGNED,
+        changedBy: payload.buyerUserId || 'dispatch-service',
+        reason: `Bid ${payload.bidId} accepted`,
+        createdAt: now
+      });
+
+      const updatedRow = {
+        ...wo,
+        assignedTechnicianId: payload.technicianId,
+        status: WorkOrderStatus.ASSIGNED,
+        updatedAt: now
+      };
+      updatedOrder = this.mapToResponseDto(updatedRow as typeof workOrders.$inferSelect);
+
+      assignedEventPayload = {
+        workOrderId: wo.id,
+        techId: payload.technicianId,
+        agreedRateMinor: payload.agreedRateMinor
+      };
+    });
+
+    if (assignedEventPayload) {
+      const event = createEvent(EventType.WORK_ORDER_ASSIGNED, assignedEventPayload, correlationId);
+      await this.eventPublisher.publishWorkOrderAssigned(event);
     }
 
     return updatedOrder!;

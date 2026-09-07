@@ -758,4 +758,93 @@ describe('WorkOrdersService (Persistent, Transactional Lifecycle)', () => {
       expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(BadRequestException);
     });
   });
+
+  describe('settlePaid & assignTechnicianFromBid (Finding 1 remediation)', () => {
+    it('settlePaid transitions an APPROVED order to PAID and emits WORK_ORDER_PAID', async () => {
+      const paidSpy = jest.spyOn(publisher, 'publishWorkOrderPaid').mockResolvedValue();
+      const created = await service.create(BUYER_USER_ID, defaultDto);
+      const woId = created.id;
+      await service.publish(woId, BUYER_USER_ID, 'BUYER', CORRELATION_ID);
+      await service.transition(
+        woId,
+        BUYER_USER_ID,
+        'BUYER',
+        { nextStatus: WorkOrderStatus.ASSIGNED, assignedTechnicianId: TECH_PROFILE_ID },
+        CORRELATION_ID
+      );
+      await service.transition(
+        woId,
+        TECH_USER_ID,
+        'TECHNICIAN',
+        { nextStatus: WorkOrderStatus.EN_ROUTE },
+        CORRELATION_ID
+      );
+      await service.transition(
+        woId,
+        TECH_USER_ID,
+        'TECHNICIAN',
+        { nextStatus: WorkOrderStatus.ON_SITE, latitude: 37.7749, longitude: -122.4194 },
+        CORRELATION_ID
+      );
+      await service.transition(
+        woId,
+        TECH_USER_ID,
+        'TECHNICIAN',
+        { nextStatus: WorkOrderStatus.COMPLETED },
+        CORRELATION_ID
+      );
+      await service.transition(
+        woId,
+        BUYER_USER_ID,
+        'BUYER',
+        { nextStatus: WorkOrderStatus.APPROVED },
+        CORRELATION_ID
+      );
+
+      const paid = await service.settlePaid(woId, CORRELATION_ID, 'billing-service');
+      expect(paid.status).toBe(WorkOrderStatus.PAID);
+      expect(mockDbInfo.store.workOrders.get(woId)?.status).toBe(WorkOrderStatus.PAID);
+      expect(paidSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: EventType.WORK_ORDER_PAID,
+          payload: expect.objectContaining({
+            workOrderId: woId,
+            techId: TECH_PROFILE_ID
+          })
+        })
+      );
+    });
+
+    it('assignTechnicianFromBid transitions a PUBLISHED order to ASSIGNED and emits WORK_ORDER_ASSIGNED', async () => {
+      const assignSpy = jest.spyOn(publisher, 'publishWorkOrderAssigned').mockResolvedValue();
+      const created = await service.create(BUYER_USER_ID, defaultDto);
+      const woId = created.id;
+      await service.publish(woId, BUYER_USER_ID, 'BUYER', CORRELATION_ID);
+
+      const assigned = await service.assignTechnicianFromBid(
+        {
+          bidId: 'bid-999',
+          workOrderId: woId,
+          technicianId: TECH_PROFILE_ID,
+          agreedRateMinor: 45000,
+          buyerUserId: BUYER_USER_ID
+        },
+        CORRELATION_ID
+      );
+
+      expect(assigned.status).toBe(WorkOrderStatus.ASSIGNED);
+      expect(assigned.assignedTechnicianId).toBe(TECH_PROFILE_ID);
+      expect(mockDbInfo.store.workOrders.get(woId)?.assignedTechnicianId).toBe(TECH_PROFILE_ID);
+      expect(assignSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: EventType.WORK_ORDER_ASSIGNED,
+          payload: expect.objectContaining({
+            workOrderId: woId,
+            techId: TECH_PROFILE_ID,
+            agreedRateMinor: 45000
+          })
+        })
+      );
+    });
+  });
 });

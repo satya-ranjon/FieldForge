@@ -11,7 +11,6 @@ import type { MySql2Database } from 'drizzle-orm/mysql2';
 import {
   workOrders,
   workOrderBids,
-  workOrderStatusHistory,
   buyerProfiles,
   technicianProfiles,
   idempotencyKeys
@@ -238,25 +237,6 @@ export class BidsService {
           )
         );
 
-      // 6. Update work order to ASSIGNED
-      await tx
-        .update(workOrders)
-        .set({
-          assignedTechnicianId: bid.technicianId,
-          status: 'ASSIGNED'
-        })
-        .where(eq(workOrders.id, bid.workOrderId));
-
-      // 7. Record status audit
-      await tx.insert(workOrderStatusHistory).values({
-        id: randomUUID(),
-        workOrderId: bid.workOrderId,
-        fromStatus: 'PUBLISHED',
-        toStatus: 'ASSIGNED',
-        changedBy: buyerUserId,
-        reason: `Bid ${bidId} accepted`
-      });
-
       const responseDto: BidDetailsDto = {
         id: bid.id,
         workOrderId: bid.workOrderId,
@@ -282,18 +262,20 @@ export class BidsService {
           });
       }
 
-      // 8. Publish confirmed event: work_order.lifecycle.assigned
-      const assignedEvent = createEvent(
-        EventType.WORK_ORDER_ASSIGNED,
+      // 6. Publish confirmed event: tech.bidding.accepted
+      const bidAcceptedEvent = createEvent(
+        EventType.TECH_BID_ACCEPTED,
         {
-          workOrderId: wo.id,
-          techId: bid.technicianId,
-          agreedRateMinor: decimalStringToMinor(bid.bidAmount)
+          bidId: bid.id,
+          workOrderId: bid.workOrderId,
+          technicianId: bid.technicianId,
+          agreedRateMinor: decimalStringToMinor(bid.bidAmount),
+          buyerUserId
         },
         correlationId
       );
 
-      await this.eventPublisher.publish(assignedEvent);
+      await this.eventPublisher.publish(bidAcceptedEvent);
 
       return responseDto;
     });
@@ -348,31 +330,15 @@ export class BidsService {
         );
       }
 
-      // 3. Assign technician
-      await tx
-        .update(workOrders)
-        .set({
-          assignedTechnicianId: availableTech.techId,
-          status: 'ASSIGNED'
-        })
-        .where(eq(workOrders.id, wo.id));
-
-      await tx.insert(workOrderStatusHistory).values({
-        id: randomUUID(),
-        workOrderId: wo.id,
-        fromStatus: 'PUBLISHED',
-        toStatus: 'ASSIGNED',
-        changedBy: buyerUserId,
-        reason: `Auto-routed to top-rated contractor ${availableTech.fullName} (${availableTech.distanceMiles} mi)`
-      });
-
-      // 4. Publish confirmed assignment event
+      // 3. Publish confirmed assignment event: tech.bidding.accepted
       const event = createEvent(
-        EventType.WORK_ORDER_ASSIGNED,
+        EventType.TECH_BID_ACCEPTED,
         {
+          bidId: `auto-route-${wo.id}`,
           workOrderId: wo.id,
-          techId: availableTech.techId,
-          agreedRateMinor: decimalStringToMinor(wo.budgetAmount)
+          technicianId: availableTech.techId,
+          agreedRateMinor: decimalStringToMinor(wo.budgetAmount),
+          buyerUserId
         },
         correlationId
       );

@@ -42,6 +42,7 @@ export enum EventType {
   WORK_ORDER_APPROVED = 'work_order.lifecycle.approved',
   WORK_ORDER_PAID = 'work_order.lifecycle.paid',
   TECH_BIDDING_SUBMITTED = 'tech.bidding.submitted',
+  TECH_BID_ACCEPTED = 'tech.bidding.accepted',
   ESCROW_FUNDED = 'billing.escrow.funded',
   PAYOUT_DISBURSED = 'billing.payout.disbursed'
 }

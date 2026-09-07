@@ -376,6 +376,35 @@ NFR-PERF-001.
 
 ---
 
+## Phase 9 — Architecture Boundary Remediation: Work Order Aggregate Reconciliation
+
+**Status: Completed (2026-09-07).** Resolves **Finding 1 (Direct Cross-Service Mutation of the Work Order Aggregate Bypassing FSM)** and aligns services with `AGENTS.md` bounded context rules and ADR 005 (`.agent/memory/ADRs/005_work_order_aggregate_boundary_reconciliation.md`).
+
+- **Shared Contracts & Events (`@fieldforge/contracts`).**
+  - Added `EventType.TECH_BID_ACCEPTED = 'tech.bidding.accepted'`.
+  - Added `TechBidAcceptedPayload` and `TechBidAcceptedEvent` contract interfaces.
+- **Decoupled Billing Service (`apps/billing-service`).**
+  - Removed direct foreign SQL mutations on `workOrdersSchema.workOrders` and `workOrdersSchema.workOrderStatusHistory` in `EscrowService.releaseFunds()`.
+  - Escrow release now strictly mutates `escrow_accounts` and `payout_ledger` before emitting `billing.payout.disbursed`.
+- **Decoupled Dispatch Service (`apps/dispatch-matching-service`).**
+  - Removed direct foreign SQL mutations on `workOrdersSchema.workOrders` and `workOrdersSchema.workOrderStatusHistory` in `BidsService.acceptBid()` and `autoRoute()`.
+  - Replaced duplicate emissions of `work_order.lifecycle.assigned` with `tech.bidding.accepted`.
+- **Single Aggregate Mutator & Lifecycle Consumer (`apps/work-order-service`).**
+  - Added transactional methods `settlePaid()` (`APPROVED → PAID`) and `assignTechnicianFromBid()` (`PUBLISHED → ASSIGNED`) using `WorkOrderFsmService` validation and pessimistic row locking (`SELECT … FOR UPDATE`).
+  - Implemented `WorkOrderEventsConsumer` listening on `fieldforge.work-orders.lifecycle-events` for `tech.bidding.accepted` and `billing.payout.disbursed`.
+  - `work-order-service` is now the single canonical emitter for `work_order.lifecycle.assigned` and `work_order.lifecycle.paid`.
+
+**Verification:**
+
+- 435 automated unit/integration tests passing across 15 packages/apps in monorepo (zero `--passWithNoTests`):
+  - 177 tests in `apps/work-order-service` (8 suites) including `work-order-events.consumer.spec.ts`.
+  - 19 tests in `apps/billing-service` (4 suites).
+  - 16 tests in `apps/dispatch-matching-service` (3 suites).
+- 28 Playwright E2E tests validated (`pnpm test:e2e`). Total verified tests: 463 tests.
+- `pnpm check && pnpm build` pass cleanly.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

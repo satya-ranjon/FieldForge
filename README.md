@@ -412,7 +412,7 @@ stateDiagram-v2
 | **`EN_ROUTE`**  | `ON_SITE`, `DISPUTED`               | Technician              | Device GPS Haversine verification ($\le 200\text{m}$) | `work_order.lifecycle.on_site`            |
 | **`ON_SITE`**   | `COMPLETED`, `DISPUTED`             | Technician              | Before/after photos + SHA-256 client sign-off         | `work_order.lifecycle.completed`          |
 | **`COMPLETED`** | `APPROVED`, `DISPUTED`              | Buyer / SLA Worker      | Buyer approves deliverables OR 72h inactivity timeout | `work_order.lifecycle.approved`           |
-| **`APPROVED`**  | `PAID`                              | `billing-service`       | Escrow capture succeeded & payout ledger credited     | `billing.payout.disbursed`                |
+| **`APPROVED`**  | `PAID`                              | `work-order-service`    | Escrow payout disbursed (`billing.payout.disbursed`)  | `work_order.lifecycle.paid`               |
 | **`DISPUTED`**  | `APPROVED`, `CANCELLED`             | Admin / Arbiter         | Arbitration resolved or job nullified with refund     | `work_order.dispute.resolved`             |
 | **`PAID`**      | _Terminal (`[*]`)_                  | —                       | Final state: Payout settled & PDF invoice issued      | —                                         |
 | **`CANCELLED`** | _Terminal (`[*]`)_                  | Buyer / Admin           | Final state: Escrow refunded to buyer card            | `work_order.lifecycle.cancelled`          |

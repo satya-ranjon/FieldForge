@@ -207,11 +207,12 @@ describe('BidsService', () => {
       expect(tx.update).toHaveBeenCalled();
       expect(mockEventPublisher.publish).toHaveBeenCalledWith(
         expect.objectContaining({
-          eventType: EventType.WORK_ORDER_ASSIGNED,
+          eventType: EventType.TECH_BID_ACCEPTED,
           payload: expect.objectContaining({
             workOrderId: 'wo-1',
-            techId: 'tech-1',
-            agreedRateMinor: 35000
+            technicianId: 'tech-1',
+            agreedRateMinor: 35000,
+            buyerUserId: 'user-buyer-1'
           })
         })
       );
@@ -291,10 +292,12 @@ describe('BidsService', () => {
       expect(mockGeoSearchService.findNearbyTechnicians).toHaveBeenCalled();
       expect(mockEventPublisher.publish).toHaveBeenCalledWith(
         expect.objectContaining({
-          eventType: EventType.WORK_ORDER_ASSIGNED,
+          eventType: EventType.TECH_BID_ACCEPTED,
           payload: expect.objectContaining({
             workOrderId: 'wo-1',
-            techId: 'tech-1'
+            technicianId: 'tech-1',
+            agreedRateMinor: 35000,
+            buyerUserId: 'user-buyer-1'
           })
         })
       );

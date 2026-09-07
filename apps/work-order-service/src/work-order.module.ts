@@ -18,6 +18,8 @@ import { SlaEscalationService } from './modules/sla/sla-escalation.service';
 import { MEDIA_STORAGE_PORT } from './modules/deliverables/media-storage.port';
 import { LocalDiskMediaStorageAdapter } from './modules/deliverables/local-disk-media-storage.adapter';
 
+import { WorkOrderEventsConsumer } from './consumers/work-order-events.consumer';
+
 @Module({
   imports: [
     DrizzleModule.forRoot(),
@@ -44,8 +46,15 @@ import { LocalDiskMediaStorageAdapter } from './modules/deliverables/local-disk-
     WorkOrderFsmService,
     WorkOrderEventPublisher,
     DeliverablesService,
-    SlaEscalationService
+    SlaEscalationService,
+    WorkOrderEventsConsumer
   ],
-  exports: [WorkOrdersService, WorkOrderFsmService, DeliverablesService, SlaEscalationService]
+  exports: [
+    WorkOrdersService,
+    WorkOrderFsmService,
+    DeliverablesService,
+    SlaEscalationService,
+    WorkOrderEventsConsumer
+  ]
 })
 export class WorkOrderModule {}

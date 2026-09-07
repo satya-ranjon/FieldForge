@@ -70,6 +70,13 @@
 > verified compliance badge tracking (FR-AUTH-003) across contracts, seeds, controllers, buyer portal,
 > and mobile technician app. Total verified tests: 430 unit/integration + 28 E2E = 458 tests.
 
+> **Phase 9 update — 2026-09-07:** Phase 9 of [`DEVELOPMENT_PLAN.md`](./DEVELOPMENT_PLAN.md)
+> delivered Work Order Aggregate Boundary Reconciliation & Event-Driven Settlement (Resolves **FF-ARCH-01 / Finding 1**).
+> Decoupled `billing-service` and `dispatch-matching-service` from directly mutating `work_orders` and `work_order_status_history`.
+> Introduced `tech.bidding.accepted` event and unified lifecycle transitions within `apps/work-order-service`
+> via `WorkOrderEventsConsumer` and `WorkOrderFsmService`. Documented under ADR 005.
+> Total verified tests: 435 unit/integration + 28 E2E = 463 tests.
+
 ---
 
 ## How to read this report
@@ -720,6 +727,11 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
 
 - **Root Cause**: `.github/workflows/ci-pipeline.yml` executed `pnpm check` on standard Ubuntu GitHub runners without starting Redis or RabbitMQ instances, causing `@fieldforge/messaging` integration tests (`test/messaging.integration.spec.ts` and `test/redis-idempotency.spec.ts`) to fail with `ECONNREFUSED` on ports 6379 and 5672.
 - **Fix**: Added step to copy `.env.example` to `.env` and start healthy Redis and RabbitMQ containers via `docker compose --env-file .env -f infra/docker/docker-compose.yml up -d redis rabbitmq --wait` prior to executing `pnpm check`.
+
+### FF-ARCH-01 · 🏛️ Direct cross-service mutation of the Work Order Aggregate (Bypassing FSM)
+
+- **Root Cause**: In `apps/billing-service` (`EscrowService.releaseFunds()`) and `apps/dispatch-matching-service` (`BidsService.acceptBid()`, `autoRoute()`), services directly mutated rows in `workOrdersSchema.workOrders` and `workOrdersSchema.workOrderStatusHistory`, bypassing `WorkOrderFsmService` state transitions, emitting duplicate `work_order.lifecycle.assigned` events, and violating service bounded context invariants (`AGENTS.md` and `RULE-FEAT-09`).
+- **Fix**: Decoupled both services from foreign aggregate tables. Introduced `tech.bidding.accepted` (`TECH_BID_ACCEPTED`) event emitted by `dispatch-matching-service`. Added `WorkOrderEventsConsumer` in `apps/work-order-service` consuming `tech.bidding.accepted` and `billing.payout.disbursed`, driving transitions via `WorkOrderFsmService` with pessimistic locking (`SELECT … FOR UPDATE`), and making `work-order-service` the single canonical emitter for `work_order.lifecycle.assigned` and `work_order.lifecycle.paid` (ADR 005).
 
 ---
 
