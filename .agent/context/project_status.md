@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-07  
-**Phase:** Phase 13 complete — Event-Driven Order Settlement Choreography and SLA Review Relocation (Resolves Finding 5, ADR 009). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 14 complete — Headless Notification Worker Boundary & Gateway Route Decoupling (Resolves Finding 6, ADR 010). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -13,7 +13,7 @@
   invoices, and payout ledger (`0000`, `0001`, `0002_auth.sql`, `0003_wo_history.sql`, `0004_long_marvel_boy.sql`, `0005_chubby_iron_lad.sql`).
 - Local Docker Compose definitions for MySQL, Redis, RabbitMQ, Jaeger,
   Prometheus, and Grafana.
-- Architecture rules, nine accepted ADRs (including ADR 005, ADR 006, ADR 007, ADR 008, and ADR 009 `009_event_driven_settlement_choreography.md`), and CI/build scaffolding.
+- Architecture rules, ten accepted ADRs (including ADR 005, ADR 006, ADR 007, ADR 008, ADR 009, and ADR 010 `010_headless_notification_worker_boundary.md`), and CI/build scaffolding.
 - **Shared Drizzle module.** `packages/common/src/database/drizzle.module.ts` provides
   the centralized `DRIZZLE` injection token using `createDbClient` and loads local `.env`.
 - **Identity & Auth service (`apps/auth-service`).** Decoupled into three encapsulated domain modules:
@@ -23,9 +23,11 @@
 - **Real trust boundary at API Gateway.** `apps/api-gateway` enforces `JwtAuthGuard`,
   `RolesGuard` (RBAC), `ThrottlerGuard` rate limiting, strict CORS allowlist, PII redaction
   in structured Pino logging, and reverse-proxying with injected `x-ff-user-id`, `x-ff-user-role`,
-  and `x-correlation-id` downstream headers. Routes `/api/v1/auth/phone` are permitted publicly,
+  and `x-correlation-id` downstream headers. Fronts exclusively the 4 HTTP domain services (`auth`,
+  `work-orders`, `dispatch`, `billing`). Routes `/api/v1/auth/phone` are permitted publicly,
   and `technicians` endpoints route directly to `auth-service`. Proxies `/dispatch/bids` transparently
-  to `work-order-service` for zero-downtime backward compatibility.
+  to `work-order-service` for zero-downtime backward compatibility. Unmapped routes (including `/api/v1/notifications`)
+  fail fast with 404 at the edge (ADR 010).
 - **Identity comes from the token, never from a header.** `GET /users/me`, `apps/work-order-service`,
   `apps/dispatch-matching-service`, and `apps/billing-service` controllers verify the bearer token
   and read `payload.sub`; `x-ff-user-id` is checked for tampering and mismatch is rejected (C5).
@@ -51,9 +53,11 @@
   - Enforces request deduplication and replay via `idempotency_keys` table.
   - Deterministic SHA-256 content-hashed invoice generation (`InvoicesService`) and cryptographically verified PDF invoice generation via `pdfkit` (FR-BILL-003).
   - Technician earnings ledger query (`GET /billing/technicians/:id/payouts`).
-- **Notification Backbone (`apps/notification-service`).**
+- **Notification Backbone (Headless Worker, ADR 010) (`apps/notification-service`).**
+  - Decoupled from edge proxy routing in `apps/api-gateway`; operates strictly as an autonomous, headless background consumer daemon.
   - `NotificationConsumer` subscribes to `WORK_ORDER_PUBLISHED`, `WORK_ORDER_ASSIGNED`, and `WORK_ORDER_PAID`.
   - Dispatches FCM Push notifications and SMS receipts (`SmsNotificationChannel`) to technicians upon payout disbursement.
+  - Exposes internal `HealthController` (`/healthz`, `/readyz`) and Prometheus metrics scraping (`/metrics`) on container port 8005 for Kubernetes and APM observability with zero public HTTP routing.
 - **Server-enforced geofence.** 200m radius threshold against stored coordinates (SRS FR-MOB-001).
 - **Deliverables & Media Storage.** Presigned upload URLs and SHA-256 digital signatures on stable deliverables content.
 - **Event Backbone (`packages/messaging`).** AMQP messaging module with publisher confirms, 7-day atomic Redis `SETNX` deduplication, bounded 3-retry backoff, DLQ routing, and cross-service producers/consumers.
@@ -71,8 +75,16 @@
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
   - `AppNavigator` mounting `JobListScreen` and `ActiveJobScreen` wrapped in Redux store.
-- **A test harness that can fail.** 470 automated unit/integration tests across 15 packages/apps
-  plus 28 Playwright E2E tests (498 total verified tests); zero `--passWithNoTests` anywhere.
+- **A test harness that can fail.** 476 automated unit/integration tests across 15 packages/apps
+  plus 28 Playwright E2E tests (504 total verified tests); zero `--passWithNoTests` anywhere.
+- **Headless Notification Worker Boundary & Gateway Route Decoupling (Phase 14, Resolves Finding 6, ADR 010).**
+  - Removed `notifications` from `gatewayConfig.services` and `ProxyController` in `apps/api-gateway`, ensuring the edge gateway exclusively fronts the 4 domain services (`auth`, `work-orders`, `dispatch`, `billing`).
+  - Unmapped calls targeting `/api/v1/notifications/*` fail fast at the edge with 404 without opening unnecessary upstream proxy sockets.
+  - Formally annotated `NotificationModule` in `apps/notification-service` as an autonomous background consumer daemon, preserving internal `HealthController` (`/healthz`, `/readyz`) and Prometheus telemetry (`/metrics`) on port 8005.
+- **Event-Driven Order Settlement Choreography and SLA Review Relocation (Phase 13, Resolves Finding 5, ADR 009).**
+  - Relocated `SlaAutoApprovalService` from `apps/billing-service` to `apps/work-order-service`, eliminating cross-service SQL mutations and table rollback queries on `work_orders`. Auto-approval executes via `WorkOrdersService.transition()` with `role = 'SYSTEM'`, recording status history and emitting canonical `work_order.lifecycle.approved`.
+  - Blocked manual transitions to `PAID` via API (`POST /work-orders/:id/transition`); settlement to `PAID` is exclusively driven by `settlePaid()` upon consuming `billing.payout.disbursed`.
+  - Subscribed `NotificationConsumer` in `apps/notification-service` to `work_order.lifecycle.paid` (`EventType.WORK_ORDER_PAID`), dispatching push and SMS payout receipts to technicians upon completion.
 - **IAM, Domain Profiles, and Contractor Vetting Separation (Phase 12, Resolves Finding 4, ADR 008).**
   - Restructured `apps/auth-service` into three distinct, encapsulated NestJS domain modules (`IamModule`, `ProfilesModule`, `ContractorVettingModule`).
   - Decoupled low-level IAM credentials, passwords, JWT signing/rotation, and phone OTP from marketplace domain profile management and contractor compliance certifications.

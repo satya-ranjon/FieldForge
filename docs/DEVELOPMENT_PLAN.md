@@ -554,6 +554,41 @@ NFR-PERF-001.
 
 ---
 
+## Phase 14 — Architecture Boundary Remediation: Decoupling and Demoting notification-service to Headless Background Consumer
+
+**Status: Completed (2026-09-07).** Resolves **Finding 6 (Architectural Over-Splitting / Exposure of notification-service)** / `FF-ARCH-06` and aligns services with `AGENTS.md` bounded context rules and ADR 010 (`.agent/memory/ADRs/010_headless_notification_worker_boundary.md`).
+
+- **Decouple Notification Service from Edge API Gateway (`apps/api-gateway`).**
+  - Removed `notifications` from `gatewayConfig.services` (`apps/api-gateway/src/config/gateway.config.ts`), ensuring the edge gateway exclusively fronts the 4 true HTTP domain services (`auth`, `workOrder`, `dispatch`, `billing`).
+  - Removed `notifications` proxy handler creation and route decorators (`/notifications`, `/notifications/{*path}`) from `ProxyController` (`apps/api-gateway/src/controllers/proxy.controller.ts`).
+  - Unmapped requests targeting `/api/v1/notifications/*` now fail fast at the edge with `404 Not Found` (`No downstream service registered for path: ...`) without opening unnecessary network sockets to upstream services.
+  - Updated gateway unit tests (`apps/api-gateway/test/gateway.spec.ts`, `apps/api-gateway/test/proxy.controller.spec.ts`) asserting that `notifications` is unmapped, exactly 4 services are routed, and unmapped routes receive 404.
+- **Formalize Headless Worker Boundary in Notification Service (`apps/notification-service`).**
+  - Annotated `NotificationModule` with architectural documentation cementing its role as a pure event-driven background consumer daemon subscribing to RabbitMQ topics (`fieldforge.notifications.work-orders`).
+  - Retained `HealthController` (`/healthz`, `/readyz`) and Prometheus observability scraping (`/metrics`) on internal container port 8005 for Kubernetes pod lifecycle and telemetry monitoring without edge proxying.
+- **Clarify Environment Configuration (`.env.example`).**
+  - Replaced `NOTIFICATION_SERVICE_URL` with `NOTIFICATION_PORT=8005` in `.env.example` with comments clarifying it as an internal health/metrics port rather than a proxied service.
+- **Zero Database Schema Migrations (`RULE-DB-02`).**
+  - Purely architectural and edge-routing change; zero database modifications required.
+
+**Verification:**
+
+- 476 automated unit/integration tests passing across 15 packages/apps in monorepo (zero `--passWithNoTests`):
+  - 44 tests in `apps/api-gateway` (6 suites, including new unmapped proxy boundary assertions).
+  - 198 tests in `apps/work-order-service` (11 suites).
+  - 18 tests in `apps/billing-service` (3 suites).
+  - 14 tests in `apps/notification-service` (1 suite).
+  - 56 tests in `apps/auth-service` (6 suites).
+  - 16 tests in `apps/dispatch-matching-service` (3 suites).
+  - 17 tests in `@fieldforge/messaging` (5 suites).
+  - 67 tests in `@fieldforge/contracts` (2 suites).
+  - 87 tests in `@fieldforge/common` (3 suites).
+  - 104 tests in `apps/web-buyer-portal` (1 suite).
+- 28 Playwright E2E tests validated (`pnpm test:e2e`). Total verified tests: 504 tests.
+- `pnpm check && pnpm build` pass cleanly.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

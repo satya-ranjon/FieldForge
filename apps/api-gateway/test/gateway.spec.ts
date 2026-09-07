@@ -24,7 +24,7 @@ describe('gatewayConfig', () => {
   // Phase 1 of docs/DEVELOPMENT_PLAN.md proxies /api/v1/* to these URLs. A
   // missing or malformed entry currently fails at the first request rather than
   // at startup, so this is the earliest place it can be caught.
-  const ROUTED = ['auth', 'workOrder', 'dispatch', 'billing', 'notifications'] as const;
+  const ROUTED = ['auth', 'workOrder', 'dispatch', 'billing'] as const;
 
   it.each(ROUTED)('resolves an absolute http(s) URL for %s', (key) => {
     const url = new URL(gatewayConfig.services[key]);
@@ -39,7 +39,7 @@ describe('gatewayConfig', () => {
     expect(new Set(urls).size).toBe(urls.length);
   });
 
-  it('exposes no service beyond the five the gateway fronts', () => {
+  it('exposes no service beyond the four the gateway fronts', () => {
     expect(Object.keys(gatewayConfig.services).sort()).toEqual([...ROUTED].sort());
   });
 

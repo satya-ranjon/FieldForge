@@ -113,6 +113,14 @@
 > dispatching push and SMS payout receipts to technicians upon completion. Zero schema migrations (`RULE-DB-02`).
 > Documented under ADR 009. Total verified tests: 474 unit/integration + 28 E2E = 502 tests.
 
+> **Phase 14 update — 2026-09-07:** Phase 14 of [`DEVELOPMENT_PLAN.md`](./DEVELOPMENT_PLAN.md)
+> delivered Headless Notification Worker Boundary & Gateway Route Decoupling (Resolves **FF-ARCH-06 / Finding 6**).
+> Decoupled `apps/notification-service` from edge proxy routing by removing `notifications` from `gatewayConfig.services`
+> and `ProxyController` in `apps/api-gateway`. External calls to `/api/v1/notifications/*` now fail fast with 404 at the edge
+> without opening unnecessary network connections to upstream services. Retained internal `HealthController` (`/healthz`, `/readyz`)
+> and Prometheus metrics scraping (`/metrics`) on port 8005 for Kubernetes and APM observability.
+> Documented under ADR 010. Total verified tests: 476 unit/integration + 28 E2E = 504 tests.
+
 ---
 
 ## How to read this report
@@ -800,6 +808,16 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   3. Strictly blocked manual transitions to `PAID` via API: `WorkOrdersService.transition()` throws `ForbiddenException('Work order cannot be manually transitioned to PAID via API; settlement to PAID is exclusively event-driven upon payout disbursement (billing.payout.disbursed)')`. `settlePaid()` remains the sole canonical method to enter `PAID`, triggered exclusively by `WorkOrderEventsConsumer` upon receiving `PAYOUT_DISBURSED`.
   4. Subscribed `NotificationConsumer` to `EventType.WORK_ORDER_PAID` (`work_order.lifecycle.paid`), sending push and SMS receipts to technicians upon payout.
   5. Zero database migrations (`RULE-DB-02`) (ADR 009).
+
+### FF-ARCH-06 · 🏛️ Architectural Over-Splitting / Exposure of notification-service (Finding 6)
+
+- **Root Cause**: `apps/api-gateway` registered proxy routes for `/notifications` and `/notifications/{*path}` forwarding to port `8005`. However, `apps/notification-service` is an asynchronous event consumer that subscribes to RabbitMQ topics and invokes Twilio/Firebase APIs; it exposes zero business REST endpoints. Forwarding external requests to port `8005` opened unnecessary HTTP sockets only to receive unhandled 404s, created configuration clutter, and misidentified a background worker as a public API service.
+- **Fix**: Decoupled `notification-service` from edge proxy routing:
+  1. Removed `notifications` from `gatewayConfig.services` in `apps/api-gateway/src/config/gateway.config.ts`, ensuring the edge gateway strictly fronts the 4 domain services (`auth`, `workOrder`, `dispatch`, `billing`).
+  2. Removed `notifications` proxy handler creation and route decorators from `ProxyController` in `apps/api-gateway/src/controllers/proxy.controller.ts`. Requests to `/api/v1/notifications/*` now fail fast at the edge with 404 (`No downstream service registered for path: ...`).
+  3. Added boundary tests in `apps/api-gateway/test/gateway.spec.ts` and `apps/api-gateway/test/proxy.controller.spec.ts`.
+  4. Formally documented `notification-service` as a headless background consumer daemon in `apps/notification-service/src/notification.module.ts`, preserving internal `HealthController` (`/healthz`, `/readyz`) and Prometheus metrics (`/metrics`) on container port 8005 for Kubernetes and APM observability.
+  5. Zero database migrations (`RULE-DB-02`) (ADR 010).
 
 ---
 

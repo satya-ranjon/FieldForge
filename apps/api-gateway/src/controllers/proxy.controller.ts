@@ -72,8 +72,7 @@ export class ProxyController {
       'work-orders': createServiceProxy(gatewayConfig.services.workOrder),
       bids: createServiceProxy(gatewayConfig.services.workOrder),
       dispatch: createServiceProxy(gatewayConfig.services.dispatch),
-      billing: createServiceProxy(gatewayConfig.services.billing),
-      notifications: createServiceProxy(gatewayConfig.services.notifications)
+      billing: createServiceProxy(gatewayConfig.services.billing)
     };
   }
 
@@ -91,9 +90,7 @@ export class ProxyController {
     'dispatch',
     'dispatch/{*path}',
     'billing',
-    'billing/{*path}',
-    'notifications',
-    'notifications/{*path}'
+    'billing/{*path}'
   ])
   forward(@Req() req: Request, @Res() res: Response, @Next() next: NextFunction) {
     const rawPath = req.originalUrl.replace(/^\/api\/v1\/?/, '');

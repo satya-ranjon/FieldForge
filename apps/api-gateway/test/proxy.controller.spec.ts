@@ -89,4 +89,29 @@ describe('ProxyController identity headers', () => {
     // @ts-expect-error accessing private field for test
     expect(controller.proxies['technicians']).toBeDefined();
   });
+
+  it('does not register proxy handler for notifications route (headless worker)', () => {
+    const controller = new ProxyController();
+    // @ts-expect-error accessing private field for test
+    expect(controller.proxies['notifications']).toBeUndefined();
+  });
+
+  it('rejects unmapped routes like notifications with 404', () => {
+    const controller = new ProxyController();
+    const req = { originalUrl: '/api/v1/notifications' } as Request;
+    const json = jest.fn();
+    const status = jest.fn().mockReturnValue({ json });
+    const res = { status } as unknown as import('express').Response;
+    const next = jest.fn();
+
+    controller.forward(req, res, next);
+
+    expect(status).toHaveBeenCalledWith(404);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: 404,
+        message: expect.stringContaining('No downstream service registered for path: notifications')
+      })
+    );
+  });
 });
