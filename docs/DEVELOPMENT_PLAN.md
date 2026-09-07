@@ -481,6 +481,40 @@ NFR-PERF-001.
 
 ---
 
+## Phase 12 — Architecture Boundary Remediation: IAM, Domain Profiles, and Contractor Vetting Separation
+
+**Status: Completed (2026-09-07).** Resolves **Finding 4 (auth-service Conflating Authentication with Domain Profile & Vetting Operations)** / `FF-ARCH-04` and aligns services with `AGENTS.md` bounded context rules and ADR 008 (`.agent/memory/ADRs/008_iam_profile_vetting_domain_separation.md`).
+
+- **Domain-Decoupled Internal Architecture (`apps/auth-service`).**
+  - Eliminated flat monolithic module layout and restructured `apps/auth-service` into three distinct, encapsulated NestJS domain modules:
+    1. `IamModule` (`src/modules/iam/`): Handles low-level IAM credentials, passwords, JWT signing/rotation, and phone OTP verification (`AuthController`, `AuthService`, `PhoneOtpService`).
+    2. `ProfilesModule` (`src/modules/profiles/`): Manages buyer and technician domain profiles, self-profile lookup (`GET /users/me`), and profile provisioning port (`UsersController`, `ProfilesService`).
+    3. `ContractorVettingModule` (`src/modules/vetting/`): Manages contractor compliance badges, certification lifecycles, and technician directory queries (`CertificationsController`, `CertificationsService`).
+- **Dependency Inversion via Profiles Port.**
+  - Decoupled `AuthService` from direct SQL queries/inserts on `buyerProfiles` and `technicianProfiles`.
+  - Injected `ProfilesService` into `AuthService` via optional dependency injection to delegate profile creation (`provisionProfile`) during registration and profile ID resolution (`resolveProfileId`) during authentication token generation.
+- **Domain-Specific Schema Groupings (`packages/database`).**
+  - Grouped and exported `iamSchema` (`users`, `refreshTokens`), `profileSchema` (`buyerProfiles`, `technicianProfiles`), and `vettingSchema` (`technicianCertifications`) from `@fieldforge/database`.
+  - Zero database schema migrations (`RULE-DB-02`), preserving existing table structures and indexes.
+- **Zero Microservice Proliferation.**
+  - Retained the platform's stable 6-microservice architecture (ports 8000–8005) while establishing modular boundaries that allow future extraction of contractor vetting into an independent microservice if needed.
+
+**Verification:**
+
+- 470 automated unit/integration tests passing across 15 packages/apps in monorepo (zero `--passWithNoTests`):
+  - 56 tests in `apps/auth-service` (6 suites, including new `profiles.service.spec.ts`).
+  - 194 tests in `apps/work-order-service` (10 suites).
+  - 16 tests in `apps/dispatch-matching-service` (3 suites).
+  - 43 tests in `apps/api-gateway` (4 suites).
+  - 20 tests in `apps/billing-service` (4 suites).
+  - 13 tests in `apps/notification-service` (1 suite).
+  - 17 tests in `@fieldforge/messaging` (5 suites).
+  - 67 tests in `@fieldforge/contracts` (2 suites).
+  - 87 tests in `@fieldforge/common` (3 suites).
+- `pnpm check && pnpm build` pass cleanly.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

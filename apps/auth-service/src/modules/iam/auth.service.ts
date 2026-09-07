@@ -1,12 +1,17 @@
-import { Injectable, ConflictException, UnauthorizedException, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  UnauthorizedException,
+  Inject,
+  Optional
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'node:crypto';
 import { eq, and, isNull, gt } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleClient } from '@fieldforge/common';
-import { users, buyerProfiles, technicianProfiles, refreshTokens } from '@fieldforge/database';
+import { users, refreshTokens } from '@fieldforge/database';
 import {
-  fromMinor,
   UserRole,
   UserStatus,
   type RegisterUserDto,
@@ -14,6 +19,7 @@ import {
   type AuthTokensDto,
   type AuthJwtPayload
 } from '@fieldforge/contracts';
+import { ProfilesService } from '../profiles/profiles.service';
 
 const ACCESS_TOKEN_TTL_SECONDS = 900; // 15 minutes
 const REFRESH_TOKEN_TTL_DAYS = 7;
@@ -22,7 +28,8 @@ const REFRESH_TOKEN_TTL_DAYS = 7;
 export class AuthService {
   constructor(
     @Inject(DRIZZLE) private readonly db: DrizzleClient,
-    private readonly jwtService: JwtService
+    private readonly jwtService: JwtService,
+    @Optional() @Inject(ProfilesService) private readonly profilesService?: ProfilesService
   ) {}
 
   async register(dto: RegisterUserDto): Promise<AuthTokensDto> {
@@ -51,30 +58,9 @@ export class AuthService {
         status: 'ACTIVE'
       });
 
-      if (dto.role === 'BUYER') {
-        profileId = crypto.randomUUID();
-        await tx.insert(buyerProfiles).values({
-          id: profileId,
-          userId,
-          companyName: dto.companyName || 'Buyer Company',
-          billingAddress: dto.billingAddress || 'N/A',
-          escrowBalance: '0.00'
-        });
-      } else if (dto.role === 'TECHNICIAN') {
-        profileId = crypto.randomUUID();
-        const hourlyRateStr = dto.hourlyRateMinor
-          ? fromMinor(dto.hourlyRateMinor).toFixed(2)
-          : '50.00';
-
-        await tx.insert(technicianProfiles).values({
-          id: profileId,
-          userId,
-          firstName: dto.firstName || 'Technician',
-          lastName: dto.lastName || 'User',
-          hourlyRate: hourlyRateStr,
-          ratingAverage: '5.00',
-          jobsCompleted: 0
-        });
+      // Delegate domain profile creation to ProfilesService (inversion of control)
+      if (this.profilesService) {
+        profileId = await this.profilesService.provisionProfile(tx, userId, dto);
       }
     });
 
@@ -107,7 +93,9 @@ export class AuthService {
       throw new UnauthorizedException('Account is not active');
     }
 
-    const profileId = await this.resolveProfileId(user.id, user.role);
+    const profileId = this.profilesService
+      ? await this.profilesService.resolveProfileId(user.id, user.role)
+      : undefined;
 
     return this.generateTokens({
       sub: user.id,
@@ -157,7 +145,9 @@ export class AuthService {
     }
 
     const user = foundUsers[0];
-    const profileId = await this.resolveProfileId(user.id, user.role);
+    const profileId = this.profilesService
+      ? await this.profilesService.resolveProfileId(user.id, user.role)
+      : undefined;
 
     return this.generateTokens({
       sub: user.id,
@@ -167,44 +157,22 @@ export class AuthService {
     });
   }
 
-  private async resolveProfileId(userId: string, role: string): Promise<string | undefined> {
-    try {
-      if (role === 'BUYER') {
-        const query = this.db.select({ id: buyerProfiles.id });
-        if (query && typeof query.from === 'function') {
-          const rows = await query
-            .from(buyerProfiles)
-            .where(eq(buyerProfiles.userId, userId))
-            .limit(1);
-          return rows?.[0]?.id;
-        }
-      } else if (role === 'TECHNICIAN') {
-        const query = this.db.select({ id: technicianProfiles.id });
-        if (query && typeof query.from === 'function') {
-          const rows = await query
-            .from(technicianProfiles)
-            .where(eq(technicianProfiles.userId, userId))
-            .limit(1);
-          return rows?.[0]?.id;
-        }
-      }
-    } catch {
-      // Mock db in test suites without profile table configured
-    }
-    return undefined;
-  }
-
   private async generateTokens(payload: {
     sub: string;
     email: string;
     role: AuthJwtPayload['role'];
     profileId?: string;
   }): Promise<AuthTokensDto> {
-    const accessToken = await this.jwtService.signAsync(payload, {
-      expiresIn: ACCESS_TOKEN_TTL_SECONDS
-    });
+    const jwtPayload: AuthJwtPayload = {
+      sub: payload.sub,
+      email: payload.email,
+      role: payload.role,
+      ...(payload.profileId ? { profileId: payload.profileId } : {})
+    };
 
-    const rawRefreshToken = crypto.randomBytes(32).toString('hex');
+    const accessToken = await this.jwtService.signAsync(jwtPayload);
+
+    const rawRefreshToken = crypto.randomBytes(40).toString('hex');
     const tokenHash = this.hashToken(rawRefreshToken);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + REFRESH_TOKEN_TTL_DAYS);

@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-07  
-**Phase:** Phase 11 complete — Marketplace Bidding Relocation & Work Order Aggregate Cohesion (Resolves Finding 3, ADR 007). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 12 complete — IAM, Domain Profiles, and Contractor Vetting Separation (Resolves Finding 4, ADR 008). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -13,17 +13,13 @@
   invoices, and payout ledger (`0000`, `0001`, `0002_auth.sql`, `0003_wo_history.sql`, `0004_long_marvel_boy.sql`, `0005_chubby_iron_lad.sql`).
 - Local Docker Compose definitions for MySQL, Redis, RabbitMQ, Jaeger,
   Prometheus, and Grafana.
-- Architecture rules, seven accepted ADRs (including ADR 005, ADR 006, and ADR 007 `007_marketplace_bidding_work_order_cohesion.md`), and CI/build scaffolding.
+- Architecture rules, eight accepted ADRs (including ADR 005, ADR 006, ADR 007, and ADR 008 `008_iam_profile_vetting_domain_separation.md`), and CI/build scaffolding.
 - **Shared Drizzle module.** `packages/common/src/database/drizzle.module.ts` provides
   the centralized `DRIZZLE` injection token using `createDbClient` and loads local `.env`.
-- **Identity & Auth service.** `apps/auth-service` implements `POST /auth/register`,
-  `POST /auth/login`, `POST /auth/refresh` (with rotating tokens in `refresh_tokens`),
-  `POST /auth/phone/send-otp`, `POST /auth/phone/verify-otp` (in-memory rate-limited phone OTP verification),
-  `GET /users/me`, and technician certifications & vetting:
-  `GET /technicians/:id/badges` (resolves user or profile ID, C5 protected),
-  `POST /technicians/certifications` (submits new credential),
-  `PATCH /technicians/certifications/:id/verify` (admin/dispatcher verification with expiry),
-  and `GET /technicians/certifications/pending`.
+- **Identity & Auth service (`apps/auth-service`).** Decoupled into three encapsulated domain modules:
+  - `IamModule`: Low-level IAM security primitives (`POST /auth/register`, `POST /auth/login`, `POST /auth/refresh` with rotating tokens in `refresh_tokens`, `POST /auth/phone/send-otp`, `POST /auth/phone/verify-otp`).
+  - `ProfilesModule`: Domain profiles (`buyerProfiles`, `technicianProfiles`), self-profile lookup (`GET /users/me`), and profile provisioning port (`provisionProfile`, `resolveProfileId`, `getUserProfile`).
+  - `ContractorVettingModule`: Contractor credentials, compliance badges, and directory querying (`GET /technicians/:id/badges`, `POST /technicians/certifications`, `PATCH /technicians/certifications/:id/verify`, `GET /technicians/certifications/pending`, `POST /technicians/batch`).
 - **Real trust boundary at API Gateway.** `apps/api-gateway` enforces `JwtAuthGuard`,
   `RolesGuard` (RBAC), `ThrottlerGuard` rate limiting, strict CORS allowlist, PII redaction
   in structured Pino logging, and reverse-proxying with injected `x-ff-user-id`, `x-ff-user-role`,
@@ -69,8 +65,14 @@
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
   - `AppNavigator` mounting `JobListScreen` and `ActiveJobScreen` wrapped in Redux store.
-- **A test harness that can fail.** 451 automated unit/integration tests across 15 packages/apps
-  plus 28 Playwright E2E tests (479 total verified tests); zero `--passWithNoTests` anywhere.
+- **A test harness that can fail.** 470 automated unit/integration tests across 15 packages/apps
+  plus 28 Playwright E2E tests (498 total verified tests); zero `--passWithNoTests` anywhere.
+- **IAM, Domain Profiles, and Contractor Vetting Separation (Phase 12, Resolves Finding 4, ADR 008).**
+  - Restructured `apps/auth-service` into three distinct, encapsulated NestJS domain modules (`IamModule`, `ProfilesModule`, `ContractorVettingModule`).
+  - Decoupled low-level IAM credentials, passwords, JWT signing/rotation, and phone OTP from marketplace domain profile management and contractor compliance certifications.
+  - Inverted dependencies via `ProfilesService` port: `AuthService` delegates profile creation and profileId resolution to `ProfilesService` via optional DI, eliminating direct SQL queries on profile tables from the IAM service.
+  - Exported domain-specific database schemas from `@fieldforge/database`: `iamSchema`, `profileSchema`, `vettingSchema`.
+  - Zero database schema migrations (`RULE-DB-02`); preserved 6-microservice platform topology with zero microservice sprawl.
 - **Marketplace Bidding Relocation & Work Order Aggregate Cohesion (Phase 11, Resolves Finding 3, ADR 007).**
   - Re-homed commercial bidding logic to `apps/work-order-service`, establishing `Bid` as a cohesive entity within the `WorkOrder` aggregate root.
   - Implemented atomic transactional bid acceptance (`POST /work-orders/:id/bids/:bidId/accept`) executing bid acceptance, sibling rejection, FSM transition (`PUBLISHED → ASSIGNED`), and audit history logging inside one ACID transaction.

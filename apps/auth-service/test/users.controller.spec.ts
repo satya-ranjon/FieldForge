@@ -1,7 +1,7 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { UsersController } from '../src/modules/users/users.controller';
-import { UsersService } from '../src/modules/users/users.service';
+import { UsersController } from '../src/modules/profiles/users.controller';
+import { ProfilesService } from '../src/modules/profiles/profiles.service';
 import { UserRole } from '@fieldforge/contracts';
 
 describe('UsersController', () => {
@@ -9,13 +9,13 @@ describe('UsersController', () => {
   const OTHER_USER_ID = 'b2222222-2222-4222-8222-222222222222';
 
   let controller: UsersController;
-  let mockUsersService: jest.Mocked<UsersService>;
+  let mockProfilesService: jest.Mocked<ProfilesService>;
   let mockJwtService: jest.Mocked<JwtService>;
 
   beforeEach(() => {
-    mockUsersService = {
+    mockProfilesService = {
       getUserProfile: jest.fn().mockResolvedValue({ id: TOKEN_USER_ID })
-    } as unknown as jest.Mocked<UsersService>;
+    } as unknown as jest.Mocked<ProfilesService>;
 
     mockJwtService = {
       verify: jest.fn().mockReturnValue({
@@ -25,14 +25,14 @@ describe('UsersController', () => {
       })
     } as unknown as jest.Mocked<JwtService>;
 
-    controller = new UsersController(mockUsersService, mockJwtService);
+    controller = new UsersController(mockProfilesService, mockJwtService);
   });
 
   describe('GET /users/me', () => {
     it('resolves the profile from the verified token', async () => {
       await controller.getProfile('Bearer valid.jwt.token');
 
-      expect(mockUsersService.getUserProfile).toHaveBeenCalledWith(TOKEN_USER_ID);
+      expect(mockProfilesService.getUserProfile).toHaveBeenCalledWith(TOKEN_USER_ID);
     });
 
     it('rejects an x-ff-user-id that does not match the token', async () => {
@@ -43,7 +43,7 @@ describe('UsersController', () => {
         UnauthorizedException
       );
 
-      expect(mockUsersService.getUserProfile).not.toHaveBeenCalled();
+      expect(mockProfilesService.getUserProfile).not.toHaveBeenCalled();
     });
 
     it('never reads a profile for a header-only identity', async () => {
@@ -53,13 +53,13 @@ describe('UsersController', () => {
         UnauthorizedException
       );
 
-      expect(mockUsersService.getUserProfile).not.toHaveBeenCalled();
+      expect(mockProfilesService.getUserProfile).not.toHaveBeenCalled();
     });
 
     it('accepts a matching x-ff-user-id from the gateway', async () => {
       await controller.getProfile('Bearer valid.jwt.token', TOKEN_USER_ID);
 
-      expect(mockUsersService.getUserProfile).toHaveBeenCalledWith(TOKEN_USER_ID);
+      expect(mockProfilesService.getUserProfile).toHaveBeenCalledWith(TOKEN_USER_ID);
     });
 
     it('throws when no authorization header is present', async () => {
@@ -72,7 +72,7 @@ describe('UsersController', () => {
       ['an empty value', '']
     ])('throws on %s', async (_label, header) => {
       await expect(controller.getProfile(header)).rejects.toThrow(UnauthorizedException);
-      expect(mockUsersService.getUserProfile).not.toHaveBeenCalled();
+      expect(mockProfilesService.getUserProfile).not.toHaveBeenCalled();
     });
 
     it('throws when the token fails verification', async () => {
@@ -83,7 +83,7 @@ describe('UsersController', () => {
       await expect(controller.getProfile('Bearer tampered.jwt.token')).rejects.toThrow(
         UnauthorizedException
       );
-      expect(mockUsersService.getUserProfile).not.toHaveBeenCalled();
+      expect(mockProfilesService.getUserProfile).not.toHaveBeenCalled();
     });
 
     it('ignores a forged token even when a matching header accompanies it', async () => {
@@ -96,7 +96,7 @@ describe('UsersController', () => {
       await expect(controller.getProfile('Bearer forged.jwt.token', OTHER_USER_ID)).rejects.toThrow(
         UnauthorizedException
       );
-      expect(mockUsersService.getUserProfile).not.toHaveBeenCalled();
+      expect(mockProfilesService.getUserProfile).not.toHaveBeenCalled();
     });
   });
 });

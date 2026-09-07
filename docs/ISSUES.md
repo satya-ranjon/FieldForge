@@ -93,6 +93,15 @@
 > live GPS coordinates, and routing recommendation. Configured API Gateway path rewriting for 100% backward compatibility.
 > Documented under ADR 007. Total verified tests: 451 unit/integration + 28 E2E = 479 tests.
 
+> **Phase 12 update — 2026-09-07:** Phase 12 of [`DEVELOPMENT_PLAN.md`](./DEVELOPMENT_PLAN.md)
+> delivered IAM, Domain Profiles, and Contractor Vetting Separation (Resolves **FF-ARCH-04 / Finding 4**).
+> Restructured `apps/auth-service` into three encapsulated NestJS domain modules (`IamModule`, `ProfilesModule`,
+> `ContractorVettingModule`). Inverted dependencies so `AuthService` delegates profile provisioning and profile ID
+> resolution to `ProfilesService` via optional DI rather than executing direct SQL queries on profile tables.
+> Grouped database schema exports in `@fieldforge/database` into `iamSchema`, `profileSchema`, and `vettingSchema`.
+> Preserved the 6-microservice platform topology with zero database schema migrations (`RULE-DB-02`).
+> Documented under ADR 008. Total verified tests: 470 unit/integration + 28 E2E = 498 tests.
+
 ---
 
 ## How to read this report
@@ -758,6 +767,15 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
 
 - **Root Cause**: Commercial contractor bidding logic (`work_order_bids` queries, mutations, rate counters, buyer acceptance, sibling bid rejection) was misplaced in `apps/dispatch-matching-service`. A dispatch service's single responsibility is geospatial matching (spatial index, Redis `GEOSEARCH`, live technician GPS updates, proximity filtering). Housing bidding in dispatch violated DDD aggregate invariants: a `Bid` is an entity belonging to the `WorkOrder` aggregate root, and accepting a bid must atomically mutate both the bid and the work order lifecycle (`PUBLISHED → ASSIGNED`) within a single ACID transaction.
 - **Fix**: Re-homed `BidsService` into `apps/work-order-service/src/modules/bids/` and added `BidsController` exposing canonical aggregate endpoints (`POST /work-orders/:id/bids`, `GET /work-orders/:id/bids`, `POST /work-orders/:id/bids/:bidId/accept`) alongside legacy aliases. Implemented atomic single-transaction bid acceptance locking rows `FOR UPDATE`, transitioning FSM state via `WorkOrderFsmService`, recording audit history in `work_order_status_history`, and publishing `tech.bid.accepted` and `work_order.assigned` domain events. Purified `apps/dispatch-matching-service` to strictly handle geospatial location updates, nearby technician searches, and automated routing. Configured API Gateway path rewriting (`/dispatch/bids` → `/work-orders/bids`) for seamless backward compatibility (ADR 007).
+
+### FF-ARCH-04 · 🏛️ auth-service Conflating Authentication with Domain Profile & Vetting Operations (Finding 4)
+
+- **Root Cause**: `apps/auth-service` conflated Identity & Access Management (IAM) security primitives (passwords, JWT signing, refresh token rotation, phone OTP) with domain profile management (`buyer_profiles`, `technician_profiles`) and contractor vetting/compliance operations (`technician_certifications`, badge verification, directory batch lookups). All components were crammed into an un-encapsulated flat `AuthModule`, with `AuthService` performing direct SQL queries and inserts on `buyerProfiles` and `technicianProfiles` during `register()`, `login()`, and `refresh()`. This violated the Single Responsibility Principle (SRP), expanded the security blast radius of auth, and tightly coupled IAM with marketplace domain entities.
+- **Fix**: Restructured `apps/auth-service` into three distinct, encapsulated NestJS domain modules:
+  1. `IamModule` (`src/modules/iam/`): Exclusively handles credentials, passwords, JWT signing/rotation, and phone OTP (`AuthController`, `AuthService`, `PhoneOtpService`).
+  2. `ProfilesModule` (`src/modules/profiles/`): Manages buyer and technician domain profiles, self-profile lookup (`GET /users/me`), and profile provisioning port (`UsersController`, `ProfilesService`).
+  3. `ContractorVettingModule` (`src/modules/vetting/`): Manages contractor compliance badges, certification lifecycle, and technician directory batch lookups (`CertificationsController`, `CertificationsService`).
+     Decoupled `AuthService` by injecting `ProfilesService` to delegate profile creation and profile ID resolution, eliminating direct SQL queries on profile tables from the IAM service. Grouped schemas in `packages/database` into `iamSchema`, `profileSchema`, and `vettingSchema` with zero database migrations (`RULE-DB-02`) (ADR 008).
 
 ---
 

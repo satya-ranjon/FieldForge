@@ -1,44 +1,19 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
-import { JwtModule } from '@nestjs/jwt';
-import {
-  DrizzleModule,
-  HealthController,
-  GlobalHttpExceptionFilter,
-  requireJwtSecret
-} from '@fieldforge/common';
-import { AuthController } from './modules/auth/auth.controller';
-import { AuthService } from './modules/auth/auth.service';
-import { PhoneOtpService } from './modules/auth/phone-otp.service';
-import { UsersController } from './modules/users/users.controller';
-import { UsersService } from './modules/users/users.service';
-import { CertificationsController } from './modules/certifications/certifications.controller';
-import { CertificationsService } from './modules/certifications/certifications.service';
+import { DrizzleModule, HealthController, GlobalHttpExceptionFilter } from '@fieldforge/common';
+import { IamModule } from './modules/iam/iam.module';
+import { ProfilesModule } from './modules/profiles/profiles.module';
+import { ContractorVettingModule } from './modules/vetting/vetting.module';
 
 @Module({
-  imports: [
-    DrizzleModule.forRoot(),
-    // registerAsync, not register: the factory runs while `bootstrap()` builds
-    // the app, so a missing or public JWT_SECRET is reported by the fatal logger
-    // in main.ts instead of throwing during module import.
-    JwtModule.registerAsync({
-      useFactory: () => ({
-        secret: requireJwtSecret(),
-        signOptions: { expiresIn: '15m' }
-      })
-    })
-  ],
-  controllers: [AuthController, UsersController, CertificationsController, HealthController],
+  imports: [DrizzleModule.forRoot(), IamModule, ProfilesModule, ContractorVettingModule],
+  controllers: [HealthController],
   providers: [
     {
       provide: APP_FILTER,
       useClass: GlobalHttpExceptionFilter
-    },
-    AuthService,
-    PhoneOtpService,
-    UsersService,
-    CertificationsService
+    }
   ],
-  exports: [AuthService, PhoneOtpService, UsersService, CertificationsService]
+  exports: [IamModule, ProfilesModule, ContractorVettingModule]
 })
 export class AuthModule {}

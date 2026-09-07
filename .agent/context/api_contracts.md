@@ -6,6 +6,8 @@
 
 ## 1. Authentication & Vetting Service (`auth-service`)
 
+> **Domain Modules (ADR 008)**: Encapsulated into `IamModule` (`/auth/*`), `ProfilesModule` (`/users/*`), and `ContractorVettingModule` (`/technicians/*`). Low-level IAM security logic is decoupled from marketplace profiles and vetting operations via dependency inversion.
+
 | Method  | Endpoint                                 | Description                                          | Auth / RBAC                               | Payload Schema              |
 | :------ | :--------------------------------------- | :--------------------------------------------------- | :---------------------------------------- | :-------------------------- |
 | `POST`  | `/auth/register`                         | Register new Buyer or Technician account             | Public                                    | `registerUserSchema`        |

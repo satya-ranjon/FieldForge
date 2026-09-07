@@ -1,7 +1,8 @@
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { AuthService } from '../src/modules/auth/auth.service';
+import { AuthService } from '../src/modules/iam/auth.service';
+import { ProfilesService } from '../src/modules/profiles/profiles.service';
 import { UserRole, UserStatus, toMinor } from '@fieldforge/contracts';
 import type { DrizzleClient } from '@fieldforge/common';
 
@@ -16,11 +17,18 @@ describe('AuthService', () => {
   let authService: AuthService;
   let mockDb: MockDb;
   let mockJwtService: jest.Mocked<JwtService>;
+  let mockProfilesService: jest.Mocked<ProfilesService>;
 
   beforeEach(() => {
     mockJwtService = {
       signAsync: jest.fn().mockResolvedValue('mocked.jwt.access-token')
     } as unknown as jest.Mocked<JwtService>;
+
+    mockProfilesService = {
+      provisionProfile: jest.fn().mockResolvedValue('prof-123'),
+      resolveProfileId: jest.fn().mockResolvedValue('prof-123'),
+      getUserProfile: jest.fn().mockResolvedValue({})
+    } as unknown as jest.Mocked<ProfilesService>;
 
     mockDb = {
       select: jest.fn(),
@@ -29,7 +37,11 @@ describe('AuthService', () => {
       transaction: jest.fn()
     };
 
-    authService = new AuthService(mockDb as unknown as DrizzleClient, mockJwtService);
+    authService = new AuthService(
+      mockDb as unknown as DrizzleClient,
+      mockJwtService,
+      mockProfilesService
+    );
   });
 
   describe('register', () => {
@@ -87,6 +99,7 @@ describe('AuthService', () => {
       expect(result.user.email).toBe('buyer@example.com');
       expect(result.user.role).toBe(UserRole.BUYER);
       expect(result.user.status).toBe(UserStatus.ACTIVE);
+      expect(mockProfilesService.provisionProfile).toHaveBeenCalled();
     });
 
     it('creates technician profile and issues tokens for new technician', async () => {
@@ -123,6 +136,7 @@ describe('AuthService', () => {
 
       expect(result.accessToken).toBe('mocked.jwt.access-token');
       expect(result.user.role).toBe(UserRole.TECHNICIAN);
+      expect(mockProfilesService.provisionProfile).toHaveBeenCalled();
     });
   });
 
@@ -171,7 +185,7 @@ describe('AuthService', () => {
       ).rejects.toThrow(UnauthorizedException);
     });
 
-    it('returns tokens on valid login credentials', async () => {
+    it('returns tokens on valid login credentials and resolves profileId', async () => {
       const password = 'CorrectPassword!';
       const passwordHash = await bcrypt.hash(password, 10);
 
@@ -203,6 +217,10 @@ describe('AuthService', () => {
       expect(result.accessToken).toBe('mocked.jwt.access-token');
       expect(result.refreshToken).toBeDefined();
       expect(result.user.id).toBe('u-123');
+      expect(mockProfilesService.resolveProfileId).toHaveBeenCalledWith('u-123', UserRole.BUYER);
+      expect(mockJwtService.signAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ profileId: 'prof-123' })
+      );
     });
 
     it('rejects suspended users', async () => {
@@ -247,7 +265,7 @@ describe('AuthService', () => {
       await expect(authService.refresh('invalid-token')).rejects.toThrow(UnauthorizedException);
     });
 
-    it('rotates refresh token and issues new access token', async () => {
+    it('rotates refresh token and issues new access token with profileId', async () => {
       mockDb.select
         .mockReturnValueOnce({
           from: jest.fn().mockReturnValue({
@@ -293,6 +311,7 @@ describe('AuthService', () => {
       expect(result.accessToken).toBe('mocked.jwt.access-token');
       expect(result.refreshToken).toBeDefined();
       expect(result.user.id).toBe('u-123');
+      expect(mockProfilesService.resolveProfileId).toHaveBeenCalledWith('u-123', UserRole.BUYER);
     });
   });
 });

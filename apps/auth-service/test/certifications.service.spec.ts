@@ -1,4 +1,4 @@
-import { CertificationsService } from '../src/modules/certifications/certifications.service';
+import { CertificationsService } from '../src/modules/vetting/certifications.service';
 
 const KNOWN_TECH = 't0000000-0000-0000-0000-000000000001';
 
@@ -27,7 +27,7 @@ describe('CertificationsService', () => {
     const badges = await certifications.getTechnicianBadges(KNOWN_TECH);
 
     expect(badges.length).toBeGreaterThan(0);
-    expect(badges.map((b) => b.name)).toContain('Cisco CCNA');
+    expect(badges.map((b: { name: string }) => b.name)).toContain('Cisco CCNA');
   });
 
   it('gives every badge an issue date before its expiry', async () => {
@@ -47,7 +47,9 @@ describe('CertificationsService', () => {
   });
 
   it('gives each badge a distinct identifier', async () => {
-    const ids = (await certifications.getTechnicianBadges(KNOWN_TECH)).map((b) => b.badgeId);
+    const ids = (await certifications.getTechnicianBadges(KNOWN_TECH)).map(
+      (b: { badgeId: string }) => b.badgeId
+    );
     expect(new Set(ids).size).toBe(ids.length);
   });
 
@@ -130,6 +132,11 @@ describe('CertificationsService', () => {
     });
 
     const pending = await certifications.listPendingCertifications();
-    expect(pending.some((p) => p.name === 'OSHA 10' && p.technicianId === 't-777')).toBe(true);
+    expect(
+      pending.some(
+        (p: { name: string; technicianId?: string }) =>
+          p.name === 'OSHA 10' && p.technicianId === 't-777'
+      )
+    ).toBe(true);
   });
 });

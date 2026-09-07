@@ -1,12 +1,12 @@
 import { Controller, Get, Headers, UnauthorizedException } from '@nestjs/common';
-import { UsersService } from './users.service';
 import { JwtService } from '@nestjs/jwt';
+import { ProfilesService } from './profiles.service';
 import type { AuthJwtPayload } from '@fieldforge/contracts';
 
 @Controller('users')
 export class UsersController {
   constructor(
-    private readonly usersService: UsersService,
+    private readonly profilesService: ProfilesService,
     private readonly jwtService: JwtService
   ) {}
 
@@ -50,6 +50,6 @@ export class UsersController {
       throw new UnauthorizedException('Identity mismatch');
     }
 
-    return this.usersService.getUserProfile(payload.sub);
+    return this.profilesService.getUserProfile(payload.sub);
   }
 }

@@ -296,14 +296,14 @@ erDiagram
 
 ## 🚀 Microservices Ecosystem
 
-| Microservice                    |  Port  | Domain Responsibilities                                                                                                      | Primary Data Store                                       |
-| :------------------------------ | :----: | :--------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------- |
-| **`api-gateway`**               | `8000` | Edge reverse proxy, JWT validation, rate limiting, correlation ID injection                                                  | In-Memory / Redis                                        |
-| **`auth-service`**              | `8001` | User onboarding, Phone OTP verification, RBAC tokens, compliance vetting (OSHA 10, Cisco CCNA, Badges) & certification audit | MySQL (`users`, `profiles`)                              |
-| **`work-order-service`**        | `8002` | Work order lifecycle FSM, contractor bidding negotiation, SOW templates, S3 uploads, SLA watchers                            | MySQL (`work_orders`, `work_order_bids`, `deliverables`) |
-| **`dispatch-matching-service`** | `8003` | Geospatial contractor matching (`GEOSEARCH`), live GPS tracking, auto-routing rules                                          | Redis 7 & RabbitMQ                                       |
-| **`billing-service`**           | `8004` | Escrow pre-authorizations, fund capture, technician payouts, automated PDF invoicing                                         | MySQL (`escrow_accounts`)                                |
-| **`notification-service`**      | `8005` | Push notifications (FCM/APNS), SMS dispatch alerts (Twilio), Email receipts (SES)                                            | RabbitMQ Topic Consumer                                  |
+| Microservice                    |  Port  | Domain Responsibilities                                                                                                                                                       | Primary Data Store                                       |
+| :------------------------------ | :----: | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------- |
+| **`api-gateway`**               | `8000` | Edge reverse proxy, JWT validation, rate limiting, correlation ID injection                                                                                                   | In-Memory / Redis                                        |
+| **`auth-service`**              | `8001` | IAM security credentials & JWT rotation (`IamModule`), domain profiles (`ProfilesModule`), and contractor compliance vetting & directory querying (`ContractorVettingModule`) | MySQL (`iamSchema`, `profileSchema`, `vettingSchema`)    |
+| **`work-order-service`**        | `8002` | Work order lifecycle FSM, contractor bidding negotiation, SOW templates, S3 uploads, SLA watchers                                                                             | MySQL (`work_orders`, `work_order_bids`, `deliverables`) |
+| **`dispatch-matching-service`** | `8003` | Geospatial contractor matching (`GEOSEARCH`), live GPS tracking, auto-routing rules                                                                                           | Redis 7 & RabbitMQ                                       |
+| **`billing-service`**           | `8004` | Escrow pre-authorizations, fund capture, technician payouts, automated PDF invoicing                                                                                          | MySQL (`escrow_accounts`)                                |
+| **`notification-service`**      | `8005` | Push notifications (FCM/APNS), SMS dispatch alerts (Twilio), Email receipts (SES)                                                                                             | RabbitMQ Topic Consumer                                  |
 
 ---
 

@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { PhoneOtpService } from '../src/modules/auth/phone-otp.service';
+import { PhoneOtpService } from '../src/modules/iam/phone-otp.service';
 
 describe('PhoneOtpService', () => {
   let service: PhoneOtpService;

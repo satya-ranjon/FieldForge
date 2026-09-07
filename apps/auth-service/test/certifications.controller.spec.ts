@@ -1,7 +1,7 @@
 import { UnauthorizedException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { CertificationsController } from '../src/modules/certifications/certifications.controller';
-import { CertificationsService } from '../src/modules/certifications/certifications.service';
+import { CertificationsController } from '../src/modules/vetting/certifications.controller';
+import { CertificationsService } from '../src/modules/vetting/certifications.service';
 import { UserRole } from '@fieldforge/contracts';
 
 describe('CertificationsController', () => {

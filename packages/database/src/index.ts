@@ -23,9 +23,26 @@ export const createDbClient = (connectionUri: string) => {
 
 export { sql } from 'drizzle-orm';
 
+export const iamSchema = {
+  users: usersSchema.users,
+  refreshTokens: usersSchema.refreshTokens
+};
+
+export const profileSchema = {
+  buyerProfiles: usersSchema.buyerProfiles,
+  technicianProfiles: usersSchema.technicianProfiles
+};
+
+export const vettingSchema = {
+  technicianCertifications: usersSchema.technicianCertifications
+};
+
 export {
   usersSchema,
   usersSchema as identitySchema,
+  iamSchema as authSchema,
+  profileSchema as userProfileSchema,
+  vettingSchema as certificationSchema,
   workOrdersSchema,
   bidsSchema,
   bidsSchema as workOrderBidsSchema,
