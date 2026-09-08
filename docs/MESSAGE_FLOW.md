@@ -52,26 +52,28 @@ The core messaging infrastructure is encapsulated within [`packages/messaging`](
 
 ### Exchanges & Queues
 
-| Component                      | Identifier                             | Type             | Durability | Purpose                                                               |
-| :----------------------------- | :------------------------------------- | :--------------- | :--------- | :-------------------------------------------------------------------- |
-| **Central Topic Exchange**     | `fieldforge.events.topic`              | `topic`          | Durable    | Central fanout exchange routing all domain events.                    |
-| **Dead-Letter Exchange (DLX)** | `fieldforge.events.dlx`                | `direct`         | Durable    | Traps poison pills, malformed messages, and exhausted retries.        |
-| **Dead-Letter Queue (DLQ)**    | `fieldforge.events.dlq`                | `direct`         | Durable    | Storage queue bound to DLX for forensic inspection and manual replay. |
-| **Dispatch Queue**             | `fieldforge.dispatch.work-orders`      | `direct` / bound | Durable    | Receives publication events for geospatial matching.                  |
-| **Notifications Queue**        | `fieldforge.notifications.work-orders` | `direct` / bound | Durable    | Receives lifecycle events for SMS and Push alerts.                    |
-| **Billing Queue**              | `fieldforge.billing.work-orders`       | `direct` / bound | Durable    | Receives lifecycle events for escrow pre-auth, lock, and release.     |
+| Component                       | Identifier                                | Type             | Durability | Purpose                                                                |
+| :------------------------------ | :---------------------------------------- | :--------------- | :--------- | :--------------------------------------------------------------------- |
+| **Central Topic Exchange**      | `fieldforge.events.topic`                 | `topic`          | Durable    | Central fanout exchange routing all domain events.                     |
+| **Dead-Letter Exchange (DLX)**  | `fieldforge.events.dlx`                   | `direct`         | Durable    | Traps poison pills, malformed messages, and exhausted retries.         |
+| **Dead-Letter Queue (DLQ)**     | `fieldforge.events.dlq`                   | `direct`         | Durable    | Storage queue bound to DLX for forensic inspection and manual replay.  |
+| **Dispatch Queue**              | `fieldforge.dispatch.work-orders`         | `direct` / bound | Durable    | Receives publication events for geospatial matching.                   |
+| **Notifications Queue**         | `fieldforge.notifications.work-orders`    | `direct` / bound | Durable    | Receives lifecycle events for SMS and Push alerts.                     |
+| **Billing Queue**               | `fieldforge.billing.work-orders`          | `direct` / bound | Durable    | Receives lifecycle events for escrow pre-auth, lock, and release.      |
+| **Work Orders Lifecycle Queue** | `fieldforge.work-orders.lifecycle-events` | `direct` / bound | Durable    | Receives payout disbursement events to drive final settlement to PAID. |
 
 ### Routing Keys & Consumer Subscriptions
 
-| Routing Key                      | Event Type                       | Publisher Service           | Subscribed Queue(s)                                                          | Receiving Microservice(s)                              |
-| :------------------------------- | :------------------------------- | :-------------------------- | :--------------------------------------------------------------------------- | :----------------------------------------------------- |
-| `work_order.lifecycle.published` | `work_order.lifecycle.published` | `work-order-service`        | `fieldforge.dispatch.work-orders`<br/>`fieldforge.notifications.work-orders` | `dispatch-matching-service`<br/>`notification-service` |
-| `work_order.lifecycle.assigned`  | `work_order.lifecycle.assigned`  | `work-order-service`        | `fieldforge.notifications.work-orders`<br/>`fieldforge.billing.work-orders`  | `notification-service`<br/>`billing-service`           |
-| `work_order.lifecycle.approved`  | `work_order.lifecycle.approved`  | `work-order-service`        | `fieldforge.billing.work-orders`                                             | `billing-service`                                      |
-| `work_order.lifecycle.paid`      | `work_order.lifecycle.paid`      | `work-order-service`        | `fieldforge.notifications.work-orders`                                       | `notification-service`                                 |
-| `tech.bidding.submitted`         | `tech.bidding.submitted`         | `dispatch-matching-service` | `fieldforge.notifications.work-orders`                                       | `notification-service`                                 |
-| `billing.escrow.funded`          | `billing.escrow.funded`          | `billing-service`           | `fieldforge.work-orders.billing`                                             | `work-order-service`                                   |
-| `billing.payout.disbursed`       | `billing.payout.disbursed`       | `billing-service`           | `fieldforge.work-orders.billing`                                             | `work-order-service`                                   |
+| Routing Key                      | Event Type                       | Publisher Service    | Subscribed Queue(s)                                                          | Receiving Microservice(s)                                      |
+| :------------------------------- | :------------------------------- | :------------------- | :--------------------------------------------------------------------------- | :------------------------------------------------------------- |
+| `work_order.lifecycle.published` | `work_order.lifecycle.published` | `work-order-service` | `fieldforge.dispatch.work-orders`<br/>`fieldforge.notifications.work-orders` | `dispatch-matching-service`<br/>`notification-service`         |
+| `work_order.lifecycle.assigned`  | `work_order.lifecycle.assigned`  | `work-order-service` | `fieldforge.notifications.work-orders`<br/>`fieldforge.billing.work-orders`  | `notification-service`<br/>`billing-service`                   |
+| `work_order.lifecycle.approved`  | `work_order.lifecycle.approved`  | `work-order-service` | `fieldforge.billing.work-orders`                                             | `billing-service`                                              |
+| `work_order.lifecycle.paid`      | `work_order.lifecycle.paid`      | `work-order-service` | `fieldforge.notifications.work-orders`                                       | `notification-service`                                         |
+| `tech.bidding.submitted`         | `tech.bidding.submitted`         | `work-order-service` | `fieldforge.notifications.work-orders`                                       | `notification-service`                                         |
+| `tech.bidding.accepted`          | `tech.bidding.accepted`          | `work-order-service` | _(External fanout only)_                                                     | _(Decoupled from work-order-service to prevent circular loop)_ |
+| `billing.escrow.funded`          | `billing.escrow.funded`          | `billing-service`    | `fieldforge.work-orders.billing`                                             | `work-order-service`                                           |
+| `billing.payout.disbursed`       | `billing.payout.disbursed`       | `billing-service`    | `fieldforge.work-orders.lifecycle-events`                                    | `work-order-service`                                           |
 
 ---
 

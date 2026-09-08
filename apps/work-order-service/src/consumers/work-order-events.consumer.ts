@@ -22,12 +22,10 @@ export class WorkOrderEventsConsumer implements OnApplicationBootstrap {
     if (this.consumer) {
       await this.consumer.subscribe<unknown>(
         WORK_ORDERS_LIFECYCLE_QUEUE,
-        [EventType.PAYOUT_DISBURSED, EventType.TECH_BID_ACCEPTED],
+        [EventType.PAYOUT_DISBURSED],
         async (event, logger) => {
           if (event.eventType === EventType.PAYOUT_DISBURSED) {
             await this.handlePayoutDisbursed(event as unknown as PayoutDisbursedEvent, logger);
-          } else if (event.eventType === EventType.TECH_BID_ACCEPTED) {
-            await this.handleTechBidAccepted(event as unknown as TechBidAcceptedEvent, logger);
           }
         }
       );
@@ -44,6 +42,13 @@ export class WorkOrderEventsConsumer implements OnApplicationBootstrap {
     await this.workOrdersService.settlePaid(workOrderId, event.correlationId, 'billing-service');
   }
 
+  /**
+   * @deprecated Retained for programmatic backward compatibility.
+   * WorkOrderEventsConsumer intentionally does NOT subscribe to EventType.TECH_BID_ACCEPTED
+   * (see FF-ARCH-07 / Service Audit Issue A). Bid acceptance and assignment are executed
+   * atomically in MySQL within BidsService.acceptBid() (ADR 007). Subscribing to this event
+   * would create a circular AMQP loop causing redundant row locks and duplicate assignment emissions.
+   */
   async handleTechBidAccepted(event: TechBidAcceptedEvent, logger?: ContextLogger): Promise<void> {
     const { workOrderId, technicianId, bidId } = event.payload;
     if (logger?.info) {

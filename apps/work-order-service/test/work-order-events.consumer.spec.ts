@@ -34,7 +34,7 @@ describe('WorkOrderEventsConsumer', () => {
 
     expect(mockMessagingConsumer.subscribe).toHaveBeenCalledWith(
       WORK_ORDERS_LIFECYCLE_QUEUE,
-      [EventType.PAYOUT_DISBURSED, EventType.TECH_BID_ACCEPTED],
+      [EventType.PAYOUT_DISBURSED],
       expect.any(Function)
     );
   });

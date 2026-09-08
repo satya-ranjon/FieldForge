@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
-**Last reviewed:** 2026-09-07  
-**Phase:** Phase 14 complete — Headless Notification Worker Boundary & Gateway Route Decoupling (Resolves Finding 6, ADR 010). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Last reviewed:** 2026-09-08  
+**Phase:** Phase 14 complete — Headless Notification Worker Boundary (ADR 010) & Event Loop Decoupling (FF-ARCH-07 / Service Audit Issue A). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -76,7 +76,10 @@
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
   - `AppNavigator` mounting `JobListScreen` and `ActiveJobScreen` wrapped in Redux store.
 - **A test harness that can fail.** 476 automated unit/integration tests across 15 packages/apps
-  plus 28 Playwright E2E tests (504 total verified tests); zero `--passWithNoTests` anywhere.
+- **Circular Event Loop Decoupling in work-order-service (FF-ARCH-07, Service Audit Issue A).**
+  - Decoupled `WorkOrderEventsConsumer` from self-consumption of `tech.bidding.accepted`: subscription now exclusively listens for `billing.payout.disbursed`.
+  - Preserved atomic, single-transaction bid acceptance (`POST /work-orders/:id/bids/:bidId/accept`) in `BidsService.acceptBid()` while eliminating redundant second-pass `SELECT ... FOR UPDATE` attempts on `work_orders` and duplicate `work_order.lifecycle.assigned` event broadcasts.
+  - Zero database migrations (`RULE-DB-02`).
 - **Headless Notification Worker Boundary & Gateway Route Decoupling (Phase 14, Resolves Finding 6, ADR 010).**
   - Removed `notifications` from `gatewayConfig.services` and `ProxyController` in `apps/api-gateway`, ensuring the edge gateway exclusively fronts the 4 domain services (`auth`, `work-orders`, `dispatch`, `billing`).
   - Unmapped calls targeting `/api/v1/notifications/*` fail fast at the edge with 404 without opening unnecessary upstream proxy sockets.

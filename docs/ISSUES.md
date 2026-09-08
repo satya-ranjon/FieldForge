@@ -819,6 +819,16 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   4. Formally documented `notification-service` as a headless background consumer daemon in `apps/notification-service/src/notification.module.ts`, preserving internal `HealthController` (`/healthz`, `/readyz`) and Prometheus metrics (`/metrics`) on container port 8005 for Kubernetes and APM observability.
   5. Zero database migrations (`RULE-DB-02`) (ADR 010).
 
+### FF-ARCH-07 · 🏛️ Circular Event Loop & Redundant Consumer Assignment in work-order-service (Service Audit Issue A)
+
+- **Root Cause**: When contractor bidding was relocated from `apps/dispatch-matching-service` to `apps/work-order-service` (ADR 007 / Finding 3), `BidsService.acceptBid()` implemented atomic in-transaction assignment (`PUBLISHED → ASSIGNED`), status history logging, and emitted both canonical `work_order.lifecycle.assigned` and `tech.bidding.accepted` (`EventType.TECH_BID_ACCEPTED`). However, `WorkOrderEventsConsumer` in `apps/work-order-service` retained its legacy subscription to `EventType.TECH_BID_ACCEPTED` on `fieldforge.work-orders.lifecycle-events`. When a bid was accepted, `work-order-service` published `tech.bidding.accepted` to RabbitMQ and then immediately consumed its own message, invoking `assignTechnicianFromBid()`. This triggered an unnecessary second pessimistic lock (`SELECT … FOR UPDATE`) and transaction attempt on `work_orders`, creating an intra-service circular message loop and risking redundant `WORK_ORDER_ASSIGNED` event emissions.
+- **Fix**: Decoupled `work-order-service` from self-consumption of `tech.bidding.accepted`:
+  1. Updated `WorkOrderEventsConsumer.onApplicationBootstrap()` in `apps/work-order-service/src/consumers/work-order-events.consumer.ts` to subscribe exclusively to `[EventType.PAYOUT_DISBURSED]`.
+  2. Preserved `handleTechBidAccepted()` and `WorkOrdersService.assignTechnicianFromBid()` for programmatic or direct invocation without breaking unit test harnesses.
+  3. Updated `apps/work-order-service/test/work-order-events.consumer.spec.ts` to assert that subscription routing keys strictly contain `[EventType.PAYOUT_DISBURSED]`.
+  4. Updated `docs/MESSAGE_FLOW.md` routing table and queue definitions.
+  5. Zero database migrations (`RULE-DB-02`).
+
 ---
 
 ## Suggested remediation order

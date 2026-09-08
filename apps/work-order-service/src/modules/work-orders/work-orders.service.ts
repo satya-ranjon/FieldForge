@@ -646,7 +646,10 @@ export class WorkOrdersService {
   }
 
   /**
-   * Transitions work order to ASSIGNED upon receiving TECH_BID_ACCEPTED from dispatch service.
+   * Transitions work order to ASSIGNED upon bid acceptance.
+   * Note: With commercial bidding re-homed to BidsService (ADR 007), canonical bid acceptance
+   * and assignment are executed atomically in BidsService.acceptBid(). This method is retained
+   * for programmatic or direct invocation (FF-ARCH-07).
    * Enforces FSM transition rules, logs status history, and emits canonical WORK_ORDER_ASSIGNED event.
    */
   async assignTechnicianFromBid(
