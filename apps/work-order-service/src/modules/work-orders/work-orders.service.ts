@@ -27,7 +27,8 @@ import {
   workOrders,
   workOrderStatusHistory,
   buyerProfiles,
-  technicianProfiles
+  technicianProfiles,
+  workOrderBids
 } from '@fieldforge/database';
 import { eq, and, gte, lte, asc } from 'drizzle-orm';
 import {
@@ -528,7 +529,14 @@ export class WorkOrdersService {
 
       if (dto.nextStatus === WorkOrderStatus.ASSIGNED) {
         const assignedTechId = dto.assignedTechnicianId || wo.assignedTechnicianId || '';
-        const agreedRateMinor = toMinor(Number(wo.budgetAmount));
+        const [acceptedBid] = await tx
+          .select()
+          .from(workOrderBids)
+          .where(and(eq(workOrderBids.workOrderId, wo.id), eq(workOrderBids.bidStatus, 'ACCEPTED')))
+          .limit(1);
+        const agreedRateMinor = acceptedBid
+          ? toMinor(Number(acceptedBid.bidAmount))
+          : toMinor(Number(wo.budgetAmount));
         eventsToPublish.push(async () => {
           const event = createEvent(
             EventType.WORK_ORDER_ASSIGNED,
@@ -542,7 +550,14 @@ export class WorkOrdersService {
           await this.eventPublisher.publishWorkOrderAssigned(event);
         });
       } else if (dto.nextStatus === WorkOrderStatus.APPROVED) {
-        const payoutAmountMinor = toMinor(Number(wo.budgetAmount));
+        const [acceptedBid] = await tx
+          .select()
+          .from(workOrderBids)
+          .where(and(eq(workOrderBids.workOrderId, wo.id), eq(workOrderBids.bidStatus, 'ACCEPTED')))
+          .limit(1);
+        const payoutAmountMinor = acceptedBid
+          ? toMinor(Number(acceptedBid.bidAmount))
+          : toMinor(Number(wo.budgetAmount));
         const assignedTechId = wo.assignedTechnicianId || '';
         eventsToPublish.push(async () => {
           const event = createEvent(
@@ -632,11 +647,23 @@ export class WorkOrdersService {
       };
       updatedOrder = this.mapToResponseDto(updatedRow as typeof workOrders.$inferSelect);
 
+      let effectivePayoutMinor = disbursedAmountMinor;
+      if (effectivePayoutMinor === undefined) {
+        const [acceptedBid] = await tx
+          .select()
+          .from(workOrderBids)
+          .where(and(eq(workOrderBids.workOrderId, wo.id), eq(workOrderBids.bidStatus, 'ACCEPTED')))
+          .limit(1);
+        effectivePayoutMinor = acceptedBid
+          ? toMinor(Number(acceptedBid.bidAmount))
+          : toMinor(Number(wo.budgetAmount));
+      }
+
       paidEventPayload = {
         workOrderId: wo.id,
         buyerId: wo.buyerId,
         techId: wo.assignedTechnicianId || '',
-        payoutAmountMinor: disbursedAmountMinor ?? toMinor(Number(wo.budgetAmount))
+        payoutAmountMinor: effectivePayoutMinor
       };
     });
 

@@ -160,6 +160,16 @@
 > eliminating premature ACKs, in-memory process volatility, and parallel duplicate delivery race conditions.
 > Total verified tests: 497 unit/integration + 28 E2E = 525 tests.
 
+> **Phase 20 update — 2026-09-08:** Phase 20 of [`DEVELOPMENT_PLAN.md`](./DEVELOPMENT_PLAN.md)
+> delivered Reconciliation of Payout Amount Disconnect Between Billing and Work Orders (Resolves **FF-ARCH-13 / Service Audit Issue A**).
+> Reconciled contract asymmetry by adding `buyerId?: string` to `PayoutDisbursedPayload`.
+> Updated `WorkOrdersService.transition()` to query `workOrderBids` for `ACCEPTED` contractor bids and set `payoutAmountMinor`
+> in `WORK_ORDER_APPROVED` and `agreedRateMinor` in `WORK_ORDER_ASSIGNED` to the actual agreed bid rate rather than defaulting
+> to the budget ceiling. Updated `settlePaid()` to query accepted bids when `disbursedAmountMinor` is omitted.
+> Upgraded `EscrowService.releaseFunds()` (`apps/billing-service`) to accept and honor `amountMinor`, validate limits,
+> disburse the exact agreed amount to the technician, and automatically refund the unused escrow remainder to the buyer via
+> `paymentProvider.refundEscrow()`. Total verified tests: 501 unit/integration + 28 E2E = 529 tests.
+
 ---
 
 ## How to read this report
@@ -931,6 +941,24 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   4. Added unit and integration tests in `packages/messaging/test/idempotent-consumer.spec.ts` and `packages/messaging/test/redis-idempotency.spec.ts`.
   5. Updated `docs/MESSAGE_FLOW.md` with the broker-native delay queue topology and sequence diagrams.
   6. Zero database migrations (`RULE-DB-02`).
+
+### FF-ARCH-13 · 🏛️ Payout Amount Disconnect Between Billing and Work Orders (Service Audit Issue A)
+
+- **Root Cause**: When a work order was executed with an accepted contractor bid (e.g. $350.00 from a $500.00 max budget), multiple service disconnects occurred along the settlement and notification path:
+  1. `WorkOrdersService.transition()` approved the work order and published `WORK_ORDER_APPROVED` with `payoutAmountMinor: toMinor(Number(wo.budgetAmount))` ($500.00), failing to check `workOrderBids` for the accepted bid.
+  2. `BillingConsumer` passed `payoutAmountMinor` into `EscrowService.releaseFunds(workOrderId, techId, payoutAmountMinor, ...)`, but `EscrowService.releaseFunds()` omitted `legacyAmountMinor` from `params` and hardcoded disbursement to the full locked escrow amount `Math.round(Number(escrow.amountLocked) * 100)`.
+  3. The unused escrow remainder ($150.00) remained unaccounted for and was never refunded to the buyer.
+  4. `PayoutDisbursedPayload` lacked `buyerId`, creating a contract discrepancy with `WorkOrderPaidPayload`.
+  5. Notifications sent by `NotificationConsumer` reported inaccurate payout amounts.
+- **Fix**: Implemented complete financial reconciliation across contracts, work orders, and billing:
+  1. Added `buyerId?: string` to `PayoutDisbursedPayload` in `packages/contracts/src/events/payment.events.ts`.
+  2. Updated `WorkOrdersService.transition()` (`apps/work-order-service`) to query `workOrderBids` for an `ACCEPTED` bid, setting `payoutAmountMinor` in `WORK_ORDER_APPROVED` and `agreedRateMinor` in `WORK_ORDER_ASSIGNED` to the actual agreed rate if present.
+  3. Updated `WorkOrdersService.settlePaid()` to query `workOrderBids` for the accepted rate if `disbursedAmountMinor` is omitted.
+  4. Added `amountMinor?: MinorUnits` to `ReleaseEscrowParams` in `apps/billing-service/src/modules/escrow/escrow.service.ts`.
+  5. Updated `EscrowService.releaseFunds()` to accept `amountMinor`, validate limits (`0 < amountMinor <= lockedMinor`), disburse the exact amount to the technician, and automatically execute `paymentProvider.refundEscrow()` for the unused remainder to the buyer.
+  6. Added comprehensive unit tests in `apps/work-order-service/test/work-orders.service.spec.ts` and `apps/billing-service/test/escrow.service.spec.ts`.
+  7. Updated `docs/MESSAGE_FLOW.md` sequence diagrams and `docs/DEVELOPMENT_PLAN.md`.
+  8. Zero database migrations (`RULE-DB-02`).
 
 ---
 

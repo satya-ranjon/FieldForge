@@ -41,6 +41,16 @@ interface InMemStatusHistory {
   createdAt: Date;
 }
 
+interface InMemBid {
+  id: string;
+  workOrderId: string;
+  technicianId: string;
+  bidAmount: string;
+  counterNote?: string | null;
+  bidStatus: string;
+  createdAt: Date;
+}
+
 function extractCriteria(expr: unknown): { column?: string; value?: string } {
   if (!expr) return {};
   if (typeof expr === 'string') return { value: expr };
@@ -82,6 +92,42 @@ function extractCriteria(expr: unknown): { column?: string; value?: string } {
   return { value: fallback !== undefined ? String(fallback) : undefined };
 }
 
+function extractAllCriteriaValues(expr: unknown): string[] {
+  if (!expr) return [];
+  if (typeof expr === 'string') return [expr];
+  const candidate = expr as {
+    queryChunks?: unknown[];
+    right?: { value?: unknown };
+    value?: unknown;
+  };
+  const values: string[] = [];
+  if (Array.isArray(candidate.queryChunks)) {
+    for (const chunk of candidate.queryChunks) {
+      if (chunk && typeof chunk === 'object') {
+        if ('value' in chunk && typeof (chunk as { value: unknown }).value === 'string') {
+          values.push((chunk as { value: string }).value);
+        } else if ('queryChunks' in chunk) {
+          values.push(...extractAllCriteriaValues(chunk));
+        }
+      } else if (typeof chunk === 'string') {
+        const trimmed = chunk.trim();
+        if (
+          trimmed &&
+          !trimmed.includes('`') &&
+          trimmed !== '=' &&
+          !trimmed.includes('(') &&
+          !trimmed.includes('and')
+        ) {
+          values.push(trimmed);
+        }
+      }
+    }
+  }
+  const fallback = candidate?.right?.value ?? candidate?.value;
+  if (fallback !== undefined) values.push(String(fallback));
+  return values;
+}
+
 function getTableName(table: unknown): string {
   if (!table || typeof table !== 'object') return '';
   const candidate = table as Record<string | symbol, unknown>;
@@ -104,6 +150,7 @@ function createMockDb() {
     technicianProfiles: new Map<string, { id: string; userId: string }>([
       [TECH_PROFILE_ID, { id: TECH_PROFILE_ID, userId: TECH_USER_ID }]
     ]),
+    bids: new Map<string, InMemBid>(),
     locks: new Set<string>()
   };
 
@@ -124,6 +171,19 @@ function createMockDb() {
             limit: async () => {
               const { column, value } = extractCriteria(expr);
               const id = value;
+              if (tableName === 'work_order_bids') {
+                const bidsList = Array.from(store.bids.values()).filter(
+                  (bid) => bid.bidStatus === 'ACCEPTED'
+                );
+                const allValues = extractAllCriteriaValues(expr);
+                const b = bidsList.find(
+                  (bid) =>
+                    allValues.includes(bid.workOrderId) ||
+                    allValues.includes(bid.id) ||
+                    (allValues.includes('ACCEPTED') && bidsList.length === 1)
+                );
+                return b ? [{ ...b }] : [];
+              }
               if (tableName === 'technician_profiles') {
                 const t = Array.from(store.technicianProfiles.values()).find((tp) =>
                   id ? tp.userId === id || tp.id === id : true
@@ -147,6 +207,8 @@ function createMockDb() {
       values: async (data: Record<string, unknown>) => {
         if (data.fromStatus !== undefined || data.toStatus !== undefined) {
           store.statusHistory.push(data as unknown as InMemStatusHistory);
+        } else if (data.bidAmount !== undefined || data.bidStatus !== undefined) {
+          store.bids.set(String(data.id), data as unknown as InMemBid);
         } else if (data.companyName) {
           store.buyerProfiles.set(String(data.id), {
             id: String(data.id),
@@ -944,6 +1006,90 @@ describe('WorkOrdersService (Persistent, Transactional Lifecycle)', () => {
             workOrderId: woId,
             techId: TECH_PROFILE_ID,
             payoutAmountMinor: 42500
+          })
+        })
+      );
+    });
+
+    it('uses accepted bid rate for WORK_ORDER_APPROVED and WORK_ORDER_PAID when a bid exists (FF-ARCH-13)', async () => {
+      const approveSpy = jest.spyOn(publisher, 'publishWorkOrderApproved').mockResolvedValue();
+      const paidSpy = jest.spyOn(publisher, 'publishWorkOrderPaid').mockResolvedValue();
+
+      const created = await service.create(BUYER_USER_ID, {
+        ...defaultDto,
+        budgetAmountMinor: 50000
+      });
+      const woId = created.id;
+      await service.publish(woId, BUYER_USER_ID, 'BUYER', CORRELATION_ID);
+
+      // Record an accepted bid for $350.00
+      mockDbInfo.store.bids.set('bid-1', {
+        id: 'bid-1',
+        workOrderId: woId,
+        technicianId: TECH_PROFILE_ID,
+        bidAmount: '350.00',
+        counterNote: null,
+        bidStatus: 'ACCEPTED',
+        createdAt: new Date()
+      });
+
+      await service.transition(
+        woId,
+        BUYER_USER_ID,
+        'BUYER',
+        { nextStatus: WorkOrderStatus.ASSIGNED, assignedTechnicianId: TECH_PROFILE_ID },
+        CORRELATION_ID
+      );
+      await service.transition(
+        woId,
+        TECH_USER_ID,
+        'TECHNICIAN',
+        { nextStatus: WorkOrderStatus.EN_ROUTE },
+        CORRELATION_ID
+      );
+      await service.transition(
+        woId,
+        TECH_USER_ID,
+        'TECHNICIAN',
+        { nextStatus: WorkOrderStatus.ON_SITE, latitude: 37.7749, longitude: -122.4194 },
+        CORRELATION_ID
+      );
+      await service.transition(
+        woId,
+        TECH_USER_ID,
+        'TECHNICIAN',
+        { nextStatus: WorkOrderStatus.COMPLETED },
+        CORRELATION_ID
+      );
+      await service.transition(
+        woId,
+        BUYER_USER_ID,
+        'BUYER',
+        { nextStatus: WorkOrderStatus.APPROVED },
+        CORRELATION_ID
+      );
+
+      // Verify WORK_ORDER_APPROVED published with 35000 minor ($350) instead of 50000 ($500)
+      expect(approveSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: EventType.WORK_ORDER_APPROVED,
+          payload: expect.objectContaining({
+            workOrderId: woId,
+            techId: TECH_PROFILE_ID,
+            payoutAmountMinor: 35000
+          })
+        })
+      );
+
+      // Settle paid without explicit amount -> should also use accepted bid amount (35000)
+      await service.settlePaid(woId, CORRELATION_ID, 'billing-service');
+      expect(paidSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: EventType.WORK_ORDER_PAID,
+          payload: expect.objectContaining({
+            workOrderId: woId,
+            techId: TECH_PROFILE_ID,
+            payoutAmountMinor: 35000
           })
         })
       );

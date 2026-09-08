@@ -1,4 +1,9 @@
-import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException
+} from '@nestjs/common';
 import { EscrowStatus, EventType } from '@fieldforge/contracts';
 import type { DrizzleClient } from '@fieldforge/common';
 import { EscrowService } from '../src/modules/escrow/escrow.service';
@@ -477,6 +482,250 @@ describe('EscrowService', () => {
 
       expect(result.status).toBe(EscrowStatus.RELEASED);
       expect(result.disbursedAmountMinor).toBe(45000);
+    });
+
+    it('successfully releases partial funds when amountMinor < amountLocked, refunding unused remainder to buyer (FF-ARCH-13)', async () => {
+      // 1. Escrow lock returns HELD with 500.00 locked ($500)
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            for: () =>
+              Promise.resolve([
+                {
+                  id: 'escrow-1',
+                  workOrderId: WORK_ORDER_ID,
+                  amountLocked: '500.00',
+                  status: 'HELD'
+                }
+              ])
+          })
+        })
+      });
+
+      // 2. Work order lock returns APPROVED
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            for: () =>
+              Promise.resolve([
+                {
+                  id: WORK_ORDER_ID,
+                  status: 'APPROVED',
+                  buyerId: 'owner-buyer-profile-id',
+                  assignedTechnicianId: TECH_ID
+                }
+              ])
+          })
+        })
+      });
+
+      // 3. Buyer profile lookup
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            limit: () =>
+              Promise.resolve([
+                {
+                  id: 'owner-buyer-profile-id',
+                  userId: 'buyer-user-id'
+                }
+              ])
+          })
+        })
+      });
+
+      // Release agreed $350.00 (35000 minor)
+      const result = await escrow.releaseFunds({
+        workOrderId: WORK_ORDER_ID,
+        callerUserId: 'buyer-user-id',
+        callerRole: 'BUYER',
+        correlationId: CORRELATION_ID,
+        amountMinor: 35000
+      });
+
+      expect(result.status).toBe(EscrowStatus.RELEASED);
+      expect(result.disbursedAmountMinor).toBe(35000);
+
+      // Verify technician received exactly $350.00 (35000 minor)
+      expect(mockPaymentProvider.disbursePayout).toHaveBeenCalledWith({
+        workOrderId: WORK_ORDER_ID,
+        technicianId: TECH_ID,
+        amountMinor: 35000
+      });
+
+      // Verify buyer received automatic refund of the $150.00 unused remainder (15000 minor)
+      expect(mockPaymentProvider.refundEscrow).toHaveBeenCalledWith({
+        workOrderId: WORK_ORDER_ID,
+        buyerId: 'owner-buyer-profile-id',
+        amountMinor: 15000,
+        reason: expect.stringContaining('Unused escrow balance refunded')
+      });
+
+      // Verify invoice generated for agreed payout amount
+      expect(mockInvoicesService.generateInvoiceWithTx).toHaveBeenCalledWith(
+        mockTx,
+        expect.objectContaining({
+          workOrderId: WORK_ORDER_ID,
+          buyerId: 'owner-buyer-profile-id',
+          amountMinor: 35000
+        })
+      );
+
+      // Verify PAYOUT_DISBURSED published with buyerId and agreed amount
+      expect(mockProducer.publish).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: EventType.PAYOUT_DISBURSED,
+          payload: expect.objectContaining({
+            workOrderId: WORK_ORDER_ID,
+            buyerId: 'owner-buyer-profile-id',
+            techId: TECH_ID,
+            amountMinor: 35000
+          })
+        })
+      );
+    });
+
+    it('throws BadRequestException when requested amountMinor exceeds locked escrow amount (FF-ARCH-13)', async () => {
+      // 1. Escrow lock returns HELD with 450.00 locked ($450)
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            for: () =>
+              Promise.resolve([
+                {
+                  id: 'escrow-1',
+                  workOrderId: WORK_ORDER_ID,
+                  amountLocked: '450.00',
+                  status: 'HELD'
+                }
+              ])
+          })
+        })
+      });
+
+      // 2. Work order lock returns APPROVED
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            for: () =>
+              Promise.resolve([
+                {
+                  id: WORK_ORDER_ID,
+                  status: 'APPROVED',
+                  buyerId: 'owner-buyer-profile-id',
+                  assignedTechnicianId: TECH_ID
+                }
+              ])
+          })
+        })
+      });
+
+      // Attempting to release 500.00 (50000 minor) against 450.00 locked
+      await expect(
+        escrow.releaseFunds({
+          workOrderId: WORK_ORDER_ID,
+          callerUserId: 'system',
+          callerRole: 'SYSTEM',
+          amountMinor: 50000
+        })
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws BadRequestException when requested amountMinor is less than or equal to zero (FF-ARCH-13)', async () => {
+      // 1. Escrow lock returns HELD
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            for: () =>
+              Promise.resolve([
+                {
+                  id: 'escrow-1',
+                  workOrderId: WORK_ORDER_ID,
+                  amountLocked: '450.00',
+                  status: 'HELD'
+                }
+              ])
+          })
+        })
+      });
+
+      // 2. Work order lock returns APPROVED
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            for: () =>
+              Promise.resolve([
+                {
+                  id: WORK_ORDER_ID,
+                  status: 'APPROVED',
+                  buyerId: 'owner-buyer-profile-id',
+                  assignedTechnicianId: TECH_ID
+                }
+              ])
+          })
+        })
+      });
+
+      await expect(
+        escrow.releaseFunds({
+          workOrderId: WORK_ORDER_ID,
+          callerUserId: 'system',
+          callerRole: 'SYSTEM',
+          amountMinor: 0
+        })
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('supports positional call signature and forwards legacyAmountMinor into disbursement (FF-ARCH-13)', async () => {
+      // 1. Escrow lock returns HELD with 500.00 locked
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            for: () =>
+              Promise.resolve([
+                {
+                  id: 'escrow-1',
+                  workOrderId: WORK_ORDER_ID,
+                  amountLocked: '500.00',
+                  status: 'HELD'
+                }
+              ])
+          })
+        })
+      });
+
+      // 2. Work order lock returns APPROVED
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            for: () =>
+              Promise.resolve([
+                {
+                  id: WORK_ORDER_ID,
+                  status: 'APPROVED',
+                  buyerId: 'owner-buyer-profile-id',
+                  assignedTechnicianId: TECH_ID
+                }
+              ])
+          })
+        })
+      });
+
+      const result = await escrow.releaseFunds(WORK_ORDER_ID, TECH_ID, 35000, CORRELATION_ID);
+
+      expect(result.status).toBe(EscrowStatus.RELEASED);
+      expect(result.disbursedAmountMinor).toBe(35000);
+      expect(mockPaymentProvider.disbursePayout).toHaveBeenCalledWith({
+        workOrderId: WORK_ORDER_ID,
+        technicianId: TECH_ID,
+        amountMinor: 35000
+      });
+      expect(mockPaymentProvider.refundEscrow).toHaveBeenCalledWith({
+        workOrderId: WORK_ORDER_ID,
+        buyerId: 'owner-buyer-profile-id',
+        amountMinor: 15000,
+        reason: expect.stringContaining('Unused escrow balance refunded')
+      });
     });
   });
 });

@@ -34,6 +34,7 @@ export interface ReleaseEscrowParams {
   correlationId?: string;
   idempotencyKey?: string;
   callerProfileId?: string;
+  amountMinor?: MinorUnits;
 }
 
 export interface EscrowReleaseResult {
@@ -150,6 +151,7 @@ export class EscrowService {
         workOrderId: workOrderIdOrParams,
         callerUserId: legacyTechId, // or caller id
         callerRole: 'SYSTEM',
+        amountMinor: legacyAmountMinor,
         correlationId: legacyCorrelationId,
         idempotencyKey: legacyIdempotencyKey
       };
@@ -163,7 +165,8 @@ export class EscrowService {
       callerRole,
       correlationId,
       idempotencyKey,
-      callerProfileId
+      callerProfileId,
+      amountMinor: requestedAmountMinor
     } = params;
 
     try {
@@ -259,7 +262,20 @@ export class EscrowService {
           }
         }
 
-        const amountMinor = Math.round(Number(escrow.amountLocked) * 100);
+        const lockedMinor = Math.round(Number(escrow.amountLocked) * 100);
+        let amountMinor: MinorUnits = lockedMinor;
+
+        if (requestedAmountMinor !== undefined) {
+          if (requestedAmountMinor <= 0) {
+            throw new BadRequestException('Disbursed payout amount must be greater than zero');
+          }
+          if (requestedAmountMinor > lockedMinor) {
+            throw new BadRequestException(
+              `Requested payout (${formatMinor(requestedAmountMinor)}) exceeds locked escrow (${formatMinor(lockedMinor)})`
+            );
+          }
+          amountMinor = requestedAmountMinor;
+        }
 
         // 5. Update Escrow Status
         const now = new Date();
@@ -271,19 +287,33 @@ export class EscrowService {
           })
           .where(eq(billingSchema.escrowAccounts.id, escrow.id));
 
-        // 6. Disburse Payout via Provider
+        // 6. Disburse Payout to Technician via Provider
         await this.paymentProvider.disbursePayout({
           workOrderId: workOrder.id,
           technicianId: workOrder.assignedTechnicianId,
           amountMinor
         });
 
+        // 7. Refund any unused escrow remainder to the buyer (e.g. agreed bid < budget ceiling)
+        const unusedRemainderMinor = lockedMinor - amountMinor;
+        if (unusedRemainderMinor > 0) {
+          await this.paymentProvider.refundEscrow({
+            workOrderId: workOrder.id,
+            buyerId: workOrder.buyerId,
+            amountMinor: unusedRemainderMinor,
+            reason: 'Unused escrow balance refunded upon work order completion payout'
+          });
+          this.logger.info(
+            `[Escrow] refunded unused escrow remainder of ${formatMinor(unusedRemainderMinor)} to buyer ${workOrder.buyerId} for work order ${workOrderId}`
+          );
+        }
+
         // 8. Record Double-Entry Payout Ledger Entry
         await tx.insert(billingSchema.payoutLedger).values({
           id: randomUUID(),
           technicianId: workOrder.assignedTechnicianId,
           workOrderId: workOrder.id,
-          amount: escrow.amountLocked,
+          amount: (amountMinor / 100).toFixed(2),
           type: 'CREDIT',
           description: 'Work order completion payout',
           createdAt: now
@@ -326,6 +356,7 @@ export class EscrowService {
             {
               escrowId: escrow.id,
               workOrderId: workOrder.id,
+              buyerId: workOrder.buyerId,
               techId: workOrder.assignedTechnicianId,
               amountMinor
             },

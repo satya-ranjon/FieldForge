@@ -213,8 +213,9 @@ sequenceDiagram
     participant DB_Bill as 🗄️ MySQL (escrow_accounts)
 
     Buyer->>WOSvc: POST /api/v1/work-orders/:id/transition (APPROVED)
+    Note over WOSvc: Queries accepted bid rate ($350) vs budget ($500) (FF-ARCH-13)
     WOSvc->>DB_WO: Transaction commits status = 'APPROVED'
-    WOSvc->>MQ: EventPublisher.publish(work_order.lifecycle.approved)
+    WOSvc->>MQ: EventPublisher.publish(work_order.lifecycle.approved { payoutAmountMinor: 35000 })
     MQ-->>WOSvc: Confirm ACK
 
     MQ->>BillSvc: Deliver to fieldforge.billing.work-orders
@@ -223,16 +224,19 @@ sequenceDiagram
 
     alt Escrow Release Succeeded
         rect rgb(240, 253, 244)
-        Note over BillSvc, DB_Bill: Escrow Release Transaction
+        Note over BillSvc, DB_Bill: Escrow Release & Excess Refund (FF-ARCH-13)
         BillSvc->>DB_Bill: SELECT ... FOR UPDATE FROM escrow_accounts WHERE status = 'HELD'
         BillSvc->>DB_Bill: UPDATE escrow_accounts SET status = 'RELEASED', released_at = NOW()
-        BillSvc->>DB_Bill: Credit technician ledger balance
+        BillSvc->>BillSvc: paymentProvider.disbursePayout(techId, $350.00)
+        BillSvc->>BillSvc: paymentProvider.refundEscrow(buyerId, $150.00 unused remainder)
+        BillSvc->>DB_Bill: Credit technician ledger balance ($350.00)
+        BillSvc->>DB_Bill: Generate immutable invoice ($350.00)
         end
-        BillSvc->>MQ: EventPublisher.publish(billing.payout.disbursed)
+        BillSvc->>MQ: EventPublisher.publish(billing.payout.disbursed { amountMinor: 35000, buyerId })
         BillSvc-->>MQ: ACK message
         MQ->>WOSvc: Deliver billing.payout.disbursed to fieldforge.work-orders.lifecycle-events
-        WOSvc->>DB_WO: settlePaid() -> UPDATE work_orders SET status = 'PAID'
-        WOSvc->>MQ: EventPublisher.publish(work_order.lifecycle.paid)
+        WOSvc->>DB_WO: settlePaid(amountMinor: 35000) -> UPDATE work_orders SET status = 'PAID'
+        WOSvc->>MQ: EventPublisher.publish(work_order.lifecycle.paid { payoutAmountMinor: 35000 })
     else Escrow Release Failed (Gateway / Account Failure)
         Note over BillSvc: Catch error, publish failure compensation event
         BillSvc->>MQ: EventPublisher.publish(billing.payout.failed)

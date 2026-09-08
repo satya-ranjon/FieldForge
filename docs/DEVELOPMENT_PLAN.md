@@ -770,6 +770,48 @@ NFR-PERF-001.
 
 ---
 
+## Phase 20 — Financial Reconciliation: Elimination of Payout Amount Disconnect Between Billing and Work Orders
+
+**Status: Completed (2026-09-08).** Resolves **Service Audit Issue A (Payout Amount Disconnect Between Billing and Work Orders)** / `FF-ARCH-13`.
+
+- **Event Contract Reconciliation (`@fieldforge/contracts`).**
+  - Added `buyerId?: string` to `PayoutDisbursedPayload` in `packages/contracts/src/events/payment.events.ts`, resolving payload asymmetry with `WorkOrderPaidPayload`.
+- **Agreed Bid Rate Querying in Work Order Lifecycle (`apps/work-order-service`).**
+  - Updated `WorkOrdersService.transition()` to query `workOrderBids` for an `ACCEPTED` contractor bid on the work order:
+    - Sets `payoutAmountMinor` in `WORK_ORDER_APPROVED` to the accepted bid rate (`toMinor(Number(acceptedBid.bidAmount))`) rather than hardcoding the maximum budget ceiling (`toMinor(Number(wo.budgetAmount))`).
+    - Sets `agreedRateMinor` in `WORK_ORDER_ASSIGNED` to the accepted bid rate when assigned via commercial bid acceptance.
+  - Updated `WorkOrdersService.settlePaid()` to query `workOrderBids` for the accepted bid rate when `disbursedAmountMinor` is omitted.
+  - Extended test harness mock DB in `test/work-orders.service.spec.ts` with `InMemBid` map and `work_order_bids` query support.
+- **Accurate Escrow Release & Unused Balance Refund (`apps/billing-service`).**
+  - Added `amountMinor?: MinorUnits` to `ReleaseEscrowParams` interface in `EscrowService`.
+  - Updated `EscrowService.releaseFunds()`:
+    - Forwards `legacyAmountMinor` into `params.amountMinor` for backward compatibility with positional callers (`BillingConsumer`).
+    - Validates `amountMinor`: enforces `amountMinor > 0` and `amountMinor <= escrow.amountLocked`. Throws `BadRequestException` if limits are violated.
+    - Disburses the exact approved amount (`amountMinor`) to the technician via `paymentProvider.disbursePayout()`.
+    - Automatically refunds any unused escrow remainder (`escrow.amountLocked - amountMinor`) back to the buyer via `paymentProvider.refundEscrow()`.
+    - Records ledger entry and generates content-hashed invoice with `amountMinor`.
+    - Emits `PAYOUT_DISBURSED` with `buyerId` and the exact disbursed `amountMinor`.
+- **Zero Database Schema Migrations (`RULE-DB-02`).**
+  - Zero database tables or schema changes required.
+
+**Verification:**
+
+- 501 automated unit/integration tests passing across 15 packages/apps in monorepo (zero `--passWithNoTests`):
+  - 24 tests in `apps/billing-service` (3 suites, +4 tests).
+  - 204 tests in `apps/work-order-service` (11 suites, +1 test).
+  - 21 tests in `@fieldforge/messaging` (5 suites).
+  - 28 tests in `apps/dispatch-matching-service` (4 suites).
+  - 104 tests in `apps/web-buyer-portal` (1 suite).
+  - 87 tests in `@fieldforge/common` (3 suites).
+  - 76 tests in `@fieldforge/contracts` (3 suites).
+  - 56 tests in `apps/auth-service` (6 suites).
+  - 44 tests in `apps/api-gateway` (6 suites).
+  - 14 tests in `apps/notification-service` (1 suite).
+- 28 Playwright E2E tests validated (`pnpm test:e2e`). Total verified tests: 529 tests.
+- `pnpm check && pnpm build` pass cleanly.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

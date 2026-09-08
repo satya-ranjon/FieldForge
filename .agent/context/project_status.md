@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-08  
-**Phase:** Phase 19 complete — Elimination of Message Loss Vulnerability & Premature ACK in IdempotentConsumer (FF-ARCH-12 / Service Audit Item 7). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 20 complete — Financial Reconciliation: Elimination of Payout Amount Disconnect Between Billing and Work Orders (FF-ARCH-13 / Service Audit Issue A). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -76,7 +76,14 @@
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
   - `AppNavigator` mounting `JobListScreen` and `ActiveJobScreen` wrapped in Redux store.
-- **A test harness that can fail.** 497 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 525 total verified tests).
+- **A test harness that can fail.** 501 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 529 total verified tests).
+- **Payout Amount Reconciliation & Escrow Remainder Refund (Phase 20, Resolves FF-ARCH-13 / Service Audit Issue A).**
+  - Resolved discrepancy where work order approvals disbursed maximum budgeted amount rather than the accepted contractor bid rate.
+  - Updated `WorkOrdersService.transition()` and `settlePaid()` to query `workOrderBids` for `ACCEPTED` bids, using the agreed rate for `WORK_ORDER_APPROVED`, `WORK_ORDER_ASSIGNED`, and `WORK_ORDER_PAID`.
+  - Updated `EscrowService.releaseFunds()` to accept `amountMinor` (validating `0 < amountMinor <= lockedMinor`), disburse the agreed rate to the technician via `paymentProvider.disbursePayout()`, and automatically refund the unused remainder (`lockedMinor - amountMinor`) to the buyer via `paymentProvider.refundEscrow()`.
+  - Added `buyerId?: string` to `PayoutDisbursedPayload` in `@fieldforge/contracts` for contract symmetry with `WorkOrderPaidPayload`.
+  - Zero database migrations (`RULE-DB-02`).
+
 - **Elimination of Message Loss Vulnerability & Premature ACK in IdempotentConsumer (Phase 19, Resolves FF-ARCH-12 / Service Audit Item 7).**
   - Replaced Node.js in-memory `setTimeout` with broker-native RabbitMQ delay queues (`<queue>.retry`) using per-message TTL (`expiration`) and dead-letter routing to the default exchange (`''`).
   - Completely eliminated process volatility message loss during backoff: messages remain durably in RabbitMQ if worker pods restart or crash.
