@@ -4,13 +4,13 @@ import type { NearbyTechnicianDto, SubmitBidDto } from '@fieldforge/contracts';
 import { BidStatus } from '@fieldforge/contracts';
 
 /**
- * A bid as the server reports it back. `techId` is added here rather than
+ * A bid as the server reports it back. `technicianId` is added here rather than
  * inherited: `SubmitBidDto` deliberately omits it so a bidder cannot claim to be
  * someone else, but the response identifies the bidder.
  */
 export interface ExtendedBid extends SubmitBidDto {
   id: string;
-  techId: string;
+  technicianId: string;
   technicianName: string;
   technicianRating: number;
   technicianJobsCount: number;
@@ -23,7 +23,7 @@ export interface ExtendedBid extends SubmitBidDto {
 export interface DispatchState {
   nearbyTechnicians: NearbyTechnicianDto[];
   activeBids: ExtendedBid[];
-  selectedTechId: string | null;
+  selectedTechnicianId: string | null;
   radarRadiusMiles: number;
   isBroadcasting: boolean;
 }
@@ -31,7 +31,7 @@ export interface DispatchState {
 const initialState: DispatchState = {
   nearbyTechnicians: [],
   activeBids: [],
-  selectedTechId: null,
+  selectedTechnicianId: null,
   radarRadiusMiles: 10,
   isBroadcasting: true
 };
@@ -47,7 +47,7 @@ export const dispatchSlice = createSlice({
       state.activeBids = action.payload;
     },
     selectTechnician: (state, action: PayloadAction<string | null>) => {
-      state.selectedTechId = action.payload;
+      state.selectedTechnicianId = action.payload;
     },
     setRadarRadius: (state, action: PayloadAction<number>) => {
       state.radarRadiusMiles = action.payload;

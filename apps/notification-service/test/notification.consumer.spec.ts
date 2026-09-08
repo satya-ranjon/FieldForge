@@ -122,7 +122,7 @@ describe('NotificationConsumer', () => {
         correlationId: 'corr-assign-1',
         payload: {
           workOrderId: 'wo-99',
-          techId: 'tech-42',
+          technicianId: 'tech-42',
           agreedRateMinor: 35000
         }
       });
@@ -142,7 +142,7 @@ describe('NotificationConsumer', () => {
         payload: {
           workOrderId: 'wo-paid-99',
           buyerId: 'buyer-1',
-          techId: 'tech-42',
+          technicianId: 'tech-42',
           payoutAmountMinor: 45000
         }
       });

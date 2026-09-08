@@ -12,7 +12,7 @@ export interface SubmitBidDto {
 }
 
 export interface NearbyTechnicianDto {
-  techId: string;
+  technicianId: string;
   fullName: string;
   rating: number;
   completedJobsCount: number;

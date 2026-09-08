@@ -42,11 +42,11 @@ export class GeoSearchService implements OnApplicationShutdown {
   }
 
   async updateTechnicianLocation(
-    techId: string,
+    technicianId: string,
     latitude: number,
     longitude: number
   ): Promise<void> {
-    await this.redis.geoadd(TECH_LOCATIONS_KEY, longitude, latitude, techId);
+    await this.redis.geoadd(TECH_LOCATIONS_KEY, longitude, latitude, technicianId);
 
     if (this.db) {
       await this.db
@@ -55,7 +55,7 @@ export class GeoSearchService implements OnApplicationShutdown {
           currentLatitude: latitude.toFixed(8),
           currentLongitude: longitude.toFixed(8)
         })
-        .where(eq(technicianProfiles.id, techId));
+        .where(eq(technicianProfiles.id, technicianId));
     }
   }
 
@@ -90,7 +90,7 @@ export class GeoSearchService implements OnApplicationShutdown {
       return [];
     }
 
-    const techIds = rawResults.map(([techId]) => techId);
+    const technicianIds = rawResults.map(([technicianId]) => technicianId);
 
     let dbTechs: {
       id: string;
@@ -106,8 +106,8 @@ export class GeoSearchService implements OnApplicationShutdown {
 
     if (this.directoryService) {
       const summaries = correlationId
-        ? await this.directoryService.getTechniciansBatch(techIds, correlationId)
-        : await this.directoryService.getTechniciansBatch(techIds);
+        ? await this.directoryService.getTechniciansBatch(technicianIds, correlationId)
+        : await this.directoryService.getTechniciansBatch(technicianIds);
       dbTechs = summaries.map((s) => ({
         id: s.id,
         firstName: s.firstName,
@@ -133,7 +133,7 @@ export class GeoSearchService implements OnApplicationShutdown {
         })
         .from(technicianProfiles)
         .innerJoin(users, eq(technicianProfiles.userId, users.id))
-        .where(inArray(technicianProfiles.id, techIds));
+        .where(inArray(technicianProfiles.id, technicianIds));
 
       dbTechs = profiles;
 
@@ -143,7 +143,7 @@ export class GeoSearchService implements OnApplicationShutdown {
           badgeName: technicianCertifications.name
         })
         .from(technicianCertifications)
-        .where(inArray(technicianCertifications.technicianId, techIds));
+        .where(inArray(technicianCertifications.technicianId, technicianIds));
 
       for (const c of certs) {
         const existing = certMap.get(c.technicianId) || [];
@@ -154,18 +154,18 @@ export class GeoSearchService implements OnApplicationShutdown {
 
     const dbMap = new Map(dbTechs.map((t) => [t.id, t]));
 
-    const scoredTechs = rawResults.map(([techId, distStr, [lngStr, latStr]]) => {
+    const scoredTechs = rawResults.map(([technicianId, distStr, [lngStr, latStr]]) => {
       const dist = parseFloat(distStr) || 0;
       const tLat = parseFloat(latStr) || latitude;
       const tLng = parseFloat(lngStr) || longitude;
-      const meta = dbMap.get(techId);
+      const meta = dbMap.get(technicianId);
 
       const rating = meta ? parseFloat(meta.ratingAverage) || 5.0 : 5.0;
       const jobs = meta?.jobsCompleted ?? 0;
       const fullName = meta
         ? `${meta.firstName} ${meta.lastName}`
-        : `Technician ${techId.slice(0, 8)}`;
-      const certs = certMap.get(techId) || [];
+        : `Technician ${technicianId.slice(0, 8)}`;
+      const certs = certMap.get(technicianId) || [];
 
       // Multi-parameter scoring algorithm:
       // Distance score: closer is higher (up to 40 pts)
@@ -184,7 +184,7 @@ export class GeoSearchService implements OnApplicationShutdown {
       const totalScore = distanceScore + ratingScore + experienceScore + certScore;
 
       const dto: NearbyTechnicianDto = {
-        techId,
+        technicianId,
         fullName,
         rating,
         completedJobsCount: jobs,

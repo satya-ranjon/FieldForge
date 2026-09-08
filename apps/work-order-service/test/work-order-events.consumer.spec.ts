@@ -47,7 +47,7 @@ describe('WorkOrderEventsConsumer', () => {
       {
         escrowId: 'escrow-1',
         workOrderId: 'wo-1',
-        techId: 'tech-1',
+        technicianId: 'tech-1',
         amountMinor: 45000
       },
       'corr-payout-1'
@@ -73,7 +73,7 @@ describe('WorkOrderEventsConsumer', () => {
       EventType.PAYOUT_FAILED,
       {
         workOrderId: 'wo-1',
-        techId: 'tech-1',
+        technicianId: 'tech-1',
         amountMinor: 45000,
         reason: 'Bank transfer declined by recipient bank'
       },
@@ -92,7 +92,7 @@ describe('WorkOrderEventsConsumer', () => {
     );
   });
 
-  it('handles TechBidAccepted event by assigning technician to work order', async () => {
+  it('handles TechBidAccepted event by assigning technician to work order using technicianId', async () => {
     const event: TechBidAcceptedEvent = createEvent(
       EventType.TECH_BID_ACCEPTED,
       {

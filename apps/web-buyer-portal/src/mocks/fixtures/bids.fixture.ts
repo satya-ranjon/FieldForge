@@ -7,7 +7,7 @@ export const mockBids: ExtendedBid[] = [
   {
     id: 'bid-001',
     workOrderId: 'wo-101',
-    techId: 'tech-marcus-01',
+    technicianId: 'tech-marcus-01',
     technicianName: 'Marcus Vance, CCNA',
     technicianRating: 4.98,
     technicianJobsCount: 142,
@@ -22,7 +22,7 @@ export const mockBids: ExtendedBid[] = [
   {
     id: 'bid-002',
     workOrderId: 'wo-101',
-    techId: 'tech-andre-05',
+    technicianId: 'tech-andre-05',
     technicianName: 'Andre Becker',
     technicianRating: 4.85,
     technicianJobsCount: 164,
@@ -37,7 +37,7 @@ export const mockBids: ExtendedBid[] = [
   {
     id: 'bid-003',
     workOrderId: 'wo-101',
-    techId: 'tech-darnell-03',
+    technicianId: 'tech-darnell-03',
     technicianName: 'Darnell Jenkins, CCNP',
     technicianRating: 4.88,
     technicianJobsCount: 215,

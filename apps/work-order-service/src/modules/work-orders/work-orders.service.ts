@@ -381,7 +381,7 @@ export class WorkOrdersService {
         dto.nextStatus === WorkOrderStatus.COMPLETED
       ) {
         if (role !== 'ADMIN') {
-          const resolvedTechId =
+          const resolvedTechnicianId =
             callerProfileId ??
             (
               await tx
@@ -391,7 +391,7 @@ export class WorkOrdersService {
                 .limit(1)
             )[0]?.id;
 
-          if (!resolvedTechId || resolvedTechId !== wo.assignedTechnicianId) {
+          if (!resolvedTechnicianId || resolvedTechnicianId !== wo.assignedTechnicianId) {
             throw new ForbiddenException(
               'Only the assigned technician or an admin can perform this transition'
             );
@@ -474,7 +474,7 @@ export class WorkOrdersService {
             );
           }
         } else if (role === 'TECHNICIAN') {
-          const resolvedTechId =
+          const resolvedTechnicianId =
             callerProfileId ??
             (
               await tx
@@ -484,7 +484,7 @@ export class WorkOrdersService {
                 .limit(1)
             )[0]?.id;
 
-          if (!resolvedTechId || resolvedTechId !== wo.assignedTechnicianId) {
+          if (!resolvedTechnicianId || resolvedTechnicianId !== wo.assignedTechnicianId) {
             throw new ForbiddenException(
               'Only the owning buyer or assigned technician can dispute this work order'
             );
@@ -528,7 +528,7 @@ export class WorkOrdersService {
       updatedOrder = this.mapToResponseDto(updatedRow as typeof workOrders.$inferSelect);
 
       if (dto.nextStatus === WorkOrderStatus.ASSIGNED) {
-        const assignedTechId = dto.assignedTechnicianId || wo.assignedTechnicianId || '';
+        const assignedTechnicianId = dto.assignedTechnicianId || wo.assignedTechnicianId || '';
         const [acceptedBid] = await tx
           .select()
           .from(workOrderBids)
@@ -542,7 +542,7 @@ export class WorkOrdersService {
             EventType.WORK_ORDER_ASSIGNED,
             {
               workOrderId: wo.id,
-              techId: assignedTechId,
+              technicianId: assignedTechnicianId,
               agreedRateMinor
             },
             correlationId
@@ -558,14 +558,14 @@ export class WorkOrdersService {
         const payoutAmountMinor = acceptedBid
           ? toMinor(Number(acceptedBid.bidAmount))
           : toMinor(Number(wo.budgetAmount));
-        const assignedTechId = wo.assignedTechnicianId || '';
+        const assignedTechnicianId = wo.assignedTechnicianId || '';
         eventsToPublish.push(async () => {
           const event = createEvent(
             EventType.WORK_ORDER_APPROVED,
             {
               workOrderId: wo.id,
               buyerId: wo.buyerId,
-              techId: assignedTechId,
+              technicianId: assignedTechnicianId,
               payoutAmountMinor
             },
             correlationId
@@ -597,7 +597,7 @@ export class WorkOrdersService {
       | {
           workOrderId: string;
           buyerId: string;
-          techId: string;
+          technicianId: string;
           payoutAmountMinor: number;
         }
       | undefined;
@@ -662,7 +662,7 @@ export class WorkOrdersService {
       paidEventPayload = {
         workOrderId: wo.id,
         buyerId: wo.buyerId,
-        techId: wo.assignedTechnicianId || '',
+        technicianId: wo.assignedTechnicianId || '',
         payoutAmountMinor: effectivePayoutMinor
       };
     });
@@ -755,7 +755,7 @@ export class WorkOrdersService {
     let assignedEventPayload:
       | {
           workOrderId: string;
-          techId: string;
+          technicianId: string;
           agreedRateMinor: number;
         }
       | undefined;
@@ -812,7 +812,7 @@ export class WorkOrdersService {
 
       assignedEventPayload = {
         workOrderId: wo.id,
-        techId: payload.technicianId,
+        technicianId: payload.technicianId,
         agreedRateMinor: payload.agreedRateMinor
       };
     });

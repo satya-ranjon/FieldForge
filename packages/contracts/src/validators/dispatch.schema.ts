@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { positiveMinorUnitsSchema } from './money.schema';
 
 /**
- * Bid submission. `techId` is deliberately absent — the bidding technician is
+ * Bid submission. `technicianId` is deliberately absent — the bidding technician is
  * derived from the verified access token, so a caller cannot bid as someone
  * else. See createWorkOrderSchema.
  */

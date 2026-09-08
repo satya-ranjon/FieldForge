@@ -65,7 +65,7 @@ describe('GeoSearchService', () => {
   it('ranks closer and higher rated technicians first', async () => {
     const matches = await geo.findNearbyTechnicians(SF.latitude, SF.longitude);
     // tech-1 is 3.2 mi, tech-2 is 5.7 mi
-    expect(matches[0]?.techId).toBe('tech-1');
+    expect(matches[0]?.technicianId).toBe('tech-1');
     expect(matches[0]?.distanceMiles).toBe(3.2);
   });
 
@@ -99,7 +99,7 @@ describe('GeoSearchService', () => {
     const matches = await geoWithDir.findNearbyTechnicians(SF.latitude, SF.longitude);
 
     expect(mockDirectory.getTechniciansBatch).toHaveBeenCalledWith(['tech-1', 'tech-2']);
-    const tech1 = matches.find((m) => m.techId === 'tech-1');
+    const tech1 = matches.find((m) => m.technicianId === 'tech-1');
     expect(tech1?.rating).toBe(4.95);
     expect(tech1?.completedJobsCount).toBe(42);
     expect(tech1?.certifications).toEqual(['FIBER_OPTIC', 'OSHA_10']);

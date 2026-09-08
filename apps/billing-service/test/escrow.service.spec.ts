@@ -144,7 +144,7 @@ describe('EscrowService', () => {
     it('returns cached result when idempotency key is already COMPLETED', async () => {
       const cachedResult = {
         workOrderId: WORK_ORDER_ID,
-        techId: TECH_ID,
+        technicianId: TECH_ID,
         disbursedAmountMinor: 45000,
         status: EscrowStatus.RELEASED,
         invoiceId: 'inv-cached'
@@ -409,7 +409,7 @@ describe('EscrowService', () => {
 
       expect(result.status).toBe(EscrowStatus.RELEASED);
       expect(result.disbursedAmountMinor).toBe(45000);
-      expect(result.techId).toBe(TECH_ID);
+      expect(result.technicianId).toBe(TECH_ID);
       expect(result.invoiceId).toBe('inv-123');
 
       // Assert disbursePayout was called
@@ -428,7 +428,7 @@ describe('EscrowService', () => {
           eventType: EventType.PAYOUT_DISBURSED,
           payload: expect.objectContaining({
             workOrderId: WORK_ORDER_ID,
-            techId: TECH_ID,
+            technicianId: TECH_ID,
             amountMinor: 45000
           })
         })
@@ -578,7 +578,7 @@ describe('EscrowService', () => {
           payload: expect.objectContaining({
             workOrderId: WORK_ORDER_ID,
             buyerId: 'owner-buyer-profile-id',
-            techId: TECH_ID,
+            technicianId: TECH_ID,
             amountMinor: 35000
           })
         })

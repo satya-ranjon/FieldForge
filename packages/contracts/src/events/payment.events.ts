@@ -14,13 +14,13 @@ export interface PayoutDisbursedPayload {
   escrowId: string;
   workOrderId: string;
   buyerId?: string;
-  techId: string;
+  technicianId: string;
   amountMinor: MinorUnits;
 }
 
 export interface PayoutFailedPayload {
   workOrderId: string;
-  techId: string;
+  technicianId: string;
   amountMinor?: MinorUnits;
   reason: string;
 }

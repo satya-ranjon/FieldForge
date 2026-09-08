@@ -41,16 +41,16 @@ export class BillingConsumer implements OnApplicationBootstrap {
     event: WorkOrderApprovedEvent,
     logger?: ContextLogger
   ): Promise<void> {
-    const { workOrderId, techId, payoutAmountMinor } = event.payload;
+    const { workOrderId, technicianId, payoutAmountMinor } = event.payload;
     if (logger?.info) {
       logger.info(
-        `[BillingConsumer] Processing approved work order ${workOrderId} for payout release to technician ${techId}`
+        `[BillingConsumer] Processing approved work order ${workOrderId} for payout release to technician ${technicianId}`
       );
     }
     try {
       await this.escrowService.releaseFunds(
         workOrderId,
-        techId,
+        technicianId,
         payoutAmountMinor,
         event.correlationId,
         `auto-release-${event.eventId}`
@@ -66,7 +66,7 @@ export class BillingConsumer implements OnApplicationBootstrap {
       if (this.producer) {
         const failurePayload: PayoutFailedPayload = {
           workOrderId,
-          techId,
+          technicianId,
           amountMinor: payoutAmountMinor,
           reason: errorMsg
         };
@@ -99,10 +99,10 @@ export class BillingConsumer implements OnApplicationBootstrap {
     event: WorkOrderAssignedEvent,
     logger?: ContextLogger
   ): Promise<void> {
-    const { workOrderId, techId, agreedRateMinor } = event.payload;
+    const { workOrderId, technicianId, agreedRateMinor } = event.payload;
     if (logger?.info) {
       logger.info(
-        `[BillingConsumer] Work order ${workOrderId} assigned to technician ${techId} at rate minor ${agreedRateMinor}`
+        `[BillingConsumer] Work order ${workOrderId} assigned to technician ${technicianId} at rate minor ${agreedRateMinor}`
       );
     }
   }

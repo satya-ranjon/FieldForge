@@ -83,7 +83,7 @@ export const workOrderSlice = createSlice({
       state,
       action: PayloadAction<{
         workOrderId: string;
-        techId: string;
+        technicianId: string;
         techName: string;
         techRating: number;
         techPhone: string;
@@ -91,7 +91,7 @@ export const workOrderSlice = createSlice({
     ) => {
       const item = state.items.find((wo) => wo.id === action.payload.workOrderId);
       if (item) {
-        item.assignedTechnicianId = action.payload.techId;
+        item.assignedTechnicianId = action.payload.technicianId;
         item.assignedTechnicianName = action.payload.techName;
         item.assignedTechnicianRating = action.payload.techRating;
         item.assignedTechnicianPhone = action.payload.techPhone;

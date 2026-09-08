@@ -115,6 +115,9 @@
 > - `x-event-type`: Strict event type matching contract enum.
 > - `x-retry-count`: Current retry invocation counter (0 for initial publish, max 3).
 > - Delivery mode: Persistent (`deliveryMode = 2`).
+>
+> **Payload Identifier Standard (`RULE-EVENT-03`, `FF-ARCH-14`)**:
+> All domain event payloads and DTOs standardize strictly on `technicianId: string` across the entire FieldForge application (`WorkOrderAssignedPayload`, `WorkOrderApprovedPayload`, `WorkOrderPaidPayload`, `TechBiddingSubmittedPayload`, `TechBidAcceptedPayload`, `PayoutDisbursedPayload`, `PayoutFailedPayload`, `NearbyTechnicianDto`, `BidDetailsDto`, `PayoutLedgerItemDto`, `TechnicianEarningsDto`). The informal abbreviation `techId` has been completely eliminated across all contracts, services, frontend, and tests with zero backward compatibility fallbacks.
 
 ---
 

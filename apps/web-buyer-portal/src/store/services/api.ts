@@ -137,8 +137,10 @@ export const fieldForgeApi = createApi({
   tagTypes: ['WorkOrder', 'Bid', 'Escrow', 'Technician', 'TechnicianBadges'],
   endpoints: (builder) => ({
     getTechnicianBadges: builder.query<TechnicianBadgeDto[], string>({
-      query: (techId) => `/technicians/${techId}/badges`,
-      providesTags: (_result, _err, techId) => [{ type: 'TechnicianBadges', id: techId }]
+      query: (technicianId) => `/technicians/${technicianId}/badges`,
+      providesTags: (_result, _err, technicianId) => [
+        { type: 'TechnicianBadges', id: technicianId }
+      ]
     }),
 
     verifyCertification: builder.mutation<
@@ -264,7 +266,7 @@ export const fieldForgeApi = createApi({
     }),
 
     autoRoute: builder.mutation<
-      { workOrderId: string; assignedTechId: string; status: string },
+      { workOrderId: string; technicianId: string; status: string },
       { workOrderId: string; maxRadiusMiles?: number }
     >({
       query: (body) => ({

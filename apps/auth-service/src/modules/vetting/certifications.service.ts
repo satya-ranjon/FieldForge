@@ -40,19 +40,19 @@ export class CertificationsService {
    * Reads stored certifications from `technician_certifications` when DB is
    * available, seamlessly resolving technicianProfileId or userId.
    */
-  async getTechnicianBadges(techIdOrUserId: string): Promise<TechnicianBadgeDto[]> {
+  async getTechnicianBadges(technicianIdOrUserId: string): Promise<TechnicianBadgeDto[]> {
     if (this.db) {
       let rows = await this.db
         .select()
         .from(technicianCertifications)
-        .where(eq(technicianCertifications.technicianId, techIdOrUserId));
+        .where(eq(technicianCertifications.technicianId, technicianIdOrUserId));
 
       if (rows.length === 0) {
-        // Check if techIdOrUserId is a profile ID rather than user ID
+        // Check if technicianIdOrUserId is a profile ID rather than user ID
         const profiles = await this.db
           .select({ userId: technicianProfiles.userId })
           .from(technicianProfiles)
-          .where(eq(technicianProfiles.id, techIdOrUserId))
+          .where(eq(technicianProfiles.id, technicianIdOrUserId))
           .limit(1);
 
         if (profiles.length > 0 && profiles[0]?.userId) {
@@ -81,7 +81,7 @@ export class CertificationsService {
       }
     }
 
-    return (this.mockCertifications[techIdOrUserId] ?? []).map((badge) => ({ ...badge }));
+    return (this.mockCertifications[technicianIdOrUserId] ?? []).map((badge) => ({ ...badge }));
   }
 
   /**

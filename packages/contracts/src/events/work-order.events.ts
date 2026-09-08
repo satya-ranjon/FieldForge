@@ -19,28 +19,28 @@ export interface WorkOrderPublishedPayload {
 
 export interface WorkOrderAssignedPayload {
   workOrderId: string;
-  techId: string;
+  technicianId: string;
   agreedRateMinor: MinorUnits;
 }
 
 export interface WorkOrderApprovedPayload {
   workOrderId: string;
   buyerId: string;
-  techId: string;
+  technicianId: string;
   payoutAmountMinor: MinorUnits;
 }
 
 export interface WorkOrderPaidPayload {
   workOrderId: string;
   buyerId: string;
-  techId: string;
+  technicianId: string;
   payoutAmountMinor: MinorUnits;
 }
 
 export interface TechBiddingSubmittedPayload {
   bidId: string;
   workOrderId: string;
-  techId: string;
+  technicianId: string;
   bidAmountMinor: MinorUnits;
 }
 

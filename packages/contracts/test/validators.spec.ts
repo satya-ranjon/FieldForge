@@ -46,14 +46,14 @@ describe('request schemas strip caller-supplied identity', () => {
     expect(parsed.budgetAmountMinor).toBe(45000);
   });
 
-  it('submitBidSchema drops techId', () => {
+  it('submitBidSchema drops technicianId', () => {
     const parsed = submitBidSchema.parse({
       workOrderId: WORK_ORDER_ID,
       bidAmountMinor: 42000,
-      techId: 'someone-elses-tech-id'
+      technicianId: 'someone-elses-tech-id'
     });
 
-    expect(parsed).not.toHaveProperty('techId');
+    expect(parsed).not.toHaveProperty('technicianId');
     expect(parsed.bidAmountMinor).toBe(42000);
   });
 

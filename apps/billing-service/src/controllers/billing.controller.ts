@@ -189,7 +189,7 @@ export class BillingController {
 
     // If caller is technician, verify they are accessing their own profile
     if (user.role === 'TECHNICIAN') {
-      const resolvedTechId =
+      const resolvedTechnicianId =
         user.profileId ??
         (
           await this.db
@@ -199,7 +199,10 @@ export class BillingController {
             .limit(1)
         )[0]?.id;
 
-      if (!resolvedTechId || (resolvedTechId !== technicianId && user.userId !== technicianId)) {
+      if (
+        !resolvedTechnicianId ||
+        (resolvedTechnicianId !== technicianId && user.userId !== technicianId)
+      ) {
         throw new ForbiddenException('Technicians may only access their own payouts');
       }
     }

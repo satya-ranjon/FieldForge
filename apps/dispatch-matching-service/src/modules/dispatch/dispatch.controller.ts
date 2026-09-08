@@ -151,7 +151,7 @@ export class DispatchController {
 
     return {
       workOrderId: body.workOrderId || 'recommendation',
-      technicianId: candidate.techId,
+      technicianId: candidate.technicianId,
       status: 'MATCHED',
       candidate
     };

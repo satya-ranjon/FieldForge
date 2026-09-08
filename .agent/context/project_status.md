@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-08  
-**Phase:** Phase 20 complete — Financial Reconciliation: Elimination of Payout Amount Disconnect Between Billing and Work Orders (FF-ARCH-13 / Service Audit Issue A). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 21 complete — Standardized Technician Identifier Property Naming across Event Contracts (FF-ARCH-14 / Service Audit Issue B). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -77,6 +77,11 @@
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
   - `AppNavigator` mounting `JobListScreen` and `ActiveJobScreen` wrapped in Redux store.
 - **A test harness that can fail.** 501 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 529 total verified tests).
+- **Repository-Wide Standardization of Technician Identifiers to `technicianId` (Phase 21, Resolves FF-ARCH-14 / Service Audit Issue B).**
+  - Standardized all domain event contracts (`WorkOrderAssignedPayload`, `WorkOrderApprovedPayload`, `WorkOrderPaidPayload`, `TechBiddingSubmittedPayload`, `TechBidAcceptedPayload`, `PayoutDisbursedPayload`, `PayoutFailedPayload`) and DTOs (`NearbyTechnicianDto`, `BidDetailsDto`) strictly to define `technicianId: string`.
+  - Completely eliminated the shorthand `techId` abbreviation and legacy fallback overhead across all services (`auth`, `billing`, `dispatch`, `notifications`, `work-order`), portal slices (`dispatchSlice`, `workOrderSlice`), and components.
+  - Zero database migrations (`RULE-DB-02`) — database schemas already natively used `technicianId` (`technician_id`).
+
 - **Payout Amount Reconciliation & Escrow Remainder Refund (Phase 20, Resolves FF-ARCH-13 / Service Audit Issue A).**
   - Resolved discrepancy where work order approvals disbursed maximum budgeted amount rather than the accepted contractor bid rate.
   - Updated `WorkOrdersService.transition()` and `settlePaid()` to query `workOrderBids` for `ACCEPTED` bids, using the agreed rate for `WORK_ORDER_APPROVED`, `WORK_ORDER_ASSIGNED`, and `WORK_ORDER_PAID`.

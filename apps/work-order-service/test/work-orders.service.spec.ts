@@ -583,11 +583,11 @@ describe('WorkOrdersService (Persistent, Transactional Lifecycle)', () => {
         CORRELATION_ID
       );
 
-      const imposterTechId = 'u9999999-0000-0000-0000-000000000099';
+      const imposterTechnicianId = 'u9999999-0000-0000-0000-000000000099';
       await expect(
         service.transition(
           woId,
-          imposterTechId,
+          imposterTechnicianId,
           'TECHNICIAN',
           { nextStatus: WorkOrderStatus.EN_ROUTE },
           CORRELATION_ID
@@ -950,7 +950,7 @@ describe('WorkOrdersService (Persistent, Transactional Lifecycle)', () => {
           eventType: EventType.WORK_ORDER_PAID,
           payload: expect.objectContaining({
             workOrderId: woId,
-            techId: TECH_PROFILE_ID,
+            technicianId: TECH_PROFILE_ID,
             payoutAmountMinor: 45000
           })
         })
@@ -1004,7 +1004,7 @@ describe('WorkOrdersService (Persistent, Transactional Lifecycle)', () => {
           eventType: EventType.WORK_ORDER_PAID,
           payload: expect.objectContaining({
             workOrderId: woId,
-            techId: TECH_PROFILE_ID,
+            technicianId: TECH_PROFILE_ID,
             payoutAmountMinor: 42500
           })
         })
@@ -1075,7 +1075,7 @@ describe('WorkOrdersService (Persistent, Transactional Lifecycle)', () => {
           eventType: EventType.WORK_ORDER_APPROVED,
           payload: expect.objectContaining({
             workOrderId: woId,
-            techId: TECH_PROFILE_ID,
+            technicianId: TECH_PROFILE_ID,
             payoutAmountMinor: 35000
           })
         })
@@ -1088,7 +1088,7 @@ describe('WorkOrdersService (Persistent, Transactional Lifecycle)', () => {
           eventType: EventType.WORK_ORDER_PAID,
           payload: expect.objectContaining({
             workOrderId: woId,
-            techId: TECH_PROFILE_ID,
+            technicianId: TECH_PROFILE_ID,
             payoutAmountMinor: 35000
           })
         })
@@ -1137,7 +1137,7 @@ describe('WorkOrdersService (Persistent, Transactional Lifecycle)', () => {
 
       const rolledBack = await service.handlePayoutFailed({
         workOrderId: woId,
-        techId: TECH_PROFILE_ID,
+        technicianId: TECH_PROFILE_ID,
         amountMinor: 45000,
         reason: 'Banking gateway timeout during disbursement'
       });
@@ -1198,7 +1198,7 @@ describe('WorkOrdersService (Persistent, Transactional Lifecycle)', () => {
 
       const res = await service.handlePayoutFailed({
         workOrderId: woId,
-        techId: TECH_PROFILE_ID,
+        technicianId: TECH_PROFILE_ID,
         amountMinor: 45000,
         reason: 'Duplicate or late failure event'
       });
@@ -1207,7 +1207,7 @@ describe('WorkOrdersService (Persistent, Transactional Lifecycle)', () => {
       expect(mockDbInfo.store.workOrders.get(woId)?.status).toBe(WorkOrderStatus.PAID);
     });
 
-    it('assignTechnicianFromBid transitions a PUBLISHED order to ASSIGNED and emits WORK_ORDER_ASSIGNED', async () => {
+    it('assignTechnicianFromBid transitions a PUBLISHED order to ASSIGNED and emits WORK_ORDER_ASSIGNED using technicianId', async () => {
       const assignSpy = jest.spyOn(publisher, 'publishWorkOrderAssigned').mockResolvedValue();
       const created = await service.create(BUYER_USER_ID, defaultDto);
       const woId = created.id;
@@ -1232,7 +1232,7 @@ describe('WorkOrdersService (Persistent, Transactional Lifecycle)', () => {
           eventType: EventType.WORK_ORDER_ASSIGNED,
           payload: expect.objectContaining({
             workOrderId: woId,
-            techId: TECH_PROFILE_ID,
+            technicianId: TECH_PROFILE_ID,
             agreedRateMinor: 45000
           })
         })

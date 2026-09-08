@@ -65,28 +65,28 @@ export class NotificationConsumer implements OnApplicationBootstrap {
   }
 
   async handleAssignedEvent(event: WorkOrderAssignedEvent, logger?: ContextLogger): Promise<void> {
-    const { workOrderId, techId } = event.payload;
+    const { workOrderId, technicianId } = event.payload;
     if (logger?.info) {
       logger.info(
-        `[Notifications] Sent assignment notice for work order ${workOrderId} to technician ${techId}`
+        `[Notifications] Sent assignment notice for work order ${workOrderId} to technician ${technicianId}`
       );
     }
     await this.handlePushNotification(
-      `fcm-device-token-${techId}`,
+      `fcm-device-token-${technicianId}`,
       `Job Assignment: ${workOrderId}`
     );
   }
 
   async handlePaidEvent(event: WorkOrderPaidEvent, logger?: ContextLogger): Promise<void> {
-    const { workOrderId, techId, payoutAmountMinor } = event.payload;
+    const { workOrderId, technicianId, payoutAmountMinor } = event.payload;
     const formattedAmount = formatMinor(payoutAmountMinor);
     if (logger?.info) {
       logger.info(
-        `[Notifications] Payout disbursed for work order ${workOrderId} to technician ${techId} (${formattedAmount})`
+        `[Notifications] Payout disbursed for work order ${workOrderId} to technician ${technicianId} (${formattedAmount})`
       );
     }
     await this.pushChannel.sendPush(
-      `fcm-device-token-${techId}`,
+      `fcm-device-token-${technicianId}`,
       'Payout Disbursed',
       `Payout of ${formattedAmount} for work order ${workOrderId} has been disbursed to your account.`
     );

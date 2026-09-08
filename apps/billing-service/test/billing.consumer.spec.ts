@@ -20,7 +20,7 @@ describe('BillingConsumer', () => {
       lockFunds: jest.fn(),
       releaseFunds: jest.fn().mockResolvedValue({
         workOrderId: 'wo-1',
-        techId: 'tech-1',
+        technicianId: 'tech-1',
         disbursedAmountMinor: 45000,
         status: EscrowStatus.RELEASED
       })
@@ -53,7 +53,7 @@ describe('BillingConsumer', () => {
       {
         workOrderId: 'wo-1',
         buyerId: 'buyer-1',
-        techId: 'tech-1',
+        technicianId: 'tech-1',
         payoutAmountMinor: 45000
       },
       'corr-bill-1'
@@ -84,7 +84,7 @@ describe('BillingConsumer', () => {
       {
         workOrderId: 'wo-1',
         buyerId: 'buyer-1',
-        techId: 'tech-1',
+        technicianId: 'tech-1',
         payoutAmountMinor: 45000
       },
       'corr-bill-fail-1'
@@ -102,7 +102,7 @@ describe('BillingConsumer', () => {
         correlationId: 'corr-bill-fail-1',
         payload: {
           workOrderId: 'wo-1',
-          techId: 'tech-1',
+          technicianId: 'tech-1',
           amountMinor: 45000,
           reason: 'Gateway timeout during payout disbursement'
         }
@@ -123,7 +123,7 @@ describe('BillingConsumer', () => {
       {
         workOrderId: 'wo-1',
         buyerId: 'buyer-1',
-        techId: 'tech-1',
+        technicianId: 'tech-1',
         payoutAmountMinor: 45000
       },
       'corr-bill-fail-2'
@@ -145,7 +145,7 @@ describe('BillingConsumer', () => {
       EventType.WORK_ORDER_ASSIGNED,
       {
         workOrderId: 'wo-1',
-        techId: 'tech-1',
+        technicianId: 'tech-1',
         agreedRateMinor: 45000
       },
       'corr-bill-2'

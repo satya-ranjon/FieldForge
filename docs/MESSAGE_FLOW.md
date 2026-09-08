@@ -227,7 +227,7 @@ sequenceDiagram
         Note over BillSvc, DB_Bill: Escrow Release & Excess Refund (FF-ARCH-13)
         BillSvc->>DB_Bill: SELECT ... FOR UPDATE FROM escrow_accounts WHERE status = 'HELD'
         BillSvc->>DB_Bill: UPDATE escrow_accounts SET status = 'RELEASED', released_at = NOW()
-        BillSvc->>BillSvc: paymentProvider.disbursePayout(techId, $350.00)
+        BillSvc->>BillSvc: paymentProvider.disbursePayout(technicianId, $350.00)
         BillSvc->>BillSvc: paymentProvider.refundEscrow(buyerId, $150.00 unused remainder)
         BillSvc->>DB_Bill: Credit technician ledger balance ($350.00)
         BillSvc->>DB_Bill: Generate immutable invoice ($350.00)

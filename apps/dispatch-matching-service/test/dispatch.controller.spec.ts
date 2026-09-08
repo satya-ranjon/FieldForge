@@ -16,7 +16,7 @@ describe('DispatchController', () => {
       updateTechnicianLocation: jest.fn().mockResolvedValue(1),
       findNearbyTechnicians: jest.fn().mockResolvedValue([
         {
-          techId: 'tech-1',
+          technicianId: 'tech-1',
           fullName: 'Alice Smith',
           rating: 4.95,
           distanceMiles: 2.1,

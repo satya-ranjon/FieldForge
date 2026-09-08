@@ -62,12 +62,12 @@ export class CertificationsController {
    */
   @Get(':id/badges')
   async getBadges(
-    @Param('id') techId: string,
+    @Param('id') technicianId: string,
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string
   ): Promise<TechnicianBadgeDto[]> {
     this.extractAndVerifyPayload(authHeader, gatewayUserId);
-    return this.certService.getTechnicianBadges(techId);
+    return this.certService.getTechnicianBadges(technicianId);
   }
 
   /**

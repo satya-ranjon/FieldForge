@@ -170,6 +170,14 @@
 > disburse the exact agreed amount to the technician, and automatically refund the unused escrow remainder to the buyer via
 > `paymentProvider.refundEscrow()`. Total verified tests: 501 unit/integration + 28 E2E = 529 tests.
 
+> **Phase 21 update — 2026-09-08:** Phase 21 of [`DEVELOPMENT_PLAN.md`](./DEVELOPMENT_PLAN.md)
+> delivered Repository-Wide Standardization of Technician Identifiers to `technicianId` (Resolves **FF-ARCH-14 / Service Audit Issue B**).
+> Standardized all domain event contracts (`WorkOrderAssignedPayload`, `WorkOrderApprovedPayload`, `WorkOrderPaidPayload`,
+> `TechBiddingSubmittedPayload`, `TechBidAcceptedPayload`, `PayoutDisbursedPayload`, `PayoutFailedPayload`), DTOs (`NearbyTechnicianDto`),
+> services (`auth`, `billing`, `dispatch`, `notifications`, `work-order`), and frontend slices (`dispatchSlice`, `workOrderSlice`)
+> strictly on `technicianId: string`, eliminating the informal `techId` abbreviation across the entire repository.
+> Completely eliminated legacy fallback overhead. Total verified tests: 501 unit/integration + 28 E2E = 529 tests.
+
 ---
 
 ## How to read this report
@@ -562,7 +570,7 @@ the canon enum plus `latitude`/`longitude`, required together for the `ON_SITE`
 arrival because the server — not the handset — decides whether the technician is
 inside the geofence. `submitBidSchema.proposedAmount` is now `bidAmountMinor`,
 matching the `bid_amount` column. The same pass dropped the caller-supplied
-`buyerId`/`techId` fields from the request schemas: identity comes from the verified
+`buyerId`/`technicianId` fields from the request schemas: identity comes from the verified
 token, and `packages/contracts/test/validators.spec.ts` asserts a client that sends
 one is ignored rather than obeyed.
 
@@ -946,7 +954,7 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
 
 - **Root Cause**: When a work order was executed with an accepted contractor bid (e.g. $350.00 from a $500.00 max budget), multiple service disconnects occurred along the settlement and notification path:
   1. `WorkOrdersService.transition()` approved the work order and published `WORK_ORDER_APPROVED` with `payoutAmountMinor: toMinor(Number(wo.budgetAmount))` ($500.00), failing to check `workOrderBids` for the accepted bid.
-  2. `BillingConsumer` passed `payoutAmountMinor` into `EscrowService.releaseFunds(workOrderId, techId, payoutAmountMinor, ...)`, but `EscrowService.releaseFunds()` omitted `legacyAmountMinor` from `params` and hardcoded disbursement to the full locked escrow amount `Math.round(Number(escrow.amountLocked) * 100)`.
+  2. `BillingConsumer` passed `payoutAmountMinor` into `EscrowService.releaseFunds(workOrderId, technicianId, payoutAmountMinor, ...)`, but `EscrowService.releaseFunds()` omitted `legacyAmountMinor` from `params` and hardcoded disbursement to the full locked escrow amount `Math.round(Number(escrow.amountLocked) * 100)`.
   3. The unused escrow remainder ($150.00) remained unaccounted for and was never refunded to the buyer.
   4. `PayoutDisbursedPayload` lacked `buyerId`, creating a contract discrepancy with `WorkOrderPaidPayload`.
   5. Notifications sent by `NotificationConsumer` reported inaccurate payout amounts.
@@ -959,6 +967,18 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   6. Added comprehensive unit tests in `apps/work-order-service/test/work-orders.service.spec.ts` and `apps/billing-service/test/escrow.service.spec.ts`.
   7. Updated `docs/MESSAGE_FLOW.md` sequence diagrams and `docs/DEVELOPMENT_PLAN.md`.
   8. Zero database migrations (`RULE-DB-02`).
+
+### FF-ARCH-14 · 🏛️ Property Naming Inconsistency for Technician Identifiers (Service Audit Issue B)
+
+- **Root Cause**: Technician identifiers were inconsistently named across the repository: Drizzle database schemas, SQL columns, `BidDetailsDto`, `PayoutLedgerItemDto`, and `TechnicianEarningsDto` used `technicianId`, while AMQP domain event payloads, `NearbyTechnicianDto`, and various service/frontend parameters used the shorthand `techId`. This caused unnecessary mapping friction and ambiguous naming contracts.
+- **Fix**: Standardized technician identifier naming strictly on **`technicianId: string`** across the entire application with zero backward compatibility fallbacks:
+  1. Updated all AMQP event contracts in `packages/contracts/src/events/` (`WorkOrderAssignedPayload`, `WorkOrderApprovedPayload`, `WorkOrderPaidPayload`, `TechBiddingSubmittedPayload`, `TechBidAcceptedPayload`, `PayoutDisbursedPayload`, `PayoutFailedPayload`) to define `technicianId: string`.
+  2. Updated `NearbyTechnicianDto` in `packages/contracts/src/dto/dispatch.dto.ts` to define `technicianId: string`.
+  3. Updated services (`apps/work-order-service`, `apps/billing-service`, `apps/dispatch-matching-service`, `apps/auth-service`, `apps/notification-service`) to strictly use `technicianId`.
+  4. Updated web portal slices and components in `apps/web-buyer-portal` (`dispatchSlice`, `workOrderSlice`, `api.ts`, `TechnicianMatchingRadar.tsx`, fixtures).
+  5. Updated all affected unit and contract tests across packages and services.
+  6. Updated `.agent/context/api_contracts.md` and `.agent/context/project_status.md`.
+  7. Zero database migrations (`RULE-DB-02`) — database schemas were already 100% aligned with `technicianId`.
 
 ---
 

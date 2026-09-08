@@ -61,8 +61,8 @@ export class BidsService {
       }
 
       // 1. Resolve technician profile from callerProfileId or user ID
-      let techId = callerProfileId;
-      if (!techId) {
+      let technicianId = callerProfileId;
+      if (!technicianId) {
         const [tech] = await tx
           .select()
           .from(technicianProfiles)
@@ -71,7 +71,7 @@ export class BidsService {
         if (!tech) {
           throw new ForbiddenException('Only registered technicians can submit bids');
         }
-        techId = tech.id;
+        technicianId = tech.id;
       }
 
       // 2. Lock work order FOR UPDATE
@@ -98,7 +98,7 @@ export class BidsService {
         .where(
           and(
             eq(workOrderBids.workOrderId, dto.workOrderId),
-            eq(workOrderBids.technicianId, techId),
+            eq(workOrderBids.technicianId, technicianId),
             eq(workOrderBids.bidStatus, 'PENDING')
           )
         );
@@ -113,7 +113,7 @@ export class BidsService {
       await tx.insert(workOrderBids).values({
         id: bidId,
         workOrderId: dto.workOrderId,
-        technicianId: techId,
+        technicianId,
         bidAmount: bidAmountDecimal,
         counterNote: dto.counterNote || null,
         bidStatus: 'PENDING'
@@ -122,7 +122,7 @@ export class BidsService {
       const responseDto: BidDetailsDto = {
         id: bidId,
         workOrderId: dto.workOrderId,
-        technicianId: techId,
+        technicianId,
         bidAmountMinor: dto.bidAmountMinor,
         counterNote: dto.counterNote || null,
         bidStatus: 'PENDING',
@@ -150,7 +150,7 @@ export class BidsService {
         {
           bidId,
           workOrderId: dto.workOrderId,
-          technicianId: techId,
+          technicianId,
           bidAmountMinor: dto.bidAmountMinor,
           counterNote: dto.counterNote
         },
@@ -322,7 +322,7 @@ export class BidsService {
         EventType.WORK_ORDER_ASSIGNED,
         {
           workOrderId: wo.id,
-          techId: bid.technicianId,
+          technicianId: bid.technicianId,
           agreedRateMinor: decimalStringToMinor(bid.bidAmount)
         },
         correlationId

@@ -39,7 +39,7 @@ export interface ReleaseEscrowParams {
 
 export interface EscrowReleaseResult {
   workOrderId: string;
-  techId: string;
+  technicianId: string;
   disbursedAmountMinor: MinorUnits;
   status: EscrowStatus;
   invoiceId?: string;
@@ -139,7 +139,7 @@ export class EscrowService {
    */
   async releaseFunds(
     workOrderIdOrParams: string | ReleaseEscrowParams,
-    legacyTechId?: string,
+    callerUserIdOrTechnicianId?: string,
     legacyAmountMinor?: MinorUnits,
     legacyCorrelationId?: string,
     legacyIdempotencyKey?: string
@@ -149,7 +149,7 @@ export class EscrowService {
     if (typeof workOrderIdOrParams === 'string') {
       params = {
         workOrderId: workOrderIdOrParams,
-        callerUserId: legacyTechId, // or caller id
+        callerUserId: callerUserIdOrTechnicianId,
         callerRole: 'SYSTEM',
         amountMinor: legacyAmountMinor,
         correlationId: legacyCorrelationId,
@@ -332,7 +332,7 @@ export class EscrowService {
 
         const result: EscrowReleaseResult = {
           workOrderId: workOrder.id,
-          techId: workOrder.assignedTechnicianId,
+          technicianId: workOrder.assignedTechnicianId,
           disbursedAmountMinor: amountMinor,
           status: EscrowStatus.RELEASED,
           invoiceId: invoice.id
@@ -357,7 +357,7 @@ export class EscrowService {
               escrowId: escrow.id,
               workOrderId: workOrder.id,
               buyerId: workOrder.buyerId,
-              techId: workOrder.assignedTechnicianId,
+              technicianId: workOrder.assignedTechnicianId,
               amountMinor
             },
             correlationId || randomUUID()

@@ -45,7 +45,7 @@ describe('WorkOrderEventPublisher', () => {
       EventType.WORK_ORDER_ASSIGNED,
       {
         workOrderId: 'wo-1',
-        techId: 'tech-1',
+        technicianId: 'tech-1',
         agreedRateMinor: 28000
       },
       'corr-2'
@@ -62,7 +62,7 @@ describe('WorkOrderEventPublisher', () => {
       {
         workOrderId: 'wo-1',
         buyerId: 'b-1',
-        techId: 'tech-1',
+        technicianId: 'tech-1',
         payoutAmountMinor: 28000
       },
       'corr-3'
@@ -79,7 +79,7 @@ describe('WorkOrderEventPublisher', () => {
       {
         workOrderId: 'wo-1',
         buyerId: 'b-1',
-        techId: 'tech-1',
+        technicianId: 'tech-1',
         payoutAmountMinor: 28000
       },
       'corr-4'
@@ -97,7 +97,7 @@ describe('WorkOrderEventPublisher', () => {
       {
         workOrderId: 'wo-1',
         buyerId: 'b-1',
-        techId: 'tech-1',
+        technicianId: 'tech-1',
         payoutAmountMinor: 28000
       },
       'corr-5'

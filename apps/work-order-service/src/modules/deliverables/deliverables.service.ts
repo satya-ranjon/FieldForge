@@ -66,7 +66,7 @@ export class DeliverablesService {
     }
 
     if (role === 'TECHNICIAN') {
-      const resolvedTechId =
+      const resolvedTechnicianId =
         callerProfileId ??
         (
           await this.db
@@ -76,7 +76,7 @@ export class DeliverablesService {
             .limit(1)
         )[0]?.id;
 
-      if (!resolvedTechId || resolvedTechId !== wo.assignedTechnicianId) {
+      if (!resolvedTechnicianId || resolvedTechnicianId !== wo.assignedTechnicianId) {
         throw new ForbiddenException(
           'Only the assigned technician or an admin can upload deliverables for this work order'
         );
@@ -143,7 +143,7 @@ export class DeliverablesService {
     }
 
     if (role === 'TECHNICIAN') {
-      const resolvedTechId =
+      const resolvedTechnicianId =
         callerProfileId ??
         (
           await this.db
@@ -153,7 +153,7 @@ export class DeliverablesService {
             .limit(1)
         )[0]?.id;
 
-      if (!resolvedTechId || resolvedTechId !== wo.assignedTechnicianId) {
+      if (!resolvedTechnicianId || resolvedTechnicianId !== wo.assignedTechnicianId) {
         throw new ForbiddenException(
           'Only the assigned technician or an admin can record client signatures'
         );
@@ -237,7 +237,7 @@ export class DeliverablesService {
         );
       }
     } else if (role === 'TECHNICIAN') {
-      const resolvedTechId =
+      const resolvedTechnicianId =
         callerProfileId ??
         (
           await this.db
@@ -247,7 +247,7 @@ export class DeliverablesService {
             .limit(1)
         )[0]?.id;
 
-      if (!resolvedTechId || resolvedTechId !== wo.assignedTechnicianId) {
+      if (!resolvedTechnicianId || resolvedTechnicianId !== wo.assignedTechnicianId) {
         throw new ForbiddenException(
           'Only the owning buyer, assigned technician, or admin can view deliverables'
         );

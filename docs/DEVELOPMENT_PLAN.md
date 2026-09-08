@@ -45,15 +45,15 @@ that would fail if it broke. The README becomes true rather than aspirational.
 
 ## Decisions locked for this plan
 
-| Decision               | Choice                                                                                                                                | Rationale                                                                                                                                              |
-| :--------------------- | :------------------------------------------------------------------------------------------------------------------------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Target end state       | Working **local** E2E system via `docker compose` + `pnpm dev`                                                                        | Highest credibility per unit of effort                                                                                                                 |
-| Kubernetes / Terraform | Remain a documented scaffold (H8, L4 stay open)                                                                                       | Out of scope; explicitly listed as open below                                                                                                          |
-| External providers     | **Ports + in-repo fake adapters** (ledger payments, log-only SMS/push, local-disk media)                                              | Keeps CI hermetic and credential-free; real SDKs slot in behind the same port later                                                                    |
-| Mobile app             | In scope, **after** the backend (Phase 6)                                                                                             | Depends on real endpoints existing                                                                                                                     |
-| FSM canon              | **SRS wins** per `AGENTS.md` source-of-truth order: add `PAID`; `SETTLED`/`BIDDING`/`OPEN`/`IN_PROGRESS` are removed from docs and UI | `docs/SRS.md` FR-WO-002 is rank 2; README/UI are rank 7. Bids are a table (`work_order_bids`), not a work-order state                                  |
-| Money representation   | Integer **minor units** in DTOs and events (`*AmountMinor`); DB stays `DECIMAL`                                                       | Resolves M5; the naming change must land before Phase 5 UI work                                                                                        |
-| Identity source        | Always the **verified token**, never the request body                                                                                 | `createWorkOrderSchema.buyerId`, `submitBidSchema.techId`, and `PreAuthEscrowDto.buyerId` are currently caller-supplied — a privilege-escalation shape |
+| Decision               | Choice                                                                                                                                | Rationale                                                                                                                                                    |
+| :--------------------- | :------------------------------------------------------------------------------------------------------------------------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Target end state       | Working **local** E2E system via `docker compose` + `pnpm dev`                                                                        | Highest credibility per unit of effort                                                                                                                       |
+| Kubernetes / Terraform | Remain a documented scaffold (H8, L4 stay open)                                                                                       | Out of scope; explicitly listed as open below                                                                                                                |
+| External providers     | **Ports + in-repo fake adapters** (ledger payments, log-only SMS/push, local-disk media)                                              | Keeps CI hermetic and credential-free; real SDKs slot in behind the same port later                                                                          |
+| Mobile app             | In scope, **after** the backend (Phase 6)                                                                                             | Depends on real endpoints existing                                                                                                                           |
+| FSM canon              | **SRS wins** per `AGENTS.md` source-of-truth order: add `PAID`; `SETTLED`/`BIDDING`/`OPEN`/`IN_PROGRESS` are removed from docs and UI | `docs/SRS.md` FR-WO-002 is rank 2; README/UI are rank 7. Bids are a table (`work_order_bids`), not a work-order state                                        |
+| Money representation   | Integer **minor units** in DTOs and events (`*AmountMinor`); DB stays `DECIMAL`                                                       | Resolves M5; the naming change must land before Phase 5 UI work                                                                                              |
+| Identity source        | Always the **verified token**, never the request body                                                                                 | `createWorkOrderSchema.buyerId`, `submitBidSchema.technicianId`, and `PreAuthEscrowDto.buyerId` are currently caller-supplied — a privilege-escalation shape |
 
 Per `RULE-GIT-06`: each phase is one or more `feature/*` branches off `develop`, with
 `pnpm check && pnpm build` passing before every PR. At each phase close, update
@@ -85,7 +85,7 @@ command that can actually fail.
   defined) to `packages/contracts/src/validators/work-order.schema.ts`; it takes `nextStatus` plus
   optional `latitude`/`longitude` for the on-site transition. Rename
   `submitBidSchema.proposedAmount` → `bidAmountMinor` to match the `bid_amount` column. Drop
-  `buyerId`/`techId` from request schemas — those come from the token.
+  `buyerId`/`technicianId` from request schemas — those come from the token.
 - **Migration `0001_canon_and_constraints.sql`:** add `PAID` to the status enum; `UNIQUE` on
   `escrow_accounts.work_order_id` (M3); replace `idx_wo_status` + `idx_wo_schedule` with composite
   `idx_wo_status_sched (status, scheduled_start_time)` per `RULE-DB-02` (M4).
@@ -666,7 +666,7 @@ NFR-PERF-001.
 
 - **Shared Contracts & Events (`@fieldforge/contracts`).**
   - Added `EventType.PAYOUT_FAILED = 'billing.payout.failed'` to `EventType` enum.
-  - Added `PayoutFailedPayload` (`workOrderId`, `techId`, `amountMinor`, `reason`) and `PayoutFailedEvent` envelope definition.
+  - Added `PayoutFailedPayload` (`workOrderId`, `technicianId`, `amountMinor`, `reason`) and `PayoutFailedEvent` envelope definition.
 - **Emit Failure Event on Escrow Release Failure (`apps/billing-service`).**
   - Injected `EventPublisher` into `BillingConsumer`.
   - Wrapped `releaseFunds()` in `BillingConsumer.handleWorkOrderApproved()` in a `try/catch` block.
@@ -799,6 +799,43 @@ NFR-PERF-001.
 - 501 automated unit/integration tests passing across 15 packages/apps in monorepo (zero `--passWithNoTests`):
   - 24 tests in `apps/billing-service` (3 suites, +4 tests).
   - 204 tests in `apps/work-order-service` (11 suites, +1 test).
+  - 21 tests in `@fieldforge/messaging` (5 suites).
+  - 28 tests in `apps/dispatch-matching-service` (4 suites).
+  - 104 tests in `apps/web-buyer-portal` (1 suite).
+  - 87 tests in `@fieldforge/common` (3 suites).
+  - 76 tests in `@fieldforge/contracts` (3 suites).
+  - 56 tests in `apps/auth-service` (6 suites).
+  - 44 tests in `apps/api-gateway` (6 suites).
+  - 14 tests in `apps/notification-service` (1 suite).
+- 28 Playwright E2E tests validated (`pnpm test:e2e`). Total verified tests: 529 tests.
+- `pnpm check && pnpm build` pass cleanly.
+
+---
+
+## Phase 21 — Repository-Wide Standardization of Technician Identifiers to `technicianId`
+
+**Status: Completed (2026-09-08).** Resolves **Service Audit Issue B (Property Naming Inconsistency for Technician Identifiers)** / `FF-ARCH-14`.
+
+- **Event Contract & DTO Standardization (`@fieldforge/contracts`).**
+  - Standardized all AMQP event contracts (`WorkOrderAssignedPayload`, `WorkOrderApprovedPayload`, `WorkOrderPaidPayload`, `TechBiddingSubmittedPayload`, `TechBidAcceptedPayload`, `PayoutDisbursedPayload`, `PayoutFailedPayload`) strictly to `technicianId: string`.
+  - Standardized `NearbyTechnicianDto` to strictly define `technicianId: string` (aligning with `BidDetailsDto`, `PayoutLedgerItemDto`, `TechnicianEarningsDto`).
+  - Completely eliminated the informal `techId` abbreviation and legacy fallback overhead.
+- **Service & Consumer Handler Unification (`apps/*`).**
+  - Updated `apps/work-order-service`: `WorkOrdersService.assignTechnicianFromBid()`, `transition()`, and `settlePaid()` to use `technicianId`. Updated `WorkOrderEventsConsumer.handleTechBidAccepted()` and `BidsService`.
+  - Updated `apps/billing-service`: `BillingConsumer.handleWorkOrderApproved()`, `handleWorkOrderAssigned()`, and `EscrowService.releaseFunds()` to strictly use `technicianId`.
+  - Updated `apps/dispatch-matching-service`: `GeoSearchService.updateTechnicianLocation()`, `findNearbyTechnicians()`, and `DispatchController.autoRouteRecommend()`.
+  - Updated `apps/auth-service`: `CertificationsController` and `CertificationsService`.
+  - Updated `apps/notification-service`: `NotificationConsumer.handleAssignedEvent()` and `handlePaidEvent()`.
+- **Frontend Portal Unification (`apps/web-buyer-portal`).**
+  - Updated `dispatchSlice`, `workOrderSlice`, `api.ts` RTK Query endpoints, `TechnicianMatchingRadar.tsx`, and fixtures to use `technicianId`.
+- **Zero Database Schema Migrations (`RULE-DB-02`).**
+  - Database schemas already consistently used `technicianId` (`technician_id`). Zero migrations required.
+
+**Verification:**
+
+- 501 automated unit/integration tests passing across 15 packages/apps in monorepo (zero `--passWithNoTests`):
+  - 204 tests in `apps/work-order-service` (11 suites).
+  - 24 tests in `apps/billing-service` (3 suites).
   - 21 tests in `@fieldforge/messaging` (5 suites).
   - 28 tests in `apps/dispatch-matching-service` (4 suites).
   - 104 tests in `apps/web-buyer-portal` (1 suite).

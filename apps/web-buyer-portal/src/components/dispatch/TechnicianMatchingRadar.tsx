@@ -74,7 +74,7 @@ export const TechnicianMatchingRadar: React.FC = () => {
     dispatch(
       assignTechnician({
         workOrderId: bid.workOrderId,
-        techId: bid.techId,
+        technicianId: bid.technicianId,
         techName: bid.technicianName,
         techRating: bid.technicianRating,
         techPhone: '+1 (415) 890-2341'
@@ -100,7 +100,7 @@ export const TechnicianMatchingRadar: React.FC = () => {
     dispatch(
       assignTechnician({
         workOrderId: targetWo.id,
-        techId: tech.techId,
+        technicianId: tech.technicianId,
         techName: tech.fullName,
         techRating: tech.rating,
         techPhone: '+1 (415) 555-0198'
@@ -209,7 +209,7 @@ export const TechnicianMatchingRadar: React.FC = () => {
 
                 return (
                   <div
-                    key={t.techId}
+                    key={t.technicianId}
                     className="absolute z-10 group"
                     style={{
                       transform: `translate(${x}px, ${y}px)`
@@ -404,7 +404,10 @@ export const TechnicianMatchingRadar: React.FC = () => {
 
             <CardContent className="p-0 divide-y divide-slate-800/80 max-h-[600px] overflow-y-auto">
               {effectiveTechnicians.map((tech) => (
-                <div key={tech.techId} className="p-4 hover:bg-[#090d16]/60 transition space-y-2.5">
+                <div
+                  key={tech.technicianId}
+                  className="p-4 hover:bg-[#090d16]/60 transition space-y-2.5"
+                >
                   <div className="flex items-start justify-between">
                     <div>
                       <div className="flex items-center space-x-2">
