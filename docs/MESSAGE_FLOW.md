@@ -52,15 +52,16 @@ The core messaging infrastructure is encapsulated within [`packages/messaging`](
 
 ### Exchanges & Queues
 
-| Component                       | Identifier                                | Type             | Durability | Purpose                                                                         |
-| :------------------------------ | :---------------------------------------- | :--------------- | :--------- | :------------------------------------------------------------------------------ |
-| **Central Topic Exchange**      | `fieldforge.events.topic`                 | `topic`          | Durable    | Central fanout exchange routing all domain events.                              |
-| **Dead-Letter Exchange (DLX)**  | `fieldforge.events.dlx`                   | `direct`         | Durable    | Traps poison pills, malformed messages, and exhausted retries.                  |
-| **Dead-Letter Queue (DLQ)**     | `fieldforge.events.dlq`                   | `direct`         | Durable    | Storage queue bound to DLX for forensic inspection and manual replay.           |
-| **Dispatch Queue**              | `fieldforge.dispatch.work-orders`         | `direct` / bound | Durable    | Receives publication events for geospatial matching.                            |
-| **Notifications Queue**         | `fieldforge.notifications.work-orders`    | `direct` / bound | Durable    | Receives lifecycle events for SMS and Push alerts.                              |
-| **Billing Queue**               | `fieldforge.billing.work-orders`          | `direct` / bound | Durable    | Receives lifecycle events for escrow release (`work_order.lifecycle.approved`). |
-| **Work Orders Lifecycle Queue** | `fieldforge.work-orders.lifecycle-events` | `direct` / bound | Durable    | Receives payout disbursement events to drive final settlement to PAID.          |
+| Component                       | Identifier                                | Type             | Durability | Purpose                                                                                                   |
+| :------------------------------ | :---------------------------------------- | :--------------- | :--------- | :-------------------------------------------------------------------------------------------------------- |
+| **Central Topic Exchange**      | `fieldforge.events.topic`                 | `topic`          | Durable    | Central fanout exchange routing all domain events.                                                        |
+| **Dead-Letter Exchange (DLX)**  | `fieldforge.events.dlx`                   | `direct`         | Durable    | Traps poison pills, malformed messages, and exhausted retries.                                            |
+| **Dead-Letter Queue (DLQ)**     | `fieldforge.events.dlq`                   | `direct`         | Durable    | Storage queue bound to DLX for forensic inspection and manual replay.                                     |
+| **Dispatch Queue**              | `fieldforge.dispatch.work-orders`         | `direct` / bound | Durable    | Receives publication events for geospatial matching.                                                      |
+| **Notifications Queue**         | `fieldforge.notifications.work-orders`    | `direct` / bound | Durable    | Receives lifecycle events for SMS and Push alerts.                                                        |
+| **Billing Queue**               | `fieldforge.billing.work-orders`          | `direct` / bound | Durable    | Receives lifecycle events for escrow release (`work_order.lifecycle.approved`).                           |
+| **Work Orders Lifecycle Queue** | `fieldforge.work-orders.lifecycle-events` | `direct` / bound | Durable    | Receives payout disbursement events to drive final settlement to PAID.                                    |
+| **Dedicated Retry Queues**      | `<queue>.retry`                           | `direct` / delay | Durable    | Holds retrying messages with per-message TTL; dead-letters back to original queue on expiry (FF-ARCH-12). |
 
 ### Routing Keys & Consumer Subscriptions
 
@@ -281,30 +282,42 @@ sequenceDiagram
 
 ---
 
-### B. Bounded Retries with Exponential Backoff
+### B. Bounded Retries with Exponential Backoff (Broker-Native, Zero Message Loss)
 
-When transient network or database errors occur in consumer handlers, the consumer captures the failure, applies an exponential delay, and re-queues the message with an incremented `x-retry-count`.
+When transient network or database errors occur in consumer handlers, `IdempotentConsumer` captures the failure, calculates exponential backoff ($1000 \times 2^{\text{retry}-1}$ ms), and durably publishes the retry attempt into a dedicated broker delay queue (`<queue>.retry`) with per-message TTL (`expiration`) before acknowledging the original message (FF-ARCH-12).
+
+No in-memory Node.js timers (`setTimeout`) are used; if the consumer pod crashes, restarts, or scales down during backoff, the message remains safely stored in RabbitMQ. When the TTL expires, RabbitMQ automatically dead-letters the message back to the primary worker queue via the default exchange (`''`). Redis state transitions to `'retrying:N'`, preventing premature duplicate re-entry while allowing legitimate broker retries to proceed.
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant MQ as 📬 RabbitMQ
+    participant Queue as 📬 Primary Worker Queue
     participant Consumer as ⚙️ IdempotentConsumer
     participant Handler as 🧩 Domain Handler
+    participant Redis as ⚡ Redis Idempotency
+    participant RetryQueue as ⏳ Delay Queue (<queue>.retry)
 
-    MQ->>Consumer: Deliver Message (x-retry-count: 0)
+    Queue->>Consumer: Deliver Message (x-retry-count: 0)
+    Consumer->>Redis: tryAcquire(eventId, 0) -> OK (in-progress)
     Consumer->>Handler: handleEvent(...)
     Handler-->>Consumer: Throw Error ("Database lock timeout")
 
-    Note over Consumer: Calculate backoff delay: 1000ms * 2^0 = 1000ms (1s)
-    Consumer->>MQ: channel.publish(..., headers: { 'x-retry-count': 1 })
-    Consumer->>MQ: channel.ack(originalMessage)
+    Note over Consumer: Backoff: 1000ms * 2^0 = 1000ms (1s)
+    Consumer->>RetryQueue: sendToQueue(persistent: true, expiration: "1000", x-retry-count: 1)
+    RetryQueue-->>Consumer: Broker Confirmed
+    Consumer->>Redis: markRetrying(eventId, 1) -> Set 'retrying:1'
+    Consumer->>Queue: channel.ack(originalMessage)
+    Note over Queue, Consumer: Original message safely ACKed only after retry is stored on broker
 
-    Note over MQ: After 1s delay
-    MQ->>Consumer: Deliver Message (x-retry-count: 1)
+    Note over RetryQueue: Message waits durably in RabbitMQ for 1000ms
+    RetryQueue->>Queue: TTL Expired -> Dead-letters to default exchange ('') with routingKey: queueName
+
+    Queue->>Consumer: Redeliver Message (x-retry-count: 1)
+    Consumer->>Redis: tryAcquire(eventId, 1) -> OK (transition retrying -> in-progress)
     Consumer->>Handler: handleEvent(...)
     Handler-->>Consumer: Success
-    Consumer->>MQ: channel.ack(message)
+    Consumer->>Redis: markCompleted(eventId) -> 'completed'
+    Consumer->>Queue: channel.ack(message)
 ```
 
 ---

@@ -152,6 +152,14 @@
 > Deprecated `publishTechBidAccepted()` in `WorkOrderEventPublisher`, updated unit test assertions, and retired the routing key.
 > Total verified tests: 493 unit/integration + 28 E2E = 521 tests.
 
+> **Phase 19 update — 2026-09-08:** Phase 19 of [`DEVELOPMENT_PLAN.md`](./DEVELOPMENT_PLAN.md)
+> delivered Elimination of Message Loss Vulnerability & Premature ACK in `IdempotentConsumer` (Resolves **FF-ARCH-12 / Service Audit Item 7**).
+> Replaced in-memory Node.js `setTimeout` with broker-native RabbitMQ dead-letter retry queues (`<queue>.retry`)
+> using per-message TTL (`expiration`) and dead-letter routing to the default exchange (`''`).
+> Upgraded `RedisIdempotencyClient` with atomic state-aware transitions (`markRetrying` and Lua-evaluated `tryAcquire(eventId, retryCount)`),
+> eliminating premature ACKs, in-memory process volatility, and parallel duplicate delivery race conditions.
+> Total verified tests: 497 unit/integration + 28 E2E = 525 tests.
+
 ---
 
 ## How to read this report
@@ -906,6 +914,22 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   3. Annotated `publishTechBidAccepted()` with `@deprecated` in `apps/work-order-service/src/events/work-order-event.publisher.ts`.
   4. Updated unit test in `apps/work-order-service/test/bids.service.spec.ts` asserting that `publishWorkOrderAssigned` is called once and `publishTechBidAccepted` is not called.
   5. Updated `docs/MESSAGE_FLOW.md` and `.agent/context/api_contracts.md` marking `tech.bidding.accepted` as Deprecated / Retired.
+  6. Zero database migrations (`RULE-DB-02`).
+
+### FF-ARCH-12 · 🏛️ Message Loss Vulnerability & Premature ACK in IdempotentConsumer (Service Audit Item 7)
+
+- **Root Cause**: In `packages/messaging/src/consumer/idempotent-consumer.ts:137-165`, consumer retry backoff was scheduled using Node.js in-memory `setTimeout(..., delayMs)` and the incoming message was acknowledged via `channel.ack(msg)` immediately on the consumer channel. This introduced three critical reliability vulnerabilities:
+  1. **Premature Broker ACK**: The message was removed from RabbitMQ before the retry was enqueued or confirmed.
+  2. **Process Volatility**: If the Node.js process crashed, restarted (e.g. during a rolling deploy), or ran out of memory during `delayMs` (1,000ms–4,000ms), the timer was destroyed with the event loop and the message was permanently lost.
+  3. **Redis Lock Invalidation Race Condition**: `release(envelope.eventId)` deleted the Redis idempotency key up to 4 seconds before re-queueing, allowing parallel duplicate deliveries to acquire the lock while the retry timer was running.
+- **Fix**: Replaced in-memory timers with broker-native RabbitMQ dead-letter retry queues and state-aware Redis idempotency:
+  1. Updated `RabbitMQConnectionManager.assertQueueAndBind()` to declare a companion delay queue (`<queue>.retry`) for every worker queue with `x-dead-letter-exchange: ''` and `x-dead-letter-routing-key: queueName`.
+  2. Updated `IdempotentConsumer.processMessage()` to publish retry messages durably to `<queue>.retry` with `persistent: true`, `expiration: String(delayMs)`, and `x-retry-count: nextRetry`. The original message is ACKed strictly after broker confirmation. If enqueueing fails, the message is routed to DLQ rather than dropped.
+  3. Upgraded `RedisIdempotencyClient`:
+     - Added `markRetrying(eventId, nextRetry)` setting Redis status to `'retrying:N'`, preventing fresh duplicate deliveries (`retryCount === 0`) from acquiring the lock while message waits in the broker queue.
+     - Updated `tryAcquire(eventId, retryCount)` using an atomic Redis Lua script to allow legitimate broker retries (`retryCount > 0`) to re-acquire the lock into `'in-progress'` while blocking if already marked `'completed'`.
+  4. Added unit and integration tests in `packages/messaging/test/idempotent-consumer.spec.ts` and `packages/messaging/test/redis-idempotency.spec.ts`.
+  5. Updated `docs/MESSAGE_FLOW.md` with the broker-native delay queue topology and sequence diagrams.
   6. Zero database migrations (`RULE-DB-02`).
 
 ---

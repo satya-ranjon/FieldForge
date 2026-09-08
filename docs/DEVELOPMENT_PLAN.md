@@ -731,6 +731,45 @@ NFR-PERF-001.
 
 ---
 
+## Phase 19 — Messaging Infrastructure Remediation: Elimination of Message Loss & Premature ACKs
+
+**Status: Completed (2026-09-08).** Resolves **Service Audit Item 7 (Retry Behavior & Message Loss Vulnerabilities)** / `FF-ARCH-12` and aligns with `RULE-EVENT-03` and resilient messaging standards.
+
+- **Broker-Native Delay Queues (`packages/messaging`).**
+  - Updated `RabbitMQConnectionManager.assertQueueAndBind()` to assert dedicated companion delay queues (`<queue>.retry`) for every worker queue, configured with `x-dead-letter-exchange: ''` and `x-dead-letter-routing-key: queueName`.
+  - Added constants `RETRY_QUEUE_SUFFIX = '.retry'` and `DLQ_QUEUE_SUFFIX = '.dlq'` to `packages/messaging/src/constants.ts`.
+- **Eliminate In-Memory Timers & Premature ACKs (`packages/messaging`).**
+  - Removed `setTimeout` from `IdempotentConsumer.processMessage()`.
+  - Retries are durably published directly to `<queue>.retry` with `persistent: true`, `expiration: String(delayMs)`, and updated `x-retry-count: nextRetry` headers.
+  - The consumer awaits broker confirmation before proceeding, completely preventing process volatility message loss during backoff.
+  - The original message on the worker queue is ACKed strictly after the retry is confirmed on the broker.
+  - If publish to the retry queue fails, the message is routed to the DLQ rather than dropped.
+- **State-Aware Redis Idempotency (`packages/messaging`).**
+  - Updated `RedisIdempotencyClient.tryAcquire(eventId, retryCount = 0)`:
+    - Fresh deliveries (`retryCount === 0`) acquire lock via `SET ... NX`, rejecting duplicates.
+    - Retry attempts (`retryCount > 0`) execute an atomic Lua script to transition from `'retrying'` to `'in-progress'`, while blocking re-entry if already marked `'completed'`.
+  - Added `markRetrying(eventId, nextRetry)` to maintain `'retrying:N'` state in Redis during broker backoff, eliminating race conditions where parallel duplicate deliveries could prematurely re-acquire the lock.
+- **Zero Database Schema Migrations (`RULE-DB-02`).**
+  - Zero database tables or schemas modified.
+
+**Verification:**
+
+- 497 automated unit/integration tests passing across 15 packages/apps in monorepo (zero `--passWithNoTests`):
+  - 21 tests in `@fieldforge/messaging` (5 suites, +4 tests).
+  - 203 tests in `apps/work-order-service` (11 suites).
+  - 20 tests in `apps/billing-service` (3 suites).
+  - 28 tests in `apps/dispatch-matching-service` (4 suites).
+  - 104 tests in `apps/web-buyer-portal` (1 suite).
+  - 87 tests in `@fieldforge/common` (3 suites).
+  - 76 tests in `@fieldforge/contracts` (3 suites).
+  - 56 tests in `apps/auth-service` (6 suites).
+  - 44 tests in `apps/api-gateway` (6 suites).
+  - 14 tests in `apps/notification-service` (1 suite).
+- 28 Playwright E2E tests validated (`pnpm test:e2e`). Total verified tests: 525 tests.
+- `pnpm check && pnpm build` pass cleanly.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

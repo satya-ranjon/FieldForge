@@ -4,7 +4,9 @@ import {
   EVENT_EXCHANGE,
   EVENT_DEAD_LETTER_EXCHANGE,
   DEFAULT_DEAD_LETTER_QUEUE,
-  MESSAGING_MODULE_OPTIONS
+  MESSAGING_MODULE_OPTIONS,
+  RETRY_QUEUE_SUFFIX,
+  DLQ_QUEUE_SUFFIX
 } from '../constants';
 import type { MessagingOptions } from '../config/messaging.config';
 
@@ -91,7 +93,8 @@ export class RabbitMQConnectionManager implements OnApplicationShutdown {
   }
 
   /**
-   * Asserts a worker queue with dead-letter exchange configuration
+   * Asserts a worker queue with dead-letter exchange configuration,
+   * a dedicated retry wait queue for broker-native backoff without in-memory timers,
    * and binds it to the topic exchange for the given routing keys.
    */
   async assertQueueAndBind(queueName: string, routingKeys: string[]): Promise<void> {
@@ -104,14 +107,26 @@ export class RabbitMQConnectionManager implements OnApplicationShutdown {
       durable: true,
       arguments: {
         'x-dead-letter-exchange': dlx,
-        'x-dead-letter-routing-key': `${queueName}.dlq`
+        'x-dead-letter-routing-key': `${queueName}${DLQ_QUEUE_SUFFIX}`
       }
     });
 
     // Dedicated DLQ for this queue on DLX
-    const dlqName = `${queueName}.dlq`;
+    const dlqName = `${queueName}${DLQ_QUEUE_SUFFIX}`;
     await channel.assertQueue(dlqName, { durable: true });
     await channel.bindQueue(dlqName, dlx, dlqName);
+
+    // Dedicated Retry / Delay queue for broker-native exponential backoff.
+    // Messages expire based on per-message TTL (expiration) and are dead-lettered
+    // back to the primary worker queue via the default direct exchange ('').
+    const retryQueueName = `${queueName}${RETRY_QUEUE_SUFFIX}`;
+    await channel.assertQueue(retryQueueName, {
+      durable: true,
+      arguments: {
+        'x-dead-letter-exchange': '',
+        'x-dead-letter-routing-key': queueName
+      }
+    });
 
     for (const key of routingKeys) {
       await channel.bindQueue(queueName, exchange, key);

@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-08  
-**Phase:** Phase 18 complete — Elimination of Dormant Intra-Service Circular Loop Event (FF-ARCH-11 / Service Audit Issue B). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 19 complete — Elimination of Message Loss Vulnerability & Premature ACK in IdempotentConsumer (FF-ARCH-12 / Service Audit Item 7). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -61,7 +61,7 @@
   - Exposes internal `HealthController` (`/healthz`, `/readyz`) and Prometheus metrics scraping (`/metrics`) on container port 8005 for Kubernetes and APM observability with zero public HTTP routing.
 - **Server-enforced geofence.** 200m radius threshold against stored coordinates (SRS FR-MOB-001).
 - **Deliverables & Media Storage.** Presigned upload URLs and SHA-256 digital signatures on stable deliverables content.
-- **Event Backbone (`packages/messaging`).** AMQP messaging module with publisher confirms, 7-day atomic Redis `SETNX` deduplication, bounded 3-retry backoff, DLQ routing, and cross-service producers/consumers.
+- **Event Backbone (`packages/messaging`).** AMQP messaging module with publisher confirms, broker-native dead-letter retry delay queues (`<queue>.retry`) with per-message TTL, state-aware Redis idempotency locking (`markRetrying`, atomic Lua lock re-acquisition), 7-day atomic Redis `SETNX` deduplication, bounded 3-retry backoff, DLQ routing, and cross-service producers/consumers.
 - **Enterprise Buyer Portal on Real API (`apps/web-buyer-portal`).**
   - Unified RTK Query API slice (`apps/web-buyer-portal/src/store/services/api.ts`) with `baseQueryWithReauth` and `SimpleMutex` for automatic 401 JWT token refresh against `/api/v1/auth/refresh`.
   - Cache tag revalidation across `WorkOrder`, `WorkOrderDeliverables`, `WorkOrderHistory`, `Technician`, `Bid`, `Escrow`, `Invoice`.
@@ -76,7 +76,14 @@
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
   - `AppNavigator` mounting `JobListScreen` and `ActiveJobScreen` wrapped in Redux store.
-- **A test harness that can fail.** 493 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 521 total verified tests).
+- **A test harness that can fail.** 497 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 525 total verified tests).
+- **Elimination of Message Loss Vulnerability & Premature ACK in IdempotentConsumer (Phase 19, Resolves FF-ARCH-12 / Service Audit Item 7).**
+  - Replaced Node.js in-memory `setTimeout` with broker-native RabbitMQ delay queues (`<queue>.retry`) using per-message TTL (`expiration`) and dead-letter routing to the default exchange (`''`).
+  - Completely eliminated process volatility message loss during backoff: messages remain durably in RabbitMQ if worker pods restart or crash.
+  - Delayed `channel.ack(msg)` on worker queue until the broker confirms receipt in the retry queue (zero premature ACKs).
+  - Upgraded `RedisIdempotencyClient`: added `markRetrying(eventId, nextRetry)` to preserve lock during wait, and Lua script in `tryAcquire(eventId, retryCount)` allowing legitimate broker retries while blocking fresh duplicate deliveries and completed events.
+  - Zero database migrations (`RULE-DB-02`).
+
 - **Elimination of Dormant Intra-Service Circular Loop Event in work-order-service (Phase 18, Resolves FF-ARCH-11 / Service Audit Issue B).**
   - Removed orphaned `tech.bidding.accepted` (`EventType.TECH_BID_ACCEPTED`) AMQP publication from `BidsService.acceptBid()`.
   - Maintained canonical `work_order.lifecycle.assigned` as the sole domain event emitted upon contractor bid acceptance.

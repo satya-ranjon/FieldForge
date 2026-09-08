@@ -9,7 +9,9 @@ import {
   HEADER_EVENT_TYPE,
   HEADER_RETRY_COUNT,
   HEADER_ORIGINAL_QUEUE,
-  MESSAGING_MODULE_OPTIONS
+  MESSAGING_MODULE_OPTIONS,
+  RETRY_QUEUE_SUFFIX,
+  DLQ_QUEUE_SUFFIX
 } from '../constants';
 import { RabbitMQConnectionManager } from '../connection/rabbitmq-connection.manager';
 import { RedisIdempotencyClient } from '../connection/redis-idempotency.client';
@@ -36,10 +38,10 @@ export class IdempotentConsumer implements OnApplicationShutdown {
 
   /**
    * Subscribes to a worker queue, guaranteeing:
-   * 1. Queue assertion with DLX binding per RULE-EVENT-03.
+   * 1. Queue assertion with DLX binding and broker-native retry queue per RULE-EVENT-03.
    * 2. Atomic 7-day Redis idempotency check on eventId.
    * 3. Restoration of correlationId into Pino child logger.
-   * 4. Bounded retries (max 3) with exponential backoff and DLQ routing.
+   * 4. Bounded retries (max 3) with broker-native exponential backoff and DLQ routing.
    */
   async subscribe<TPayload>(
     queueName: string,
@@ -87,6 +89,8 @@ export class IdempotentConsumer implements OnApplicationShutdown {
       return;
     }
 
+    const currentRetry = RetryPolicy.getRetryCount(msg);
+
     const correlationId =
       envelope.correlationId ||
       (msg.properties.headers?.[HEADER_CORRELATION_ID] as string) ||
@@ -96,14 +100,16 @@ export class IdempotentConsumer implements OnApplicationShutdown {
       correlationId,
       eventId: envelope.eventId,
       eventType: envelope.eventType,
-      queue: queueName
+      queue: queueName,
+      retryCount: currentRetry
     });
 
     // 1. Idempotency Gate (RULE-EVENT-03: 7-day TTL)
-    const acquired = await this.redisClient.tryAcquire(envelope.eventId);
+    // Passes currentRetry so broker-native retries can re-acquire while fresh duplicate deliveries are blocked
+    const acquired = await this.redisClient.tryAcquire(envelope.eventId, currentRetry);
     if (!acquired) {
       childLogger.info(
-        `[IdempotentConsumer] Duplicate event ${envelope.eventId} detected in Redis; skipping processing (no-op)`
+        `[IdempotentConsumer] Duplicate event ${envelope.eventId} detected in Redis (retry: ${currentRetry}); skipping processing (no-op)`
       );
       channel.ack(msg);
       return;
@@ -119,8 +125,6 @@ export class IdempotentConsumer implements OnApplicationShutdown {
       channel.ack(msg);
       childLogger.debug(`[IdempotentConsumer] Event ${envelope.eventId} processed and ACKed`);
     } catch (handlerErr: unknown) {
-      const currentRetry = RetryPolicy.getRetryCount(msg);
-
       this.logger.error(
         { err: handlerErr, retryCount: currentRetry },
         `[IdempotentConsumer] Handler failure for event ${envelope.eventId}`
@@ -131,37 +135,62 @@ export class IdempotentConsumer implements OnApplicationShutdown {
         const delayMs = RetryPolicy.calculateDelayMs(nextRetry);
 
         childLogger.warn(
-          `[IdempotentConsumer] Scheduling retry ${nextRetry}/3 in ${delayMs}ms for event ${envelope.eventId}`
+          `[IdempotentConsumer] Scheduling broker-native retry ${nextRetry}/3 in ${delayMs}ms via ${queueName}${RETRY_QUEUE_SUFFIX} for event ${envelope.eventId}`
         );
 
-        // Release the Redis lock so the retry attempt can re-acquire
-        await this.redisClient.release(envelope.eventId);
+        try {
+          // 1. Durably publish retry message into RabbitMQ's delay/retry queue with per-message expiration
+          const pubChannel = await this.connectionManager.getPublishChannel();
+          const existingHeaders = msg.properties.headers || {};
+          const retryQueueName = `${queueName}${RETRY_QUEUE_SUFFIX}`;
 
-        // Exponential backoff wait before re-queueing
-        setTimeout(async () => {
-          try {
-            const pubChannel = await this.connectionManager.getPublishChannel();
-            const existingHeaders = msg.properties.headers || {};
-            pubChannel.sendToQueue(queueName, msg.content, {
-              ...msg.properties,
-              headers: {
-                ...existingHeaders,
-                [HEADER_RETRY_COUNT]: nextRetry,
-                [HEADER_CORRELATION_ID]: correlationId,
-                [HEADER_EVENT_ID]: envelope.eventId,
-                [HEADER_EVENT_TYPE]: envelope.eventType
+          await new Promise<void>((resolve, reject) => {
+            const published = pubChannel.sendToQueue(
+              retryQueueName,
+              msg.content,
+              {
+                ...msg.properties,
+                persistent: true,
+                expiration: String(delayMs),
+                headers: {
+                  ...existingHeaders,
+                  [HEADER_RETRY_COUNT]: nextRetry,
+                  [HEADER_CORRELATION_ID]: correlationId,
+                  [HEADER_EVENT_ID]: envelope.eventId,
+                  [HEADER_EVENT_TYPE]: envelope.eventType
+                }
+              },
+              (err) => {
+                if (err) {
+                  reject(err);
+                } else {
+                  resolve();
+                }
               }
-            });
-          } catch (republishErr: unknown) {
-            childLogger.error(
-              { err: republishErr },
-              `[IdempotentConsumer] Failed to re-queue retry ${nextRetry} for event ${envelope.eventId}`
             );
-          }
-        }, delayMs);
 
-        // ACK original message so worker channel is not blocked
-        channel.ack(msg);
+            // If buffer full, listen for drain or allow callback to resolve
+            if (!published) {
+              pubChannel.once('drain', () => {
+                // drained
+              });
+            }
+          });
+
+          // 2. Transition Redis state to 'retrying:N' to block premature duplicate delivery
+          // while message waits in RabbitMQ retry queue
+          await this.redisClient.markRetrying(envelope.eventId, nextRetry);
+
+          // 3. ONLY now safely ACK original message from worker queue (zero premature ACK)
+          channel.ack(msg);
+        } catch (republishErr: unknown) {
+          childLogger.error(
+            { err: republishErr },
+            `[IdempotentConsumer] Failed to enqueue retry to ${queueName}${RETRY_QUEUE_SUFFIX}; routing to DLQ`
+          );
+          await this.routeToDlx(msg, queueName, 'retry_enqueue_failed');
+          channel.ack(msg);
+        }
       } else {
         // Max retries exceeded -> Dead-letter queue
         childLogger.error(
@@ -179,7 +208,7 @@ export class IdempotentConsumer implements OnApplicationShutdown {
   private async routeToDlx(msg: ConsumeMessage, queueName: string, reason: string): Promise<void> {
     const pubChannel = await this.connectionManager.getPublishChannel();
     const dlx = this.options.dlxExchange || EVENT_DEAD_LETTER_EXCHANGE;
-    const dlqRoutingKey = `${queueName}.dlq`;
+    const dlqRoutingKey = `${queueName}${DLQ_QUEUE_SUFFIX}`;
 
     const headers = {
       ...(msg.properties.headers || {}),
@@ -190,6 +219,7 @@ export class IdempotentConsumer implements OnApplicationShutdown {
 
     pubChannel.publish(dlx, dlqRoutingKey, msg.content, {
       ...msg.properties,
+      persistent: true,
       headers
     });
   }

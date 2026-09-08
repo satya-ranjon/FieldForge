@@ -35,13 +35,41 @@ export class RedisIdempotencyClient implements OnApplicationShutdown {
 
   /**
    * Attempts to atomically acquire processing lock for this eventId.
-   * Returns true if acquired (first time seeing this event).
-   * Returns false if duplicate delivery detected.
+   * If retryCount == 0 (fresh delivery):
+   *   Acquires lock only if key does not exist (SET ... NX).
+   *   Returns false if key exists (in-progress, retrying, completed, or failed).
+   * If retryCount > 0 (broker-scheduled retry attempt):
+   *   Acquires lock unless already marked completed.
+   *   Atomically transitions state to 'in-progress' with 7-day TTL.
    */
-  async tryAcquire(eventId: string): Promise<boolean> {
+  async tryAcquire(eventId: string, retryCount = 0): Promise<boolean> {
     const key = this.getKey(eventId);
-    const result = await this.client.set(key, 'in-progress', 'EX', IDEMPOTENCY_TTL_SECONDS, 'NX');
-    return result === 'OK';
+    if (retryCount === 0) {
+      const result = await this.client.set(key, 'in-progress', 'EX', IDEMPOTENCY_TTL_SECONDS, 'NX');
+      return result === 'OK';
+    }
+
+    const script = `
+      local current = redis.call('GET', KEYS[1])
+      if current == 'completed' then
+        return 0
+      else
+        redis.call('SET', KEYS[1], 'in-progress', 'EX', ARGV[1])
+        return 1
+      end
+    `;
+    const result = await this.client.eval(script, 1, key, String(IDEMPOTENCY_TTL_SECONDS));
+    return result === 1;
+  }
+
+  /**
+   * Marks the event as in retry state, recording the next retry count.
+   * Retains the key in Redis to prevent parallel redelivery of fresh duplicates
+   * while the message waits in the broker retry queue.
+   */
+  async markRetrying(eventId: string, retryCount: number): Promise<void> {
+    const key = this.getKey(eventId);
+    await this.client.set(key, `retrying:${retryCount}`, 'EX', IDEMPOTENCY_TTL_SECONDS);
   }
 
   /**

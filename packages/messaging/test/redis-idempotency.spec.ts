@@ -42,4 +42,27 @@ describe('RedisIdempotencyClient', () => {
 
     await client.rawClient.del(`fieldforge:idempotency:event:${retryEventId}`);
   });
+
+  it('markRetrying blocks fresh duplicate delivery but allows retry re-acquisition', async () => {
+    const retryingEventId = `retrying-event-${Date.now()}`;
+    await client.tryAcquire(retryingEventId, 0);
+
+    // Transition to retrying state for retry attempt 1
+    await client.markRetrying(retryingEventId, 1);
+
+    // A fresh duplicate delivery (retryCount = 0) must be rejected
+    const freshDuplicate = await client.tryAcquire(retryingEventId, 0);
+    expect(freshDuplicate).toBe(false);
+
+    // The legitimate broker retry (retryCount = 1) must be allowed
+    const retryAcquired = await client.tryAcquire(retryingEventId, 1);
+    expect(retryAcquired).toBe(true);
+
+    // After completion, further retries must be rejected
+    await client.markCompleted(retryingEventId);
+    const retryAfterComplete = await client.tryAcquire(retryingEventId, 2);
+    expect(retryAfterComplete).toBe(false);
+
+    await client.rawClient.del(`fieldforge:idempotency:event:${retryingEventId}`);
+  });
 });

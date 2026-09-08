@@ -24,3 +24,9 @@ export const HEADER_EVENT_ID = 'x-event-id';
 export const HEADER_EVENT_TYPE = 'x-event-type';
 export const HEADER_RETRY_COUNT = 'x-retry-count';
 export const HEADER_ORIGINAL_QUEUE = 'x-original-queue';
+
+/**
+ * Queue naming suffixes for broker-native DLQ and retry/delay queues.
+ */
+export const RETRY_QUEUE_SUFFIX = '.retry';
+export const DLQ_QUEUE_SUFFIX = '.dlq';
