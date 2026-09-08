@@ -94,16 +94,25 @@ export class DispatchController {
     @Query() query: unknown,
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string,
-    @Headers('x-ff-profile-id') gatewayProfileId?: string
+    @Headers('x-ff-profile-id') gatewayProfileId?: string,
+    @Headers('x-correlation-id') correlationId?: string
   ) {
     this.authenticateUser(authHeader, gatewayUserId, gatewayProfileId);
 
     const parsedQuery = nearbyTechniciansQuerySchema.parse(query);
-    const technicians = await this.geoSearchService.findNearbyTechnicians(
-      parsedQuery.latitude,
-      parsedQuery.longitude,
-      parsedQuery.radiusMiles
-    );
+    const technicians = correlationId
+      ? await this.geoSearchService.findNearbyTechnicians(
+          parsedQuery.latitude,
+          parsedQuery.longitude,
+          parsedQuery.radiusMiles,
+          [],
+          correlationId
+        )
+      : await this.geoSearchService.findNearbyTechnicians(
+          parsedQuery.latitude,
+          parsedQuery.longitude,
+          parsedQuery.radiusMiles
+        );
 
     return {
       count: technicians.length,
@@ -120,7 +129,8 @@ export class DispatchController {
     body: { latitude?: number; longitude?: number; maxRadiusMiles?: number; workOrderId?: string },
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string,
-    @Headers('x-ff-profile-id') gatewayProfileId?: string
+    @Headers('x-ff-profile-id') gatewayProfileId?: string,
+    @Headers('x-correlation-id') correlationId?: string
   ) {
     this.authenticateUser(authHeader, gatewayUserId, gatewayProfileId);
 
@@ -128,7 +138,9 @@ export class DispatchController {
     const lng = body.longitude ?? -122.4194;
     const radiusMiles = body.maxRadiusMiles || 5;
 
-    const candidates = await this.geoSearchService.findNearbyTechnicians(lat, lng, radiusMiles);
+    const candidates = correlationId
+      ? await this.geoSearchService.findNearbyTechnicians(lat, lng, radiusMiles, [], correlationId)
+      : await this.geoSearchService.findNearbyTechnicians(lat, lng, radiusMiles);
     const candidate = candidates.find((c) => c.isAvailable && c.distanceMiles <= radiusMiles);
 
     if (!candidate) {

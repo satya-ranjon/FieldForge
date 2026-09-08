@@ -121,6 +121,13 @@
 > and Prometheus metrics scraping (`/metrics`) on port 8005 for Kubernetes and APM observability.
 > Documented under ADR 010. Total verified tests: 476 unit/integration + 28 E2E = 504 tests.
 
+> **Phase 15 update — 2026-09-08:** Phase 15 of [`DEVELOPMENT_PLAN.md`](./DEVELOPMENT_PLAN.md)
+> delivered Multi-Tier Caching & Correlation Tracking for Technician Directory Geo-Search (Resolves **FF-ARCH-08 / Service Audit Issue A**).
+> Implemented two-tier caching (Redis with 300s TTL + in-memory fallback) in `TechnicianDirectoryService` (`apps/dispatch-matching-service`),
+> optimized partial batch cache hits to fetch strictly uncached technician IDs over HTTP `POST /technicians/batch`,
+> corrected the fallback auth-service URL from port 3001 to 8001, propagated `x-correlation-id` across geo-search/auto-routing calls,
+> and added 12 unit tests. Total verified tests: 488 unit/integration + 28 E2E = 516 tests.
+
 ---
 
 ## How to read this report
@@ -828,6 +835,19 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   3. Updated `apps/work-order-service/test/work-order-events.consumer.spec.ts` to assert that subscription routing keys strictly contain `[EventType.PAYOUT_DISBURSED]`.
   4. Updated `docs/MESSAGE_FLOW.md` routing table and queue definitions.
   5. Zero database migrations (`RULE-DB-02`).
+
+### FF-ARCH-08 · 🏛️ Uncached Directory Lookups During Geo-Search (Service Audit Issue A)
+
+- **Root Cause**: In `apps/dispatch-matching-service`, `GeoSearchService.findNearbyTechnicians()` hydrates contractor details (names, ratings, skills, verified badges) by calling `TechnicianDirectoryService.getTechniciansBatch(technicianIds)`. Previously, `TechnicianDirectoryService` executed an un-cached synchronous HTTP `POST /technicians/batch` call directly against `auth-service` on every geo-search and auto-routing query. Furthermore, the fallback URL was misconfigured with port `3001` (instead of standard auth-service port `8001`), and incoming `x-correlation-id` request headers were dropped rather than forwarded to the inter-service request. Under heavy dispatch querying, this caused severe HTTP fan-out, high latency, and vulnerability to network instability or auth-service saturation.
+- **Fix**: Implemented multi-tier caching and correlation tracking:
+  1. Implemented two-tier caching in `TechnicianDirectoryService`: Redis distributed cache (`tech:directory:<id>`) with a 300-second (5-minute) TTL and an in-memory fallback cache (`Map<string, MemoryCacheEntry>`) with proactive expiration.
+  2. Implemented partial cache hit optimization: when a batch of technician IDs is requested, `getTechniciansBatch()` queries Redis (`MGET`) and the in-memory cache, isolates strictly uncached IDs to fetch over HTTP from `auth-service`, populates both Redis (`SETEX` pipeline) and in-memory caches, and merges the cached and freshly fetched records. When all technicians are cached, zero HTTP requests are dispatched.
+  3. Corrected fallback `authServiceUrl` to `http://localhost:8001`, matching the platform service topology (`auth-service` on port 8001).
+  4. Forwarded `x-correlation-id` from `DispatchController` (`/dispatch/nearby` and `/dispatch/auto-route/recommend`) through `GeoSearchService` to `TechnicianDirectoryService` HTTP requests.
+  5. Registered and exported shared `redisProvider` (`REDIS_CLIENT`) in `DispatchModule` so both `GeoSearchService` and `TechnicianDirectoryService` share the existing Redis connection.
+  6. Implemented cache invalidation (`invalidate(id)` and `clearMemoryCache()`).
+  7. Added 12 unit tests in `apps/dispatch-matching-service/test/technician-directory.service.spec.ts` covering full cache miss, full cache hit, partial cache hit, `x-correlation-id` propagation, HTTP 500 / network error fallbacks, invalidation, and Redis failure in-memory fallback.
+  8. Zero database migrations (`RULE-DB-02`).
 
 ---
 

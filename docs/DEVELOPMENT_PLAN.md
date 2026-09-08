@@ -589,6 +589,44 @@ NFR-PERF-001.
 
 ---
 
+## Phase 15 — Service Communication Remediation: Multi-Tier Caching & Correlation Tracking for Technician Directory Geo-Search
+
+**Status: Completed (2026-09-08).** Resolves **Service Audit Issue A (Uncached Directory Lookups During Geo-Search)** / `FF-ARCH-08` and aligns with `AGENTS.md` and bounded context performance/observability rules.
+
+- **Two-Tier Technician Directory Caching (`apps/dispatch-matching-service`).**
+  - Integrated distributed Redis caching (`REDIS_CLIENT`) with 300-second (5-minute) TTL under key prefix `tech:directory:<id>`.
+  - Implemented proactive in-memory LRU-style fallback cache (`Map<string, MemoryCacheEntry>`) with expiration checking to maintain high availability if Redis degrades.
+  - Implemented partial batch hit optimization in `getTechniciansBatch()`: splits incoming ID list into cached and uncached entries via Redis `MGET` and in-memory fallback, issues HTTP `POST /technicians/batch` strictly for missing uncached IDs, populates both caches via Redis pipeline `SETEX`, and merges the results. When all requested technician profiles are cached, zero HTTP network calls are made.
+  - Exposed `invalidate(id)` and `clearMemoryCache()` hooks for targeted cache eviction.
+- **Platform Topology Port Alignment & Error Resilience.**
+  - Corrected the fallback `authServiceUrl` default from port `3001` to `8001` matching the actual microservice platform topology (`auth-service` on port 8001).
+  - Maintained safe fallback to empty records on 500 errors or network failures so geospatial searches degrade gracefully rather than throwing 500s.
+- **Trace Context Propagation (`x-correlation-id`).**
+  - Updated `DispatchController` (`GET /dispatch/technicians/nearby` and `POST /dispatch/auto-route/recommend`) to accept incoming `x-correlation-id` headers.
+  - Forwarded correlation IDs through `GeoSearchService.findNearbyTechnicians()` down to `TechnicianDirectoryService.getTechniciansBatch()` HTTP requests, ensuring complete distributed trace context.
+- **Shared Redis Provider.**
+  - Exported `redisProvider` (`REDIS_CLIENT`) in `DispatchModule` for shared use across `GeoSearchService` and `TechnicianDirectoryService`.
+- **Zero Database Schema Migrations (`RULE-DB-02`).**
+  - Purely an inter-service communication, caching, and observability remediation; zero database migrations required.
+
+**Verification:**
+
+- 488 automated unit/integration tests passing across 15 packages/apps in monorepo (zero `--passWithNoTests`):
+  - 28 tests in `apps/dispatch-matching-service` (4 suites, including 12 new comprehensive unit tests in `technician-directory.service.spec.ts`).
+  - 198 tests in `apps/work-order-service` (11 suites).
+  - 104 tests in `apps/web-buyer-portal` (1 suite).
+  - 87 tests in `@fieldforge/common` (3 suites).
+  - 67 tests in `@fieldforge/contracts` (2 suites).
+  - 56 tests in `apps/auth-service` (6 suites).
+  - 44 tests in `apps/api-gateway` (6 suites).
+  - 18 tests in `apps/billing-service` (3 suites).
+  - 17 tests in `@fieldforge/messaging` (5 suites).
+  - 14 tests in `apps/notification-service` (1 suite).
+- 28 Playwright E2E tests validated (`pnpm test:e2e`). Total verified tests: 516 tests.
+- `pnpm check && pnpm build` pass cleanly.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

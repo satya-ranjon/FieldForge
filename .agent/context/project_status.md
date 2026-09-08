@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-08  
-**Phase:** Phase 14 complete — Headless Notification Worker Boundary (ADR 010) & Event Loop Decoupling (FF-ARCH-07 / Service Audit Issue A). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 15 complete — Multi-Tier Caching & Correlation Tracking for Technician Directory Geo-Search (FF-ARCH-08 / Service Audit Issue A). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -47,6 +47,7 @@
 - **Pure Geospatial Matching Engine (`apps/dispatch-matching-service`).**
   - Redis `GEOADD` and `GEOSEARCH` on `tech:locations` with Haversine exact distance filtering.
   - Multi-parameter contractor scoring algorithm: 40% distance, 30% rating, 15% completed jobs, 15% verified certifications.
+  - Two-tier distributed caching in `TechnicianDirectoryService` (Redis distributed cache with 300s TTL + in-memory LRU fallback) with partial batch hit optimization: fetches strictly uncached technician IDs over HTTP from `auth-service`, with zero HTTP calls on full cache hits.
   - Endpoints: `POST /dispatch/technicians/location`, `GET /dispatch/technicians/nearby`, and `POST /dispatch/auto-route`.
 - **Escrow & Money Safety (`apps/billing-service`).**
   - Fully resolves **C3**; `releaseFunds()` executes inside a locked `db.transaction()` with `FOR UPDATE` on `escrow_accounts`. Asserts `status === 'HELD'`, verifies buyer caller authority, transitions escrow to `RELEASED`, dispatches payout via `PaymentProviderPort` (`LedgerPaymentProvider`), logs double-entry `payout_ledger` credit, and emits `billing.payout.disbursed` (ADR 005). Consumes `work_order.lifecycle.approved` via `BillingConsumer`. Completely decoupled from `work_orders` table mutations (ADR 009).
@@ -75,7 +76,14 @@
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
   - `AppNavigator` mounting `JobListScreen` and `ActiveJobScreen` wrapped in Redux store.
-- **A test harness that can fail.** 476 automated unit/integration tests across 15 packages/apps
+- **A test harness that can fail.** 488 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 516 total verified tests).
+- **Multi-Tier Caching & Correlation Tracking for Technician Directory Geo-Search (Phase 15, Resolves FF-ARCH-08 / Service Audit Issue A).**
+  - Resolved un-cached synchronous HTTP fan-out in `apps/dispatch-matching-service`: `TechnicianDirectoryService` now utilizes Redis distributed caching with a 300s TTL and an in-memory fallback cache.
+  - Partial cache hit optimization: checks cache first, queries `POST /technicians/batch` strictly for missing uncached IDs, populates both caches via Redis pipeline `SETEX`, and merges the results. Zero HTTP calls on 100% cache hit.
+  - Corrected fallback `authServiceUrl` default from port `3001` to `8001` matching the microservices port allocation.
+  - Trace context propagation: incoming `x-correlation-id` headers in `DispatchController` (`/dispatch/nearby`, `/dispatch/auto-route/recommend`) are passed through `GeoSearchService` to `TechnicianDirectoryService` HTTP calls.
+  - Zero database migrations (`RULE-DB-02`).
+
 - **Circular Event Loop Decoupling in work-order-service (FF-ARCH-07, Service Audit Issue A).**
   - Decoupled `WorkOrderEventsConsumer` from self-consumption of `tech.bidding.accepted`: subscription now exclusively listens for `billing.payout.disbursed`.
   - Preserved atomic, single-transaction bid acceptance (`POST /work-orders/:id/bids/:bidId/accept`) in `BidsService.acceptBid()` while eliminating redundant second-pass `SELECT ... FOR UPDATE` attempts on `work_orders` and duplicate `work_order.lifecycle.assigned` event broadcasts.

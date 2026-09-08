@@ -63,7 +63,8 @@ export class GeoSearchService implements OnApplicationShutdown {
     latitude: number,
     longitude: number,
     radiusMiles = 25,
-    requiredCertifications: string[] = []
+    requiredCertifications: string[] = [],
+    correlationId?: string
   ): Promise<NearbyTechnicianDto[]> {
     let rawResults: [string, string, [string, string]][];
     try {
@@ -104,7 +105,9 @@ export class GeoSearchService implements OnApplicationShutdown {
     const certMap = new Map<string, string[]>();
 
     if (this.directoryService) {
-      const summaries = await this.directoryService.getTechniciansBatch(techIds);
+      const summaries = correlationId
+        ? await this.directoryService.getTechniciansBatch(techIds, correlationId)
+        : await this.directoryService.getTechniciansBatch(techIds);
       dbTechs = summaries.map((s) => ({
         id: s.id,
         firstName: s.firstName,
