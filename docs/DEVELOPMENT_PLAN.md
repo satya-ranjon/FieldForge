@@ -627,6 +627,39 @@ NFR-PERF-001.
 
 ---
 
+## Phase 16 — Service Communication Remediation: No-Op Consumer Subscription Elimination in billing-service
+
+**Status: Completed (2026-09-08).** Resolves **Service Audit Issue B (No-Op Consumer Subscription on WORK_ORDER_ASSIGNED)** / `FF-ARCH-09` and aligns with `AGENTS.md` bounded context and event-driven architecture standards.
+
+- **Refine `BillingConsumer` Subscription (`apps/billing-service`).**
+  - Updated `BillingConsumer.onApplicationBootstrap()` to subscribe strictly to `[EventType.WORK_ORDER_APPROVED]` on queue `fieldforge.billing.work-orders`.
+  - Eliminated redundant AMQP delivery and processing of `work_order.lifecycle.assigned` (`EventType.WORK_ORDER_ASSIGNED`) in `billing-service`.
+  - Removed wasteful atomic 7-day Redis `SETNX` idempotency locking and JSON deserialization on work order assignment.
+  - Retained `handleWorkOrderAssigned()` with `@deprecated` annotation for backwards compatibility.
+- **Update Architecture Documentation & Tests.**
+  - Updated `docs/MESSAGE_FLOW.md` routing table and Flow 2 sequence diagram to clarify that escrow was pre-authorized at creation time and that assignment notifications are handled solely by `notification-service`.
+  - Updated `apps/billing-service/test/billing.consumer.spec.ts` asserting subscription strictly for `[EventType.WORK_ORDER_APPROVED]`.
+- **Zero Database Schema Migrations (`RULE-DB-02`).**
+  - Purely an AMQP consumer topology refinement; zero database migrations required.
+
+**Verification:**
+
+- 488 automated unit/integration tests passing across 15 packages/apps in monorepo (zero `--passWithNoTests`):
+  - 18 tests in `apps/billing-service` (3 suites).
+  - 28 tests in `apps/dispatch-matching-service` (4 suites).
+  - 198 tests in `apps/work-order-service` (11 suites).
+  - 104 tests in `apps/web-buyer-portal` (1 suite).
+  - 87 tests in `@fieldforge/common` (3 suites).
+  - 67 tests in `@fieldforge/contracts` (2 suites).
+  - 56 tests in `apps/auth-service` (6 suites).
+  - 44 tests in `apps/api-gateway` (6 suites).
+  - 17 tests in `@fieldforge/messaging` (5 suites).
+  - 14 tests in `apps/notification-service` (1 suite).
+- 28 Playwright E2E tests validated (`pnpm test:e2e`). Total verified tests: 516 tests.
+- `pnpm check && pnpm build` pass cleanly.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

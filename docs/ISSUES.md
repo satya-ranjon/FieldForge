@@ -128,6 +128,13 @@
 > corrected the fallback auth-service URL from port 3001 to 8001, propagated `x-correlation-id` across geo-search/auto-routing calls,
 > and added 12 unit tests. Total verified tests: 488 unit/integration + 28 E2E = 516 tests.
 
+> **Phase 16 update — 2026-09-08:** Phase 16 of [`DEVELOPMENT_PLAN.md`](./DEVELOPMENT_PLAN.md)
+> delivered No-Op AMQP Consumer Subscription Elimination in `billing-service` (Resolves **FF-ARCH-09 / Service Audit Issue B**).
+> Refined `BillingConsumer` (`apps/billing-service`) to strictly subscribe to `[EventType.WORK_ORDER_APPROVED]` on
+> `fieldforge.billing.work-orders`, eliminating no-op consumption of `WORK_ORDER_ASSIGNED`, redundant AMQP queue traffic,
+> and unnecessary Redis 7-day `SETNX` idempotency locking. Updated `docs/MESSAGE_FLOW.md` routing tables and diagrams.
+> Total verified tests: 488 unit/integration + 28 E2E = 516 tests.
+
 ---
 
 ## How to read this report
@@ -848,6 +855,16 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   6. Implemented cache invalidation (`invalidate(id)` and `clearMemoryCache()`).
   7. Added 12 unit tests in `apps/dispatch-matching-service/test/technician-directory.service.spec.ts` covering full cache miss, full cache hit, partial cache hit, `x-correlation-id` propagation, HTTP 500 / network error fallbacks, invalidation, and Redis failure in-memory fallback.
   8. Zero database migrations (`RULE-DB-02`).
+
+### FF-ARCH-09 · 🏛️ No-Op Consumer Subscription on WORK_ORDER_ASSIGNED in billing-service (Service Audit Issue B)
+
+- **Root Cause**: In `apps/billing-service`, `BillingConsumer` subscribed to `[EventType.WORK_ORDER_APPROVED, EventType.WORK_ORDER_ASSIGNED]` on queue `fieldforge.billing.work-orders`. When a work order was assigned, `BillingConsumer.handleWorkOrderAssigned()` was invoked solely to log an informational message with zero database writes, state changes, or financial operations. (Escrow funds are pre-authorized and held during order creation via `POST /billing/escrow/preauth`, and released upon `work_order.lifecycle.approved`). This no-op subscription forced RabbitMQ to replicate and dispatch every assignment event to `billing-service`, incurring AMQP deserialization, channel contention, and atomic 7-day Redis `SETNX` deduplication checks for no functional benefit.
+- **Fix**: Decoupled `billing-service` from `work_order.lifecycle.assigned`:
+  1. Updated `BillingConsumer.onApplicationBootstrap()` in `apps/billing-service/src/consumers/billing.consumer.ts` to strictly subscribe to `[EventType.WORK_ORDER_APPROVED]`.
+  2. Annotated `handleWorkOrderAssigned()` with `@deprecated` clarifying that `billing-service` does not subscribe to this event and retaining it for programmatic backward compatibility.
+  3. Updated `apps/billing-service/test/billing.consumer.spec.ts` asserting subscription strictly for `[EventType.WORK_ORDER_APPROVED]`.
+  4. Updated `docs/MESSAGE_FLOW.md` routing table and Flow 2 sequence diagram.
+  5. Zero database migrations (`RULE-DB-02`).
 
 ---
 

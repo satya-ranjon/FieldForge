@@ -37,7 +37,7 @@ describe('BillingConsumer', () => {
 
     expect(mockMessagingConsumer.subscribe).toHaveBeenCalledWith(
       BILLING_WORK_ORDERS_QUEUE,
-      [EventType.WORK_ORDER_APPROVED, EventType.WORK_ORDER_ASSIGNED],
+      [EventType.WORK_ORDER_APPROVED],
       expect.any(Function)
     );
   });

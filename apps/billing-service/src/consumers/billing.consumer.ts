@@ -22,12 +22,10 @@ export class BillingConsumer implements OnApplicationBootstrap {
     if (this.consumer) {
       await this.consumer.subscribe<unknown>(
         BILLING_WORK_ORDERS_QUEUE,
-        [EventType.WORK_ORDER_APPROVED, EventType.WORK_ORDER_ASSIGNED],
+        [EventType.WORK_ORDER_APPROVED],
         async (event, logger) => {
           if (event.eventType === EventType.WORK_ORDER_APPROVED) {
             await this.handleWorkOrderApproved(event as unknown as WorkOrderApprovedEvent, logger);
-          } else if (event.eventType === EventType.WORK_ORDER_ASSIGNED) {
-            await this.handleWorkOrderAssigned(event as unknown as WorkOrderAssignedEvent, logger);
           }
         }
       );
@@ -54,6 +52,14 @@ export class BillingConsumer implements OnApplicationBootstrap {
     );
   }
 
+  /**
+   * @deprecated Retained for programmatic backward compatibility.
+   * BillingConsumer intentionally does NOT subscribe to EventType.WORK_ORDER_ASSIGNED
+   * (see FF-ARCH-09 / Service Audit Issue B). Escrow funds are pre-authorized and held
+   * during work order creation via POST /billing/escrow/preauth, and disbursed on
+   * WORK_ORDER_APPROVED. Subscribing to WORK_ORDER_ASSIGNED was a no-op that incurred
+   * redundant AMQP queue traffic and Redis deduplication overhead.
+   */
   async handleWorkOrderAssigned(
     event: WorkOrderAssignedEvent,
     logger?: ContextLogger

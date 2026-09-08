@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-08  
-**Phase:** Phase 15 complete — Multi-Tier Caching & Correlation Tracking for Technician Directory Geo-Search (FF-ARCH-08 / Service Audit Issue A). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 16 complete — No-Op AMQP Consumer Subscription Elimination in billing-service (FF-ARCH-09 / Service Audit Issue B). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -82,6 +82,12 @@
   - Partial cache hit optimization: checks cache first, queries `POST /technicians/batch` strictly for missing uncached IDs, populates both caches via Redis pipeline `SETEX`, and merges the results. Zero HTTP calls on 100% cache hit.
   - Corrected fallback `authServiceUrl` default from port `3001` to `8001` matching the microservices port allocation.
   - Trace context propagation: incoming `x-correlation-id` headers in `DispatchController` (`/dispatch/nearby`, `/dispatch/auto-route/recommend`) are passed through `GeoSearchService` to `TechnicianDirectoryService` HTTP calls.
+  - Zero database migrations (`RULE-DB-02`).
+
+- **No-Op Consumer Subscription Elimination in billing-service (Phase 16, Resolves FF-ARCH-09 / Service Audit Issue B).**
+  - Updated `BillingConsumer` in `apps/billing-service` to strictly subscribe to `[EventType.WORK_ORDER_APPROVED]` on queue `fieldforge.billing.work-orders`.
+  - Eliminated redundant delivery and processing of `work_order.lifecycle.assigned` (`EventType.WORK_ORDER_ASSIGNED`) in `billing-service`.
+  - Avoided unnecessary 7-day Redis `SETNX` idempotency locking and JSON deserialization on job assignments (escrow funds are pre-authorized at work order creation via `POST /billing/escrow/preauth`, and released upon `work_order.lifecycle.approved`).
   - Zero database migrations (`RULE-DB-02`).
 
 - **Circular Event Loop Decoupling in work-order-service (FF-ARCH-07, Service Audit Issue A).**
