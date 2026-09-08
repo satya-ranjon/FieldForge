@@ -1,5 +1,9 @@
 import { Injectable, OnApplicationBootstrap, Optional } from '@nestjs/common';
-import type { PayoutDisbursedEvent, TechBidAcceptedEvent } from '@fieldforge/contracts';
+import type {
+  PayoutDisbursedEvent,
+  PayoutFailedEvent,
+  TechBidAcceptedEvent
+} from '@fieldforge/contracts';
 import { EventType } from '@fieldforge/contracts';
 import { IdempotentConsumer } from '@fieldforge/messaging';
 import { WorkOrdersService } from '../modules/work-orders/work-orders.service';
@@ -22,10 +26,12 @@ export class WorkOrderEventsConsumer implements OnApplicationBootstrap {
     if (this.consumer) {
       await this.consumer.subscribe<unknown>(
         WORK_ORDERS_LIFECYCLE_QUEUE,
-        [EventType.PAYOUT_DISBURSED],
+        [EventType.PAYOUT_DISBURSED, EventType.PAYOUT_FAILED],
         async (event, logger) => {
           if (event.eventType === EventType.PAYOUT_DISBURSED) {
             await this.handlePayoutDisbursed(event as unknown as PayoutDisbursedEvent, logger);
+          } else if (event.eventType === EventType.PAYOUT_FAILED) {
+            await this.handlePayoutFailed(event as unknown as PayoutFailedEvent, logger);
           }
         }
       );
@@ -39,7 +45,22 @@ export class WorkOrderEventsConsumer implements OnApplicationBootstrap {
         `[WorkOrderEventsConsumer] Processing payout disbursement for work order ${workOrderId} ($${(amountMinor / 100).toFixed(2)})`
       );
     }
-    await this.workOrdersService.settlePaid(workOrderId, event.correlationId, 'billing-service');
+    await this.workOrdersService.settlePaid(
+      workOrderId,
+      event.correlationId,
+      'billing-service',
+      amountMinor
+    );
+  }
+
+  async handlePayoutFailed(event: PayoutFailedEvent, logger?: ContextLogger): Promise<void> {
+    const { workOrderId, reason } = event.payload;
+    if (logger?.info) {
+      logger.info(
+        `[WorkOrderEventsConsumer] Processing payout failure for work order ${workOrderId}: ${reason}`
+      );
+    }
+    await this.workOrdersService.handlePayoutFailed(event.payload);
   }
 
   /**

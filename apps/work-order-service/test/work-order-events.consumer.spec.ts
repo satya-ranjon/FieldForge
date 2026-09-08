@@ -8,6 +8,7 @@ import {
   EventType,
   createEvent,
   type PayoutDisbursedEvent,
+  type PayoutFailedEvent,
   type TechBidAcceptedEvent
 } from '@fieldforge/contracts';
 
@@ -19,6 +20,7 @@ describe('WorkOrderEventsConsumer', () => {
   beforeEach(() => {
     mockWorkOrdersService = {
       settlePaid: jest.fn().mockResolvedValue({} as never),
+      handlePayoutFailed: jest.fn().mockResolvedValue({} as never),
       assignTechnicianFromBid: jest.fn().mockResolvedValue({} as never)
     } as unknown as jest.Mocked<WorkOrdersService>;
 
@@ -34,7 +36,7 @@ describe('WorkOrderEventsConsumer', () => {
 
     expect(mockMessagingConsumer.subscribe).toHaveBeenCalledWith(
       WORK_ORDERS_LIFECYCLE_QUEUE,
-      [EventType.PAYOUT_DISBURSED],
+      [EventType.PAYOUT_DISBURSED, EventType.PAYOUT_FAILED],
       expect.any(Function)
     );
   });
@@ -58,10 +60,35 @@ describe('WorkOrderEventsConsumer', () => {
     expect(mockWorkOrdersService.settlePaid).toHaveBeenCalledWith(
       'wo-1',
       'corr-payout-1',
-      'billing-service'
+      'billing-service',
+      45000
     );
     expect(mockLogger.info).toHaveBeenCalledWith(
       expect.stringContaining('Processing payout disbursement for work order wo-1')
+    );
+  });
+
+  it('handles PayoutFailed event by executing compensating rollback', async () => {
+    const event: PayoutFailedEvent = createEvent(
+      EventType.PAYOUT_FAILED,
+      {
+        workOrderId: 'wo-1',
+        techId: 'tech-1',
+        amountMinor: 45000,
+        reason: 'Bank transfer declined by recipient bank'
+      },
+      'corr-payout-fail-1'
+    );
+
+    const mockLogger = { info: jest.fn(), error: jest.fn() };
+
+    await consumer.handlePayoutFailed(event, mockLogger);
+
+    expect(mockWorkOrdersService.handlePayoutFailed).toHaveBeenCalledWith(event.payload);
+    expect(mockLogger.info).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'Processing payout failure for work order wo-1: Bank transfer declined'
+      )
     );
   });
 

@@ -44,7 +44,8 @@ export enum EventType {
   TECH_BIDDING_SUBMITTED = 'tech.bidding.submitted',
   TECH_BID_ACCEPTED = 'tech.bidding.accepted',
   ESCROW_FUNDED = 'billing.escrow.funded',
-  PAYOUT_DISBURSED = 'billing.payout.disbursed'
+  PAYOUT_DISBURSED = 'billing.payout.disbursed',
+  PAYOUT_FAILED = 'billing.payout.failed'
 }
 
 /**

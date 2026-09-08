@@ -94,18 +94,18 @@
 > - Dead-Letter Exchange (DLX): `fieldforge.events.dlx` (direct, durable)
 > - Dead-Letter Queue (DLQ): `fieldforge.events.dlq` (bound to DLX)
 
-| Routing Key                      | Event Type                       | Publisher                   | Consumer Queue                            | Consumer Service            | Payload Contract              |
-| :------------------------------- | :------------------------------- | :-------------------------- | :---------------------------------------- | :-------------------------- | :---------------------------- |
-| `work_order.lifecycle.published` | `work_order.lifecycle.published` | `work-order-service`        | `fieldforge.dispatch.work-orders`         | `dispatch-matching-service` | `WorkOrderPublishedPayload`   |
-| `work_order.lifecycle.published` | `work_order.lifecycle.published` | `work-order-service`        | `fieldforge.notifications.work-orders`    | `notification-service`      | `WorkOrderPublishedPayload`   |
-| `work_order.lifecycle.assigned`  | `work_order.lifecycle.assigned`  | `work-order-service`        | `fieldforge.notifications.work-orders`    | `notification-service`      | `WorkOrderAssignedPayload`    |
-| `work_order.lifecycle.assigned`  | `work_order.lifecycle.assigned`  | `work-order-service`        | `fieldforge.billing.work-orders`          | `billing-service`           | `WorkOrderAssignedPayload`    |
-| `work_order.lifecycle.approved`  | `work_order.lifecycle.approved`  | `work-order-service`        | `fieldforge.billing.work-orders`          | `billing-service`           | `WorkOrderApprovedPayload`    |
-| `work_order.lifecycle.paid`      | `work_order.lifecycle.paid`      | `work-order-service`        | `fieldforge.notifications.work-orders`    | `notification-service`      | `WorkOrderPaidPayload`        |
-| `tech.bidding.submitted`         | `tech.bidding.submitted`         | `dispatch-matching-service` | `fieldforge.notifications.work-orders`    | `notification-service`      | `TechBiddingSubmittedPayload` |
-| `tech.bidding.accepted`          | `tech.bidding.accepted`          | `dispatch-matching-service` | `fieldforge.work-orders.lifecycle-events` | `work-order-service`        | `TechBidAcceptedPayload`      |
-| `billing.escrow.funded`          | `billing.escrow.funded`          | `billing-service`           | `fieldforge.work-orders.billing`          | `work-order-service`        | `EscrowFundedPayload`         |
-| `billing.payout.disbursed`       | `billing.payout.disbursed`       | `billing-service`           | `fieldforge.work-orders.lifecycle-events` | `work-order-service`        | `PayoutDisbursedPayload`      |
+| Routing Key                      | Event Type                       | Publisher            | Consumer Queue                            | Consumer Service            | Payload Contract              |
+| :------------------------------- | :------------------------------- | :------------------- | :---------------------------------------- | :-------------------------- | :---------------------------- |
+| `work_order.lifecycle.published` | `work_order.lifecycle.published` | `work-order-service` | `fieldforge.dispatch.work-orders`         | `dispatch-matching-service` | `WorkOrderPublishedPayload`   |
+| `work_order.lifecycle.published` | `work_order.lifecycle.published` | `work-order-service` | `fieldforge.notifications.work-orders`    | `notification-service`      | `WorkOrderPublishedPayload`   |
+| `work_order.lifecycle.assigned`  | `work_order.lifecycle.assigned`  | `work-order-service` | `fieldforge.notifications.work-orders`    | `notification-service`      | `WorkOrderAssignedPayload`    |
+| `work_order.lifecycle.approved`  | `work_order.lifecycle.approved`  | `work-order-service` | `fieldforge.billing.work-orders`          | `billing-service`           | `WorkOrderApprovedPayload`    |
+| `work_order.lifecycle.paid`      | `work_order.lifecycle.paid`      | `work-order-service` | `fieldforge.notifications.work-orders`    | `notification-service`      | `WorkOrderPaidPayload`        |
+| `tech.bidding.submitted`         | `tech.bidding.submitted`         | `work-order-service` | `fieldforge.notifications.work-orders`    | `notification-service`      | `TechBiddingSubmittedPayload` |
+| `tech.bidding.accepted`          | `tech.bidding.accepted`          | `work-order-service` | _(External fanout only)_                  | _(Decoupled from WO svc)_   | `TechBidAcceptedPayload`      |
+| `billing.escrow.funded`          | `billing.escrow.funded`          | `billing-service`    | `fieldforge.work-orders.billing`          | `work-order-service`        | `EscrowFundedPayload`         |
+| `billing.payout.disbursed`       | `billing.payout.disbursed`       | `billing-service`    | `fieldforge.work-orders.lifecycle-events` | `work-order-service`        | `PayoutDisbursedPayload`      |
+| `billing.payout.failed`          | `billing.payout.failed`          | `billing-service`    | `fieldforge.work-orders.lifecycle-events` | `work-order-service`        | `PayoutFailedPayload`         |
 
 > **Header & Trace Propagation Invariant (`RULE-EVENT-03`, `RULE-OBS`)**:
 > Every published message envelope includes:

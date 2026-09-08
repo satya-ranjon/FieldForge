@@ -20,7 +20,7 @@ const ALLOWED: Record<WorkOrderStatus, WorkOrderStatus[]> = {
   [WorkOrderStatus.EN_ROUTE]: [WorkOrderStatus.ON_SITE, WorkOrderStatus.DISPUTED],
   [WorkOrderStatus.ON_SITE]: [WorkOrderStatus.COMPLETED, WorkOrderStatus.DISPUTED],
   [WorkOrderStatus.COMPLETED]: [WorkOrderStatus.APPROVED, WorkOrderStatus.DISPUTED],
-  [WorkOrderStatus.APPROVED]: [WorkOrderStatus.PAID],
+  [WorkOrderStatus.APPROVED]: [WorkOrderStatus.PAID, WorkOrderStatus.COMPLETED],
   [WorkOrderStatus.PAID]: [],
   [WorkOrderStatus.CANCELLED]: [],
   [WorkOrderStatus.DISPUTED]: [WorkOrderStatus.APPROVED, WorkOrderStatus.CANCELLED]
@@ -83,6 +83,13 @@ describe('WorkOrderFsmService', () => {
       expect(() => fsm.validateTransition(WorkOrderStatus.COMPLETED, WorkOrderStatus.PAID)).toThrow(
         BadRequestException
       );
+    });
+
+    it('allows compensating rollback from APPROVED to COMPLETED when escrow disbursement fails', () => {
+      // FF-ARCH-10: Payout failure requires rolling back to COMPLETED so the order is not stranded.
+      expect(() =>
+        fsm.validateTransition(WorkOrderStatus.APPROVED, WorkOrderStatus.COMPLETED)
+      ).not.toThrow();
     });
 
     it('does not allow a work order to be cancelled once work is proven', () => {

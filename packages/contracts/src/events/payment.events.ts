@@ -17,5 +17,13 @@ export interface PayoutDisbursedPayload {
   amountMinor: MinorUnits;
 }
 
+export interface PayoutFailedPayload {
+  workOrderId: string;
+  techId: string;
+  amountMinor?: MinorUnits;
+  reason: string;
+}
+
 export type EscrowFundedEvent = EventEnvelope<EscrowFundedPayload>;
 export type PayoutDisbursedEvent = EventEnvelope<PayoutDisbursedPayload>;
+export type PayoutFailedEvent = EventEnvelope<PayoutFailedPayload>;

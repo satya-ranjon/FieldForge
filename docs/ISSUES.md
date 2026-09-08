@@ -135,6 +135,16 @@
 > and unnecessary Redis 7-day `SETNX` idempotency locking. Updated `docs/MESSAGE_FLOW.md` routing tables and diagrams.
 > Total verified tests: 488 unit/integration + 28 E2E = 516 tests.
 
+> **Phase 17 update — 2026-09-08:** Phase 17 of [`DEVELOPMENT_PLAN.md`](./DEVELOPMENT_PLAN.md)
+> delivered Order Settlement Asynchronous Cycle & Failure Compensation (Resolves **FF-ARCH-10 / Service Audit Issue A**).
+> Defined `EventType.PAYOUT_FAILED` (`billing.payout.failed`) and `PayoutFailedPayload` in `@fieldforge/contracts`.
+> Updated `BillingConsumer` (`apps/billing-service`) to emit `PAYOUT_FAILED` with error reason and correlation context
+> upon escrow release failure. Updated `WorkOrderFsmService` (`apps/work-order-service`) to allow compensating rollback
+> `APPROVED → COMPLETED`. Implemented `handlePayoutFailed()` in `WorkOrdersService` to roll back to `COMPLETED` and record
+> failure reason in `work_order_status_history`. Passed `disbursedAmountMinor` into `settlePaid()` for accurate notification
+> payloads. Subscribed `WorkOrderEventsConsumer` to `[EventType.PAYOUT_DISBURSED, EventType.PAYOUT_FAILED]`.
+> Total verified tests: 493 unit/integration + 28 E2E = 521 tests.
+
 ---
 
 ## How to read this report
@@ -865,6 +875,20 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   3. Updated `apps/billing-service/test/billing.consumer.spec.ts` asserting subscription strictly for `[EventType.WORK_ORDER_APPROVED]`.
   4. Updated `docs/MESSAGE_FLOW.md` routing table and Flow 2 sequence diagram.
   5. Zero database migrations (`RULE-DB-02`).
+
+### FF-ARCH-10 · 🏛️ Order Settlement Asynchronous Cycle & Failure Compensation (Service Audit Issue A)
+
+- **Root Cause**: The order settlement lifecycle forms an asynchronous saga loop across service boundaries: `work_order.lifecycle.approved` → `billing-service.releaseFunds()` → `billing.payout.disbursed` → `work-order-service.settlePaid()` → `work_order.lifecycle.paid`. If `billing-service` encountered an escrow release failure (banking gateway timeout, insufficient platform ledger funds, or database locking conflict), the message would dead-letter after 3 retries, but no failure event was published. Consequently, `work-order-service` was never notified of the failure, leaving the work order aggregate indefinitely stranded in `APPROVED` without any compensating state change or audit history. Furthermore, `settlePaid()` in `work-orders.service.ts` read `wo.budgetAmount` rather than using the actual disbursed `amountMinor` from the event payload, risking discrepancies in downstream notifications.
+- **Fix**: Implemented complete event choreography and compensating rollback across `billing-service` and `work-order-service`:
+  1. Added `EventType.PAYOUT_FAILED = 'billing.payout.failed'` to `EventType` enum and declared `PayoutFailedPayload` and `PayoutFailedEvent` in `@fieldforge/contracts`.
+  2. Injected `EventPublisher` into `BillingConsumer` (`apps/billing-service`). Wrapped `releaseFunds()` in `try/catch`, publishing `PAYOUT_FAILED` with the failure reason and correlation context upon failure before re-throwing for DLQ handling.
+  3. Updated `WorkOrderFsmService` (`apps/work-order-service`) to permit compensating rollback: `[WorkOrderStatus.APPROVED]: [WorkOrderStatus.PAID, WorkOrderStatus.COMPLETED]`.
+  4. Updated `settlePaid()` in `WorkOrdersService` to accept `disbursedAmountMinor?: MinorUnits` and pass it directly to `payoutAmountMinor` in the `WORK_ORDER_PAID` event.
+  5. Implemented `handlePayoutFailed()` in `WorkOrdersService`: safely and idempotently rolls back an `APPROVED` work order to `COMPLETED` and inserts a status history row with `reason: 'Payout disbursement failure: ' + reason` and `changedBy: 'billing-service'`.
+  6. Updated `WorkOrderEventsConsumer` to subscribe `fieldforge.work-orders.lifecycle-events` to `[EventType.PAYOUT_DISBURSED, EventType.PAYOUT_FAILED]`, routing `PAYOUT_DISBURSED` with `amountMinor` and `PAYOUT_FAILED` to `handlePayoutFailed()`.
+  7. Updated `docs/MESSAGE_FLOW.md` routing table and Flow 3 sequence diagram with the compensation branch.
+  8. Added unit and integration tests across `billing-service` and `work-order-service`.
+  9. Zero database migrations (`RULE-DB-02`).
 
 ---
 

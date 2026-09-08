@@ -888,10 +888,177 @@ describe('WorkOrdersService (Persistent, Transactional Lifecycle)', () => {
           eventType: EventType.WORK_ORDER_PAID,
           payload: expect.objectContaining({
             workOrderId: woId,
-            techId: TECH_PROFILE_ID
+            techId: TECH_PROFILE_ID,
+            payoutAmountMinor: 45000
           })
         })
       );
+    });
+
+    it('settlePaid uses explicit disbursedAmountMinor when provided', async () => {
+      const paidSpy = jest.spyOn(publisher, 'publishWorkOrderPaid').mockResolvedValue();
+      const created = await service.create(BUYER_USER_ID, defaultDto);
+      const woId = created.id;
+      await service.publish(woId, BUYER_USER_ID, 'BUYER', CORRELATION_ID);
+      await service.transition(
+        woId,
+        BUYER_USER_ID,
+        'BUYER',
+        { nextStatus: WorkOrderStatus.ASSIGNED, assignedTechnicianId: TECH_PROFILE_ID },
+        CORRELATION_ID
+      );
+      await service.transition(
+        woId,
+        TECH_USER_ID,
+        'TECHNICIAN',
+        { nextStatus: WorkOrderStatus.EN_ROUTE },
+        CORRELATION_ID
+      );
+      await service.transition(
+        woId,
+        TECH_USER_ID,
+        'TECHNICIAN',
+        { nextStatus: WorkOrderStatus.ON_SITE, latitude: 37.7749, longitude: -122.4194 },
+        CORRELATION_ID
+      );
+      await service.transition(
+        woId,
+        TECH_USER_ID,
+        'TECHNICIAN',
+        { nextStatus: WorkOrderStatus.COMPLETED },
+        CORRELATION_ID
+      );
+      await service.transition(
+        woId,
+        BUYER_USER_ID,
+        'BUYER',
+        { nextStatus: WorkOrderStatus.APPROVED },
+        CORRELATION_ID
+      );
+
+      await service.settlePaid(woId, CORRELATION_ID, 'billing-service', 42500 as never);
+      expect(paidSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: EventType.WORK_ORDER_PAID,
+          payload: expect.objectContaining({
+            workOrderId: woId,
+            techId: TECH_PROFILE_ID,
+            payoutAmountMinor: 42500
+          })
+        })
+      );
+    });
+
+    it('handlePayoutFailed rolls back an APPROVED order to COMPLETED and logs status history', async () => {
+      const created = await service.create(BUYER_USER_ID, defaultDto);
+      const woId = created.id;
+      await service.publish(woId, BUYER_USER_ID, 'BUYER', CORRELATION_ID);
+      await service.transition(
+        woId,
+        BUYER_USER_ID,
+        'BUYER',
+        { nextStatus: WorkOrderStatus.ASSIGNED, assignedTechnicianId: TECH_PROFILE_ID },
+        CORRELATION_ID
+      );
+      await service.transition(
+        woId,
+        TECH_USER_ID,
+        'TECHNICIAN',
+        { nextStatus: WorkOrderStatus.EN_ROUTE },
+        CORRELATION_ID
+      );
+      await service.transition(
+        woId,
+        TECH_USER_ID,
+        'TECHNICIAN',
+        { nextStatus: WorkOrderStatus.ON_SITE, latitude: 37.7749, longitude: -122.4194 },
+        CORRELATION_ID
+      );
+      await service.transition(
+        woId,
+        TECH_USER_ID,
+        'TECHNICIAN',
+        { nextStatus: WorkOrderStatus.COMPLETED },
+        CORRELATION_ID
+      );
+      await service.transition(
+        woId,
+        BUYER_USER_ID,
+        'BUYER',
+        { nextStatus: WorkOrderStatus.APPROVED },
+        CORRELATION_ID
+      );
+
+      const rolledBack = await service.handlePayoutFailed({
+        workOrderId: woId,
+        techId: TECH_PROFILE_ID,
+        amountMinor: 45000,
+        reason: 'Banking gateway timeout during disbursement'
+      });
+
+      expect(rolledBack?.status).toBe(WorkOrderStatus.COMPLETED);
+      expect(mockDbInfo.store.workOrders.get(woId)?.status).toBe(WorkOrderStatus.COMPLETED);
+
+      const history = mockDbInfo.store.statusHistory.filter((h) => h.workOrderId === woId);
+      const lastHistory = history[history.length - 1];
+      expect(lastHistory).toMatchObject({
+        fromStatus: WorkOrderStatus.APPROVED,
+        toStatus: WorkOrderStatus.COMPLETED,
+        changedBy: 'billing-service',
+        reason: 'Payout disbursement failure: Banking gateway timeout during disbursement'
+      });
+    });
+
+    it('handlePayoutFailed is idempotent when order is already PAID', async () => {
+      const created = await service.create(BUYER_USER_ID, defaultDto);
+      const woId = created.id;
+      await service.publish(woId, BUYER_USER_ID, 'BUYER', CORRELATION_ID);
+      await service.transition(
+        woId,
+        BUYER_USER_ID,
+        'BUYER',
+        { nextStatus: WorkOrderStatus.ASSIGNED, assignedTechnicianId: TECH_PROFILE_ID },
+        CORRELATION_ID
+      );
+      await service.transition(
+        woId,
+        TECH_USER_ID,
+        'TECHNICIAN',
+        { nextStatus: WorkOrderStatus.EN_ROUTE },
+        CORRELATION_ID
+      );
+      await service.transition(
+        woId,
+        TECH_USER_ID,
+        'TECHNICIAN',
+        { nextStatus: WorkOrderStatus.ON_SITE, latitude: 37.7749, longitude: -122.4194 },
+        CORRELATION_ID
+      );
+      await service.transition(
+        woId,
+        TECH_USER_ID,
+        'TECHNICIAN',
+        { nextStatus: WorkOrderStatus.COMPLETED },
+        CORRELATION_ID
+      );
+      await service.transition(
+        woId,
+        BUYER_USER_ID,
+        'BUYER',
+        { nextStatus: WorkOrderStatus.APPROVED },
+        CORRELATION_ID
+      );
+      await service.settlePaid(woId, CORRELATION_ID, 'billing-service');
+
+      const res = await service.handlePayoutFailed({
+        workOrderId: woId,
+        techId: TECH_PROFILE_ID,
+        amountMinor: 45000,
+        reason: 'Duplicate or late failure event'
+      });
+
+      expect(res?.status).toBe(WorkOrderStatus.PAID);
+      expect(mockDbInfo.store.workOrders.get(woId)?.status).toBe(WorkOrderStatus.PAID);
     });
 
     it('assignTechnicianFromBid transitions a PUBLISHED order to ASSIGNED and emits WORK_ORDER_ASSIGNED', async () => {

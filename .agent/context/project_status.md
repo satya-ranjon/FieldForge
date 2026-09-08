@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-08  
-**Phase:** Phase 16 complete — No-Op AMQP Consumer Subscription Elimination in billing-service (FF-ARCH-09 / Service Audit Issue B). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 17 complete — Order Settlement Asynchronous Cycle & Failure Compensation (FF-ARCH-10 / Service Audit Issue A). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -76,12 +76,14 @@
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
   - `AppNavigator` mounting `JobListScreen` and `ActiveJobScreen` wrapped in Redux store.
-- **A test harness that can fail.** 488 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 516 total verified tests).
-- **Multi-Tier Caching & Correlation Tracking for Technician Directory Geo-Search (Phase 15, Resolves FF-ARCH-08 / Service Audit Issue A).**
-  - Resolved un-cached synchronous HTTP fan-out in `apps/dispatch-matching-service`: `TechnicianDirectoryService` now utilizes Redis distributed caching with a 300s TTL and an in-memory fallback cache.
-  - Partial cache hit optimization: checks cache first, queries `POST /technicians/batch` strictly for missing uncached IDs, populates both caches via Redis pipeline `SETEX`, and merges the results. Zero HTTP calls on 100% cache hit.
-  - Corrected fallback `authServiceUrl` default from port `3001` to `8001` matching the microservices port allocation.
-  - Trace context propagation: incoming `x-correlation-id` headers in `DispatchController` (`/dispatch/nearby`, `/dispatch/auto-route/recommend`) are passed through `GeoSearchService` to `TechnicianDirectoryService` HTTP calls.
+- **A test harness that can fail.** 493 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 521 total verified tests).
+- **Order Settlement Asynchronous Cycle & Failure Compensation (Phase 17, Resolves FF-ARCH-10 / Service Audit Issue A).**
+  - Completed cross-service saga failure handling for escrow payout releases between `billing-service` and `work-order-service`.
+  - Added `EventType.PAYOUT_FAILED = 'billing.payout.failed'` and `PayoutFailedPayload` to `@fieldforge/contracts`.
+  - `BillingConsumer` (`apps/billing-service`) emits `PAYOUT_FAILED` with error context upon escrow disbursement failure before re-throwing for DLQ handling.
+  - Allowed compensating transition `APPROVED → COMPLETED` in `WorkOrderFsmService` (`apps/work-order-service`).
+  - `WorkOrdersService` updates `settlePaid()` with actual `disbursedAmountMinor` from event payload, and implements `handlePayoutFailed()` to idempotently roll back work order state to `COMPLETED` and record audit log in `work_order_status_history`.
+  - `WorkOrderEventsConsumer` subscribes to both `PAYOUT_DISBURSED` and `PAYOUT_FAILED` on `fieldforge.work-orders.lifecycle-events`.
   - Zero database migrations (`RULE-DB-02`).
 
 - **No-Op Consumer Subscription Elimination in billing-service (Phase 16, Resolves FF-ARCH-09 / Service Audit Issue B).**

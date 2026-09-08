@@ -660,6 +660,43 @@ NFR-PERF-001.
 
 ---
 
+## Phase 17 — Service Communication Remediation: Order Settlement Asynchronous Cycle & Failure Compensation
+
+**Status: Completed (2026-09-08).** Resolves **Service Audit Issue A (Order Settlement Asynchronous Cycle & Failure Compensation)** / `FF-ARCH-10` and aligns with `AGENTS.md` bounded context, saga choreography, and event-driven architecture standards.
+
+- **Shared Contracts & Events (`@fieldforge/contracts`).**
+  - Added `EventType.PAYOUT_FAILED = 'billing.payout.failed'` to `EventType` enum.
+  - Added `PayoutFailedPayload` (`workOrderId`, `techId`, `amountMinor`, `reason`) and `PayoutFailedEvent` envelope definition.
+- **Emit Failure Event on Escrow Release Failure (`apps/billing-service`).**
+  - Injected `EventPublisher` into `BillingConsumer`.
+  - Wrapped `releaseFunds()` in `BillingConsumer.handleWorkOrderApproved()` in a `try/catch` block.
+  - On error (e.g. gateway timeout, frozen account, or unhandled release rejection), publishes `EventType.PAYOUT_FAILED` (`billing.payout.failed`) with correlation context before re-throwing for DLQ handling.
+- **FSM Compensating Rollback & Payout Accuracy (`apps/work-order-service`).**
+  - Updated `WorkOrderFsmService`: added `WorkOrderStatus.COMPLETED` to `validTransitions[WorkOrderStatus.APPROVED]` to permit domain-safe compensating rollback.
+  - Updated `settlePaid()` in `WorkOrdersService` to accept `disbursedAmountMinor` from the event payload, ensuring actual settlement figures match downstream notifications.
+  - Implemented `handlePayoutFailed()` in `WorkOrdersService`: safely and idempotently rolls back an `APPROVED` work order to `COMPLETED` and records failure in `work_order_status_history` with the failure reason and `changedBy: 'billing-service'`.
+  - Subscribed `WorkOrderEventsConsumer` to `[EventType.PAYOUT_DISBURSED, EventType.PAYOUT_FAILED]` on `fieldforge.work-orders.lifecycle-events`.
+- **Zero Database Schema Migrations (`RULE-DB-02`).**
+  - Implemented purely via event contracts, FSM transition matrix, and domain consumer logic with existing database schemas.
+
+**Verification:**
+
+- 493 automated unit/integration tests passing across 15 packages/apps in monorepo (zero `--passWithNoTests`):
+  - 20 tests in `apps/billing-service` (3 suites, +2 tests).
+  - 203 tests in `apps/work-order-service` (11 suites, +5 tests).
+  - 28 tests in `apps/dispatch-matching-service` (4 suites).
+  - 104 tests in `apps/web-buyer-portal` (1 suite).
+  - 87 tests in `@fieldforge/common` (3 suites).
+  - 76 tests in `@fieldforge/contracts` (3 suites).
+  - 56 tests in `apps/auth-service` (6 suites).
+  - 44 tests in `apps/api-gateway` (6 suites).
+  - 17 tests in `@fieldforge/messaging` (5 suites).
+  - 14 tests in `apps/notification-service` (1 suite).
+- 28 Playwright E2E tests validated (`pnpm test:e2e`). Total verified tests: 521 tests.
+- `pnpm check && pnpm build` pass cleanly.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

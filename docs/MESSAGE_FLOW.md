@@ -74,6 +74,7 @@ The core messaging infrastructure is encapsulated within [`packages/messaging`](
 | `tech.bidding.accepted`          | `tech.bidding.accepted`          | `work-order-service` | _(External fanout only)_                                                     | _(Decoupled from work-order-service to prevent circular loop)_            |
 | `billing.escrow.funded`          | `billing.escrow.funded`          | `billing-service`    | `fieldforge.work-orders.billing`                                             | `work-order-service`                                                      |
 | `billing.payout.disbursed`       | `billing.payout.disbursed`       | `billing-service`    | `fieldforge.work-orders.lifecycle-events`                                    | `work-order-service`                                                      |
+| `billing.payout.failed`          | `billing.payout.failed`          | `billing-service`    | `fieldforge.work-orders.lifecycle-events`                                    | `work-order-service` _(Compensating rollback to COMPLETED; FF-ARCH-10)_   |
 
 ---
 
@@ -205,12 +206,13 @@ sequenceDiagram
     autonumber
     actor Buyer as 🏢 Enterprise Buyer
     participant WOSvc as 📋 work-order-service (:8002)
+    participant DB_WO as 🗄️ MySQL (work_orders)
     participant MQ as 📬 RabbitMQ (fieldforge.events.topic)
     participant BillSvc as 💳 billing-service (:8004)
     participant DB_Bill as 🗄️ MySQL (escrow_accounts)
 
     Buyer->>WOSvc: POST /api/v1/work-orders/:id/transition (APPROVED)
-    Note over WOSvc: Transaction commits status = 'APPROVED'
+    WOSvc->>DB_WO: Transaction commits status = 'APPROVED'
     WOSvc->>MQ: EventPublisher.publish(work_order.lifecycle.approved)
     MQ-->>WOSvc: Confirm ACK
 
@@ -218,14 +220,30 @@ sequenceDiagram
     activate BillSvc
     Note over BillSvc: Idempotency acquire: ff:idemp:<eventId>
 
-    rect rgb(240, 253, 244)
-    Note over BillSvc, DB_Bill: Escrow Release Transaction
-    BillSvc->>DB_Bill: SELECT ... FOR UPDATE FROM escrow_accounts WHERE status = 'HELD'
-    BillSvc->>DB_Bill: UPDATE escrow_accounts SET status = 'RELEASED', released_at = NOW()
-    BillSvc->>DB_Bill: Credit technician ledger balance
+    alt Escrow Release Succeeded
+        rect rgb(240, 253, 244)
+        Note over BillSvc, DB_Bill: Escrow Release Transaction
+        BillSvc->>DB_Bill: SELECT ... FOR UPDATE FROM escrow_accounts WHERE status = 'HELD'
+        BillSvc->>DB_Bill: UPDATE escrow_accounts SET status = 'RELEASED', released_at = NOW()
+        BillSvc->>DB_Bill: Credit technician ledger balance
+        end
+        BillSvc->>MQ: EventPublisher.publish(billing.payout.disbursed)
+        BillSvc-->>MQ: ACK message
+        MQ->>WOSvc: Deliver billing.payout.disbursed to fieldforge.work-orders.lifecycle-events
+        WOSvc->>DB_WO: settlePaid() -> UPDATE work_orders SET status = 'PAID'
+        WOSvc->>MQ: EventPublisher.publish(work_order.lifecycle.paid)
+    else Escrow Release Failed (Gateway / Account Failure)
+        Note over BillSvc: Catch error, publish failure compensation event
+        BillSvc->>MQ: EventPublisher.publish(billing.payout.failed)
+        BillSvc-->>MQ: Dead-letter or retry queue (x-retry-count)
+        MQ->>WOSvc: Deliver billing.payout.failed to fieldforge.work-orders.lifecycle-events
+        rect rgb(254, 242, 242)
+        Note over WOSvc, DB_WO: Compensating Rollback (FF-ARCH-10)
+        WOSvc->>DB_WO: SELECT ... FOR UPDATE FROM work_orders
+        WOSvc->>DB_WO: UPDATE work_orders SET status = 'COMPLETED' (FSM APPROVED -> COMPLETED)
+        WOSvc->>DB_WO: INSERT INTO work_order_status_history ('Payout disbursement failure: ...')
+        end
     end
-
-    BillSvc-->>MQ: ACK message
     deactivate BillSvc
 ```
 

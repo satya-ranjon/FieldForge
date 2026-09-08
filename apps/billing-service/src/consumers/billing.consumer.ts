@@ -1,7 +1,11 @@
 import { Injectable, OnApplicationBootstrap, Optional } from '@nestjs/common';
-import type { WorkOrderApprovedEvent, WorkOrderAssignedEvent } from '@fieldforge/contracts';
-import { EventType } from '@fieldforge/contracts';
-import { IdempotentConsumer } from '@fieldforge/messaging';
+import type {
+  WorkOrderApprovedEvent,
+  WorkOrderAssignedEvent,
+  PayoutFailedPayload
+} from '@fieldforge/contracts';
+import { EventType, createEvent } from '@fieldforge/contracts';
+import { IdempotentConsumer, EventPublisher } from '@fieldforge/messaging';
 import { EscrowService } from '../modules/escrow/escrow.service';
 
 interface ContextLogger {
@@ -15,7 +19,8 @@ export const BILLING_WORK_ORDERS_QUEUE = 'fieldforge.billing.work-orders';
 export class BillingConsumer implements OnApplicationBootstrap {
   constructor(
     private readonly escrowService: EscrowService,
-    @Optional() private readonly consumer?: IdempotentConsumer
+    @Optional() private readonly consumer?: IdempotentConsumer,
+    @Optional() private readonly producer?: EventPublisher
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -42,14 +47,44 @@ export class BillingConsumer implements OnApplicationBootstrap {
         `[BillingConsumer] Processing approved work order ${workOrderId} for payout release to technician ${techId}`
       );
     }
-    // Phase 4 executes the transactional releaseFunds
-    await this.escrowService.releaseFunds(
-      workOrderId,
-      techId,
-      payoutAmountMinor,
-      event.correlationId,
-      `auto-release-${event.eventId}`
-    );
+    try {
+      await this.escrowService.releaseFunds(
+        workOrderId,
+        techId,
+        payoutAmountMinor,
+        event.correlationId,
+        `auto-release-${event.eventId}`
+      );
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      if (logger?.error) {
+        logger.error(
+          `[BillingConsumer] Escrow release failed for work order ${workOrderId}: ${errorMsg}`
+        );
+      }
+
+      if (this.producer) {
+        const failurePayload: PayoutFailedPayload = {
+          workOrderId,
+          techId,
+          amountMinor: payoutAmountMinor,
+          reason: errorMsg
+        };
+        const failureEvent = createEvent(
+          EventType.PAYOUT_FAILED,
+          failurePayload,
+          event.correlationId
+        );
+        await this.producer.publish(failureEvent).catch((pubErr: unknown) => {
+          const pubMsg = pubErr instanceof Error ? pubErr.message : String(pubErr);
+          if (logger?.error) {
+            logger.error(`[BillingConsumer] Failed to publish PAYOUT_FAILED event: ${pubMsg}`);
+          }
+        });
+      }
+
+      throw err;
+    }
   }
 
   /**
