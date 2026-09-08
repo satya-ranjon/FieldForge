@@ -312,7 +312,12 @@ export class BidsService {
           });
       }
 
-      // 9. Publish canonical work_order.lifecycle.assigned and tech.bidding.accepted events
+      // 9. Publish canonical work_order.lifecycle.assigned event
+      // Note: With commercial bidding re-homed to work-order-service (ADR 007),
+      // work order assignment executes atomically above and is announced exclusively
+      // via canonical WORK_ORDER_ASSIGNED. Publishing TECH_BID_ACCEPTED was a legacy remnant
+      // from when bidding lived in dispatch-matching-service; emitting it created an orphaned
+      // message with zero subscribers across the platform (FF-ARCH-11 / Service Audit Issue B).
       const assignedEvent = createEvent(
         EventType.WORK_ORDER_ASSIGNED,
         {
@@ -323,19 +328,6 @@ export class BidsService {
         correlationId
       );
       await this.eventPublisher.publishWorkOrderAssigned(assignedEvent);
-
-      const bidAcceptedEvent = createEvent(
-        EventType.TECH_BID_ACCEPTED,
-        {
-          bidId: bid.id,
-          workOrderId: bid.workOrderId,
-          technicianId: bid.technicianId,
-          agreedRateMinor: decimalStringToMinor(bid.bidAmount),
-          buyerUserId
-        },
-        correlationId
-      );
-      await this.eventPublisher.publishTechBidAccepted(bidAcceptedEvent);
 
       return responseDto;
     });

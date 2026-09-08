@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-08  
-**Phase:** Phase 17 complete — Order Settlement Asynchronous Cycle & Failure Compensation (FF-ARCH-10 / Service Audit Issue A). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 18 complete — Elimination of Dormant Intra-Service Circular Loop Event (FF-ARCH-11 / Service Audit Issue B). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -43,7 +43,7 @@
   Atomic bid acceptance locks bids `FOR UPDATE`, marks winner `ACCEPTED`, rejects siblings, executes FSM `PUBLISHED → ASSIGNED`
   via `WorkOrderFsmService`, and records status history in `work_order_status_history` within one ACID transaction.
   Sole mutator of `work_orders`, `work_order_bids`, and `work_order_status_history`. Sole emitter of
-  `work_order.lifecycle.assigned`, `work_order.lifecycle.approved`, `tech.bid.accepted`, and `work_order.lifecycle.paid`.
+  `work_order.lifecycle.assigned`, `work_order.lifecycle.approved`, and `work_order.lifecycle.paid` (`tech.bidding.accepted` retired in Phase 18).
 - **Pure Geospatial Matching Engine (`apps/dispatch-matching-service`).**
   - Redis `GEOADD` and `GEOSEARCH` on `tech:locations` with Haversine exact distance filtering.
   - Multi-parameter contractor scoring algorithm: 40% distance, 30% rating, 15% completed jobs, 15% verified certifications.
@@ -77,6 +77,12 @@
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
   - `AppNavigator` mounting `JobListScreen` and `ActiveJobScreen` wrapped in Redux store.
 - **A test harness that can fail.** 493 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 521 total verified tests).
+- **Elimination of Dormant Intra-Service Circular Loop Event in work-order-service (Phase 18, Resolves FF-ARCH-11 / Service Audit Issue B).**
+  - Removed orphaned `tech.bidding.accepted` (`EventType.TECH_BID_ACCEPTED`) AMQP publication from `BidsService.acceptBid()`.
+  - Maintained canonical `work_order.lifecycle.assigned` as the sole domain event emitted upon contractor bid acceptance.
+  - Deprecated `publishTechBidAccepted()` in `WorkOrderEventPublisher` and retired the routing key in contracts/docs.
+  - Zero database migrations (`RULE-DB-02`).
+
 - **Order Settlement Asynchronous Cycle & Failure Compensation (Phase 17, Resolves FF-ARCH-10 / Service Audit Issue A).**
   - Completed cross-service saga failure handling for escrow payout releases between `billing-service` and `work-order-service`.
   - Added `EventType.PAYOUT_FAILED = 'billing.payout.failed'` and `PayoutFailedPayload` to `@fieldforge/contracts`.

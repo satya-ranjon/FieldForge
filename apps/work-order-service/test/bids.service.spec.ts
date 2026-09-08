@@ -201,7 +201,7 @@ describe('BidsService in work-order-service', () => {
       expect(tx.update).toHaveBeenCalledTimes(3); // 1. accept bid, 2. reject siblings, 3. update work order to ASSIGNED
       expect(tx.insert).toHaveBeenCalledTimes(1); // work order status history
       expect(mockEventPublisher.publishWorkOrderAssigned).toHaveBeenCalledTimes(1);
-      expect(mockEventPublisher.publishTechBidAccepted).toHaveBeenCalledTimes(1);
+      expect(mockEventPublisher.publishTechBidAccepted).not.toHaveBeenCalled();
     });
 
     it('fast-paths buyer identity via callerProfileId', async () => {

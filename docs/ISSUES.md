@@ -145,6 +145,13 @@
 > payloads. Subscribed `WorkOrderEventsConsumer` to `[EventType.PAYOUT_DISBURSED, EventType.PAYOUT_FAILED]`.
 > Total verified tests: 493 unit/integration + 28 E2E = 521 tests.
 
+> **Phase 18 update — 2026-09-08:** Phase 18 of [`DEVELOPMENT_PLAN.md`](./DEVELOPMENT_PLAN.md)
+> delivered Elimination of Dormant Intra-Service Circular Loop Event in `work-order-service` (Resolves **FF-ARCH-11 / Service Audit Issue B**).
+> Removed the orphaned `tech.bidding.accepted` (`EventType.TECH_BID_ACCEPTED`) AMQP publication from `BidsService.acceptBid()`,
+> leaving canonical `work_order.lifecycle.assigned` as the sole domain event emitted upon contractor bid acceptance.
+> Deprecated `publishTechBidAccepted()` in `WorkOrderEventPublisher`, updated unit test assertions, and retired the routing key.
+> Total verified tests: 493 unit/integration + 28 E2E = 521 tests.
+
 ---
 
 ## How to read this report
@@ -889,6 +896,17 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   7. Updated `docs/MESSAGE_FLOW.md` routing table and Flow 3 sequence diagram with the compensation branch.
   8. Added unit and integration tests across `billing-service` and `work-order-service`.
   9. Zero database migrations (`RULE-DB-02`).
+
+### FF-ARCH-11 · 🏛️ Dormant / Orphaned Intra-Service Circular Loop (Service Audit Issue B)
+
+- **Root Cause**: When contractor bidding was relocated from `apps/dispatch-matching-service` into `apps/work-order-service` (ADR 007 / Finding 3), commercial bid acceptance was unified into an atomic single-transaction workflow in `BidsService.acceptBid()`. In Phase 9 (ADR 005 / Finding 1), `work-order-service` had previously listened to `tech.bidding.accepted` to transition work orders to `ASSIGNED`. In FF-ARCH-07, `WorkOrderEventsConsumer` unsubscribed from `tech.bidding.accepted` to prevent self-consumption, redundant row locking, and an intra-service circular loop. However, `BidsService.acceptBid()` continued to publish `tech.bidding.accepted` to RabbitMQ alongside canonical `work_order.lifecycle.assigned`. Because zero consumers across the platform subscribe to `tech.bidding.accepted`, this publication was completely dormant and orphaned, wasting network I/O, CPU serialization, and publisher confirmation latency on every bid acceptance.
+- **Fix**: Removed orphaned publication and consolidated lifecycle assignment events:
+  1. Removed `publishTechBidAccepted(bidAcceptedEvent)` from `BidsService.acceptBid()` in `apps/work-order-service/src/modules/bids/bids.service.ts`.
+  2. Maintained `publishWorkOrderAssigned(assignedEvent)` as the sole canonical domain event emitted upon bid acceptance.
+  3. Annotated `publishTechBidAccepted()` with `@deprecated` in `apps/work-order-service/src/events/work-order-event.publisher.ts`.
+  4. Updated unit test in `apps/work-order-service/test/bids.service.spec.ts` asserting that `publishWorkOrderAssigned` is called once and `publishTechBidAccepted` is not called.
+  5. Updated `docs/MESSAGE_FLOW.md` and `.agent/context/api_contracts.md` marking `tech.bidding.accepted` as Deprecated / Retired.
+  6. Zero database migrations (`RULE-DB-02`).
 
 ---
 

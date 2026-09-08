@@ -697,6 +697,40 @@ NFR-PERF-001.
 
 ---
 
+## Phase 18 — Service Communication Remediation: Elimination of Dormant Intra-Service Circular Loop Event
+
+**Status: Completed (2026-09-08).** Resolves **Service Audit Issue B (Dormant / Orphaned Intra-Service Circular Loop)** / `FF-ARCH-11` and aligns with `AGENTS.md` event-driven architecture, publisher efficiency, and bounded context standards.
+
+- **Eliminate Dormant Event Publication (`apps/work-order-service`).**
+  - Removed `publishTechBidAccepted(bidAcceptedEvent)` publication from `BidsService.acceptBid()`.
+  - Maintained canonical `publishWorkOrderAssigned(assignedEvent)` (`work_order.lifecycle.assigned`) as the sole assignment event published across the platform.
+  - Marked `publishTechBidAccepted()` as `@deprecated` in `WorkOrderEventPublisher` (`apps/work-order-service/src/events/work-order-event.publisher.ts`).
+  - Updated unit test assertions in `apps/work-order-service/test/bids.service.spec.ts` asserting that `publishWorkOrderAssigned` is called once and `publishTechBidAccepted` is not called.
+- **Documentation & Routing Updates.**
+  - Updated `docs/MESSAGE_FLOW.md` marking routing key `tech.bidding.accepted` as Deprecated / Retired.
+  - Updated `.agent/context/api_contracts.md` marking `tech.bidding.accepted` as Deprecated / Retired.
+  - Updated `docs/ISSUES.md` adding `FF-ARCH-11`.
+- **Zero Database Schema Migrations (`RULE-DB-02`).**
+  - No database tables or schema definitions modified.
+
+**Verification:**
+
+- 493 automated unit/integration tests passing across 15 packages/apps in monorepo (zero `--passWithNoTests`):
+  - 203 tests in `apps/work-order-service` (11 suites).
+  - 20 tests in `apps/billing-service` (3 suites).
+  - 28 tests in `apps/dispatch-matching-service` (4 suites).
+  - 104 tests in `apps/web-buyer-portal` (1 suite).
+  - 87 tests in `@fieldforge/common` (3 suites).
+  - 76 tests in `@fieldforge/contracts` (3 suites).
+  - 56 tests in `apps/auth-service` (6 suites).
+  - 44 tests in `apps/api-gateway` (6 suites).
+  - 17 tests in `@fieldforge/messaging` (5 suites).
+  - 14 tests in `apps/notification-service` (1 suite).
+- 28 Playwright E2E tests validated (`pnpm test:e2e`). Total verified tests: 521 tests.
+- `pnpm check && pnpm build` pass cleanly.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

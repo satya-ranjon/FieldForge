@@ -36,6 +36,10 @@ export class WorkOrderEventPublisher {
     await this.emit(event);
   }
 
+  /**
+   * @deprecated Retained for backward compatibility.
+   * Work order assignment is canonically published via publishWorkOrderAssigned() (FF-ARCH-11).
+   */
   async publishTechBidAccepted(event: EventEnvelope<unknown>): Promise<void> {
     await this.emit(event);
   }
