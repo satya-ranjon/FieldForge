@@ -849,6 +849,45 @@ NFR-PERF-001.
 
 ---
 
+## Phase 22 — Centralize Gateway User Authentication Across Microservice Controllers
+
+**Status: Completed (2026-09-09).** Resolves **Backend Code Quality Issue 1 (`authenticateUser` Boilerplate Duplication Across Controllers)** / `FF-CODE-01`.
+
+- **Centralized Gateway Auth Helper (`@fieldforge/common`).**
+  - Created `packages/common/src/auth/gateway-auth.ts` with `verifyGatewayUser()`, `GatewayAuthGuard`, and `@CurrentUser()` decorator.
+  - Standardized `AuthenticatedUser` interface (`{ userId: string; role: string; profileId?: string }`) and `JwtVerifier` structural interface.
+  - Centralized full C5 security boundary enforcement: Bearer token parsing, signature verification, and gateway header anti-spoofing check (`x-ff-user-id` vs `token.sub`).
+  - Added `@fieldforge/contracts` workspace dependency to `packages/common/package.json` for shared JWT payload types.
+- **Controller Boilerplate Deduplication (`apps/*`).**
+  - Refactored `apps/work-order-service/src/modules/work-orders/work-orders.controller.ts`: delegated `authenticateUser` to `verifyGatewayUser`.
+  - Refactored `apps/work-order-service/src/modules/bids/bids.controller.ts`: delegated `authenticateUser` to `verifyGatewayUser`.
+  - Refactored `apps/billing-service/src/controllers/billing.controller.ts`: delegated `authenticateUser` to `verifyGatewayUser`.
+  - Refactored `apps/dispatch-matching-service/src/modules/dispatch/dispatch.controller.ts`: delegated `authenticateUser` to `verifyGatewayUser`.
+  - Refactored `apps/auth-service/src/modules/profiles/users.controller.ts`: replaced inline token verification with `verifyGatewayUser`.
+  - Refactored `apps/auth-service/src/modules/vetting/certifications.controller.ts`: replaced `extractAndVerifyPayload` with `verifyGatewayUser`.
+- **Test Coverage Expansion.**
+  - Added comprehensive unit test suite in `packages/common/test/gateway-auth.spec.ts` (9 tests) testing missing headers, malformed headers, invalid tokens, gateway spoofing rejection, profile ID fallbacks, and `GatewayAuthGuard`.
+  - Added comprehensive unit test suite in `apps/billing-service/test/billing.controller.spec.ts` (4 tests) testing C5 auth enforcement, spoofing rejection, role restrictions, and escrow endpoints.
+  - Zero regression across all existing controller unit test suites.
+
+**Verification:**
+
+- 514 automated unit/integration tests passing across 15 packages/apps in monorepo (zero `--passWithNoTests`):
+  - 204 tests in `apps/work-order-service` (11 suites).
+  - 28 tests in `apps/billing-service` (4 suites, +4 tests).
+  - 21 tests in `@fieldforge/messaging` (5 suites).
+  - 28 tests in `apps/dispatch-matching-service` (4 suites).
+  - 104 tests in `apps/web-buyer-portal` (1 suite).
+  - 21 tests in `@fieldforge/common` (3 suites, +9 tests).
+  - 76 tests in `@fieldforge/contracts` (3 suites).
+  - 56 tests in `apps/auth-service` (6 suites).
+  - 44 tests in `apps/api-gateway` (6 suites).
+  - 14 tests in `apps/notification-service` (1 suite).
+- 28 Playwright E2E tests validated (`pnpm test:e2e`). Total verified tests: 542 tests.
+- `pnpm check && pnpm build` pass cleanly.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

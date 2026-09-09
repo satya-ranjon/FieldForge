@@ -6,7 +6,6 @@ import {
   Param,
   Body,
   Headers,
-  UnauthorizedException,
   ForbiddenException,
   BadRequestException,
   HttpCode,
@@ -18,13 +17,13 @@ import {
   createCertificationSchema,
   verifyCertificationSchema,
   batchTechniciansSchema,
-  type AuthJwtPayload,
   type CreateCertificationDto,
   type VerifyCertificationDto,
   type TechnicianBadgeDto,
   type TechnicianSummaryDto,
   UserRole
 } from '@fieldforge/contracts';
+import { verifyGatewayUser, type AuthenticatedUser } from '@fieldforge/common';
 
 @Controller('technicians')
 export class CertificationsController {
@@ -33,28 +32,8 @@ export class CertificationsController {
     private readonly jwtService: JwtService
   ) {}
 
-  private extractAndVerifyPayload(authHeader?: string, gatewayUserId?: string): AuthJwtPayload {
-    if (!authHeader) {
-      throw new UnauthorizedException('Unauthenticated');
-    }
-
-    const [type, token] = authHeader.split(' ');
-    if (type !== 'Bearer' || !token) {
-      throw new UnauthorizedException('Unauthenticated');
-    }
-
-    let payload: AuthJwtPayload;
-    try {
-      payload = this.jwtService.verify<AuthJwtPayload>(token);
-    } catch {
-      throw new UnauthorizedException('Invalid token');
-    }
-
-    if (gatewayUserId && gatewayUserId !== payload.sub) {
-      throw new UnauthorizedException('Identity mismatch');
-    }
-
-    return payload;
+  private authenticateUser(authHeader?: string, gatewayUserId?: string): AuthenticatedUser {
+    return verifyGatewayUser(this.jwtService, authHeader, gatewayUserId);
   }
 
   /**
@@ -66,7 +45,7 @@ export class CertificationsController {
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string
   ): Promise<TechnicianBadgeDto[]> {
-    this.extractAndVerifyPayload(authHeader, gatewayUserId);
+    this.authenticateUser(authHeader, gatewayUserId);
     return this.certService.getTechnicianBadges(technicianId);
   }
 
@@ -81,9 +60,9 @@ export class CertificationsController {
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string
   ): Promise<TechnicianBadgeDto> {
-    const payload = this.extractAndVerifyPayload(authHeader, gatewayUserId);
+    const user = this.authenticateUser(authHeader, gatewayUserId);
 
-    if (payload.role !== UserRole.TECHNICIAN && payload.role !== UserRole.ADMIN) {
+    if (user.role !== UserRole.TECHNICIAN && user.role !== UserRole.ADMIN) {
       throw new ForbiddenException('Only technicians may submit certifications');
     }
 
@@ -92,7 +71,7 @@ export class CertificationsController {
       throw new BadRequestException(parsed.error.issues);
     }
 
-    return this.certService.addCertification(payload.sub, parsed.data as CreateCertificationDto);
+    return this.certService.addCertification(user.userId, parsed.data as CreateCertificationDto);
   }
 
   /**
@@ -106,9 +85,9 @@ export class CertificationsController {
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string
   ): Promise<TechnicianBadgeDto> {
-    const payload = this.extractAndVerifyPayload(authHeader, gatewayUserId);
+    const user = this.authenticateUser(authHeader, gatewayUserId);
 
-    if (payload.role !== UserRole.ADMIN && payload.role !== UserRole.DISPATCHER) {
+    if (user.role !== UserRole.ADMIN && user.role !== UserRole.DISPATCHER) {
       throw new ForbiddenException('Only administrators or dispatchers may verify certifications');
     }
 
@@ -129,9 +108,9 @@ export class CertificationsController {
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string
   ): Promise<TechnicianBadgeDto[]> {
-    const payload = this.extractAndVerifyPayload(authHeader, gatewayUserId);
+    const user = this.authenticateUser(authHeader, gatewayUserId);
 
-    if (payload.role !== UserRole.ADMIN && payload.role !== UserRole.DISPATCHER) {
+    if (user.role !== UserRole.ADMIN && user.role !== UserRole.DISPATCHER) {
       throw new ForbiddenException(
         'Only administrators or dispatchers may view pending certifications'
       );

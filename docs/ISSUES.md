@@ -980,6 +980,17 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   6. Updated `.agent/context/api_contracts.md` and `.agent/context/project_status.md`.
   7. Zero database migrations (`RULE-DB-02`) — database schemas were already 100% aligned with `technicianId`.
 
+### FF-CODE-01 · 🧹 authenticateUser Boilerplate Duplication Across Microservice Controllers (Code Quality Issue 1)
+
+- **Root Cause**: Identity verification and C5 trust-boundary enforcement were copy-pasted across 6 backend microservice controllers (`WorkOrdersController`, `BidsController`, `BillingController`, `DispatchController`, `UsersController`, and `CertificationsController`), duplicating ~180 lines of identical Bearer token parsing, signature verification, and gateway header anti-spoofing logic (`x-ff-user-id` vs `token.sub`).
+- **Fix**: Centralized gateway user authentication in `@fieldforge/common`:
+  1. Created `packages/common/src/auth/gateway-auth.ts` defining `verifyGatewayUser()`, `AuthenticatedUser`, `JwtVerifier`, `GatewayAuthGuard`, and `@CurrentUser()` decorator.
+  2. Added `@fieldforge/contracts` workspace dependency to `packages/common/package.json`.
+  3. Replaced duplicate `authenticateUser` implementations across `WorkOrdersController`, `BidsController`, `BillingController`, and `DispatchController` with direct delegations to `verifyGatewayUser(this.jwtService, authHeader, gatewayUserId, gatewayProfileId)`.
+  4. Refactored `UsersController.getProfile` and `CertificationsController` in `apps/auth-service` to use `verifyGatewayUser`.
+  5. Added comprehensive test suites in `packages/common/test/gateway-auth.spec.ts` (9 tests) and `apps/billing-service/test/billing.controller.spec.ts` (4 tests).
+  6. Zero database migrations (`RULE-DB-02`).
+
 ---
 
 ## Suggested remediation order

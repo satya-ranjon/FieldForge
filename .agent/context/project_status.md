@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
-**Last reviewed:** 2026-09-08  
-**Phase:** Phase 21 complete — Standardized Technician Identifier Property Naming across Event Contracts (FF-ARCH-14 / Service Audit Issue B). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Last reviewed:** 2026-09-09  
+**Phase:** Phase 22 complete — Centralize Gateway User Authentication Across Microservice Controllers (FF-CODE-01 / Code Quality Issue 1). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -31,6 +31,7 @@
 - **Identity comes from the token, never from a header.** `GET /users/me`, `apps/work-order-service`,
   `apps/dispatch-matching-service`, and `apps/billing-service` controllers verify the bearer token
   and read `payload.sub`; `x-ff-user-id` is checked for tampering and mismatch is rejected (C5).
+  Centralized in `@fieldforge/common` via `verifyGatewayUser()` and `GatewayAuthGuard` (FF-CODE-01 / Phase 22).
 - **Persistent, transactional work-order lifecycle (`apps/work-order-service`).** Implements
   `POST /work-orders`, `GET /work-orders` (filtered on composite index), `GET /work-orders/:id`,
   `GET /work-orders/:id/history`, `POST /work-orders/:id/publish`, `POST /work-orders/:id/transition`,

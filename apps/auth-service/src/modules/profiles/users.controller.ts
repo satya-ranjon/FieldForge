@@ -1,7 +1,7 @@
-import { Controller, Get, Headers, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Headers } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ProfilesService } from './profiles.service';
-import type { AuthJwtPayload } from '@fieldforge/contracts';
+import { verifyGatewayUser } from '@fieldforge/common';
 
 @Controller('users')
 export class UsersController {
@@ -30,26 +30,7 @@ export class UsersController {
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string
   ) {
-    if (!authHeader) {
-      throw new UnauthorizedException('Unauthenticated');
-    }
-
-    const [type, token] = authHeader.split(' ');
-    if (type !== 'Bearer' || !token) {
-      throw new UnauthorizedException('Unauthenticated');
-    }
-
-    let payload: AuthJwtPayload;
-    try {
-      payload = this.jwtService.verify<AuthJwtPayload>(token);
-    } catch {
-      throw new UnauthorizedException('Invalid token');
-    }
-
-    if (gatewayUserId && gatewayUserId !== payload.sub) {
-      throw new UnauthorizedException('Identity mismatch');
-    }
-
-    return this.profilesService.getUserProfile(payload.sub);
+    const user = verifyGatewayUser(this.jwtService, authHeader, gatewayUserId);
+    return this.profilesService.getUserProfile(user.userId);
   }
 }

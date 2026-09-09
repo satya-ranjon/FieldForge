@@ -7,7 +7,6 @@ import {
   Headers,
   Res,
   Inject,
-  UnauthorizedException,
   ForbiddenException,
   NotFoundException
 } from '@nestjs/common';
@@ -18,12 +17,16 @@ interface MinimalResponse {
 import { JwtService } from '@nestjs/jwt';
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
-import { DRIZZLE, type DrizzleClient } from '@fieldforge/common';
+import {
+  DRIZZLE,
+  type DrizzleClient,
+  verifyGatewayUser,
+  type AuthenticatedUser
+} from '@fieldforge/common';
 import { usersSchema } from '@fieldforge/database';
 import {
   preAuthEscrowSchema,
   releaseEscrowSchema,
-  type AuthJwtPayload,
   type EscrowDetailsDto,
   type InvoiceDetailsDto,
   type PreAuthEscrowDto,
@@ -49,32 +52,8 @@ export class BillingController {
     authHeader?: string,
     gatewayUserId?: string,
     gatewayProfileId?: string
-  ): { userId: string; role: string; profileId?: string } {
-    if (!authHeader) {
-      throw new UnauthorizedException('Missing Authorization header');
-    }
-
-    const [type, token] = authHeader.split(' ');
-    if (type !== 'Bearer' || !token) {
-      throw new UnauthorizedException('Invalid Authorization format');
-    }
-
-    let payload: AuthJwtPayload;
-    try {
-      payload = this.jwtService.verify<AuthJwtPayload>(token);
-    } catch {
-      throw new UnauthorizedException('Invalid or expired token');
-    }
-
-    if (gatewayUserId && gatewayUserId !== payload.sub) {
-      throw new UnauthorizedException('Identity mismatch between header and token');
-    }
-
-    return {
-      userId: payload.sub,
-      role: payload.role,
-      profileId: payload.profileId || gatewayProfileId
-    };
+  ): AuthenticatedUser {
+    return verifyGatewayUser(this.jwtService, authHeader, gatewayUserId, gatewayProfileId);
   }
 
   @Post('escrow/preauth')

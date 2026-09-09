@@ -532,6 +532,9 @@ importers:
 
   packages/common:
     dependencies:
+      '@fieldforge/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@fieldforge/database':
         specifier: workspace:*
         version: link:../database
