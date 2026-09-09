@@ -11,6 +11,8 @@ import {
 import { MessagingModule } from '@fieldforge/messaging';
 import { EscrowService } from './modules/escrow/escrow.service';
 import { InvoicesService } from './modules/invoices/invoices.service';
+import { INVOICE_PDF_RENDERER } from './modules/invoices/invoice-pdf.renderer.port';
+import { PdfKitInvoicePdfRenderer } from './modules/invoices/pdfkit-invoice-pdf.renderer';
 import { BillingConsumer } from './consumers/billing.consumer';
 import { PAYMENT_PROVIDER } from './modules/payments/payment-provider.port';
 import { LedgerPaymentProvider } from './modules/payments/ledger-payment.provider';
@@ -38,8 +40,13 @@ import { WorkOrderDirectoryService } from './modules/work-orders/work-order-dire
       provide: PAYMENT_PROVIDER,
       useClass: LedgerPaymentProvider
     },
+    {
+      provide: INVOICE_PDF_RENDERER,
+      useClass: PdfKitInvoicePdfRenderer
+    },
     EscrowService,
     InvoicesService,
+    PdfKitInvoicePdfRenderer,
     BillingConsumer,
     ProfileDirectoryService,
     WorkOrderDirectoryService
@@ -47,6 +54,8 @@ import { WorkOrderDirectoryService } from './modules/work-orders/work-order-dire
   exports: [
     EscrowService,
     InvoicesService,
+    INVOICE_PDF_RENDERER,
+    PdfKitInvoicePdfRenderer,
     BillingConsumer,
     ProfileDirectoryService,
     WorkOrderDirectoryService

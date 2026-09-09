@@ -1052,6 +1052,7 @@ Harmonized the semantic distinction and foreign key relationships between IAM ac
   - 104 tests in `apps/web-buyer-portal` (1 suite).
   - 76 tests in `@fieldforge/contracts` (3 suites).
   - 44 tests in `apps/api-gateway` (6 suites).
+
 ---
 
 ## Phase 27 — Standardize Request Body Validation Across Microservices
@@ -1100,6 +1101,50 @@ Standardized request body and query parameter validation across all backend micr
   - 14 tests in `apps/notification-service` (1 suite).
   - 21 tests in `@fieldforge/mobile-tech-app` (3 suites).
 - 28 Playwright E2E tests validated (`pnpm test:e2e`). Total verified tests: 626 tests.
+- `pnpm check && pnpm build` pass cleanly.
+
+---
+
+## Phase 28 — Decouple Low-Level PDF Drawing from Billing Domain Service
+
+**Size: S · Dependencies: Phase 27.** Resolves **FF-CODE-07** (Code Quality Issue 7).
+
+Decoupled low-level PDFKit imperative canvas/coordinate drawing (~80 lines) from `InvoicesService` in `apps/billing-service` using the Ports & Adapters (Hexagonal Architecture) pattern, restoring Single Responsibility Principle (SRP) to the billing domain service.
+
+**Deliverables:**
+
+- **Hexagonal PDF Rendering Port (`apps/billing-service`).**
+  - Declared `InvoicePdfRendererPort` interface and `INVOICE_PDF_RENDERER` injection symbol in `apps/billing-service/src/modules/invoices/invoice-pdf.renderer.port.ts`.
+  - Defines contract `render(invoice: InvoiceWithRelations): Promise<Buffer>`.
+- **Dedicated PDFKit Renderer Adapter (`apps/billing-service`).**
+  - Implemented `PdfKitInvoicePdfRenderer` in `apps/billing-service/src/modules/invoices/pdfkit-invoice-pdf.renderer.ts` implementing `InvoicePdfRendererPort`.
+  - Encapsulates all PDFKit canvas drawing, fonts, layout calculations, header metadata (`/Producer`, `/Title`), line items table, and SHA-256 content-hash audit footer.
+  - Converts PDFKit document stream to binary `Buffer`.
+- **Domain Service Refactoring (`apps/billing-service`).**
+  - Refactored `InvoicesService` (`apps/billing-service/src/modules/invoices/invoices.service.ts`) to inject `@Optional() @Inject(INVOICE_PDF_RENDERER) private readonly pdfRenderer: InvoicePdfRendererPort` with default fallback to `PdfKitInvoicePdfRenderer`.
+  - Simplified `generateInvoicePdf(id)` to load invoice with relations and delegate rendering directly to `this.pdfRenderer.render(invoice)`.
+  - Purged direct `pdfkit` imports and canvas drawing from `InvoicesService`.
+- **Module Registration (`apps/billing-service`).**
+  - Registered and exported `{ provide: INVOICE_PDF_RENDERER, useClass: PdfKitInvoicePdfRenderer }` and `PdfKitInvoicePdfRenderer` in `BillingModule`.
+- **Automated Test Suites.**
+  - Added unit test suite `apps/billing-service/test/pdfkit-invoice-pdf.renderer.spec.ts` (5 tests) validating PDF binary headers (`%PDF-`), trailers (`%%EOF`), metadata catalog, amount formatting, and error handling.
+  - Updated `apps/billing-service/test/invoices.service.spec.ts` testing delegation to injected `InvoicePdfRendererPort`, fallback renderer, and `NotFoundException`.
+
+**Verification:**
+
+- 603 automated unit/integration tests passing across 15 packages/apps in monorepo (+5 new tests, zero `--passWithNoTests`):
+  - 33 tests in `apps/billing-service` (5 suites, +5 tests).
+  - 234 tests in `apps/work-order-service` (13 suites).
+  - 73 tests in `apps/auth-service` (7 suites).
+  - 49 tests in `@fieldforge/common` (6 suites).
+  - 81 tests in `@fieldforge/contracts` (3 suites).
+  - 33 tests in `apps/dispatch-matching-service` (4 suites).
+  - 21 tests in `@fieldforge/messaging` (5 suites).
+  - 104 tests in `apps/web-buyer-portal` (1 suite).
+  - 44 tests in `apps/api-gateway` (6 suites).
+  - 14 tests in `apps/notification-service` (1 suite).
+  - 21 tests in `@fieldforge/mobile-tech-app` (3 suites).
+- 28 Playwright E2E tests validated (`pnpm test:e2e`). Total verified tests: 631 tests.
 - `pnpm check && pnpm build` pass cleanly.
 
 ---

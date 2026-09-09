@@ -205,6 +205,24 @@
 > and decoupled automated escrow payout release to consume canonical `buyerId` and `technicianId` event payloads.
 > Zero database migrations (`RULE-DB-02`). Total verified tests: 556 unit/integration + 28 E2E = 584 tests.
 
+> **Phase 26 update — 2026-09-09:** Phase 26 of [`DEVELOPMENT_PLAN.md`](./DEVELOPMENT_PLAN.md)
+> delivered Identifier Semantics Harmonization Across Schemas (technicianId vs userId) (Resolves **FF-CODE-05 / Code Quality Issue 5**).
+> Aligned `technician_certifications.technician_id` foreign key with `technicianProfiles.id` via migration `0006_green_wild_pack.sql`,
+> updated database seeds, harmonized vetting controller and service badge lookup methods, and ensured Redis spatial indexing
+> in `dispatch-matching-service` strictly targets `technicianProfiles.id`. Total verified tests: 562 unit/integration + 28 E2E = 590 tests.
+
+> **Phase 27 update — 2026-09-09:** Phase 27 of [`DEVELOPMENT_PLAN.md`](./DEVELOPMENT_PLAN.md)
+> delivered Standardized Request Body Validation Across Microservices (Resolves **FF-CODE-06 / Code Quality Issue 6**).
+> Implemented `@Injectable()` `ZodValidationPipe` in `@fieldforge/common`, hardened `GlobalHttpExceptionFilter` to intercept `ZodError`
+> and map to HTTP 400 Bad Request instead of HTTP 500, refactored controllers across all microservices to use declarative pipe validation,
+> and harmonized `autoRouteSchema`. Total verified tests: 598 unit/integration + 28 E2E = 626 tests.
+
+> **Phase 28 update — 2026-09-09:** Phase 28 of [`DEVELOPMENT_PLAN.md`](./DEVELOPMENT_PLAN.md)
+> delivered Decouple Low-Level PDF Drawing from Billing Domain Service (Resolves **FF-CODE-07 / Code Quality Issue 7**).
+> Created `InvoicePdfRendererPort` and `PdfKitInvoicePdfRenderer` adapter in `apps/billing-service` using the Hexagonal Architecture pattern,
+> removing imperative PDFKit coordinate drawing and fonts from `InvoicesService` while preserving document structure and SHA-256 digital
+> signature verification. Zero database migrations (`RULE-DB-02`). Total verified tests: 603 unit/integration + 28 E2E = 631 tests.
+
 ---
 
 ## How to read this report
@@ -1145,6 +1163,18 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
      - `apps/auth-service/test/auth.controller.spec.ts` (7 tests).
      - Updated `certifications.controller.spec.ts`, `dispatch.controller.spec.ts`, `work-orders.controller.spec.ts`, and `validators.spec.ts`.
   6. Zero database migrations (`RULE-DB-02`).
+
+### FF-CODE-07 · 🧹 Low-Level PDF Drawing Embedded Inside Billing Domain Service (Code Quality Issue 7)
+
+- **Root Cause**: In `apps/billing-service/src/modules/invoices/invoices.service.ts`, `InvoicesService.generateInvoicePdf(id)` directly instantiated `PDFDocument` from `pdfkit` and intermingled ~80 lines of procedural, imperative coordinate/canvas drawing instructions (`doc.fontSize().text()`, `doc.moveTo().lineTo().stroke()`, table rendering math, stream event listeners) directly alongside domain logic. This violated the Single Responsibility Principle (SRP) and Hexagonal Architecture / Clean Architecture boundaries (`RULE-ARCH-01`). Unit testing `InvoicesService` required either running the heavy imperative canvas renderer or complex mocking of PDFKit document streams, preventing swapping the PDF generation engine (e.g., HTML-to-PDF, Weasyprint, serverless rendering worker) without modifying domain services.
+- **Fix**: Decoupled PDF generation using Ports & Adapters (Hexagonal Architecture):
+  1. Declared secondary port `InvoicePdfRendererPort` and injection symbol `INVOICE_PDF_RENDERER` in `apps/billing-service/src/modules/invoices/invoice-pdf.renderer.port.ts` with contract `render(invoice: InvoiceWithRelations): Promise<Buffer>`.
+  2. Implemented `PdfKitInvoicePdfRenderer` in `apps/billing-service/src/modules/invoices/pdfkit-invoice-pdf.renderer.ts` implementing `InvoicePdfRendererPort`. Isolates all imperative PDFKit drawing, fonts, header metadata (`/Producer`, `/Title`), line items table, and SHA-256 cryptographic content-hash audit footer into a dedicated adapter.
+  3. Refactored `InvoicesService` in `apps/billing-service/src/modules/invoices/invoices.service.ts` to inject `@Optional() @Inject(INVOICE_PDF_RENDERER) private readonly pdfRenderer: InvoicePdfRendererPort` with fallback to `PdfKitInvoicePdfRenderer`. `generateInvoicePdf(id)` now loads the invoice and delegates directly to `this.pdfRenderer.render(invoice)`.
+  4. Registered and exported `INVOICE_PDF_RENDERER` provider and `PdfKitInvoicePdfRenderer` in `BillingModule` (`apps/billing-service/src/billing.module.ts`).
+  5. Added unit test suite `apps/billing-service/test/pdfkit-invoice-pdf.renderer.spec.ts` (5 tests) asserting PDF headers (`%PDF-`), trailers (`%%EOF`), metadata catalog, amount formatting, and error handling.
+  6. Updated `apps/billing-service/test/invoices.service.spec.ts` verifying delegation to injected `InvoicePdfRendererPort`, fallback renderer, and `NotFoundException`.
+  7. Zero database migrations (`RULE-DB-02`).
 
 ---
 

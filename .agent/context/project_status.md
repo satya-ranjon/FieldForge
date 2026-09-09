@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-09  
-**Phase:** Phase 27 complete — Standardize Request Body Validation Across Microservices (FF-CODE-06 / Code Quality Issue 6). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 28 complete — Decouple Low-Level PDF Drawing from Billing Domain Service (FF-CODE-07 / Code Quality Issue 7). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -78,7 +78,15 @@
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
   - `AppNavigator` mounting `JobListScreen` and `ActiveJobScreen` wrapped in Redux store.
-- **A test harness that can fail.** 598 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 626 total verified tests).
+- **A test harness that can fail.** 603 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 631 total verified tests).
+- **Decoupled Invoice PDF Rendering from Billing Domain Service (Phase 28, Resolves FF-CODE-07 / Code Quality Issue 7).**
+  - Created `InvoicePdfRendererPort` (`apps/billing-service/src/modules/invoices/invoice-pdf.renderer.port.ts`) defining the hexagonal secondary port and `INVOICE_PDF_RENDERER` injection symbol.
+  - Implemented `PdfKitInvoicePdfRenderer` adapter implementing `InvoicePdfRendererPort`, isolating imperative PDFKit coordinate drawing, fonts, layout math, metadata headers, line items table, and SHA-256 digital signature/hash rendering into a dedicated rendering adapter.
+  - Refactored `InvoicesService` in `apps/billing-service` to remove direct PDFKit dependencies and delegate `generateInvoicePdf(id)` to the injected `InvoicePdfRendererPort` with fallback to `PdfKitInvoicePdfRenderer`.
+  - Registered `INVOICE_PDF_RENDERER` provider in `BillingModule`.
+  - Added unit test suites `pdfkit-invoice-pdf.renderer.spec.ts` (5 tests) and updated `invoices.service.spec.ts`.
+  - Zero database migrations (`RULE-DB-02`).
+
 - **Standardized Declarative Request Body Validation & Error Hardening (Phase 27, Resolves FF-CODE-06 / Code Quality Issue 6).**
   - Implemented reusable `@Injectable()` `ZodValidationPipe` in `@fieldforge/common` (`pipes/zod-validation.pipe.ts`) implementing NestJS `PipeTransform` with automated schema parsing, typed DTO casting, and static `ZodValidationPipe.validate<T>()` programmatic helper.
   - Enhanced `GlobalHttpExceptionFilter` in `@fieldforge/common` to intercept `ZodError` exceptions and map them to HTTP 400 Bad Request with structured `{ message: 'Validation failed', errors: [...] }`, resolving the critical error boundary defect where unhandled schema parsing errors returned HTTP 500.

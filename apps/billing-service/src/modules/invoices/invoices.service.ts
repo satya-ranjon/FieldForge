@@ -1,14 +1,22 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleClient } from '@fieldforge/common';
 import { billingSchema } from '@fieldforge/database';
 import type { InvoiceDetailsDto, MinorUnits } from '@fieldforge/contracts';
-import PDFDocument from 'pdfkit';
+import { INVOICE_PDF_RENDERER, type InvoicePdfRendererPort } from './invoice-pdf.renderer.port';
+import { PdfKitInvoicePdfRenderer } from './pdfkit-invoice-pdf.renderer';
 
 @Injectable()
 export class InvoicesService {
-  constructor(@Inject(DRIZZLE) private readonly db: DrizzleClient) {}
+  private readonly pdfRenderer: InvoicePdfRendererPort;
+
+  constructor(
+    @Inject(DRIZZLE) private readonly db: DrizzleClient,
+    @Optional() @Inject(INVOICE_PDF_RENDERER) pdfRenderer?: InvoicePdfRendererPort
+  ) {
+    this.pdfRenderer = pdfRenderer ?? new PdfKitInvoicePdfRenderer();
+  }
 
   /**
    * Generates a deterministic content hash for the invoice to ensure immutability (FR-BILL-003).
@@ -111,89 +119,11 @@ export class InvoicesService {
 
   /**
    * Renders the immutable PDF document for the invoice (FR-BILL-003).
+   * Delegates rendering to the injected InvoicePdfRendererPort.
    */
   async generateInvoicePdf(id: string): Promise<Buffer> {
     const invoice = await this.getInvoice(id);
-
-    return new Promise((resolve, reject) => {
-      const doc = new PDFDocument({ margin: 50 });
-      const chunks: Buffer[] = [];
-
-      doc.on('data', (chunk: Buffer) => chunks.push(chunk));
-      doc.on('end', () => resolve(Buffer.concat(chunks)));
-      doc.on('error', (err: Error) => reject(err));
-
-      // Header
-      doc.fontSize(22).font('Helvetica-Bold').text('FIELDFORGE INVOICE', { align: 'center' });
-      doc.moveDown(0.5);
-      doc
-        .fontSize(10)
-        .font('Helvetica')
-        .fillColor('#666666')
-        .text('Cryptographically Verified Settlement Receipt', { align: 'center' });
-      doc.moveDown(1.5);
-
-      // Divider
-      doc.strokeColor('#cccccc').lineWidth(1).moveTo(50, doc.y).lineTo(550, doc.y).stroke();
-      doc.moveDown(1.5);
-
-      // Metadata section
-      doc.fillColor('#000000').fontSize(11).font('Helvetica-Bold');
-      doc
-        .text(`Invoice Number: `, { continued: true })
-        .font('Helvetica')
-        .text(invoice.invoiceNumber);
-      doc
-        .font('Helvetica-Bold')
-        .text(`Work Order ID: `, { continued: true })
-        .font('Helvetica')
-        .text(invoice.workOrderId);
-      doc
-        .font('Helvetica-Bold')
-        .text(`Buyer ID: `, { continued: true })
-        .font('Helvetica')
-        .text(invoice.buyerId);
-      doc
-        .font('Helvetica-Bold')
-        .text(`Date Issued: `, { continued: true })
-        .font('Helvetica')
-        .text(invoice.issuedAt);
-      doc.moveDown(1.5);
-
-      // Line items table
-      doc.strokeColor('#cccccc').lineWidth(1).moveTo(50, doc.y).lineTo(550, doc.y).stroke();
-      doc.moveDown(1);
-      doc.font('Helvetica-Bold').text('Description', 50, doc.y, { continued: true });
-      doc.text('Total', 450, doc.y, { align: 'right' });
-      doc.moveDown(0.5);
-
-      const amountFormatted = `$${(invoice.amountMinor / 100).toFixed(2)}`;
-      doc
-        .font('Helvetica')
-        .text(`Completed Services - Work Order ${invoice.workOrderId}`, 50, doc.y, {
-          continued: true
-        });
-      doc.text(amountFormatted, 450, doc.y, { align: 'right' });
-      doc.moveDown(2);
-
-      // Content Hash & Verification footer
-      doc.strokeColor('#e0e0e0').lineWidth(1).moveTo(50, doc.y).lineTo(550, doc.y).stroke();
-      doc.moveDown(1);
-      doc
-        .fontSize(9)
-        .fillColor('#444444')
-        .font('Helvetica-Bold')
-        .text('Cryptographic Content Hash (SHA-256):');
-      doc.fontSize(8).font('Courier').text(invoice.contentHash);
-      doc.moveDown(0.5);
-      doc
-        .fontSize(8)
-        .font('Helvetica-Oblique')
-        .fillColor('#888888')
-        .text('This document is immutable and generated upon escrow clearance.');
-
-      doc.end();
-    });
+    return this.pdfRenderer.render(invoice);
   }
 
   private mapToDto(row: typeof billingSchema.invoices.$inferSelect): InvoiceDetailsDto {

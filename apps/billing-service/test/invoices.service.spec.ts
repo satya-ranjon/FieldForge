@@ -119,7 +119,47 @@ describe('InvoicesService', () => {
   });
 
   describe('generateInvoicePdf', () => {
-    it('renders a valid PDF buffer with PDFKit', async () => {
+    it('delegates rendering to the injected InvoicePdfRendererPort', async () => {
+      const existingDate = new Date();
+      mockDb.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            limit: () =>
+              Promise.resolve([
+                {
+                  id: 'inv-123',
+                  workOrderId: WORK_ORDER_ID,
+                  buyerId: BUYER_ID,
+                  invoiceNumber: 'INV-2026-TEST',
+                  amount: '450.00',
+                  contentHash: 'hash123',
+                  issuedAt: existingDate,
+                  createdAt: existingDate
+                }
+              ])
+          })
+        })
+      });
+
+      const mockRenderer = {
+        render: jest.fn().mockResolvedValue(Buffer.from('%PDF-1.4 mock'))
+      };
+
+      const customService = new InvoicesService(mockDb as unknown as DrizzleClient, mockRenderer);
+      const buffer = await customService.generateInvoicePdf('inv-123');
+
+      expect(mockRenderer.render).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'inv-123',
+          workOrderId: WORK_ORDER_ID,
+          buyerId: BUYER_ID,
+          amountMinor: 45000
+        })
+      );
+      expect(buffer.toString('utf-8')).toBe('%PDF-1.4 mock');
+    });
+
+    it('renders a valid PDF buffer with default PDFKit renderer', async () => {
       const existingDate = new Date();
       mockDb.select.mockReturnValueOnce({
         from: () => ({
@@ -145,8 +185,21 @@ describe('InvoicesService', () => {
 
       expect(Buffer.isBuffer(buffer)).toBe(true);
       expect(buffer.length).toBeGreaterThan(0);
-      // PDF header check
       expect(buffer.toString('utf-8', 0, 5)).toBe('%PDF-');
+    });
+
+    it('throws NotFoundException when invoice ID does not exist', async () => {
+      mockDb.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            limit: () => Promise.resolve([])
+          })
+        })
+      });
+
+      await expect(invoicesService.generateInvoicePdf('non-existent')).rejects.toThrow(
+        /Invoice with ID non-existent not found/
+      );
     });
   });
 });
