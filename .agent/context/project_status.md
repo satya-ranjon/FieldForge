@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-09  
-**Phase:** Phase 24 complete — Decouple Monolithic Work Order Transition Engine into Strategy Guards & Handlers (FF-CODE-03 / Code Quality Issue 3). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 25 complete — Cross-Context Database Decoupling & Inter-Service Directory Resolution (FF-CODE-04 / Code Quality Issue 4). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -78,7 +78,13 @@
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
   - `AppNavigator` mounting `JobListScreen` and `ActiveJobScreen` wrapped in Redux store.
-- **A test harness that can fail.** 544 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 572 total verified tests).
+- **A test harness that can fail.** 556 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 584 total verified tests).
+- **Cross-Context Database Decoupling & Inter-Service Directory Resolution (Phase 25, Resolves FF-CODE-04 / Code Quality Issue 4).**
+  - Purged all foreign schema imports (`usersSchema.buyerProfiles`, `usersSchema.technicianProfiles`, `workOrdersSchema.workOrders`) from `apps/billing-service` and `apps/work-order-service`, establishing complete Domain-Driven Design bounded context isolation (`RULE-ARCH-01`, ADR 006).
+  - Implemented `GET /users/:id/profile` on `UsersController` in `auth-service` and `@Injectable()` `ProfileDirectoryService` in `@fieldforge/common` with token-embedded `callerProfileId` fast-path, local test mocks, and 300s TTL in-memory caching.
+  - Implemented `WorkOrderDirectoryService` in `billing-service` with 60s TTL caching and local test mocks.
+  - Decoupled automated escrow release in `BillingConsumer` to disburse funds using canonical `buyerId` and `technicianId` event payloads.
+  - Zero database migrations (`RULE-DB-02`).
 - **Work Order Transition Engine Modularization & Strategy Decoupling (Phase 24, Resolves FF-CODE-03 / Code Quality Issue 3).**
   - Decomposed the ~260-line monolithic `WorkOrdersService.transition()` into modular, single-responsibility transition guards (`guardAssignedTransition`, `guardTechnicianLifecycleTransition`, `guardOnSiteTransition`, `guardApprovedTransition`, `guardCancelledTransition`, `guardDisputedTransition`, `guardPaidTransition`) and execution strategies (`executeAssignedTransition`, `executeApprovedTransition`, `executeDefaultTransition`).
   - Extracted reusable profile resolution helpers (`resolveBuyerProfileId`, `resolveTechnicianProfileId`) utilizing caller-provided profile IDs when present to eliminate redundant database queries.

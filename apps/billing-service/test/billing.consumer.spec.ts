@@ -68,7 +68,8 @@ describe('BillingConsumer', () => {
       'tech-1',
       45000,
       'corr-bill-1',
-      expect.stringContaining('auto-release-')
+      expect.stringContaining('auto-release-'),
+      'buyer-1'
     );
     expect(mockLogger.info).toHaveBeenCalledWith(
       expect.stringContaining('Processing approved work order wo-1')

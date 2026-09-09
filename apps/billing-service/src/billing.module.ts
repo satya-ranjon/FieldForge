@@ -5,7 +5,8 @@ import {
   DrizzleModule,
   HealthController,
   GlobalHttpExceptionFilter,
-  requireJwtSecret
+  requireJwtSecret,
+  ProfileDirectoryService
 } from '@fieldforge/common';
 import { MessagingModule } from '@fieldforge/messaging';
 import { EscrowService } from './modules/escrow/escrow.service';
@@ -14,6 +15,7 @@ import { BillingConsumer } from './consumers/billing.consumer';
 import { PAYMENT_PROVIDER } from './modules/payments/payment-provider.port';
 import { LedgerPaymentProvider } from './modules/payments/ledger-payment.provider';
 import { BillingController } from './controllers/billing.controller';
+import { WorkOrderDirectoryService } from './modules/work-orders/work-order-directory.service';
 
 @Module({
   imports: [
@@ -38,8 +40,16 @@ import { BillingController } from './controllers/billing.controller';
     },
     EscrowService,
     InvoicesService,
-    BillingConsumer
+    BillingConsumer,
+    ProfileDirectoryService,
+    WorkOrderDirectoryService
   ],
-  exports: [EscrowService, InvoicesService, BillingConsumer]
+  exports: [
+    EscrowService,
+    InvoicesService,
+    BillingConsumer,
+    ProfileDirectoryService,
+    WorkOrderDirectoryService
+  ]
 })
 export class BillingModule {}

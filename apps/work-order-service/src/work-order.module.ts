@@ -6,7 +6,8 @@ import {
   DrizzleModule,
   HealthController,
   GlobalHttpExceptionFilter,
-  requireJwtSecret
+  requireJwtSecret,
+  ProfileDirectoryService
 } from '@fieldforge/common';
 import { MessagingModule } from '@fieldforge/messaging';
 import { WorkOrdersController } from './modules/work-orders/work-orders.controller';
@@ -52,7 +53,8 @@ import { WorkOrderEventsConsumer } from './consumers/work-order-events.consumer'
     DeliverablesService,
     SlaEscalationService,
     SlaAutoApprovalService,
-    WorkOrderEventsConsumer
+    WorkOrderEventsConsumer,
+    ProfileDirectoryService
   ],
   exports: [
     WorkOrdersService,
@@ -61,7 +63,8 @@ import { WorkOrderEventsConsumer } from './consumers/work-order-events.consumer'
     DeliverablesService,
     SlaEscalationService,
     SlaAutoApprovalService,
-    WorkOrderEventsConsumer
+    WorkOrderEventsConsumer,
+    ProfileDirectoryService
   ]
 })
 export class WorkOrderModule {}

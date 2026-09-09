@@ -57,9 +57,8 @@ describe('BidsService in work-order-service', () => {
   describe('submitBid', () => {
     it('successfully submits a bid for a published work order', async () => {
       const tx = createMockTx([
-        [{ id: 'tech-1', userId: 'user-tech-1' }], // 1. tech profile
-        [{ id: 'wo-1', status: WorkOrderStatus.PUBLISHED, buyerId: 'buyer-1' }], // 2. work order
-        [] // 3. no existing bid
+        [{ id: 'wo-1', status: WorkOrderStatus.PUBLISHED, buyerId: 'buyer-1' }], // 1. work order
+        [] // 2. no existing bid
       ]);
 
       mockDb = {
@@ -72,6 +71,7 @@ describe('BidsService in work-order-service', () => {
         mockEventPublisher,
         fsmService
       );
+      service.getProfileDirectory().setLocalProfile('user-tech-1', 'TECHNICIAN', 'tech-1');
 
       const result = await service.submitBid(
         {
@@ -123,7 +123,6 @@ describe('BidsService in work-order-service', () => {
 
     it('rejects bid submission on non-published work orders', async () => {
       const tx = createMockTx([
-        [{ id: 'tech-1', userId: 'user-tech-1' }],
         [{ id: 'wo-1', status: WorkOrderStatus.DRAFT, buyerId: 'buyer-1' }]
       ]);
 
@@ -137,6 +136,7 @@ describe('BidsService in work-order-service', () => {
         mockEventPublisher,
         fsmService
       );
+      service.getProfileDirectory().setLocalProfile('user-tech-1', 'TECHNICIAN', 'tech-1');
 
       await expect(
         service.submitBid({ workOrderId: 'wo-1', bidAmountMinor: 35000 }, 'user-tech-1', 'corr-123')
@@ -145,7 +145,6 @@ describe('BidsService in work-order-service', () => {
 
     it('rejects duplicate pending bids by the same technician', async () => {
       const tx = createMockTx([
-        [{ id: 'tech-1', userId: 'user-tech-1' }],
         [{ id: 'wo-1', status: WorkOrderStatus.PUBLISHED, buyerId: 'buyer-1' }],
         [{ id: 'existing-bid', bidStatus: 'PENDING' }] // existing bid found
       ]);
@@ -160,6 +159,7 @@ describe('BidsService in work-order-service', () => {
         mockEventPublisher,
         fsmService
       );
+      service.getProfileDirectory().setLocalProfile('user-tech-1', 'TECHNICIAN', 'tech-1');
 
       await expect(
         service.submitBid({ workOrderId: 'wo-1', bidAmountMinor: 35000 }, 'user-tech-1', 'corr-123')
@@ -179,8 +179,7 @@ describe('BidsService in work-order-service', () => {
             bidStatus: 'PENDING'
           }
         ], // 1. bid
-        [{ id: 'wo-1', status: WorkOrderStatus.PUBLISHED, buyerId: 'buyer-profile-1' }], // 2. work order
-        [{ id: 'buyer-profile-1', userId: 'user-buyer-1' }] // 3. buyer profile
+        [{ id: 'wo-1', status: WorkOrderStatus.PUBLISHED, buyerId: 'buyer-profile-1' }] // 2. work order
       ]);
 
       mockDb = {
@@ -193,6 +192,7 @@ describe('BidsService in work-order-service', () => {
         mockEventPublisher,
         fsmService
       );
+      service.getProfileDirectory().setLocalProfile('user-buyer-1', 'BUYER', 'buyer-profile-1');
 
       const result = await service.acceptBid('bid-1', 'user-buyer-1', 'BUYER', 'corr-1');
 
@@ -216,7 +216,6 @@ describe('BidsService in work-order-service', () => {
           }
         ],
         [{ id: 'wo-1', status: WorkOrderStatus.PUBLISHED, buyerId: 'buyer-profile-1' }]
-        // buyer profile select skipped!
       ]);
 
       mockDb = {
@@ -253,8 +252,7 @@ describe('BidsService in work-order-service', () => {
             bidStatus: 'PENDING'
           }
         ],
-        [{ id: 'wo-1', status: WorkOrderStatus.PUBLISHED, buyerId: 'buyer-profile-real' }],
-        [{ id: 'buyer-profile-attacker', userId: 'user-buyer-attacker' }]
+        [{ id: 'wo-1', status: WorkOrderStatus.PUBLISHED, buyerId: 'buyer-profile-real' }]
       ]);
 
       mockDb = {
@@ -267,6 +265,9 @@ describe('BidsService in work-order-service', () => {
         mockEventPublisher,
         fsmService
       );
+      service
+        .getProfileDirectory()
+        .setLocalProfile('user-buyer-attacker', 'BUYER', 'buyer-profile-attacker');
 
       await expect(
         service.acceptBid('bid-1', 'user-buyer-attacker', 'BUYER', 'corr-1')
@@ -297,6 +298,7 @@ describe('BidsService in work-order-service', () => {
         mockEventPublisher,
         fsmService
       );
+      service.getProfileDirectory().setLocalProfile('user-buyer-1', 'BUYER', 'buyer-profile-1');
 
       await expect(service.acceptBid('bid-1', 'user-buyer-1', 'BUYER', 'corr-1')).rejects.toThrow(
         BadRequestException

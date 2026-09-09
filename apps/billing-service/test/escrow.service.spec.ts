@@ -4,7 +4,7 @@ import {
   ForbiddenException,
   NotFoundException
 } from '@nestjs/common';
-import { EscrowStatus, EventType } from '@fieldforge/contracts';
+import { EscrowStatus, EventType, WorkOrderStatus } from '@fieldforge/contracts';
 import type { DrizzleClient } from '@fieldforge/common';
 import { EscrowService } from '../src/modules/escrow/escrow.service';
 import type { PaymentProviderPort } from '../src/modules/payments/payment-provider.port';
@@ -248,6 +248,13 @@ describe('EscrowService', () => {
     });
 
     it('throws ConflictException if work order is not in APPROVED status', async () => {
+      escrow.getWorkOrderDirectory().setLocalWorkOrder(WORK_ORDER_ID, {
+        id: WORK_ORDER_ID,
+        status: WorkOrderStatus.COMPLETED,
+        buyerId: BUYER_ID,
+        assignedTechnicianId: TECH_ID
+      });
+
       // 1. Escrow lock returns HELD
       mockTx.select.mockReturnValueOnce({
         from: () => ({
@@ -259,23 +266,6 @@ describe('EscrowService', () => {
                   workOrderId: WORK_ORDER_ID,
                   amountLocked: '450.00',
                   status: 'HELD'
-                }
-              ])
-          })
-        })
-      });
-
-      // 2. Work order lock returns COMPLETED (not APPROVED yet)
-      mockTx.select.mockReturnValueOnce({
-        from: () => ({
-          where: () => ({
-            for: () =>
-              Promise.resolve([
-                {
-                  id: WORK_ORDER_ID,
-                  status: 'COMPLETED',
-                  buyerId: BUYER_ID,
-                  assignedTechnicianId: TECH_ID
                 }
               ])
           })
@@ -292,6 +282,16 @@ describe('EscrowService', () => {
     });
 
     it('throws ForbiddenException if non-admin caller is not the owner buyer', async () => {
+      escrow.getWorkOrderDirectory().setLocalWorkOrder(WORK_ORDER_ID, {
+        id: WORK_ORDER_ID,
+        status: WorkOrderStatus.APPROVED,
+        buyerId: 'buyer-owner-profile-id',
+        assignedTechnicianId: TECH_ID
+      });
+      escrow
+        .getProfileDirectory()
+        .setLocalProfile('attacker-user-id', 'BUYER', 'different-buyer-profile-id');
+
       // 1. Escrow lock returns HELD
       mockTx.select.mockReturnValueOnce({
         from: () => ({
@@ -303,38 +303,6 @@ describe('EscrowService', () => {
                   workOrderId: WORK_ORDER_ID,
                   amountLocked: '450.00',
                   status: 'HELD'
-                }
-              ])
-          })
-        })
-      });
-
-      // 2. Work order lock returns APPROVED
-      mockTx.select.mockReturnValueOnce({
-        from: () => ({
-          where: () => ({
-            for: () =>
-              Promise.resolve([
-                {
-                  id: WORK_ORDER_ID,
-                  status: 'APPROVED',
-                  buyerId: 'buyer-owner-profile-id',
-                  assignedTechnicianId: TECH_ID
-                }
-              ])
-          })
-        })
-      });
-
-      // 3. Buyer profile query for attacker user
-      mockTx.select.mockReturnValueOnce({
-        from: () => ({
-          where: () => ({
-            limit: () =>
-              Promise.resolve([
-                {
-                  id: 'different-buyer-profile-id',
-                  userId: 'attacker-user-id'
                 }
               ])
           })
@@ -351,6 +319,16 @@ describe('EscrowService', () => {
     });
 
     it('successfully releases funds when work order is APPROVED and caller is authorized', async () => {
+      escrow.getWorkOrderDirectory().setLocalWorkOrder(WORK_ORDER_ID, {
+        id: WORK_ORDER_ID,
+        status: WorkOrderStatus.APPROVED,
+        buyerId: 'owner-buyer-profile-id',
+        assignedTechnicianId: TECH_ID
+      });
+      escrow
+        .getProfileDirectory()
+        .setLocalProfile('buyer-user-id', 'BUYER', 'owner-buyer-profile-id');
+
       // 1. Escrow lock returns HELD
       mockTx.select.mockReturnValueOnce({
         from: () => ({
@@ -362,38 +340,6 @@ describe('EscrowService', () => {
                   workOrderId: WORK_ORDER_ID,
                   amountLocked: '450.00',
                   status: 'HELD'
-                }
-              ])
-          })
-        })
-      });
-
-      // 2. Work order lock returns APPROVED
-      mockTx.select.mockReturnValueOnce({
-        from: () => ({
-          where: () => ({
-            for: () =>
-              Promise.resolve([
-                {
-                  id: WORK_ORDER_ID,
-                  status: 'APPROVED',
-                  buyerId: 'owner-buyer-profile-id',
-                  assignedTechnicianId: TECH_ID
-                }
-              ])
-          })
-        })
-      });
-
-      // 3. Buyer profile query returns matching buyer profile
-      mockTx.select.mockReturnValueOnce({
-        from: () => ({
-          where: () => ({
-            limit: () =>
-              Promise.resolve([
-                {
-                  id: 'owner-buyer-profile-id',
-                  userId: 'buyer-user-id'
                 }
               ])
           })
@@ -436,6 +382,13 @@ describe('EscrowService', () => {
     });
 
     it('successfully releases funds when callerProfileId is provided directly (bypassing buyer profile query)', async () => {
+      escrow.getWorkOrderDirectory().setLocalWorkOrder(WORK_ORDER_ID, {
+        id: WORK_ORDER_ID,
+        status: WorkOrderStatus.APPROVED,
+        buyerId: 'direct-profile-id',
+        assignedTechnicianId: TECH_ID
+      });
+
       // 1. Escrow lock returns HELD
       mockTx.select.mockReturnValueOnce({
         from: () => ({
@@ -453,25 +406,6 @@ describe('EscrowService', () => {
         })
       });
 
-      // 2. Work order lock returns APPROVED with matching buyerId
-      mockTx.select.mockReturnValueOnce({
-        from: () => ({
-          where: () => ({
-            for: () =>
-              Promise.resolve([
-                {
-                  id: WORK_ORDER_ID,
-                  status: 'APPROVED',
-                  buyerId: 'direct-profile-id',
-                  assignedTechnicianId: TECH_ID
-                }
-              ])
-          })
-        })
-      });
-
-      // Notice: NO 3rd mockTx.select call for buyerProfiles needed!
-
       const result = await escrow.releaseFunds({
         workOrderId: WORK_ORDER_ID,
         callerUserId: 'buyer-user-id',
@@ -485,6 +419,16 @@ describe('EscrowService', () => {
     });
 
     it('successfully releases partial funds when amountMinor < amountLocked, refunding unused remainder to buyer (FF-ARCH-13)', async () => {
+      escrow.getWorkOrderDirectory().setLocalWorkOrder(WORK_ORDER_ID, {
+        id: WORK_ORDER_ID,
+        status: WorkOrderStatus.APPROVED,
+        buyerId: 'owner-buyer-profile-id',
+        assignedTechnicianId: TECH_ID
+      });
+      escrow
+        .getProfileDirectory()
+        .setLocalProfile('buyer-user-id', 'BUYER', 'owner-buyer-profile-id');
+
       // 1. Escrow lock returns HELD with 500.00 locked ($500)
       mockTx.select.mockReturnValueOnce({
         from: () => ({
@@ -496,38 +440,6 @@ describe('EscrowService', () => {
                   workOrderId: WORK_ORDER_ID,
                   amountLocked: '500.00',
                   status: 'HELD'
-                }
-              ])
-          })
-        })
-      });
-
-      // 2. Work order lock returns APPROVED
-      mockTx.select.mockReturnValueOnce({
-        from: () => ({
-          where: () => ({
-            for: () =>
-              Promise.resolve([
-                {
-                  id: WORK_ORDER_ID,
-                  status: 'APPROVED',
-                  buyerId: 'owner-buyer-profile-id',
-                  assignedTechnicianId: TECH_ID
-                }
-              ])
-          })
-        })
-      });
-
-      // 3. Buyer profile lookup
-      mockTx.select.mockReturnValueOnce({
-        from: () => ({
-          where: () => ({
-            limit: () =>
-              Promise.resolve([
-                {
-                  id: 'owner-buyer-profile-id',
-                  userId: 'buyer-user-id'
                 }
               ])
           })
@@ -586,6 +498,13 @@ describe('EscrowService', () => {
     });
 
     it('throws BadRequestException when requested amountMinor exceeds locked escrow amount (FF-ARCH-13)', async () => {
+      escrow.getWorkOrderDirectory().setLocalWorkOrder(WORK_ORDER_ID, {
+        id: WORK_ORDER_ID,
+        status: WorkOrderStatus.APPROVED,
+        buyerId: 'owner-buyer-profile-id',
+        assignedTechnicianId: TECH_ID
+      });
+
       // 1. Escrow lock returns HELD with 450.00 locked ($450)
       mockTx.select.mockReturnValueOnce({
         from: () => ({
@@ -597,23 +516,6 @@ describe('EscrowService', () => {
                   workOrderId: WORK_ORDER_ID,
                   amountLocked: '450.00',
                   status: 'HELD'
-                }
-              ])
-          })
-        })
-      });
-
-      // 2. Work order lock returns APPROVED
-      mockTx.select.mockReturnValueOnce({
-        from: () => ({
-          where: () => ({
-            for: () =>
-              Promise.resolve([
-                {
-                  id: WORK_ORDER_ID,
-                  status: 'APPROVED',
-                  buyerId: 'owner-buyer-profile-id',
-                  assignedTechnicianId: TECH_ID
                 }
               ])
           })
@@ -632,6 +534,13 @@ describe('EscrowService', () => {
     });
 
     it('throws BadRequestException when requested amountMinor is less than or equal to zero (FF-ARCH-13)', async () => {
+      escrow.getWorkOrderDirectory().setLocalWorkOrder(WORK_ORDER_ID, {
+        id: WORK_ORDER_ID,
+        status: WorkOrderStatus.APPROVED,
+        buyerId: 'owner-buyer-profile-id',
+        assignedTechnicianId: TECH_ID
+      });
+
       // 1. Escrow lock returns HELD
       mockTx.select.mockReturnValueOnce({
         from: () => ({
@@ -649,23 +558,6 @@ describe('EscrowService', () => {
         })
       });
 
-      // 2. Work order lock returns APPROVED
-      mockTx.select.mockReturnValueOnce({
-        from: () => ({
-          where: () => ({
-            for: () =>
-              Promise.resolve([
-                {
-                  id: WORK_ORDER_ID,
-                  status: 'APPROVED',
-                  buyerId: 'owner-buyer-profile-id',
-                  assignedTechnicianId: TECH_ID
-                }
-              ])
-          })
-        })
-      });
-
       await expect(
         escrow.releaseFunds({
           workOrderId: WORK_ORDER_ID,
@@ -677,6 +569,13 @@ describe('EscrowService', () => {
     });
 
     it('supports positional call signature and forwards legacyAmountMinor into disbursement (FF-ARCH-13)', async () => {
+      escrow.getWorkOrderDirectory().setLocalWorkOrder(WORK_ORDER_ID, {
+        id: WORK_ORDER_ID,
+        status: WorkOrderStatus.APPROVED,
+        buyerId: 'owner-buyer-profile-id',
+        assignedTechnicianId: TECH_ID
+      });
+
       // 1. Escrow lock returns HELD with 500.00 locked
       mockTx.select.mockReturnValueOnce({
         from: () => ({
@@ -688,23 +587,6 @@ describe('EscrowService', () => {
                   workOrderId: WORK_ORDER_ID,
                   amountLocked: '500.00',
                   status: 'HELD'
-                }
-              ])
-          })
-        })
-      });
-
-      // 2. Work order lock returns APPROVED
-      mockTx.select.mockReturnValueOnce({
-        from: () => ({
-          where: () => ({
-            for: () =>
-              Promise.resolve([
-                {
-                  id: WORK_ORDER_ID,
-                  status: 'APPROVED',
-                  buyerId: 'owner-buyer-profile-id',
-                  assignedTechnicianId: TECH_ID
                 }
               ])
           })

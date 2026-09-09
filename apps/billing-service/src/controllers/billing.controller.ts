@@ -7,6 +7,7 @@ import {
   Headers,
   Res,
   Inject,
+  Optional,
   ForbiddenException,
   NotFoundException
 } from '@nestjs/common';
@@ -16,14 +17,13 @@ interface MinimalResponse {
 }
 import { JwtService } from '@nestjs/jwt';
 import { randomUUID } from 'node:crypto';
-import { eq } from 'drizzle-orm';
 import {
   DRIZZLE,
   type DrizzleClient,
   verifyGatewayUser,
-  type AuthenticatedUser
+  type AuthenticatedUser,
+  ProfileDirectoryService
 } from '@fieldforge/common';
-import { usersSchema } from '@fieldforge/database';
 import {
   preAuthEscrowSchema,
   releaseEscrowSchema,
@@ -38,12 +38,21 @@ import { InvoicesService } from '../modules/invoices/invoices.service';
 
 @Controller('billing')
 export class BillingController {
+  private readonly profileDirectory: ProfileDirectoryService;
+
   constructor(
     private readonly escrowService: EscrowService,
     private readonly invoicesService: InvoicesService,
     private readonly jwtService: JwtService,
-    @Inject(DRIZZLE) private readonly db: DrizzleClient
-  ) {}
+    @Optional() @Inject(DRIZZLE) private readonly db?: DrizzleClient,
+    @Optional() profileDirectory?: ProfileDirectoryService
+  ) {
+    this.profileDirectory = profileDirectory || new ProfileDirectoryService();
+  }
+
+  getProfileDirectory(): ProfileDirectoryService {
+    return this.profileDirectory;
+  }
 
   /**
    * Authenticates caller identity from bearer token (respects C5 boundary).
@@ -71,19 +80,19 @@ export class BillingController {
 
     const parsed = preAuthEscrowSchema.parse(body);
 
-    // Resolve buyer profile id: fast-path via token profileId or fallback to query
+    // Resolve buyer profile id: fast-path via token profileId or fallback to directory lookup
     let buyerProfileId = user.profileId;
     if (!buyerProfileId) {
-      const [buyerProfile] = await this.db
-        .select({ id: usersSchema.buyerProfiles.id })
-        .from(usersSchema.buyerProfiles)
-        .where(eq(usersSchema.buyerProfiles.userId, user.userId))
-        .limit(1);
+      const resolved = await this.profileDirectory.resolveBuyerProfileId(
+        user.userId,
+        undefined,
+        correlationId
+      );
 
-      if (!buyerProfile) {
+      if (!resolved) {
         throw new NotFoundException(`Buyer profile not found for user ${user.userId}`);
       }
-      buyerProfileId = buyerProfile.id;
+      buyerProfileId = resolved;
     }
 
     return await this.escrowService.lockFunds(
@@ -168,15 +177,10 @@ export class BillingController {
 
     // If caller is technician, verify they are accessing their own profile
     if (user.role === 'TECHNICIAN') {
-      const resolvedTechnicianId =
-        user.profileId ??
-        (
-          await this.db
-            .select({ id: usersSchema.technicianProfiles.id })
-            .from(usersSchema.technicianProfiles)
-            .where(eq(usersSchema.technicianProfiles.userId, user.userId))
-            .limit(1)
-        )[0]?.id;
+      const resolvedTechnicianId = await this.profileDirectory.resolveTechnicianProfileId(
+        user.userId,
+        user.profileId
+      );
 
       if (
         !resolvedTechnicianId ||

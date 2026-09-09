@@ -99,4 +99,47 @@ describe('UsersController', () => {
       expect(mockProfilesService.getUserProfile).not.toHaveBeenCalled();
     });
   });
+
+  describe('GET /users/:id/profile', () => {
+    it('retrieves user profile by user id for inter-service callers', async () => {
+      mockProfilesService.getUserProfile.mockResolvedValueOnce({
+        id: OTHER_USER_ID,
+        email: 'tech@example.com',
+        role: UserRole.TECHNICIAN,
+        phoneNumber: '+15551234567',
+        status: 'ACTIVE',
+        createdAt: new Date(),
+        technicianProfile: {
+          id: 'tech-profile-1',
+          userId: OTHER_USER_ID,
+          firstName: 'John',
+          lastName: 'Doe',
+          hourlyRate: '85.00',
+          currentLatitude: null,
+          currentLongitude: null,
+          ratingAverage: '5.00',
+          jobsCompleted: 10
+        }
+      });
+
+      const profile = await controller.getUserProfileById(OTHER_USER_ID);
+
+      expect(mockProfilesService.getUserProfile).toHaveBeenCalledWith(OTHER_USER_ID);
+      expect((profile as { technicianProfile?: { id: string } })?.technicianProfile?.id).toBe(
+        'tech-profile-1'
+      );
+    });
+
+    it('verifies auth when authorization header is provided', async () => {
+      await controller.getUserProfileById(TOKEN_USER_ID, 'Bearer valid.jwt.token', TOKEN_USER_ID);
+
+      expect(mockProfilesService.getUserProfile).toHaveBeenCalledWith(TOKEN_USER_ID);
+    });
+
+    it('rejects tampered gateway header when auth header is provided', async () => {
+      await expect(
+        controller.getUserProfileById(TOKEN_USER_ID, 'Bearer valid.jwt.token', OTHER_USER_ID)
+      ).rejects.toThrow(UnauthorizedException);
+    });
+  });
 });

@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { WorkOrderStatus, EventType } from '@fieldforge/contracts';
+import { ProfileDirectoryService } from '@fieldforge/common';
 import { workOrders } from '@fieldforge/database';
 import {
   resolveBuyerProfileId,
@@ -85,19 +86,20 @@ describe('work-order-transition strategies & guards', () => {
       expect(mockTx.select).not.toHaveBeenCalled();
     });
 
-    it('resolveBuyerProfileId queries DB when callerProfileId is omitted', async () => {
-      mockTx.select.mockReturnValue({
-        from: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockResolvedValue([{ id: 'db-buyer-id' }])
-      });
+    it('resolveBuyerProfileId resolves via profileDirectory when callerProfileId is omitted', async () => {
+      const mockDirectory = new ProfileDirectoryService();
+      mockDirectory.setLocalProfile('user-1', 'BUYER', 'dir-buyer-id');
 
-      const result = await resolveBuyerProfileId(mockTx as unknown as AssignmentDbTx, 'user-1');
-      expect(result).toBe('db-buyer-id');
-      expect(mockTx.select).toHaveBeenCalled();
+      const result = await resolveBuyerProfileId(
+        mockTx as unknown as AssignmentDbTx,
+        'user-1',
+        undefined,
+        mockDirectory
+      );
+      expect(result).toBe('dir-buyer-id');
     });
 
-    it('resolveTechnicianProfileId returns cached callerProfileId without DB query', async () => {
+    it('resolveTechnicianProfileId returns cached callerProfileId without directory call', async () => {
       const result = await resolveTechnicianProfileId(
         mockTx as unknown as AssignmentDbTx,
         'user-2',
@@ -107,19 +109,17 @@ describe('work-order-transition strategies & guards', () => {
       expect(mockTx.select).not.toHaveBeenCalled();
     });
 
-    it('resolveTechnicianProfileId queries DB when callerProfileId is omitted', async () => {
-      mockTx.select.mockReturnValue({
-        from: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockResolvedValue([{ id: 'db-tech-id' }])
-      });
+    it('resolveTechnicianProfileId resolves via profileDirectory when callerProfileId is omitted', async () => {
+      const mockDirectory = new ProfileDirectoryService();
+      mockDirectory.setLocalProfile('user-2', 'TECHNICIAN', 'dir-tech-id');
 
       const result = await resolveTechnicianProfileId(
         mockTx as unknown as AssignmentDbTx,
-        'user-2'
+        'user-2',
+        undefined,
+        mockDirectory
       );
-      expect(result).toBe('db-tech-id');
-      expect(mockTx.select).toHaveBeenCalled();
+      expect(result).toBe('dir-tech-id');
     });
   });
 

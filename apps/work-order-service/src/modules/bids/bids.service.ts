@@ -1,20 +1,15 @@
 import {
   Injectable,
   Inject,
+  Optional,
   NotFoundException,
   BadRequestException,
   ForbiddenException,
   ConflictException
 } from '@nestjs/common';
-import { DRIZZLE } from '@fieldforge/common';
+import { DRIZZLE, ProfileDirectoryService } from '@fieldforge/common';
 import type { MySql2Database } from 'drizzle-orm/mysql2';
-import {
-  workOrders,
-  workOrderBids,
-  buyerProfiles,
-  technicianProfiles,
-  idempotencyKeys
-} from '@fieldforge/database';
+import { workOrders, workOrderBids, idempotencyKeys } from '@fieldforge/database';
 import { eq, and, ne, desc } from 'drizzle-orm';
 import {
   type SubmitBidDto,
@@ -32,11 +27,20 @@ import { randomUUID } from 'node:crypto';
 
 @Injectable()
 export class BidsService {
+  private readonly profileDirectory: ProfileDirectoryService;
+
   constructor(
     @Inject(DRIZZLE) private readonly db: MySql2Database<Record<string, unknown>>,
     private readonly eventPublisher: WorkOrderEventPublisher,
-    private readonly fsmService: WorkOrderFsmService
-  ) {}
+    private readonly fsmService: WorkOrderFsmService,
+    @Optional() profileDirectory?: ProfileDirectoryService
+  ) {
+    this.profileDirectory = profileDirectory || new ProfileDirectoryService();
+  }
+
+  getProfileDirectory(): ProfileDirectoryService {
+    return this.profileDirectory;
+  }
 
   /**
    * Submits a technician proposal/bid for a published work order.
@@ -63,15 +67,16 @@ export class BidsService {
       // 1. Resolve technician profile from callerProfileId or user ID
       let technicianId = callerProfileId;
       if (!technicianId) {
-        const [tech] = await tx
-          .select()
-          .from(technicianProfiles)
-          .where(eq(technicianProfiles.userId, technicianUserId));
+        const techId = await this.profileDirectory.resolveTechnicianProfileId(
+          technicianUserId,
+          callerProfileId,
+          correlationId
+        );
 
-        if (!tech) {
+        if (!techId) {
           throw new ForbiddenException('Only registered technicians can submit bids');
         }
-        technicianId = tech.id;
+        technicianId = techId;
       }
 
       // 2. Lock work order FOR UPDATE
@@ -230,14 +235,11 @@ export class BidsService {
 
       // 3. Verify buyer ownership
       if (callerRole !== 'ADMIN') {
-        const resolvedBuyerId =
-          callerProfileId ??
-          (
-            await tx
-              .select({ id: buyerProfiles.id })
-              .from(buyerProfiles)
-              .where(eq(buyerProfiles.userId, buyerUserId))
-          )[0]?.id;
+        const resolvedBuyerId = await this.profileDirectory.resolveBuyerProfileId(
+          buyerUserId,
+          callerProfileId,
+          correlationId
+        );
 
         if (!resolvedBuyerId || resolvedBuyerId !== wo.buyerId) {
           throw new ForbiddenException('Only the work order buyer can accept bids');
@@ -335,14 +337,10 @@ export class BidsService {
     }
 
     if (callerRole === 'BUYER') {
-      const resolvedBuyerId =
-        callerProfileId ??
-        (
-          await this.db
-            .select({ id: buyerProfiles.id })
-            .from(buyerProfiles)
-            .where(eq(buyerProfiles.userId, callerUserId))
-        )[0]?.id;
+      const resolvedBuyerId = await this.profileDirectory.resolveBuyerProfileId(
+        callerUserId,
+        callerProfileId
+      );
 
       if (!resolvedBuyerId || resolvedBuyerId !== wo.buyerId) {
         throw new ForbiddenException('Only the work order creator can view all submitted bids');

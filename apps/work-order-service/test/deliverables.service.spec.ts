@@ -37,20 +37,26 @@ describe('DeliverablesService (FR-MOB-002, FR-MOB-003, L5)', () => {
       })
     };
     service = new DeliverablesService(storageAdapter, mockDb as unknown as DrizzleClient);
+    service.getProfileDirectory().setLocalProfile(TECH_USER_ID, 'TECHNICIAN', TECH_PROFILE_ID);
+    service.getProfileDirectory().setLocalProfile(BUYER_USER_ID, 'BUYER', BUYER_PROFILE_ID);
+    service
+      .getProfileDirectory()
+      .setLocalProfile('other-user', 'TECHNICIAN', 'unassigned-tech-profile');
+    service
+      .getProfileDirectory()
+      .setLocalProfile('stranger-user', 'BUYER', 'unrelated-buyer-profile');
   });
 
   describe('generatePresignedUploadUrl', () => {
     it('generates an upload URL and media URL via MediaStoragePort and persists deliverable record', async () => {
       // Mock technician profile lookup
-      mockDb.limit
-        .mockResolvedValueOnce([
-          {
-            id: WORK_ORDER_ID,
-            status: WorkOrderStatus.ON_SITE,
-            assignedTechnicianId: TECH_PROFILE_ID
-          }
-        ])
-        .mockResolvedValueOnce([{ id: TECH_PROFILE_ID, userId: TECH_USER_ID }]);
+      mockDb.limit.mockResolvedValueOnce([
+        {
+          id: WORK_ORDER_ID,
+          status: WorkOrderStatus.ON_SITE,
+          assignedTechnicianId: TECH_PROFILE_ID
+        }
+      ]);
 
       const result = await service.generatePresignedUploadUrl(
         WORK_ORDER_ID,
@@ -88,15 +94,13 @@ describe('DeliverablesService (FR-MOB-002, FR-MOB-003, L5)', () => {
     });
 
     it('rejects uploads if caller is an unassigned technician', async () => {
-      mockDb.limit
-        .mockResolvedValueOnce([
-          {
-            id: WORK_ORDER_ID,
-            status: WorkOrderStatus.ON_SITE,
-            assignedTechnicianId: TECH_PROFILE_ID
-          }
-        ])
-        .mockResolvedValueOnce([{ id: 'unassigned-tech-profile', userId: 'other-user' }]);
+      mockDb.limit.mockResolvedValueOnce([
+        {
+          id: WORK_ORDER_ID,
+          status: WorkOrderStatus.ON_SITE,
+          assignedTechnicianId: TECH_PROFILE_ID
+        }
+      ]);
 
       await expect(
         service.generatePresignedUploadUrl(
@@ -137,15 +141,13 @@ describe('DeliverablesService (FR-MOB-002, FR-MOB-003, L5)', () => {
             assignedTechnicianId: TECH_PROFILE_ID
           }
         ])
-        .mockResolvedValueOnce([{ id: TECH_PROFILE_ID, userId: TECH_USER_ID }])
         .mockResolvedValueOnce([
           {
             id: WORK_ORDER_ID,
             status: WorkOrderStatus.ON_SITE,
             assignedTechnicianId: TECH_PROFILE_ID
           }
-        ])
-        .mockResolvedValueOnce([{ id: TECH_PROFILE_ID, userId: TECH_USER_ID }]);
+        ]);
 
       const expectedStableHash = createHash('sha256')
         .update(signatureSvg + clientName + WORK_ORDER_ID)
@@ -195,15 +197,13 @@ describe('DeliverablesService (FR-MOB-002, FR-MOB-003, L5)', () => {
     });
 
     it('stores timestamp in its own signedAt column alongside the digest', async () => {
-      mockDb.limit
-        .mockResolvedValueOnce([
-          {
-            id: WORK_ORDER_ID,
-            status: WorkOrderStatus.ON_SITE,
-            assignedTechnicianId: TECH_PROFILE_ID
-          }
-        ])
-        .mockResolvedValueOnce([{ id: TECH_PROFILE_ID, userId: TECH_USER_ID }]);
+      mockDb.limit.mockResolvedValueOnce([
+        {
+          id: WORK_ORDER_ID,
+          status: WorkOrderStatus.ON_SITE,
+          assignedTechnicianId: TECH_PROFILE_ID
+        }
+      ]);
 
       const result = await service.recordSignatureDeliverable(
         WORK_ORDER_ID,
@@ -236,20 +236,18 @@ describe('DeliverablesService (FR-MOB-002, FR-MOB-003, L5)', () => {
   describe('getDeliverablesByWorkOrderId', () => {
     it('returns formatted deliverables list for a work order when caller is authorized', async () => {
       const now = new Date();
-      mockDb.limit
-        .mockResolvedValueOnce([
-          {
-            id: WORK_ORDER_ID,
-            buyerId: BUYER_PROFILE_ID,
-            assignedTechnicianId: TECH_PROFILE_ID
-          }
-        ])
-        .mockResolvedValueOnce([{ id: BUYER_PROFILE_ID, userId: BUYER_USER_ID }]);
+      mockDb.limit.mockResolvedValueOnce([
+        {
+          id: WORK_ORDER_ID,
+          buyerId: BUYER_PROFILE_ID,
+          assignedTechnicianId: TECH_PROFILE_ID
+        }
+      ]);
 
       let whereCount = 0;
       mockDb.where = jest.fn().mockImplementation(() => {
         whereCount++;
-        if (whereCount === 3) {
+        if (whereCount === 2) {
           return Promise.resolve([
             {
               id: 'del-1',
@@ -277,15 +275,13 @@ describe('DeliverablesService (FR-MOB-002, FR-MOB-003, L5)', () => {
     });
 
     it('rejects access if caller is an unrelated buyer', async () => {
-      mockDb.limit
-        .mockResolvedValueOnce([
-          {
-            id: WORK_ORDER_ID,
-            buyerId: BUYER_PROFILE_ID,
-            assignedTechnicianId: TECH_PROFILE_ID
-          }
-        ])
-        .mockResolvedValueOnce([{ id: 'unrelated-buyer-profile', userId: 'stranger-user' }]);
+      mockDb.limit.mockResolvedValueOnce([
+        {
+          id: WORK_ORDER_ID,
+          buyerId: BUYER_PROFILE_ID,
+          assignedTechnicianId: TECH_PROFILE_ID
+        }
+      ]);
 
       await expect(
         service.getDeliverablesByWorkOrderId(WORK_ORDER_ID, 'stranger-user', 'BUYER')

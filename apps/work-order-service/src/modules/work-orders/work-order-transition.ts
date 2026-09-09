@@ -7,13 +7,12 @@ import {
   EventType,
   createEvent
 } from '@fieldforge/contracts';
+import { workOrders, workOrderStatusHistory } from '@fieldforge/database';
 import {
-  workOrders,
-  workOrderStatusHistory,
-  buyerProfiles,
-  technicianProfiles
-} from '@fieldforge/database';
-import { isWithinGeofence, calculateDistanceMeters } from '@fieldforge/common';
+  isWithinGeofence,
+  calculateDistanceMeters,
+  ProfileDirectoryService
+} from '@fieldforge/common';
 import type { WorkOrderFsmService } from '../fsm/work-order-fsm.service';
 import type { WorkOrderEventPublisher } from '../../events/work-order-event.publisher';
 import {
@@ -32,6 +31,7 @@ export interface TransitionContext {
   callerProfileId?: string;
   currentStatus: WorkOrderStatus;
   nextStatus: WorkOrderStatus;
+  profileDirectory?: ProfileDirectoryService;
 }
 
 export interface TransitionExecutionResult {
@@ -51,45 +51,51 @@ export type TransitionExecutionStrategy = (
 ) => Promise<TransitionExecutionResult>;
 
 /**
- * Resolves buyer profile ID from caller cache or queries database.
+ * Resolves buyer profile ID from caller token, local directory, or auth service.
  */
 export async function resolveBuyerProfileId(
   tx: AssignmentDbTx,
   userId: string,
-  callerProfileId?: string
+  callerProfileId?: string,
+  profileDirectory?: ProfileDirectoryService,
+  correlationId?: string
 ): Promise<string | undefined> {
   if (callerProfileId) {
     return callerProfileId;
   }
 
-  const [row] = await tx
-    .select({ id: buyerProfiles.id })
-    .from(buyerProfiles)
-    .where(eq(buyerProfiles.userId, userId))
-    .limit(1);
+  if (profileDirectory) {
+    const id = await profileDirectory.resolveBuyerProfileId(userId, callerProfileId, correlationId);
+    return id || undefined;
+  }
 
-  return row?.id;
+  return undefined;
 }
 
 /**
- * Resolves technician profile ID from caller cache or queries database.
+ * Resolves technician profile ID from caller token, local directory, or auth service.
  */
 export async function resolveTechnicianProfileId(
   tx: AssignmentDbTx,
   userId: string,
-  callerProfileId?: string
+  callerProfileId?: string,
+  profileDirectory?: ProfileDirectoryService,
+  correlationId?: string
 ): Promise<string | undefined> {
   if (callerProfileId) {
     return callerProfileId;
   }
 
-  const [row] = await tx
-    .select({ id: technicianProfiles.id })
-    .from(technicianProfiles)
-    .where(eq(technicianProfiles.userId, userId))
-    .limit(1);
+  if (profileDirectory) {
+    const id = await profileDirectory.resolveTechnicianProfileId(
+      userId,
+      callerProfileId,
+      correlationId
+    );
+    return id || undefined;
+  }
 
-  return row?.id;
+  return undefined;
 }
 
 /**
@@ -97,14 +103,20 @@ export async function resolveTechnicianProfileId(
  * Only ADMIN, DISPATCHER, or owning BUYER can assign; requires assignedTechnicianId.
  */
 export async function guardAssignedTransition(ctx: TransitionContext): Promise<void> {
-  const { role, tx, userId, callerProfileId, wo, dto } = ctx;
+  const { role, tx, userId, callerProfileId, wo, dto, profileDirectory, correlationId } = ctx;
 
   if (role !== 'ADMIN' && role !== 'DISPATCHER' && role !== 'BUYER') {
     throw new ForbiddenException('Only admin, dispatcher, or buyer can assign work orders');
   }
 
   if (role === 'BUYER') {
-    const resolvedBuyerId = await resolveBuyerProfileId(tx, userId, callerProfileId);
+    const resolvedBuyerId = await resolveBuyerProfileId(
+      tx,
+      userId,
+      callerProfileId,
+      profileDirectory,
+      correlationId
+    );
     if (!resolvedBuyerId || resolvedBuyerId !== wo.buyerId) {
       throw new ForbiddenException(
         'Only the owning buyer, dispatcher, or admin can assign this work order'
@@ -122,10 +134,16 @@ export async function guardAssignedTransition(ctx: TransitionContext): Promise<v
  * Only the assigned technician or an ADMIN can perform these transitions.
  */
 export async function guardTechnicianLifecycleTransition(ctx: TransitionContext): Promise<void> {
-  const { role, tx, userId, callerProfileId, wo } = ctx;
+  const { role, tx, userId, callerProfileId, wo, profileDirectory, correlationId } = ctx;
 
   if (role !== 'ADMIN') {
-    const resolvedTechnicianId = await resolveTechnicianProfileId(tx, userId, callerProfileId);
+    const resolvedTechnicianId = await resolveTechnicianProfileId(
+      tx,
+      userId,
+      callerProfileId,
+      profileDirectory,
+      correlationId
+    );
     if (!resolvedTechnicianId || resolvedTechnicianId !== wo.assignedTechnicianId) {
       throw new ForbiddenException(
         'Only the assigned technician or an admin can perform this transition'
@@ -163,10 +181,16 @@ export async function guardOnSiteTransition(ctx: TransitionContext): Promise<voi
  * Only owning buyer, ADMIN, or SYSTEM can approve.
  */
 export async function guardApprovedTransition(ctx: TransitionContext): Promise<void> {
-  const { role, tx, userId, callerProfileId, wo } = ctx;
+  const { role, tx, userId, callerProfileId, wo, profileDirectory, correlationId } = ctx;
 
   if (role !== 'ADMIN' && role !== 'SYSTEM') {
-    const resolvedBuyerId = await resolveBuyerProfileId(tx, userId, callerProfileId);
+    const resolvedBuyerId = await resolveBuyerProfileId(
+      tx,
+      userId,
+      callerProfileId,
+      profileDirectory,
+      correlationId
+    );
     if (!resolvedBuyerId || resolvedBuyerId !== wo.buyerId) {
       throw new ForbiddenException('Only the owning buyer or an admin can approve this work order');
     }
@@ -178,14 +202,20 @@ export async function guardApprovedTransition(ctx: TransitionContext): Promise<v
  * Technicians cannot cancel. Owning BUYER or ADMIN required.
  */
 export async function guardCancelledTransition(ctx: TransitionContext): Promise<void> {
-  const { role, tx, userId, callerProfileId, wo } = ctx;
+  const { role, tx, userId, callerProfileId, wo, profileDirectory, correlationId } = ctx;
 
   if (role === 'TECHNICIAN') {
     throw new ForbiddenException('Technicians cannot cancel work orders');
   }
 
   if (role === 'BUYER') {
-    const resolvedBuyerId = await resolveBuyerProfileId(tx, userId, callerProfileId);
+    const resolvedBuyerId = await resolveBuyerProfileId(
+      tx,
+      userId,
+      callerProfileId,
+      profileDirectory,
+      correlationId
+    );
     if (!resolvedBuyerId || resolvedBuyerId !== wo.buyerId) {
       throw new ForbiddenException('Only the owning buyer or an admin can cancel this work order');
     }
@@ -197,17 +227,29 @@ export async function guardCancelledTransition(ctx: TransitionContext): Promise<
  * Owning BUYER, assigned TECHNICIAN, ADMIN, or DISPATCHER can dispute.
  */
 export async function guardDisputedTransition(ctx: TransitionContext): Promise<void> {
-  const { role, tx, userId, callerProfileId, wo } = ctx;
+  const { role, tx, userId, callerProfileId, wo, profileDirectory, correlationId } = ctx;
 
   if (role === 'BUYER') {
-    const resolvedBuyerId = await resolveBuyerProfileId(tx, userId, callerProfileId);
+    const resolvedBuyerId = await resolveBuyerProfileId(
+      tx,
+      userId,
+      callerProfileId,
+      profileDirectory,
+      correlationId
+    );
     if (!resolvedBuyerId || resolvedBuyerId !== wo.buyerId) {
       throw new ForbiddenException(
         'Only the owning buyer or assigned technician can dispute this work order'
       );
     }
   } else if (role === 'TECHNICIAN') {
-    const resolvedTechnicianId = await resolveTechnicianProfileId(tx, userId, callerProfileId);
+    const resolvedTechnicianId = await resolveTechnicianProfileId(
+      tx,
+      userId,
+      callerProfileId,
+      profileDirectory,
+      correlationId
+    );
     if (!resolvedTechnicianId || resolvedTechnicianId !== wo.assignedTechnicianId) {
       throw new ForbiddenException(
         'Only the owning buyer or assigned technician can dispute this work order'

@@ -9,13 +9,14 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
-import { DRIZZLE, type DrizzleClient, createLogger, metricsRegistry } from '@fieldforge/common';
 import {
-  billingSchema,
-  idempotencySchema,
-  usersSchema,
-  workOrdersSchema
-} from '@fieldforge/database';
+  DRIZZLE,
+  type DrizzleClient,
+  createLogger,
+  metricsRegistry,
+  ProfileDirectoryService
+} from '@fieldforge/common';
+import { billingSchema, idempotencySchema } from '@fieldforge/database';
 import type {
   EscrowDetailsDto,
   MinorUnits,
@@ -26,6 +27,7 @@ import { createEvent, EscrowStatus, EventType, formatMinor } from '@fieldforge/c
 import { EventPublisher } from '@fieldforge/messaging';
 import { InvoicesService } from '../invoices/invoices.service';
 import { PAYMENT_PROVIDER, type PaymentProviderPort } from '../payments/payment-provider.port';
+import { WorkOrderDirectoryService } from '../work-orders/work-order-directory.service';
 
 export interface ReleaseEscrowParams {
   workOrderId: string;
@@ -35,6 +37,8 @@ export interface ReleaseEscrowParams {
   idempotencyKey?: string;
   callerProfileId?: string;
   amountMinor?: MinorUnits;
+  technicianId?: string;
+  buyerId?: string;
 }
 
 export interface EscrowReleaseResult {
@@ -48,13 +52,28 @@ export interface EscrowReleaseResult {
 @Injectable()
 export class EscrowService {
   private readonly logger = createLogger('billing-escrow');
+  private readonly workOrderDirectory: WorkOrderDirectoryService;
+  private readonly profileDirectory: ProfileDirectoryService;
 
   constructor(
     @Inject(DRIZZLE) private readonly db: DrizzleClient,
     @Inject(PAYMENT_PROVIDER) private readonly paymentProvider: PaymentProviderPort,
     private readonly invoicesService: InvoicesService,
-    @Optional() private readonly producer?: EventPublisher
-  ) {}
+    @Optional() private readonly producer?: EventPublisher,
+    @Optional() workOrderDirectory?: WorkOrderDirectoryService,
+    @Optional() profileDirectory?: ProfileDirectoryService
+  ) {
+    this.workOrderDirectory = workOrderDirectory || new WorkOrderDirectoryService();
+    this.profileDirectory = profileDirectory || new ProfileDirectoryService();
+  }
+
+  getWorkOrderDirectory(): WorkOrderDirectoryService {
+    return this.workOrderDirectory;
+  }
+
+  getProfileDirectory(): ProfileDirectoryService {
+    return this.profileDirectory;
+  }
 
   /**
    * Pre-authorizes and locks funds in escrow for a work order.
@@ -142,7 +161,8 @@ export class EscrowService {
     callerUserIdOrTechnicianId?: string,
     legacyAmountMinor?: MinorUnits,
     legacyCorrelationId?: string,
-    legacyIdempotencyKey?: string
+    legacyIdempotencyKey?: string,
+    legacyBuyerId?: string
   ): Promise<EscrowReleaseResult> {
     let params: ReleaseEscrowParams;
 
@@ -150,6 +170,8 @@ export class EscrowService {
       params = {
         workOrderId: workOrderIdOrParams,
         callerUserId: callerUserIdOrTechnicianId,
+        technicianId: callerUserIdOrTechnicianId,
+        buyerId: legacyBuyerId,
         callerRole: 'SYSTEM',
         amountMinor: legacyAmountMinor,
         correlationId: legacyCorrelationId,
@@ -221,41 +243,44 @@ export class EscrowService {
           );
         }
 
-        // 3. Work Order FSM Status Verification (C3)
-        const [workOrder] = await tx
-          .select()
-          .from(workOrdersSchema.workOrders)
-          .where(eq(workOrdersSchema.workOrders.id, workOrderId))
-          .for('update');
+        // 3. Work Order FSM Status Verification (C3) & Directory Resolution (RULE-ARCH-01)
+        let woTechnicianId = params.technicianId;
+        let woBuyerId = params.buyerId;
 
-        if (!workOrder) {
-          throw new NotFoundException(`Work order ${workOrderId} not found`);
-        }
+        if (
+          !woTechnicianId ||
+          !woBuyerId ||
+          (callerRole && callerRole !== 'SYSTEM' && callerRole !== 'ADMIN')
+        ) {
+          const workOrder = await this.workOrderDirectory.getWorkOrder(workOrderId, correlationId);
+          if (!workOrder) {
+            throw new NotFoundException(`Work order ${workOrderId} not found`);
+          }
 
-        if (workOrder.status !== 'APPROVED') {
-          throw new ConflictException(
-            `Work order must be APPROVED before escrow release: current status is ${workOrder.status}`
-          );
-        }
+          if (workOrder.status !== 'APPROVED') {
+            throw new ConflictException(
+              `Work order must be APPROVED before escrow release: current status is ${workOrder.status}`
+            );
+          }
 
-        if (!workOrder.assignedTechnicianId) {
-          throw new BadRequestException(`Work order ${workOrderId} has no assigned technician`);
+          if (!workOrder.assignedTechnicianId) {
+            throw new BadRequestException(`Work order ${workOrderId} has no assigned technician`);
+          }
+
+          woTechnicianId = workOrder.assignedTechnicianId;
+          woBuyerId = workOrder.buyerId;
         }
 
         // 4. Caller Authority Verification (C3)
         if (callerRole && callerRole !== 'ADMIN' && callerRole !== 'SYSTEM') {
           // Must be the buyer who owns the work order
-          const resolvedBuyerId =
-            callerProfileId ??
-            (
-              await tx
-                .select({ id: usersSchema.buyerProfiles.id })
-                .from(usersSchema.buyerProfiles)
-                .where(eq(usersSchema.buyerProfiles.userId, callerUserId || ''))
-                .limit(1)
-            )[0]?.id;
+          const resolvedBuyerId = await this.profileDirectory.resolveBuyerProfileId(
+            callerUserId || '',
+            callerProfileId,
+            correlationId
+          );
 
-          if (!resolvedBuyerId || resolvedBuyerId !== workOrder.buyerId) {
+          if (!resolvedBuyerId || resolvedBuyerId !== woBuyerId) {
             throw new ForbiddenException(
               'Only the work order buyer or an administrator may authorize escrow release'
             );
@@ -289,8 +314,8 @@ export class EscrowService {
 
         // 6. Disburse Payout to Technician via Provider
         await this.paymentProvider.disbursePayout({
-          workOrderId: workOrder.id,
-          technicianId: workOrder.assignedTechnicianId,
+          workOrderId,
+          technicianId: woTechnicianId,
           amountMinor
         });
 
@@ -298,21 +323,21 @@ export class EscrowService {
         const unusedRemainderMinor = lockedMinor - amountMinor;
         if (unusedRemainderMinor > 0) {
           await this.paymentProvider.refundEscrow({
-            workOrderId: workOrder.id,
-            buyerId: workOrder.buyerId,
+            workOrderId,
+            buyerId: woBuyerId,
             amountMinor: unusedRemainderMinor,
             reason: 'Unused escrow balance refunded upon work order completion payout'
           });
           this.logger.info(
-            `[Escrow] refunded unused escrow remainder of ${formatMinor(unusedRemainderMinor)} to buyer ${workOrder.buyerId} for work order ${workOrderId}`
+            `[Escrow] refunded unused escrow remainder of ${formatMinor(unusedRemainderMinor)} to buyer ${woBuyerId} for work order ${workOrderId}`
           );
         }
 
         // 8. Record Double-Entry Payout Ledger Entry
         await tx.insert(billingSchema.payoutLedger).values({
           id: randomUUID(),
-          technicianId: workOrder.assignedTechnicianId,
-          workOrderId: workOrder.id,
+          technicianId: woTechnicianId,
+          workOrderId,
           amount: (amountMinor / 100).toFixed(2),
           type: 'CREDIT',
           description: 'Work order completion payout',
@@ -321,18 +346,18 @@ export class EscrowService {
 
         // 9. Generate Immutable Content-Hashed Invoice (FR-BILL-003)
         const invoice = await this.invoicesService.generateInvoiceWithTx(tx, {
-          workOrderId: workOrder.id,
-          buyerId: workOrder.buyerId,
+          workOrderId,
+          buyerId: woBuyerId,
           amountMinor
         });
 
         this.logger.info(
-          `[Payout] released ${formatMinor(amountMinor)} to technician ${workOrder.assignedTechnicianId} for work order ${workOrderId}`
+          `[Payout] released ${formatMinor(amountMinor)} to technician ${woTechnicianId} for work order ${workOrderId}`
         );
 
         const result: EscrowReleaseResult = {
-          workOrderId: workOrder.id,
-          technicianId: workOrder.assignedTechnicianId,
+          workOrderId,
+          technicianId: woTechnicianId,
           disbursedAmountMinor: amountMinor,
           status: EscrowStatus.RELEASED,
           invoiceId: invoice.id
@@ -355,9 +380,9 @@ export class EscrowService {
             EventType.PAYOUT_DISBURSED,
             {
               escrowId: escrow.id,
-              workOrderId: workOrder.id,
-              buyerId: workOrder.buyerId,
-              technicianId: workOrder.assignedTechnicianId,
+              workOrderId,
+              buyerId: woBuyerId,
+              technicianId: woTechnicianId,
               amountMinor
             },
             correlationId || randomUUID()

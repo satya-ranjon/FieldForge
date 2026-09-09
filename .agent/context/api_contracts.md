@@ -16,6 +16,7 @@
 | `POST`  | `/auth/phone/send-otp`                   | Request 6-digit phone verification OTP               | Public                                    | `sendPhoneOtpSchema`        |
 | `POST`  | `/auth/phone/verify-otp`                 | Verify phone number with 6-digit OTP                 | Public                                    | `verifyPhoneOtpSchema`      |
 | `GET`   | `/users/me`                              | Retrieve authenticated user profile                  | Bearer JWT                                | None                        |
+| `GET`   | `/users/:id/profile`                     | Fetch aggregated user, buyer, and technician profile | Bearer JWT / Internal                     | None                        |
 | `GET`   | `/technicians/:id/badges`                | Fetch technician certifications & vetting badges     | Bearer JWT                                | None                        |
 | `POST`  | `/technicians/batch`                     | Batch lookup of verified technician summary profiles | Public (Gateway prefix / Direct internal) | `batchTechniciansSchema`    |
 | `POST`  | `/technicians/certifications`            | Submit new technician certification for review       | `TECHNICIAN`, `ADMIN`                     | `createCertificationSchema` |

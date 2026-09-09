@@ -93,3 +93,39 @@ export interface PhoneOtpResponseDto {
   message: string;
   expiresInSeconds?: number;
 }
+
+export interface BuyerProfileDto {
+  id: string;
+  userId: string;
+  companyName: string;
+  billingAddress: string;
+  escrowBalance: string;
+  stripeCustomerId?: string | null;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+}
+
+export interface TechnicianProfileDto {
+  id: string;
+  userId: string;
+  firstName: string;
+  lastName: string;
+  hourlyRate: string;
+  ratingAverage: string;
+  jobsCompleted: number;
+  latitude?: string | null;
+  longitude?: string | null;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+}
+
+export interface UserProfileResponseDto {
+  id: string;
+  email: string;
+  role: UserRole;
+  phoneNumber: string | null;
+  status: UserStatus;
+  createdAt: string | Date;
+  buyerProfile?: BuyerProfileDto | null;
+  technicianProfile?: TechnicianProfileDto | null;
+}

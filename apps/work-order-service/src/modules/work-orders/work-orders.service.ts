@@ -23,14 +23,10 @@ import {
   fromMinor,
   toMinor
 } from '@fieldforge/contracts';
-import {
-  workOrders,
-  workOrderStatusHistory,
-  buyerProfiles,
-  workOrderBids
-} from '@fieldforge/database';
+import { workOrders, workOrderStatusHistory, workOrderBids } from '@fieldforge/database';
 import { eq, and, gte, lte, asc } from 'drizzle-orm';
-import { DRIZZLE, type DrizzleClient } from '@fieldforge/common';
+import { DRIZZLE, type DrizzleClient, ProfileDirectoryService } from '@fieldforge/common';
+import { Optional } from '@nestjs/common';
 import { WorkOrderFsmService } from '../fsm/work-order-fsm.service';
 import { WorkOrderEventPublisher } from '../../events/work-order-event.publisher';
 import {
@@ -49,12 +45,21 @@ import { randomUUID } from 'node:crypto';
 
 @Injectable()
 export class WorkOrdersService {
+  private readonly profileDirectory: ProfileDirectoryService;
+
   constructor(
     @Inject(DRIZZLE)
     private readonly db: DrizzleClient,
     private readonly fsmService: WorkOrderFsmService,
-    private readonly eventPublisher: WorkOrderEventPublisher
-  ) {}
+    private readonly eventPublisher: WorkOrderEventPublisher,
+    @Optional() profileDirectory?: ProfileDirectoryService
+  ) {
+    this.profileDirectory = profileDirectory || new ProfileDirectoryService();
+  }
+
+  getProfileDirectory(): ProfileDirectoryService {
+    return this.profileDirectory;
+  }
 
   private mapToResponseDto(row: typeof workOrders.$inferSelect): WorkOrderResponseDto {
     return {
@@ -91,18 +96,14 @@ export class WorkOrdersService {
     let resolvedBuyerId = callerProfileId;
 
     if (!resolvedBuyerId) {
-      const [buyerProfile] = await this.db
-        .select({ id: buyerProfiles.id })
-        .from(buyerProfiles)
-        .where(eq(buyerProfiles.userId, buyerUserId))
-        .limit(1);
+      const buyerId = await this.profileDirectory.resolveBuyerProfileId(buyerUserId);
 
-      if (!buyerProfile) {
+      if (!buyerId) {
         throw new NotFoundException(
           'Buyer profile not found for user. Please complete buyer onboarding.'
         );
       }
-      resolvedBuyerId = buyerProfile.id;
+      resolvedBuyerId = buyerId;
     }
 
     const startTime = new Date(dto.scheduledStartTime);
@@ -258,15 +259,10 @@ export class WorkOrdersService {
       }
 
       if (role === 'BUYER') {
-        const resolvedBuyerId =
-          callerProfileId ??
-          (
-            await tx
-              .select({ id: buyerProfiles.id })
-              .from(buyerProfiles)
-              .where(eq(buyerProfiles.userId, userId))
-              .limit(1)
-          )[0]?.id;
+        const resolvedBuyerId = await this.profileDirectory.resolveBuyerProfileId(
+          userId,
+          callerProfileId
+        );
 
         if (!resolvedBuyerId || resolvedBuyerId !== wo.buyerId) {
           throw new ForbiddenException(
@@ -363,7 +359,8 @@ export class WorkOrdersService {
         correlationId,
         callerProfileId,
         currentStatus,
-        nextStatus: dto.nextStatus
+        nextStatus: dto.nextStatus,
+        profileDirectory: this.profileDirectory
       };
 
       // 1. Enforce status-specific guards and authorization (OCP)

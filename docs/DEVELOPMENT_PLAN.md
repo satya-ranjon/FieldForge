@@ -969,6 +969,55 @@ NFR-PERF-001.
 
 ---
 
+## Phase 25 — Cross-Context Database Decoupling & Inter-Service Directory Resolution
+
+**Size: M · Dependencies: Phase 22, Phase 24.** Resolves **FF-CODE-04** (Code Quality Issue 4).
+
+Eliminated direct foreign schema imports (`usersSchema.buyerProfiles`, `usersSchema.technicianProfiles`, and `workOrdersSchema.workOrders`) from `apps/billing-service` and `apps/work-order-service`, fully enforcing Domain-Driven Design bounded context isolation (`RULE-ARCH-01`, ADR 006).
+
+**Deliverables:**
+
+- **Aggregated User Profile Contracts (`@fieldforge/contracts`).**
+  - Added `UserProfileResponseDto`, `BuyerProfileDto`, and `TechnicianProfileDto` in `dto/auth.dto.ts`.
+- **Aggregated Profile Endpoint (`apps/auth-service`).**
+  - Added `@Get(':id/profile')` endpoint in `UsersController` returning aggregated user, buyer, and technician profile information over REST.
+- **Shared Profile Directory Service (`@fieldforge/common`).**
+  - Implemented `@Injectable()` `ProfileDirectoryService` in `packages/common/src/directory/profile-directory.service.ts`.
+  - Provides zero-network fast-path for caller-provided profile IDs (`callerProfileId`), in-memory TTL caching (300s), local test mocking (`setLocalProfile()`), and resilient REST queries to `auth-service` with `x-correlation-id` propagation.
+- **Work Order Directory Service (`apps/billing-service`).**
+  - Implemented `@Injectable()` `WorkOrderDirectoryService` in `apps/billing-service/src/modules/work-orders/work-order-directory.service.ts` with 60s TTL caching and `setLocalWorkOrder()` test store.
+- **Billing Service Decoupling (`apps/billing-service`).**
+  - Purged all imports and references to `usersSchema` and `workOrdersSchema`.
+  - Refactored `EscrowService`: Injected `WorkOrderDirectoryService` and `ProfileDirectoryService`. Automated escrow payout release consumes canonical `buyerId` and `technicianId` directly from event payloads; manual/API paths query work order state via directory lookup.
+  - Refactored `BillingController`: Replaced foreign schema queries in `preAuthEscrow` and `getTechnicianPayouts` with `profileDirectory`.
+  - Refactored `BillingConsumer`: Passes `buyerId` from canonical `WORK_ORDER_APPROVED` payload to `EscrowService.releaseFunds()`.
+  - Registered `WorkOrderDirectoryService` and `ProfileDirectoryService` in `BillingModule`.
+- **Work Order Service Decoupling (`apps/work-order-service`).**
+  - Purged all imports and references to `usersSchema`, `buyerProfiles`, and `technicianProfiles`.
+  - Injected `ProfileDirectoryService` into `WorkOrdersService`, `BidsService`, `DeliverablesService`, and `work-order-transition.ts`.
+  - Registered `ProfileDirectoryService` in `WorkOrderModule`.
+- **Zero Database Migrations (`RULE-DB-02`).**
+  - No database migration SQL files created; no changes to `packages/database/src/schemas/`.
+
+**Verification:**
+
+- 556 automated unit/integration tests passing across 15 packages/apps in monorepo (zero `--passWithNoTests`):
+  - 234 tests in `apps/work-order-service` (13 suites).
+  - 28 tests in `apps/billing-service` (4 suites).
+  - 31 tests in `@fieldforge/common` (4 suites, +10 tests).
+  - 59 tests in `apps/auth-service` (6 suites, +3 tests).
+  - 28 tests in `apps/dispatch-matching-service` (4 suites).
+  - 21 tests in `@fieldforge/messaging` (5 suites).
+  - 104 tests in `apps/web-buyer-portal` (1 suite).
+  - 76 tests in `@fieldforge/contracts` (3 suites).
+  - 44 tests in `apps/api-gateway` (6 suites).
+  - 14 tests in `apps/notification-service` (1 suite).
+  - 21 tests in `@fieldforge/mobile-tech-app` (3 suites).
+- 28 Playwright E2E tests validated (`pnpm test:e2e`). Total verified tests: 584 tests.
+- `pnpm check && pnpm build` pass cleanly.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

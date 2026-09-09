@@ -338,6 +338,8 @@ describe('WorkOrdersService (Persistent, Transactional Lifecycle)', () => {
     publisher = new WorkOrderEventPublisher();
     mockDbInfo = createMockDb();
     service = new WorkOrdersService(mockDbInfo.db, fsm, publisher);
+    service.getProfileDirectory().setLocalProfile(BUYER_USER_ID, 'BUYER', BUYER_PROFILE_ID);
+    service.getProfileDirectory().setLocalProfile(TECH_USER_ID, 'TECHNICIAN', TECH_PROFILE_ID);
   });
 
   describe('create (FR-WO-001)', () => {

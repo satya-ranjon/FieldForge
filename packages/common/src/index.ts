@@ -12,3 +12,4 @@ export * from './exceptions/http-exception.filter';
 export * from './health/health.controller';
 export * from './geo/haversine';
 export * from './auth/gateway-auth';
+export * from './directory/profile-directory.service';

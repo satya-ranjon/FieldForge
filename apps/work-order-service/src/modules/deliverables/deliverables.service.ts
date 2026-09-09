@@ -3,28 +3,33 @@ import {
   Inject,
   NotFoundException,
   BadRequestException,
-  ForbiddenException
+  ForbiddenException,
+  Optional
 } from '@nestjs/common';
 import { DeliverableType, WorkOrderStatus } from '@fieldforge/contracts';
 import { randomUUID, createHash } from 'node:crypto';
-import {
-  workOrderDeliverables,
-  workOrders,
-  technicianProfiles,
-  buyerProfiles
-} from '@fieldforge/database';
+import { workOrderDeliverables, workOrders } from '@fieldforge/database';
 import { eq } from 'drizzle-orm';
-import { DRIZZLE, type DrizzleClient } from '@fieldforge/common';
+import { DRIZZLE, type DrizzleClient, ProfileDirectoryService } from '@fieldforge/common';
 import { MEDIA_STORAGE_PORT, type MediaStoragePort } from './media-storage.port';
 
 @Injectable()
 export class DeliverablesService {
+  private readonly profileDirectory: ProfileDirectoryService;
+
   constructor(
     @Inject(MEDIA_STORAGE_PORT)
     private readonly mediaStorage: MediaStoragePort,
     @Inject(DRIZZLE)
-    private readonly db: DrizzleClient
-  ) {}
+    private readonly db: DrizzleClient,
+    @Optional() profileDirectory?: ProfileDirectoryService
+  ) {
+    this.profileDirectory = profileDirectory || new ProfileDirectoryService();
+  }
+
+  getProfileDirectory(): ProfileDirectoryService {
+    return this.profileDirectory;
+  }
 
   /**
    * Generate an upload URL for deliverables backed by MediaStoragePort and persist record.
@@ -66,15 +71,10 @@ export class DeliverablesService {
     }
 
     if (role === 'TECHNICIAN') {
-      const resolvedTechnicianId =
-        callerProfileId ??
-        (
-          await this.db
-            .select({ id: technicianProfiles.id })
-            .from(technicianProfiles)
-            .where(eq(technicianProfiles.userId, userId))
-            .limit(1)
-        )[0]?.id;
+      const resolvedTechnicianId = await this.profileDirectory.resolveTechnicianProfileId(
+        userId,
+        callerProfileId
+      );
 
       if (!resolvedTechnicianId || resolvedTechnicianId !== wo.assignedTechnicianId) {
         throw new ForbiddenException(
@@ -143,15 +143,10 @@ export class DeliverablesService {
     }
 
     if (role === 'TECHNICIAN') {
-      const resolvedTechnicianId =
-        callerProfileId ??
-        (
-          await this.db
-            .select({ id: technicianProfiles.id })
-            .from(technicianProfiles)
-            .where(eq(technicianProfiles.userId, userId))
-            .limit(1)
-        )[0]?.id;
+      const resolvedTechnicianId = await this.profileDirectory.resolveTechnicianProfileId(
+        userId,
+        callerProfileId
+      );
 
       if (!resolvedTechnicianId || resolvedTechnicianId !== wo.assignedTechnicianId) {
         throw new ForbiddenException(
@@ -221,15 +216,10 @@ export class DeliverablesService {
     }
 
     if (role === 'BUYER') {
-      const resolvedBuyerId =
-        callerProfileId ??
-        (
-          await this.db
-            .select({ id: buyerProfiles.id })
-            .from(buyerProfiles)
-            .where(eq(buyerProfiles.userId, userId))
-            .limit(1)
-        )[0]?.id;
+      const resolvedBuyerId = await this.profileDirectory.resolveBuyerProfileId(
+        userId,
+        callerProfileId
+      );
 
       if (!resolvedBuyerId || resolvedBuyerId !== wo.buyerId) {
         throw new ForbiddenException(
@@ -237,15 +227,10 @@ export class DeliverablesService {
         );
       }
     } else if (role === 'TECHNICIAN') {
-      const resolvedTechnicianId =
-        callerProfileId ??
-        (
-          await this.db
-            .select({ id: technicianProfiles.id })
-            .from(technicianProfiles)
-            .where(eq(technicianProfiles.userId, userId))
-            .limit(1)
-        )[0]?.id;
+      const resolvedTechnicianId = await this.profileDirectory.resolveTechnicianProfileId(
+        userId,
+        callerProfileId
+      );
 
       if (!resolvedTechnicianId || resolvedTechnicianId !== wo.assignedTechnicianId) {
         throw new ForbiddenException(

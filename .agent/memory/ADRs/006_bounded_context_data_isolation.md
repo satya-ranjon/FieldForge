@@ -49,3 +49,15 @@ Decouple service data access through **Token-Enriched Profile Identity** and **I
 - **Negative:**
   - Technicians without registered profiles cannot be returned in directory lookups until indexed in `auth-service`.
   - Directory network latency during geo-search matching (mitigated with 3s timeouts and in-memory/Redis caching potential).
+
+---
+
+## 4. Addendum (Phase 25 / FF-CODE-04): Complete Elimination of Foreign Schema Imports
+
+In Phase 25, the read-only database fallback queries in `work-order-service` and `billing-service` were completely removed and replaced with REST directory lookups:
+
+1. `auth-service` exposes `GET /users/:id/profile` providing aggregated user, buyer, and technician profiles.
+2. `@fieldforge/common` provides `@Injectable()` `ProfileDirectoryService` with `callerProfileId` fast-path, 300s in-memory TTL caching, and `setLocalProfile()` test overrides.
+3. `billing-service` provides `@Injectable()` `WorkOrderDirectoryService` with 60s in-memory TTL caching and `setLocalWorkOrder()` test overrides.
+4. `BillingConsumer` releases automated escrow payouts using canonical `buyerId` and `technicianId` fields from `WORK_ORDER_APPROVED` payloads directly.
+5. All direct schema imports (`usersSchema.buyerProfiles`, `usersSchema.technicianProfiles`, and `workOrdersSchema.workOrders`) were 100% eliminated from both services.

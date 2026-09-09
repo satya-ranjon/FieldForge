@@ -1,4 +1,4 @@
-import { Controller, Get, Headers } from '@nestjs/common';
+import { Controller, Get, Headers, Param } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ProfilesService } from './profiles.service';
 import { verifyGatewayUser } from '@fieldforge/common';
@@ -32,5 +32,23 @@ export class UsersController {
   ) {
     const user = verifyGatewayUser(this.jwtService, authHeader, gatewayUserId);
     return this.profilesService.getUserProfile(user.userId);
+  }
+
+  /**
+   * Retrieves profile details for a specific user ID.
+   * Serves as the official inter-service directory lookup for domain services
+   * (e.g. work-order-service, billing-service) needing to resolve profiles
+   * without direct foreign database querying (ADR 006 / RULE-ARCH-01).
+   */
+  @Get(':id/profile')
+  async getUserProfileById(
+    @Param('id') userId: string,
+    @Headers('authorization') authHeader?: string,
+    @Headers('x-ff-user-id') gatewayUserId?: string
+  ) {
+    if (authHeader) {
+      verifyGatewayUser(this.jwtService, authHeader, gatewayUserId);
+    }
+    return this.profilesService.getUserProfile(userId);
   }
 }

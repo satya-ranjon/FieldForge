@@ -53,7 +53,8 @@ export class BillingConsumer implements OnApplicationBootstrap {
         technicianId,
         payoutAmountMinor,
         event.correlationId,
-        `auto-release-${event.eventId}`
+        `auto-release-${event.eventId}`,
+        event.payload.buyerId
       );
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : String(err);

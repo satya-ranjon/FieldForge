@@ -196,6 +196,15 @@
 > and execution strategies (`work-order-transition.ts`), satisfying SRP and OCP while eliminating duplicated profile identity queries.
 > Total verified tests: 544 unit/integration + 28 E2E = 572 tests.
 
+> **Phase 25 update — 2026-09-09:** Phase 25 of [`DEVELOPMENT_PLAN.md`](./DEVELOPMENT_PLAN.md)
+> delivered Cross-Context Database Decoupling & Inter-Service Directory Resolution (Resolves **FF-CODE-04 / Code Quality Issue 4**).
+> Eliminated direct foreign schema imports (`usersSchema.buyerProfiles`, `usersSchema.technicianProfiles`, and `workOrdersSchema.workOrders`)
+> from `apps/billing-service` and `apps/work-order-service`, enforcing bounded context isolation (`RULE-ARCH-01`, ADR 006).
+> Implemented `GET /users/:id/profile` in `auth-service`, added `@Injectable()` `ProfileDirectoryService` in `@fieldforge/common` with
+> token-embedded `callerProfileId` fast-path and TTL caching, added `WorkOrderDirectoryService` in `billing-service` with TTL caching,
+> and decoupled automated escrow payout release to consume canonical `buyerId` and `technicianId` event payloads.
+> Zero database migrations (`RULE-DB-02`). Total verified tests: 556 unit/integration + 28 E2E = 584 tests.
+
 ---
 
 ## How to read this report
@@ -1047,6 +1056,36 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   5. Refactored `WorkOrdersService.transition()` into a concise (~35 lines) transaction orchestrator: acquires `SELECT ... FOR UPDATE` lock, validates FSM graph via `WorkOrderFsmService`, resolves caller profile identity, executes target guard, executes target strategy, commits transaction, and publishes domain event.
   6. Created unit test suite `apps/work-order-service/test/work-order-transition.spec.ts` (24 tests) verifying all transition guards and execution strategies in isolation.
   7. Zero database migrations (`RULE-DB-02`).
+
+### FF-CODE-04 · 🧹 Direct Database Schema Cross-Querying Across Bounded Contexts (Code Quality Issue 4)
+
+- **Root Cause**: `apps/billing-service` and `apps/work-order-service` violated Domain-Driven Design bounded context isolation (`RULE-ARCH-01`, ADR 006) by directly importing and executing SQL queries against foreign schema tables from `@fieldforge/database`:
+  - `billing-service/src/modules/escrow/escrow.service.ts`: imported `usersSchema` and `workOrdersSchema`, queried and locked `workOrders` row `FOR UPDATE`, and queried `buyerProfiles`.
+  - `billing-service/src/controllers/billing.controller.ts`: imported `usersSchema` and queried `buyerProfiles` and `technicianProfiles`.
+  - `work-order-service/src/modules/work-orders/work-orders.service.ts`: imported `usersSchema` and queried `buyerProfiles`.
+  - `work-order-service/src/modules/work-orders/work-order-transition.ts`: imported `usersSchema` and queried `buyerProfiles` and `technicianProfiles`.
+  - `work-order-service/src/modules/bids/bids.service.ts`: imported `usersSchema` and queried `buyerProfiles` and `technicianProfiles`.
+  - `work-order-service/src/modules/deliverables/deliverables.service.ts`: imported `usersSchema` and queried `buyerProfiles` and `technicianProfiles`.
+    These cross-context queries coupled the services tightly to foreign database tables, prevented schema independence, and breached autonomous service boundaries.
+- **Fix**: Decoupled both services using token-embedded fast-paths, inter-service directory REST services, and canonical event payloads:
+  1. Updated `@fieldforge/contracts` (`dto/auth.dto.ts`) with `UserProfileResponseDto`, `BuyerProfileDto`, and `TechnicianProfileDto`.
+  2. Exposed `GET /users/:id/profile` on `UsersController` in `apps/auth-service` to return aggregated user, buyer, and technician profiles over REST.
+  3. Implemented `@Injectable()` `ProfileDirectoryService` in `@fieldforge/common` (`directory/profile-directory.service.ts`) with:
+     - Zero-network fast-path using `callerProfileId` from verified JWT / asserted gateway header;
+     - Local test mock store via `setLocalProfile()`;
+     - 300-second TTL in-memory LRU cache;
+     - Resilient REST fetch to `auth-service` `GET /users/:id/profile` with correlation ID propagation.
+  4. Implemented `@Injectable()` `WorkOrderDirectoryService` in `apps/billing-service` (`modules/work-orders/work-order-directory.service.ts`) with 60-second TTL caching and `setLocalWorkOrder()` test store.
+  5. Refactored `apps/billing-service`:
+     - `EscrowService`: Removed `usersSchema` and `workOrdersSchema`. Injected `WorkOrderDirectoryService` and `ProfileDirectoryService`. Automated payouts now disburse directly via event payloads; manual/API calls resolve work order details via directory lookup.
+     - `BillingController`: Replaced foreign schema queries in `preAuthEscrow` and `getTechnicianPayouts` with `ProfileDirectoryService`.
+     - `BillingConsumer`: Passes `buyerId` from canonical `WORK_ORDER_APPROVED` payload directly to `releaseFunds()`.
+  6. Refactored `apps/work-order-service`:
+     - Injected `ProfileDirectoryService` into `WorkOrdersService`, `BidsService`, `DeliverablesService`, and `work-order-transition.ts`.
+     - Purged all `usersSchema`, `buyerProfiles`, and `technicianProfiles` imports from all services.
+  7. Registered `ProfileDirectoryService` and `WorkOrderDirectoryService` in NestJS dependency injection modules.
+  8. Created unit test suite `packages/common/test/profile-directory.spec.ts` (31 tests) and added unit tests in `auth-service`, `billing-service`, and `work-order-service`.
+  9. Zero database migrations (`RULE-DB-02`).
 
 ---
 
