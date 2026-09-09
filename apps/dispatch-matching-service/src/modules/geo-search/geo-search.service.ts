@@ -1,8 +1,7 @@
 import { Injectable, Inject, Optional, OnApplicationShutdown } from '@nestjs/common';
 import Redis from 'ioredis';
-import { loadEnv, createLogger, DRIZZLE } from '@fieldforge/common';
+import { loadEnv, createLogger, DRIZZLE, type DrizzleClient } from '@fieldforge/common';
 import type { NearbyTechnicianDto } from '@fieldforge/contracts';
-import type { MySql2Database } from 'drizzle-orm/mysql2';
 import { technicianProfiles, technicianCertifications, users } from '@fieldforge/database';
 import { eq, inArray } from 'drizzle-orm';
 import { TechnicianDirectoryService } from './technician-directory.service';
@@ -24,7 +23,7 @@ export class GeoSearchService implements OnApplicationShutdown {
 
   constructor(
     @Optional() @Inject(REDIS_CLIENT) redisClient?: Redis,
-    @Optional() @Inject(DRIZZLE) private readonly db?: MySql2Database<Record<string, unknown>>,
+    @Optional() @Inject(DRIZZLE) private readonly db?: DrizzleClient,
     @Optional() private readonly directoryService?: TechnicianDirectoryService,
     @Optional() @Inject(CANDIDATE_SCORER) candidateScorer?: CandidateScorerPort
   ) {

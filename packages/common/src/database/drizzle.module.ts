@@ -1,10 +1,18 @@
 import type { DynamicModule } from '@nestjs/common';
 import { Global, Module } from '@nestjs/common';
-import { createDbClient } from '@fieldforge/database';
+import {
+  createDbClient,
+  type DatabaseClient,
+  type DatabaseTransaction,
+  type DbOrTx as DatabaseDbOrTx
+} from '@fieldforge/database';
 import { loadEnv } from '../config/env';
 
 export const DRIZZLE = Symbol('DRIZZLE');
-export type DrizzleClient = ReturnType<typeof createDbClient>;
+export type DrizzleClient = DatabaseClient;
+export type DrizzleTransaction = DatabaseTransaction;
+export type DbOrTx = DatabaseDbOrTx;
+export type DatabaseOrTransaction = DbOrTx;
 
 @Global()
 @Module({})

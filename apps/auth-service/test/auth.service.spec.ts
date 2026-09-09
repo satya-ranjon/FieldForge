@@ -4,7 +4,7 @@ import * as bcrypt from 'bcrypt';
 import { AuthService } from '../src/modules/iam/auth.service';
 import { ProfilesService } from '../src/modules/profiles/profiles.service';
 import { UserRole, UserStatus, toMinor } from '@fieldforge/contracts';
-import type { DrizzleClient } from '@fieldforge/common';
+import type { DrizzleClient, DrizzleTransaction } from '@fieldforge/common';
 
 interface MockDb {
   select: jest.Mock;
@@ -73,14 +73,16 @@ describe('AuthService', () => {
         })
       });
 
-      mockDb.transaction.mockImplementation(async (cb: (tx: unknown) => Promise<unknown>) => {
-        const tx = {
-          insert: jest.fn().mockReturnValue({
-            values: jest.fn().mockResolvedValue({})
-          })
-        };
-        return cb(tx);
-      });
+      mockDb.transaction.mockImplementation(
+        async (cb: (tx: DrizzleTransaction) => Promise<unknown>) => {
+          const tx = {
+            insert: jest.fn().mockReturnValue({
+              values: jest.fn().mockResolvedValue({})
+            })
+          };
+          return cb(tx as unknown as DrizzleTransaction);
+        }
+      );
 
       mockDb.insert.mockReturnValue({
         values: jest.fn().mockResolvedValue({})
@@ -111,14 +113,16 @@ describe('AuthService', () => {
         })
       });
 
-      mockDb.transaction.mockImplementation(async (cb: (tx: unknown) => Promise<unknown>) => {
-        const tx = {
-          insert: jest.fn().mockReturnValue({
-            values: jest.fn().mockResolvedValue({})
-          })
-        };
-        return cb(tx);
-      });
+      mockDb.transaction.mockImplementation(
+        async (cb: (tx: DrizzleTransaction) => Promise<unknown>) => {
+          const tx = {
+            insert: jest.fn().mockReturnValue({
+              values: jest.fn().mockResolvedValue({})
+            })
+          };
+          return cb(tx as unknown as DrizzleTransaction);
+        }
+      );
 
       mockDb.insert.mockReturnValue({
         values: jest.fn().mockResolvedValue({})

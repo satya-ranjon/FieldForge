@@ -1198,6 +1198,24 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   6. Updated `apps/dispatch-matching-service/test/geo-search.service.spec.ts` to verify delegation to injected `CandidateScorerPort` mock.
   7. Zero database migrations (`RULE-DB-02`).
 
+### FF-CODE-09 · 🧹 Untyped Transaction Parameters (`tx: unknown`) (Code Quality Issue 9)
+
+- **Root Cause**: Several cross-service domain methods and unit test doubles handled database transactions via untyped `tx: unknown` or `dbOrTx: unknown` parameters, bypassing TypeScript static safety and forcing runtime/compile-time escape hatches:
+  1. `InvoicesService.generateInvoiceWithTx(tx: unknown, ...)` in `apps/billing-service/src/modules/invoices/invoices.service.ts` bypassed compiler type checking and used an unsafe type assertion `const database = (tx as DrizzleClient) || this.db;`.
+  2. `ProfilesService.provisionProfile(dbOrTx: unknown, ...)` in `apps/auth-service/src/modules/profiles/profiles.service.ts` bypassed type checking and used `const executor = (dbOrTx as DrizzleClient) || this.db;`.
+  3. `work-order-assignment.ts` in `apps/work-order-service` attempted to work around the missing exports by manually extracting `Parameters<Parameters<MySql2Database<Record<string, unknown>>['transaction']>[0]>[0]` without schema binding.
+  4. `BidsService` and `GeoSearchService` typed the injected database client as `MySql2Database<Record<string, unknown>>` rather than the schema-bound `DrizzleClient`.
+  5. Test doubles in `billing-service`, `auth-service`, and `work-order-service` relied on untyped `(tx: unknown)` callbacks for `db.transaction()` mocks.
+- **Fix**: Centralized canonical Drizzle transaction types in `@fieldforge/database` and `@fieldforge/common`, and typed all transaction-aware services:
+  1. Exported canonical `DatabaseSchema`, `DatabaseClient`, `DatabaseTransaction`, and `DbOrTx` from `packages/database/src/index.ts`.
+  2. Exported `DrizzleClient`, `DrizzleTransaction`, `DbOrTx`, and `DatabaseOrTransaction` from `packages/common/src/database/drizzle.module.ts` and `packages/common/src/index.ts`.
+  3. Refactored `InvoicesService.generateInvoiceWithTx(tx: DbOrTx | undefined, ...)` to use `const database = tx ?? this.db;`, eliminating the `(tx as DrizzleClient)` cast.
+  4. Refactored `ProfilesService.provisionProfile(dbOrTx: DbOrTx | undefined, ...)` to use `const executor = dbOrTx ?? this.db;`, eliminating the `(dbOrTx as DrizzleClient)` cast.
+  5. Refactored `work-order-assignment.ts` to import canonical `DrizzleTransaction` and `DbOrTx` from `@fieldforge/common` and alias `export type AssignmentDbTx = DbOrTx;`, preserving 100% backward compatibility.
+  6. Refactored `BidsService` and `GeoSearchService` to inject `DrizzleClient` from `@fieldforge/common` instead of ad-hoc `MySql2Database<Record<string, unknown>>`.
+  7. Updated transaction test mocks across `escrow.service.spec.ts`, `invoices.service.spec.ts`, `auth.service.spec.ts`, `profiles.service.spec.ts`, `work-orders.service.spec.ts`, and `bids.service.spec.ts` with strongly typed `DrizzleTransaction` and `DbOrTx`.
+  8. Zero database migrations (`RULE-DB-02`).
+
 ---
 
 ## Suggested remediation order

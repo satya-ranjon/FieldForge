@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-09  
-**Phase:** Phase 29 complete — Decouple Dispatch Candidate Scoring from Redis Spatial Search Service (FF-CODE-08 / Code Quality Issue 8). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 30 complete — Canonical Drizzle Transaction Typing across Microservices (FF-CODE-09 / Code Quality Issue 9). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -79,6 +79,16 @@
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
   - `AppNavigator` mounting `JobListScreen` and `ActiveJobScreen` wrapped in Redux store.
 - **A test harness that can fail.** 628 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 656 total verified tests).
+- **Canonical Drizzle Transaction Typing across Microservices (Phase 30, Resolves FF-CODE-09 / Code Quality Issue 9).**
+  - Exported canonical `DatabaseSchema`, `DatabaseClient`, `DatabaseTransaction`, and `DbOrTx` from `packages/database/src/index.ts`.
+  - Re-exported and aliased `DrizzleClient`, `DrizzleTransaction`, `DbOrTx`, and `DatabaseOrTransaction` from `packages/common/src/database/drizzle.module.ts` and `packages/common/src/index.ts`.
+  - Refactored `InvoicesService.generateInvoiceWithTx(tx: DbOrTx | undefined, ...)` in `apps/billing-service` to use `const database = tx ?? this.db;`, removing unsafe `as DrizzleClient` cast.
+  - Refactored `ProfilesService.provisionProfile(dbOrTx: DbOrTx | undefined, ...)` in `apps/auth-service` to use `const executor = dbOrTx ?? this.db;`, removing unsafe `as DrizzleClient` cast.
+  - Refactored `work-order-assignment.ts` in `apps/work-order-service` to import canonical `DrizzleTransaction` and `DbOrTx` from `@fieldforge/common` and alias `export type AssignmentDbTx = DbOrTx;`.
+  - Refactored `BidsService` (`apps/work-order-service`) and `GeoSearchService` (`apps/dispatch-matching-service`) to inject schema-aware `DrizzleClient` from `@fieldforge/common` rather than raw `MySql2Database<Record<string, unknown>>`.
+  - Updated mock transaction implementations in `escrow.service.spec.ts`, `invoices.service.spec.ts`, `auth.service.spec.ts`, `profiles.service.spec.ts`, `work-orders.service.spec.ts`, and `bids.service.spec.ts` with strongly typed `DrizzleTransaction` and `DbOrTx`.
+  - Zero database migrations (`RULE-DB-02`).
+
 - **Decoupled Dispatch Candidate Scoring from Redis Spatial Search (Phase 29, Resolves FF-CODE-08 / Code Quality Issue 8).**
   - Created `CandidateScorerPort` (`apps/dispatch-matching-service/src/modules/scoring/candidate-scorer.interface.ts`) defining candidate scoring weights (`DEFAULT_CANDIDATE_SCORING_WEIGHTS`: 40% distance, 30% rating, 15% experience, 15% certifications) and `CANDIDATE_SCORER` injection symbol.
   - Implemented `@Injectable() CandidateScoringService` adapter implementing `CandidateScorerPort`, isolating proximity curve calculations, normalized 5-star ratings, capped job history, and certification match logic from low-level Redis calls.

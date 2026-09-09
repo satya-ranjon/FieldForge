@@ -1192,6 +1192,44 @@ Decoupled multi-parameter contractor scoring and candidate ranking logic (~45 li
 
 ---
 
+## Phase 30 — Canonical Drizzle Transaction Typing across Microservices
+
+**Size: S · Dependencies: Phase 29.** Resolves **FF-CODE-09** (Code Quality Issue 9).
+
+Eliminated unsafe `tx: unknown` and `dbOrTx: unknown` parameters, ad-hoc `MySql2Database<Record<string, unknown>>` client typings, and type assertion escape hatches (`(tx as DrizzleClient)`) across microservices by exporting canonical `DatabaseTransaction`, `DrizzleTransaction`, and `DbOrTx` types from `@fieldforge/database` and `@fieldforge/common`, updating all transaction-aware domain services and unit tests.
+
+**Deliverables:**
+
+- **Canonical Transaction Types (`packages/database` & `packages/common`).**
+  - Exported `DatabaseSchema`, `DatabaseClient`, `DatabaseTransaction`, and `DbOrTx` from `packages/database/src/index.ts`.
+  - Re-exported and aliased `DrizzleClient`, `DrizzleTransaction`, `DbOrTx`, and `DatabaseOrTransaction` from `packages/common/src/database/drizzle.module.ts` and `packages/common/src/index.ts`.
+- **Domain Service Refactoring.**
+  - `InvoicesService.generateInvoiceWithTx(tx: DbOrTx | undefined, ...)` in `apps/billing-service` uses `const database = tx ?? this.db;`, removing unsafe `as DrizzleClient` cast.
+  - `ProfilesService.provisionProfile(dbOrTx: DbOrTx | undefined, ...)` in `apps/auth-service` uses `const executor = dbOrTx ?? this.db;`, removing unsafe `as DrizzleClient` cast.
+  - `apps/work-order-service/src/modules/work-orders/work-order-assignment.ts` imports canonical `DrizzleTransaction` and `DbOrTx` from `@fieldforge/common` and aliases `AssignmentDbTx = DbOrTx`.
+  - `BidsService` (`apps/work-order-service`) and `GeoSearchService` (`apps/dispatch-matching-service`) inject `DrizzleClient` from `@fieldforge/common` rather than raw `MySql2Database<Record<string, unknown>>`.
+- **Test Suite Updates.**
+  - Updated mock transaction implementations and parameters in `escrow.service.spec.ts`, `invoices.service.spec.ts`, `auth.service.spec.ts`, `profiles.service.spec.ts`, `work-orders.service.spec.ts`, and `bids.service.spec.ts` to use canonical `DrizzleTransaction` and `DbOrTx`.
+
+**Verification:**
+
+- 628 automated unit/integration tests passing across 15 packages/apps in monorepo (zero `--passWithNoTests`):
+  - 58 tests in `apps/dispatch-matching-service` (5 suites).
+  - 33 tests in `apps/billing-service` (5 suites).
+  - 234 tests in `apps/work-order-service` (13 suites).
+  - 73 tests in `apps/auth-service` (7 suites).
+  - 49 tests in `@fieldforge/common` (6 suites).
+  - 81 tests in `@fieldforge/contracts` (3 suites).
+  - 21 tests in `@fieldforge/messaging` (5 suites).
+  - 104 tests in `apps/web-buyer-portal` (1 suite).
+  - 44 tests in `apps/api-gateway` (6 suites).
+  - 14 tests in `apps/notification-service` (1 suite).
+  - 21 tests in `@fieldforge/mobile-tech-app` (3 suites).
+- 28 Playwright E2E tests validated (`pnpm test:e2e`). Total verified tests: 656 tests.
+- `pnpm check && pnpm build` pass cleanly.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

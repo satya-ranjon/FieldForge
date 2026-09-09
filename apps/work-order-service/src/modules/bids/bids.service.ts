@@ -7,8 +7,7 @@ import {
   ForbiddenException,
   ConflictException
 } from '@nestjs/common';
-import { DRIZZLE, ProfileDirectoryService } from '@fieldforge/common';
-import type { MySql2Database } from 'drizzle-orm/mysql2';
+import { DRIZZLE, ProfileDirectoryService, type DrizzleClient } from '@fieldforge/common';
 import { workOrders, workOrderBids, idempotencyKeys } from '@fieldforge/database';
 import { eq, and, ne, desc } from 'drizzle-orm';
 import {
@@ -30,7 +29,7 @@ export class BidsService {
   private readonly profileDirectory: ProfileDirectoryService;
 
   constructor(
-    @Inject(DRIZZLE) private readonly db: MySql2Database<Record<string, unknown>>,
+    @Inject(DRIZZLE) private readonly db: DrizzleClient,
     private readonly eventPublisher: WorkOrderEventPublisher,
     private readonly fsmService: WorkOrderFsmService,
     @Optional() profileDirectory?: ProfileDirectoryService

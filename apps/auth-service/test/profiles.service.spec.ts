@@ -1,7 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import { ProfilesService } from '../src/modules/profiles/profiles.service';
 import { UserRole, UserStatus, toMinor } from '@fieldforge/contracts';
-import type { DrizzleClient } from '@fieldforge/common';
+import type { DrizzleClient, DbOrTx } from '@fieldforge/common';
 
 interface MockDb {
   select: jest.Mock;
@@ -28,7 +28,7 @@ describe('ProfilesService', () => {
         })
       };
 
-      const profileId = await service.provisionProfile(mockTx, 'u-1', {
+      const profileId = await service.provisionProfile(mockTx as unknown as DbOrTx, 'u-1', {
         email: 'buyer@example.com',
         password: 'Password123!',
         role: UserRole.BUYER,
@@ -47,7 +47,7 @@ describe('ProfilesService', () => {
         })
       };
 
-      const profileId = await service.provisionProfile(mockTx, 'u-2', {
+      const profileId = await service.provisionProfile(mockTx as unknown as DbOrTx, 'u-2', {
         email: 'tech@example.com',
         password: 'Password123!',
         role: UserRole.TECHNICIAN,
@@ -66,7 +66,7 @@ describe('ProfilesService', () => {
         insert: jest.fn()
       };
 
-      const profileId = await service.provisionProfile(mockTx, 'u-3', {
+      const profileId = await service.provisionProfile(mockTx as unknown as DbOrTx, 'u-3', {
         email: 'admin@example.com',
         password: 'Password123!',
         role: UserRole.ADMIN,

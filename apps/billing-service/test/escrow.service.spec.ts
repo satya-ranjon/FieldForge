@@ -5,7 +5,7 @@ import {
   NotFoundException
 } from '@nestjs/common';
 import { EscrowStatus, EventType, WorkOrderStatus } from '@fieldforge/contracts';
-import type { DrizzleClient } from '@fieldforge/common';
+import type { DrizzleClient, DrizzleTransaction } from '@fieldforge/common';
 import { EscrowService } from '../src/modules/escrow/escrow.service';
 import type { PaymentProviderPort } from '../src/modules/payments/payment-provider.port';
 import type { InvoicesService } from '../src/modules/invoices/invoices.service';
@@ -48,7 +48,9 @@ describe('EscrowService', () => {
     mockDb = {
       transaction: jest
         .fn()
-        .mockImplementation(async (cb: (tx: unknown) => Promise<unknown>) => cb(mockTx)),
+        .mockImplementation(async (cb: (tx: DrizzleTransaction) => Promise<unknown>) =>
+          cb(mockTx as unknown as DrizzleTransaction)
+        ),
       select: jest.fn()
     };
 

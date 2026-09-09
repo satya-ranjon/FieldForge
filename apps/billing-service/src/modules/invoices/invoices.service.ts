@@ -1,7 +1,7 @@
 import { Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
-import { DRIZZLE, type DrizzleClient } from '@fieldforge/common';
+import { DRIZZLE, type DrizzleClient, type DbOrTx } from '@fieldforge/common';
 import { billingSchema } from '@fieldforge/database';
 import type { InvoiceDetailsDto, MinorUnits } from '@fieldforge/contracts';
 import { INVOICE_PDF_RENDERER, type InvoicePdfRendererPort } from './invoice-pdf.renderer.port';
@@ -36,14 +36,14 @@ export class InvoicesService {
    * Transaction-safe invoice creation. Can be invoked within an existing db.transaction().
    */
   async generateInvoiceWithTx(
-    tx: unknown,
+    tx: DbOrTx | undefined,
     params: {
       workOrderId: string;
       buyerId: string;
       amountMinor: MinorUnits;
     }
   ): Promise<InvoiceDetailsDto> {
-    const database = (tx as DrizzleClient) || this.db;
+    const database = tx ?? this.db;
 
     // Check if an invoice for this work order already exists
     const [existing] = await database

@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, Inject } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
-import { DRIZZLE, type DrizzleClient } from '@fieldforge/common';
+import { DRIZZLE, type DrizzleClient, type DbOrTx } from '@fieldforge/common';
 import { users, buyerProfiles, technicianProfiles } from '@fieldforge/database';
 import { fromMinor, type RegisterUserDto } from '@fieldforge/contracts';
 
@@ -14,11 +14,11 @@ export class ProfilesService {
    * Isolates profile schema fields and business defaults from core IAM credentials.
    */
   async provisionProfile(
-    dbOrTx: unknown,
+    dbOrTx: DbOrTx | undefined,
     userId: string,
     dto: RegisterUserDto
   ): Promise<string | undefined> {
-    const executor = (dbOrTx as DrizzleClient) || this.db;
+    const executor = dbOrTx ?? this.db;
 
     if (dto.role === 'BUYER') {
       const profileId = randomUUID();

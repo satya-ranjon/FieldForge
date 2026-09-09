@@ -21,6 +21,11 @@ export const createDbClient = (connectionUri: string) => {
   return drizzle(pool, { schema, mode: 'default' });
 };
 
+export type DatabaseSchema = typeof schema;
+export type DatabaseClient = ReturnType<typeof createDbClient>;
+export type DatabaseTransaction = Parameters<Parameters<DatabaseClient['transaction']>[0]>[0];
+export type DbOrTx = DatabaseClient | DatabaseTransaction;
+
 export { sql } from 'drizzle-orm';
 
 export const iamSchema = {

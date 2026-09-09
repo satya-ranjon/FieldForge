@@ -3,7 +3,7 @@ import { WorkOrderEventPublisher } from '../src/events/work-order-event.publishe
 import { WorkOrderFsmService } from '../src/modules/fsm/work-order-fsm.service';
 import { WorkOrdersService } from '../src/modules/work-orders/work-orders.service';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
-import type { DrizzleClient } from '@fieldforge/common';
+import type { DrizzleClient, DrizzleTransaction } from '@fieldforge/common';
 
 const BUYER_USER_ID = 'u0000000-0000-4000-8000-000000000001';
 const BUYER_PROFILE_ID = 'b0000000-0000-4000-8000-000000000001';
@@ -294,7 +294,7 @@ function createMockDb() {
         };
       }
     }),
-    transaction: async (cb: (tx: unknown) => Promise<unknown>) => {
+    transaction: async (cb: (tx: DrizzleTransaction) => Promise<unknown>) => {
       // Simulate serializable/pessimistic row locking inside transactions
       const prev = transactionQueue;
       let release: () => void = () => {};
@@ -303,7 +303,7 @@ function createMockDb() {
       });
       await prev;
       try {
-        return await cb(createTx());
+        return await cb(createTx() as unknown as DrizzleTransaction);
       } finally {
         release();
       }

@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
-import type { MySql2Database } from 'drizzle-orm/mysql2';
+import type { DrizzleClient } from '@fieldforge/common';
 import { BidsService } from '../src/modules/bids/bids.service';
 import { WorkOrderFsmService } from '../src/modules/fsm/work-order-fsm.service';
 import type { WorkOrderEventPublisher } from '../src/events/work-order-event.publisher';
@@ -66,11 +66,7 @@ describe('BidsService in work-order-service', () => {
         select: jest.fn()
       };
 
-      service = new BidsService(
-        mockDb as unknown as MySql2Database<Record<string, unknown>>,
-        mockEventPublisher,
-        fsmService
-      );
+      service = new BidsService(mockDb as unknown as DrizzleClient, mockEventPublisher, fsmService);
       service.getProfileDirectory().setLocalProfile('user-tech-1', 'TECHNICIAN', 'tech-1');
 
       const result = await service.submitBid(
@@ -101,11 +97,7 @@ describe('BidsService in work-order-service', () => {
         select: jest.fn()
       };
 
-      service = new BidsService(
-        mockDb as unknown as MySql2Database<Record<string, unknown>>,
-        mockEventPublisher,
-        fsmService
-      );
+      service = new BidsService(mockDb as unknown as DrizzleClient, mockEventPublisher, fsmService);
 
       const result = await service.submitBid(
         {
@@ -131,11 +123,7 @@ describe('BidsService in work-order-service', () => {
         select: jest.fn()
       };
 
-      service = new BidsService(
-        mockDb as unknown as MySql2Database<Record<string, unknown>>,
-        mockEventPublisher,
-        fsmService
-      );
+      service = new BidsService(mockDb as unknown as DrizzleClient, mockEventPublisher, fsmService);
       service.getProfileDirectory().setLocalProfile('user-tech-1', 'TECHNICIAN', 'tech-1');
 
       await expect(
@@ -154,11 +142,7 @@ describe('BidsService in work-order-service', () => {
         select: jest.fn()
       };
 
-      service = new BidsService(
-        mockDb as unknown as MySql2Database<Record<string, unknown>>,
-        mockEventPublisher,
-        fsmService
-      );
+      service = new BidsService(mockDb as unknown as DrizzleClient, mockEventPublisher, fsmService);
       service.getProfileDirectory().setLocalProfile('user-tech-1', 'TECHNICIAN', 'tech-1');
 
       await expect(
@@ -187,11 +171,7 @@ describe('BidsService in work-order-service', () => {
         select: jest.fn()
       };
 
-      service = new BidsService(
-        mockDb as unknown as MySql2Database<Record<string, unknown>>,
-        mockEventPublisher,
-        fsmService
-      );
+      service = new BidsService(mockDb as unknown as DrizzleClient, mockEventPublisher, fsmService);
       service.getProfileDirectory().setLocalProfile('user-buyer-1', 'BUYER', 'buyer-profile-1');
 
       const result = await service.acceptBid('bid-1', 'user-buyer-1', 'BUYER', 'corr-1');
@@ -223,11 +203,7 @@ describe('BidsService in work-order-service', () => {
         select: jest.fn()
       };
 
-      service = new BidsService(
-        mockDb as unknown as MySql2Database<Record<string, unknown>>,
-        mockEventPublisher,
-        fsmService
-      );
+      service = new BidsService(mockDb as unknown as DrizzleClient, mockEventPublisher, fsmService);
 
       const result = await service.acceptBid(
         'bid-1',
@@ -260,11 +236,7 @@ describe('BidsService in work-order-service', () => {
         select: jest.fn()
       };
 
-      service = new BidsService(
-        mockDb as unknown as MySql2Database<Record<string, unknown>>,
-        mockEventPublisher,
-        fsmService
-      );
+      service = new BidsService(mockDb as unknown as DrizzleClient, mockEventPublisher, fsmService);
       service
         .getProfileDirectory()
         .setLocalProfile('user-buyer-attacker', 'BUYER', 'buyer-profile-attacker');
@@ -293,11 +265,7 @@ describe('BidsService in work-order-service', () => {
         select: jest.fn()
       };
 
-      service = new BidsService(
-        mockDb as unknown as MySql2Database<Record<string, unknown>>,
-        mockEventPublisher,
-        fsmService
-      );
+      service = new BidsService(mockDb as unknown as DrizzleClient, mockEventPublisher, fsmService);
       service.getProfileDirectory().setLocalProfile('user-buyer-1', 'BUYER', 'buyer-profile-1');
 
       await expect(service.acceptBid('bid-1', 'user-buyer-1', 'BUYER', 'corr-1')).rejects.toThrow(
@@ -332,11 +300,7 @@ describe('BidsService in work-order-service', () => {
         select: jest.fn(() => chain)
       };
 
-      service = new BidsService(
-        mockDb as unknown as MySql2Database<Record<string, unknown>>,
-        mockEventPublisher,
-        fsmService
-      );
+      service = new BidsService(mockDb as unknown as DrizzleClient, mockEventPublisher, fsmService);
 
       const result = await service.listBidsForWorkOrder('wo-1', 'user-buyer-1', 'BUYER', 'buyer-1');
       expect(result).toHaveLength(1);

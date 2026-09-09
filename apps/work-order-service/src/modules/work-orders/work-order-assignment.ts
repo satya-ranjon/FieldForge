@@ -10,15 +10,12 @@ import {
   toMinor
 } from '@fieldforge/contracts';
 import { workOrders, workOrderStatusHistory, workOrderBids } from '@fieldforge/database';
-import type { MySql2Database } from 'drizzle-orm/mysql2';
+import { type DrizzleTransaction, type DbOrTx } from '@fieldforge/common';
 import type { WorkOrderFsmService } from '../fsm/work-order-fsm.service';
 import type { WorkOrderEventPublisher } from '../../events/work-order-event.publisher';
 
-export type DrizzleTransaction = Parameters<
-  Parameters<MySql2Database<Record<string, unknown>>['transaction']>[0]
->[0];
-
-export type AssignmentDbTx = DrizzleTransaction | MySql2Database<Record<string, unknown>>;
+export type { DrizzleTransaction, DbOrTx };
+export type AssignmentDbTx = DbOrTx;
 
 export interface ExecuteAssignmentParams {
   workOrderId: string;

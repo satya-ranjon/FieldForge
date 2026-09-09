@@ -1,4 +1,4 @@
-import type { DrizzleClient } from '@fieldforge/common';
+import type { DrizzleClient, DbOrTx } from '@fieldforge/common';
 import { InvoicesService } from '../src/modules/invoices/invoices.service';
 
 const WORK_ORDER_ID = 'wo-inv-1';
@@ -67,7 +67,7 @@ describe('InvoicesService', () => {
         })
       };
 
-      const invoice = await invoicesService.generateInvoiceWithTx(mockTx, {
+      const invoice = await invoicesService.generateInvoiceWithTx(mockTx as unknown as DbOrTx, {
         workOrderId: WORK_ORDER_ID,
         buyerId: BUYER_ID,
         amountMinor: 45000
@@ -106,7 +106,7 @@ describe('InvoicesService', () => {
         insert: jest.fn()
       };
 
-      const invoice = await invoicesService.generateInvoiceWithTx(mockTx, {
+      const invoice = await invoicesService.generateInvoiceWithTx(mockTx as unknown as DbOrTx, {
         workOrderId: WORK_ORDER_ID,
         buyerId: BUYER_ID,
         amountMinor: 45000
