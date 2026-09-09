@@ -1149,6 +1149,49 @@ Decoupled low-level PDFKit imperative canvas/coordinate drawing (~80 lines) from
 
 ---
 
+## Phase 29 — Decouple Dispatch Candidate Scoring from Redis Spatial Search Service
+
+**Size: S · Dependencies: Phase 28.** Resolves **FF-CODE-08** (Code Quality Issue 8).
+
+Decoupled multi-parameter contractor scoring and candidate ranking logic (~45 lines of domain business math) from `GeoSearchService` in `apps/dispatch-matching-service` into an isolated domain service (`CandidateScoringService`) and port interface (`CandidateScorerPort`), restoring the Single Responsibility Principle (SRP) and Open/Closed Principle (OCP).
+
+**Deliverables:**
+
+- **Secondary Port & Scoring Contracts (`apps/dispatch-matching-service`).**
+  - Declared `CandidateScoringWeights`, `CandidateScoringInput`, `CandidateScoreBreakdown`, `ScoredCandidate<T>`, `CandidateScorerPort`, and injection token `CANDIDATE_SCORER` in `apps/dispatch-matching-service/src/modules/scoring/candidate-scorer.interface.ts`.
+  - Codified default weights (`40% distance`, `30% rating`, `15% experience`, `15% verified certifications`).
+- **Domain Scoring Service (`apps/dispatch-matching-service`).**
+  - Implemented `@Injectable() CandidateScoringService` implementing `CandidateScorerPort` in `apps/dispatch-matching-service/src/modules/scoring/candidate-scoring.service.ts`.
+  - Calculates normalized, boundary-clamped scores for proximity curves, 5-star ratings, completed jobs caps (100 jobs), and required certification match ratios.
+  - Ranks candidates in descending order of composite score with proximity tie-breaking. Supports custom weight overrides.
+- **Service Refactoring (`apps/dispatch-matching-service`).**
+  - Refactored `GeoSearchService` (`apps/dispatch-matching-service/src/modules/geo-search/geo-search.service.ts`) to inject `@Optional() @Inject(CANDIDATE_SCORER) private readonly scorer: CandidateScorerPort` with fallback to `CandidateScoringService`.
+  - Removed inline scoring math and weighting constants from `findNearbyTechnicians()`, delegating directly to `this.scorer.rankCandidates(candidateInputs)`.
+- **Module Registration (`apps/dispatch-matching-service`).**
+  - Registered and exported `CandidateScoringService` and `CANDIDATE_SCORER` in `DispatchModule` (`apps/dispatch-matching-service/src/dispatch.module.ts`).
+- **Automated Test Suites.**
+  - Added comprehensive unit test suite `apps/dispatch-matching-service/test/candidate-scoring.service.spec.ts` (24 tests) validating mathematical boundary conditions (distance clamping, rating normalization, experience scaling, certification match ratios, and custom weights).
+  - Updated `apps/dispatch-matching-service/test/geo-search.service.spec.ts` to verify delegation to injected `CandidateScorerPort` mock.
+
+**Verification:**
+
+- 628 automated unit/integration tests passing across 15 packages/apps in monorepo (+25 new tests, zero `--passWithNoTests`):
+  - 58 tests in `apps/dispatch-matching-service` (5 suites, +25 tests).
+  - 33 tests in `apps/billing-service` (5 suites).
+  - 234 tests in `apps/work-order-service` (13 suites).
+  - 73 tests in `apps/auth-service` (7 suites).
+  - 49 tests in `@fieldforge/common` (6 suites).
+  - 81 tests in `@fieldforge/contracts` (3 suites).
+  - 21 tests in `@fieldforge/messaging` (5 suites).
+  - 104 tests in `apps/web-buyer-portal` (1 suite).
+  - 44 tests in `apps/api-gateway` (6 suites).
+  - 14 tests in `apps/notification-service` (1 suite).
+  - 21 tests in `@fieldforge/mobile-tech-app` (3 suites).
+- 28 Playwright E2E tests validated (`pnpm test:e2e`). Total verified tests: 656 tests.
+- `pnpm check && pnpm build` pass cleanly.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

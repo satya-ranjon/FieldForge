@@ -6,6 +6,12 @@ import type { MySql2Database } from 'drizzle-orm/mysql2';
 import { technicianProfiles, technicianCertifications, users } from '@fieldforge/database';
 import { eq, inArray } from 'drizzle-orm';
 import { TechnicianDirectoryService } from './technician-directory.service';
+import {
+  CANDIDATE_SCORER,
+  type CandidateScorerPort,
+  CandidateScoringService,
+  type CandidateScoringInput
+} from '../scoring';
 
 export const REDIS_CLIENT = 'DISPATCH_REDIS_CLIENT';
 export const TECH_LOCATIONS_KEY = 'tech:locations';
@@ -14,12 +20,15 @@ export const TECH_LOCATIONS_KEY = 'tech:locations';
 export class GeoSearchService implements OnApplicationShutdown {
   private readonly logger = createLogger('dispatch-geo-search');
   private readonly redis: Redis;
+  private readonly scorer: CandidateScorerPort;
 
   constructor(
     @Optional() @Inject(REDIS_CLIENT) redisClient?: Redis,
     @Optional() @Inject(DRIZZLE) private readonly db?: MySql2Database<Record<string, unknown>>,
-    @Optional() private readonly directoryService?: TechnicianDirectoryService
+    @Optional() private readonly directoryService?: TechnicianDirectoryService,
+    @Optional() @Inject(CANDIDATE_SCORER) candidateScorer?: CandidateScorerPort
   ) {
+    this.scorer = candidateScorer ?? new CandidateScoringService();
     if (redisClient) {
       this.redis = redisClient;
     } else {
@@ -180,54 +189,57 @@ export class GeoSearchService implements OnApplicationShutdown {
 
     const dbMap = new Map(dbTechs.map((t) => [t.id, t]));
 
-    const scoredTechs = rawResults.map(([technicianId, distStr, [lngStr, latStr]]) => {
-      const dist = parseFloat(distStr) || 0;
-      const tLat = parseFloat(latStr) || latitude;
-      const tLng = parseFloat(lngStr) || longitude;
-      const meta = dbMap.get(technicianId);
+    interface CandidateEnrichment extends CandidateScoringInput {
+      fullName: string;
+      latitude: number;
+      longitude: number;
+      isAvailable: boolean;
+      certifications: string[];
+    }
 
-      const rating = meta ? parseFloat(meta.ratingAverage) || 5.0 : 5.0;
-      const jobs = meta?.jobsCompleted ?? 0;
-      const fullName = meta
-        ? `${meta.firstName} ${meta.lastName}`
-        : `Technician ${technicianId.slice(0, 8)}`;
-      const certs = certMap.get(technicianId) || [];
+    const candidateInputs: CandidateEnrichment[] = rawResults.map(
+      ([technicianId, distStr, [lngStr, latStr]]) => {
+        const dist = parseFloat(distStr) || 0;
+        const tLat = parseFloat(latStr) || latitude;
+        const tLng = parseFloat(lngStr) || longitude;
+        const meta = dbMap.get(technicianId);
 
-      // Multi-parameter scoring algorithm:
-      // Distance score: closer is higher (up to 40 pts)
-      const distanceScore = Math.max(0, 40 * (1 - dist / Math.max(radiusMiles, 1)));
-      // Rating score: 30 pts (normalized 0-5)
-      const ratingScore = (rating / 5.0) * 30;
-      // Experience score: 15 pts (up to 100 jobs)
-      const experienceScore = Math.min(15, (jobs / 100) * 15);
-      // Certification match score: 15 pts
-      let certScore = 15;
-      if (requiredCertifications.length > 0) {
-        const matched = requiredCertifications.filter((r) => certs.includes(r)).length;
-        certScore = (matched / requiredCertifications.length) * 15;
+        const rating = meta ? parseFloat(meta.ratingAverage) || 5.0 : 5.0;
+        const jobs = meta?.jobsCompleted ?? 0;
+        const fullName = meta
+          ? `${meta.firstName} ${meta.lastName}`
+          : `Technician ${technicianId.slice(0, 8)}`;
+        const certs = certMap.get(technicianId) || [];
+
+        return {
+          technicianId,
+          distanceMiles: Math.round(dist * 100) / 100,
+          radiusMiles,
+          rating,
+          completedJobsCount: jobs,
+          certifications: certs,
+          requiredCertifications,
+          fullName,
+          latitude: tLat,
+          longitude: tLng,
+          isAvailable: meta ? meta.userStatus === 'ACTIVE' : true
+        };
       }
+    );
 
-      const totalScore = distanceScore + ratingScore + experienceScore + certScore;
+    const ranked = this.scorer.rankCandidates(candidateInputs);
 
-      const dto: NearbyTechnicianDto = {
-        technicianId,
-        fullName,
-        rating,
-        completedJobsCount: jobs,
-        distanceMiles: Math.round(dist * 100) / 100,
-        latitude: tLat,
-        longitude: tLng,
-        isAvailable: meta ? meta.userStatus === 'ACTIVE' : true,
-        certifications: certs
-      };
-
-      return { dto, totalScore };
-    });
-
-    // Sort descending by total composite score
-    scoredTechs.sort((a, b) => b.totalScore - a.totalScore);
-
-    return scoredTechs.map((s) => s.dto);
+    return ranked.map(({ candidate }) => ({
+      technicianId: candidate.technicianId,
+      fullName: candidate.fullName,
+      rating: candidate.rating,
+      completedJobsCount: candidate.completedJobsCount,
+      distanceMiles: candidate.distanceMiles,
+      latitude: candidate.latitude,
+      longitude: candidate.longitude,
+      isAvailable: candidate.isAvailable,
+      certifications: candidate.certifications
+    }));
   }
 
   async onApplicationShutdown(): Promise<void> {

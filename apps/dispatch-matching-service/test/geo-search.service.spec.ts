@@ -2,6 +2,7 @@ import { EventType, createEvent } from '@fieldforge/contracts';
 import { GeoSearchService } from '../src/modules/geo-search/geo-search.service';
 import { WorkOrderCreatedConsumer } from '../src/modules/consumers/work-order-created.consumer';
 import type { TechnicianDirectoryService } from '../src/modules/geo-search/technician-directory.service';
+import type { CandidateScorerPort, CandidateScoringInput } from '../src/modules/scoring';
 import type Redis from 'ioredis';
 
 const CORRELATION_ID = '7f2b1c9e-0a41-4d3f-9c11-8b6d5e4a3210';
@@ -103,6 +104,31 @@ describe('GeoSearchService', () => {
     expect(tech1?.rating).toBe(4.95);
     expect(tech1?.completedJobsCount).toBe(42);
     expect(tech1?.certifications).toEqual(['FIBER_OPTIC', 'OSHA_10']);
+  });
+
+  it('delegates candidate ranking to injected CandidateScorerPort', async () => {
+    const mockScorer: CandidateScorerPort = {
+      score: jest.fn(),
+      rankCandidates: jest.fn().mockImplementation((candidates: CandidateScoringInput[]) =>
+        candidates.map((c) => ({
+          candidate: c,
+          score: {
+            distanceScore: 40,
+            ratingScore: 30,
+            experienceScore: 15,
+            certificationScore: 15,
+            totalScore: 100
+          },
+          totalScore: 100
+        }))
+      )
+    };
+
+    const geoWithCustomScorer = new GeoSearchService(mockRedis, undefined, undefined, mockScorer);
+
+    const matches = await geoWithCustomScorer.findNearbyTechnicians(SF.latitude, SF.longitude);
+    expect(mockScorer.rankCandidates).toHaveBeenCalled();
+    expect(matches.length).toBe(2);
   });
 });
 

@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-09  
-**Phase:** Phase 28 complete — Decouple Low-Level PDF Drawing from Billing Domain Service (FF-CODE-07 / Code Quality Issue 7). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 29 complete — Decouple Dispatch Candidate Scoring from Redis Spatial Search Service (FF-CODE-08 / Code Quality Issue 8). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -78,7 +78,15 @@
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
   - `AppNavigator` mounting `JobListScreen` and `ActiveJobScreen` wrapped in Redux store.
-- **A test harness that can fail.** 603 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 631 total verified tests).
+- **A test harness that can fail.** 628 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 656 total verified tests).
+- **Decoupled Dispatch Candidate Scoring from Redis Spatial Search (Phase 29, Resolves FF-CODE-08 / Code Quality Issue 8).**
+  - Created `CandidateScorerPort` (`apps/dispatch-matching-service/src/modules/scoring/candidate-scorer.interface.ts`) defining candidate scoring weights (`DEFAULT_CANDIDATE_SCORING_WEIGHTS`: 40% distance, 30% rating, 15% experience, 15% certifications) and `CANDIDATE_SCORER` injection symbol.
+  - Implemented `@Injectable() CandidateScoringService` adapter implementing `CandidateScorerPort`, isolating proximity curve calculations, normalized 5-star ratings, capped job history, and certification match logic from low-level Redis calls.
+  - Refactored `GeoSearchService` in `apps/dispatch-matching-service` to remove inline scoring math and delegate candidate ranking to injected `CandidateScorerPort` with default fallback to `CandidateScoringService`.
+  - Registered and exported `CandidateScoringService` and `CANDIDATE_SCORER` in `DispatchModule`.
+  - Added unit test suite `candidate-scoring.service.spec.ts` (24 tests) validating mathematical boundary conditions and custom weights, and updated `geo-search.service.spec.ts`.
+  - Zero database migrations (`RULE-DB-02`).
+
 - **Decoupled Invoice PDF Rendering from Billing Domain Service (Phase 28, Resolves FF-CODE-07 / Code Quality Issue 7).**
   - Created `InvoicePdfRendererPort` (`apps/billing-service/src/modules/invoices/invoice-pdf.renderer.port.ts`) defining the hexagonal secondary port and `INVOICE_PDF_RENDERER` injection symbol.
   - Implemented `PdfKitInvoicePdfRenderer` adapter implementing `InvoicePdfRendererPort`, isolating imperative PDFKit coordinate drawing, fonts, layout math, metadata headers, line items table, and SHA-256 digital signature/hash rendering into a dedicated rendering adapter.

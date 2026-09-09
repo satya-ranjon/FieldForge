@@ -223,6 +223,13 @@
 > removing imperative PDFKit coordinate drawing and fonts from `InvoicesService` while preserving document structure and SHA-256 digital
 > signature verification. Zero database migrations (`RULE-DB-02`). Total verified tests: 603 unit/integration + 28 E2E = 631 tests.
 
+> **Phase 29 update — 2026-09-09:** Phase 29 of [`DEVELOPMENT_PLAN.md`](./DEVELOPMENT_PLAN.md)
+> delivered Decouple Dispatch Candidate Scoring from Redis Spatial Search Service (Resolves **FF-CODE-08 / Code Quality Issue 8**).
+> Extracted multi-parameter contractor scoring algorithm and ranking logic into `@Injectable() CandidateScoringService`
+> implementing `CandidateScorerPort` (`CANDIDATE_SCORER`), removing hardcoded scoring math and weighting constants from
+> `GeoSearchService` while preserving 100% backward-compatible default fallback. Zero database migrations (`RULE-DB-02`).
+> Total verified tests: 628 unit/integration + 28 E2E = 656 tests.
+
 ---
 
 ## How to read this report
@@ -1174,6 +1181,21 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   4. Registered and exported `INVOICE_PDF_RENDERER` provider and `PdfKitInvoicePdfRenderer` in `BillingModule` (`apps/billing-service/src/billing.module.ts`).
   5. Added unit test suite `apps/billing-service/test/pdfkit-invoice-pdf.renderer.spec.ts` (5 tests) asserting PDF headers (`%PDF-`), trailers (`%%EOF`), metadata catalog, amount formatting, and error handling.
   6. Updated `apps/billing-service/test/invoices.service.spec.ts` verifying delegation to injected `InvoicePdfRendererPort`, fallback renderer, and `NotFoundException`.
+  7. Zero database migrations (`RULE-DB-02`).
+
+### FF-CODE-08 · 🧹 Dispatch Candidate Scoring Embedded in Redis Spatial Search Service (Code Quality Issue 8)
+
+- **Root Cause**: In `apps/dispatch-matching-service/src/modules/geo-search/geo-search.service.ts`, `GeoSearchService` combined two fundamentally distinct architectural concerns:
+  1. Low-level Redis geospatial indexing, connection lifecycle, and spatial radius querying (`GEOADD`, `GEOSEARCH`).
+  2. Domain business logic for multi-factor candidate scoring (~45 lines of mathematical calculations evaluating proximity curves, 5-star ratings, job completion caps, and required certification matching) and candidate ranking.
+     This violated the Single Responsibility Principle (SRP) and Open/Closed Principle (OCP). Hardcoding scoring weights (40% distance, 30% rating, 15% experience, 15% certifications) inside the geospatial retrieval loop prevented customizing scoring policies (e.g. prioritizing speed/proximity for emergency jobs vs qualifications for complex enterprise repairs). Furthermore, testing the scoring math required spinning up or mocking Redis and database/directory clients.
+- **Fix**: Decoupled candidate scoring using Ports & Adapters:
+  1. Declared `CandidateScoringWeights`, `CandidateScoringInput`, `CandidateScoreBreakdown`, `ScoredCandidate`, `CandidateScorerPort`, and injection token `CANDIDATE_SCORER` in `apps/dispatch-matching-service/src/modules/scoring/candidate-scorer.interface.ts`.
+  2. Implemented `@Injectable() CandidateScoringService` implementing `CandidateScorerPort` in `apps/dispatch-matching-service/src/modules/scoring/candidate-scoring.service.ts`. Evaluates multi-parameter composite scores (distance, rating, experience, certifications) with configurable weight overrides, and ranks candidates descending by score with proximity tie-breaking.
+  3. Refactored `GeoSearchService` in `apps/dispatch-matching-service/src/modules/geo-search/geo-search.service.ts` to inject `@Optional() @Inject(CANDIDATE_SCORER) private readonly scorer: CandidateScorerPort` with default fallback `new CandidateScoringService()`. Replaced inline scoring loop with `this.scorer.rankCandidates(candidateInputs)`.
+  4. Registered and exported `CandidateScoringService` and `CANDIDATE_SCORER` in `DispatchModule` (`apps/dispatch-matching-service/src/dispatch.module.ts`).
+  5. Added comprehensive unit test suite `apps/dispatch-matching-service/test/candidate-scoring.service.spec.ts` (24 tests) validating mathematical boundary conditions (distance clamping, rating normalization, experience scaling, certification match ratios, and custom weights).
+  6. Updated `apps/dispatch-matching-service/test/geo-search.service.spec.ts` to verify delegation to injected `CandidateScorerPort` mock.
   7. Zero database migrations (`RULE-DB-02`).
 
 ---

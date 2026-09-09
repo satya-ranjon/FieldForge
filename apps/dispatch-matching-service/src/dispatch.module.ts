@@ -10,6 +10,7 @@ import {
   loadEnv
 } from '@fieldforge/common';
 import { MessagingModule } from '@fieldforge/messaging';
+import { CandidateScoringService, CANDIDATE_SCORER } from './modules/scoring';
 import { GeoSearchService, REDIS_CLIENT } from './modules/geo-search/geo-search.service';
 import { TechnicianDirectoryService } from './modules/geo-search/technician-directory.service';
 import { WorkOrderCreatedConsumer } from './modules/consumers/work-order-created.consumer';
@@ -55,10 +56,21 @@ const redisProvider = {
       useClass: GlobalHttpExceptionFilter
     },
     redisProvider,
+    CandidateScoringService,
+    {
+      provide: CANDIDATE_SCORER,
+      useClass: CandidateScoringService
+    },
     TechnicianDirectoryService,
     GeoSearchService,
     WorkOrderCreatedConsumer
   ],
-  exports: [GeoSearchService, TechnicianDirectoryService, REDIS_CLIENT]
+  exports: [
+    CandidateScoringService,
+    CANDIDATE_SCORER,
+    GeoSearchService,
+    TechnicianDirectoryService,
+    REDIS_CLIENT
+  ]
 })
 export class DispatchModule {}
