@@ -178,6 +178,24 @@
 > strictly on `technicianId: string`, eliminating the informal `techId` abbreviation across the entire repository.
 > Completely eliminated legacy fallback overhead. Total verified tests: 501 unit/integration + 28 E2E = 529 tests.
 
+> **Phase 22 update — 2026-09-09:** Phase 22 of [`DEVELOPMENT_PLAN.md`](./DEVELOPMENT_PLAN.md)
+> delivered Gateway User Authentication & Trust Boundary Deduplication (Resolves **FF-CODE-01 / Code Quality Issue 1**).
+> Centralized gateway Bearer token authentication and C5 trust-boundary verification into `packages/common/src/auth/gateway-auth.ts`,
+> eliminating ~180 lines of duplicate authentication boilerplate across 6 backend microservice controllers.
+> Total verified tests: 514 unit/integration + 28 E2E = 542 tests.
+
+> **Phase 23 update — 2026-09-09:** Phase 23 of [`DEVELOPMENT_PLAN.md`](./DEVELOPMENT_PLAN.md)
+> delivered Work Order Assignment Business Logic Consolidation (Resolves **FF-CODE-02 / Code Quality Issue 2**).
+> Centralized triplicate work order assignment and agreed rate resolution logic into `executeWorkOrderAssignment()`
+> in `apps/work-order-service`, unifying `BidsService.acceptBid()`, `WorkOrdersService.transition()`, and `WorkOrdersService.assignTechnicianFromBid()`.
+> Total verified tests: 520 unit/integration + 28 E2E = 548 tests.
+
+> **Phase 24 update — 2026-09-09:** Phase 24 of [`DEVELOPMENT_PLAN.md`](./DEVELOPMENT_PLAN.md)
+> delivered Work Order Transition Engine Modularization & Strategy Decoupling (Resolves **FF-CODE-03 / Code Quality Issue 3**).
+> Decomposed the ~260-line monolithic `transition()` method in `apps/work-order-service` into modular transition guards
+> and execution strategies (`work-order-transition.ts`), satisfying SRP and OCP while eliminating duplicated profile identity queries.
+> Total verified tests: 544 unit/integration + 28 E2E = 572 tests.
+
 ---
 
 ## How to read this report
@@ -1007,6 +1025,28 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   6. Added public `executeAssignment(tx, params)` method to `WorkOrdersService`.
   7. Added unit test suite `apps/work-order-service/test/work-order-assignment.spec.ts` (6 tests).
   8. Zero database migrations (`RULE-DB-02`).
+
+### FF-CODE-03 · 🧹 Monolithic transition Method Violating Single Responsibility & Open/Closed (Code Quality Issue 3)
+
+- **Root Cause**: In `apps/work-order-service/src/modules/work-orders/work-orders.service.ts`, `WorkOrdersService.transition()` was a monolithic method spanning ~260 lines that conflated orchestration, transaction locking, status authorization checks, profile identity lookups, geofence validations, state mutations, and event envelope construction. Every target state was handled in a large procedural `if/else` block, violating the Single Responsibility Principle (SRP) and Open/Closed Principle (OCP). Adding a new status or lifecycle rule required modifying the core orchestration method. Furthermore, 5 separate branches repeatedly duplicated queries on `buyerProfiles` and `technicianProfiles`.
+- **Fix**: Decoupled `transition()` into modular, single-responsibility guards and execution strategies:
+  1. Created `apps/work-order-service/src/modules/work-orders/work-order-transition.ts` defining `TransitionContext`, `TransitionExecutionResult`, `TransitionGuard`, and `TransitionExecutionStrategy`.
+  2. Implemented reusable cached profile identity resolution helpers: `resolveBuyerProfileId()` and `resolveTechnicianProfileId()`, utilizing caller-provided IDs when available to eliminate redundant DB lookups.
+  3. Decomposed state authorization into modular transition guards:
+     - `guardAssignedTransition`: validates technician existence, assignment target, and buyer/admin authorization.
+     - `guardTechnicianLifecycleTransition`: enforces that only the assigned technician (or admin) can advance to `EN_ROUTE`, `ON_SITE`, or `COMPLETED`.
+     - `guardOnSiteTransition`: validates geo-coordinates and strictly enforces Haversine 200m geofence tolerance.
+     - `guardApprovedTransition`: enforces buyer/admin authorization and disallows technician self-approval.
+     - `guardCancelledTransition`: enforces buyer/admin authorization for cancellation.
+     - `guardDisputedTransition`: enforces buyer/admin authorization for disputes.
+     - `guardPaidTransition`: strictly rejects manual transitions to `PAID` (enforcing settlement saga via AMQP).
+  4. Decomposed state mutations and event factories into modular execution strategies:
+     - `executeAssignedTransition`: delegates atomically to `executeWorkOrderAssignment()`.
+     - `executeApprovedTransition`: atomically transitions to `APPROVED`, resolves accepted contractor bid rate or falls back to budget, and constructs canonical `WORK_ORDER_APPROVED` event.
+     - `executeDefaultTransition`: handles standard transitions (`IN_PROGRESS`, `EN_ROUTE`, `ON_SITE`, `COMPLETED`, `CANCELLED`, `DISPUTED`), updates status, and constructs generic `WORK_ORDER_STATUS_UPDATED` event.
+  5. Refactored `WorkOrdersService.transition()` into a concise (~35 lines) transaction orchestrator: acquires `SELECT ... FOR UPDATE` lock, validates FSM graph via `WorkOrderFsmService`, resolves caller profile identity, executes target guard, executes target strategy, commits transaction, and publishes domain event.
+  6. Created unit test suite `apps/work-order-service/test/work-order-transition.spec.ts` (24 tests) verifying all transition guards and execution strategies in isolation.
+  7. Zero database migrations (`RULE-DB-02`).
 
 ---
 

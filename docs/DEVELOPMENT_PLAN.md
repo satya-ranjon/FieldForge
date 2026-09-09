@@ -925,6 +925,50 @@ NFR-PERF-001.
 
 ---
 
+## Phase 24 — Decouple Monolithic Work Order Transition Engine into Strategy Guards & Handlers
+
+**Status: Completed (2026-09-09).** Resolves **Backend Code Quality Issue 3 (Monolithic transition Method Violating Single Responsibility & Open/Closed)** / `FF-CODE-03`.
+
+- **Decoupled Transition Architecture (`apps/work-order-service`).**
+  - Created `apps/work-order-service/src/modules/work-orders/work-order-transition.ts` establishing `TransitionContext`, `TransitionGuard`, `TransitionExecutionStrategy`, and strategy registries (`transitionGuards`, `transitionExecutors`).
+  - Extracted reusable profile resolution helpers (`resolveBuyerProfileId`, `resolveTechnicianProfileId`) that eliminate 5 duplicated profile query snippets.
+  - Implemented modular transition authorization guards:
+    - `guardAssignedTransition`: checks `ADMIN`, `DISPATCHER`, or owning buyer authority, and technician assignment.
+    - `guardTechnicianLifecycleTransition`: validates assigned technician or `ADMIN` identity.
+    - `guardOnSiteTransition`: enforces technician identity and server-side Haversine 200m geofence.
+    - `guardApprovedTransition`: enforces `ADMIN`, `SYSTEM`, or owning buyer approval.
+    - `guardCancelledTransition`: blocks technician cancellation and verifies owning buyer or admin.
+    - `guardDisputedTransition`: restricts dispute rights to owning buyer, assigned tech, admin, or dispatcher.
+    - `guardPaidTransition`: prevents manual API transitions to `PAID` (preserves event-driven settlement invariant).
+  - Implemented modular execution strategies:
+    - `executeAssignedTransition`: delegates to `executeWorkOrderAssignment()`.
+    - `executeApprovedTransition`: writes approval to database, inserts transition history, resolves agreed rate, and yields `WORK_ORDER_APPROVED` event callback.
+    - `executeDefaultTransition`: writes status change to database and records transition history.
+- **Thin Orchestrator (`WorkOrdersService.transition`).**
+  - Refactored `WorkOrdersService.transition()` from ~260 lines of mixed concerns to a ~35-line clean orchestrator coordinating transaction locking, FSM validation, guard verification, execution strategy invocation, and deferred event flushing.
+  - Complies strictly with the **Single Responsibility Principle (SRP)** and **Open/Closed Principle (OCP)**: new statuses or policy changes can be added to strategy registries without modifying the core transaction engine.
+- **Test Coverage Expansion.**
+  - Added unit test suite `apps/work-order-service/test/work-order-transition.spec.ts` (24 tests) validating profile resolution caching and fallbacks, all 7 transition guards, geofence bounds, and execution strategies.
+  - All 13 test suites and 234 tests in `apps/work-order-service` passing with zero regressions.
+
+**Verification:**
+
+- 544 automated unit/integration tests passing across 15 packages/apps in monorepo (zero `--passWithNoTests`):
+  - 234 tests in `apps/work-order-service` (13 suites, +24 tests).
+  - 28 tests in `apps/billing-service` (4 suites).
+  - 21 tests in `@fieldforge/messaging` (5 suites).
+  - 28 tests in `apps/dispatch-matching-service` (4 suites).
+  - 104 tests in `apps/web-buyer-portal` (1 suite).
+  - 21 tests in `@fieldforge/common` (3 suites).
+  - 76 tests in `@fieldforge/contracts` (3 suites).
+  - 56 tests in `apps/auth-service` (6 suites).
+  - 44 tests in `apps/api-gateway` (6 suites).
+  - 14 tests in `apps/notification-service` (1 suite).
+- 28 Playwright E2E tests validated (`pnpm test:e2e`). Total verified tests: 572 tests.
+- `pnpm check && pnpm build` pass cleanly.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

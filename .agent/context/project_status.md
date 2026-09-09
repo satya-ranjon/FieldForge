@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-09  
-**Phase:** Phase 23 complete — Consolidate Triplicate Work Order Assignment Business Logic (FF-CODE-02 / Code Quality Issue 2). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 24 complete — Decouple Monolithic Work Order Transition Engine into Strategy Guards & Handlers (FF-CODE-03 / Code Quality Issue 3). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -45,7 +45,7 @@
   via `WorkOrderFsmService`, and records status history in `work_order_status_history` within one ACID transaction.
   Sole mutator of `work_orders`, `work_order_bids`, and `work_order_status_history`. Sole emitter of
   `work_order.lifecycle.assigned`, `work_order.lifecycle.approved`, and `work_order.lifecycle.paid` (`tech.bidding.accepted` retired in Phase 18).
-  Assignment business logic across `BidsService.acceptBid`, `WorkOrdersService.transition`, and `WorkOrdersService.assignTechnicianFromBid` is unified into `executeWorkOrderAssignment()` and `resolveAgreedRateMinor()` (`work-order-assignment.ts`, FF-CODE-02 / Phase 23).
+  Assignment business logic across `BidsService.acceptBid`, `WorkOrdersService.transition`, and `WorkOrdersService.assignTechnicianFromBid` is unified into `executeWorkOrderAssignment()` and `resolveAgreedRateMinor()` (`work-order-assignment.ts`, FF-CODE-02 / Phase 23). Transition engine decoupled into modular transition guards and execution strategies (`work-order-transition.ts`, FF-CODE-03 / Phase 24), satisfying SRP and OCP.
 - **Pure Geospatial Matching Engine (`apps/dispatch-matching-service`).**
   - Redis `GEOADD` and `GEOSEARCH` on `tech:locations` with Haversine exact distance filtering.
   - Multi-parameter contractor scoring algorithm: 40% distance, 30% rating, 15% completed jobs, 15% verified certifications.
@@ -78,7 +78,20 @@
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
   - `AppNavigator` mounting `JobListScreen` and `ActiveJobScreen` wrapped in Redux store.
-- **A test harness that can fail.** 501 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 529 total verified tests).
+- **A test harness that can fail.** 544 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 572 total verified tests).
+- **Work Order Transition Engine Modularization & Strategy Decoupling (Phase 24, Resolves FF-CODE-03 / Code Quality Issue 3).**
+  - Decomposed the ~260-line monolithic `WorkOrdersService.transition()` into modular, single-responsibility transition guards (`guardAssignedTransition`, `guardTechnicianLifecycleTransition`, `guardOnSiteTransition`, `guardApprovedTransition`, `guardCancelledTransition`, `guardDisputedTransition`, `guardPaidTransition`) and execution strategies (`executeAssignedTransition`, `executeApprovedTransition`, `executeDefaultTransition`).
+  - Extracted reusable profile resolution helpers (`resolveBuyerProfileId`, `resolveTechnicianProfileId`) utilizing caller-provided profile IDs when present to eliminate redundant database queries.
+  - Satisfies Single Responsibility Principle (SRP) and Open/Closed Principle (OCP): new statuses and authorization policies can be added to registries without modifying core transaction orchestration.
+  - Zero database migrations (`RULE-DB-02`).
+- **Work Order Assignment Business Logic Consolidation (Phase 23, Resolves FF-CODE-02 / Code Quality Issue 2).**
+  - Centralized triplicate work order assignment and agreed rate resolution logic into `executeWorkOrderAssignment()` and `resolveAgreedRateMinor()` (`work-order-assignment.ts`), unifying `BidsService.acceptBid()`, `WorkOrdersService.transition()`, and `WorkOrdersService.assignTechnicianFromBid()`.
+  - Atomically updates work order status, sets `assignedTechnicianId`, logs transition history, and yields canonical `WORK_ORDER_ASSIGNED` event callbacks.
+  - Zero database migrations (`RULE-DB-02`).
+- **Gateway User Authentication & Trust Boundary Deduplication (Phase 22, Resolves FF-CODE-01 / Code Quality Issue 1).**
+  - Centralized gateway Bearer token authentication and C5 trust-boundary anti-spoofing verification into `verifyGatewayUser()` and `GatewayAuthGuard` (`packages/common/src/auth/gateway-auth.ts`).
+  - Eliminated ~180 lines of duplicated identity parsing and verification across 6 microservice controllers (`WorkOrdersController`, `BidsController`, `BillingController`, `DispatchController`, `UsersController`, `CertificationsController`).
+  - Zero database migrations (`RULE-DB-02`).
 - **Repository-Wide Standardization of Technician Identifiers to `technicianId` (Phase 21, Resolves FF-ARCH-14 / Service Audit Issue B).**
   - Standardized all domain event contracts (`WorkOrderAssignedPayload`, `WorkOrderApprovedPayload`, `WorkOrderPaidPayload`, `TechBiddingSubmittedPayload`, `TechBidAcceptedPayload`, `PayoutDisbursedPayload`, `PayoutFailedPayload`) and DTOs (`NearbyTechnicianDto`, `BidDetailsDto`) strictly to define `technicianId: string`.
   - Completely eliminated the shorthand `techId` abbreviation and legacy fallback overhead across all services (`auth`, `billing`, `dispatch`, `notifications`, `work-order`), portal slices (`dispatchSlice`, `workOrderSlice`), and components.

@@ -27,25 +27,24 @@ import {
   workOrders,
   workOrderStatusHistory,
   buyerProfiles,
-  technicianProfiles,
   workOrderBids
 } from '@fieldforge/database';
 import { eq, and, gte, lte, asc } from 'drizzle-orm';
-import {
-  DRIZZLE,
-  type DrizzleClient,
-  isWithinGeofence,
-  calculateDistanceMeters
-} from '@fieldforge/common';
+import { DRIZZLE, type DrizzleClient } from '@fieldforge/common';
 import { WorkOrderFsmService } from '../fsm/work-order-fsm.service';
 import { WorkOrderEventPublisher } from '../../events/work-order-event.publisher';
 import {
   executeWorkOrderAssignment,
-  resolveAgreedRateMinor,
   type AssignmentDbTx,
   type ExecuteAssignmentParams,
   type ExecuteAssignmentResult
 } from './work-order-assignment';
+import {
+  transitionGuards,
+  transitionExecutors,
+  executeDefaultTransition,
+  type TransitionContext
+} from './work-order-transition';
 import { randomUUID } from 'node:crypto';
 
 @Injectable()
@@ -355,230 +354,30 @@ export class WorkOrdersService {
       const currentStatus = wo.status as WorkOrderStatus;
       this.fsmService.validateTransition(currentStatus, dto.nextStatus);
 
-      // Ownership and Role Enforcement
-      if (dto.nextStatus === WorkOrderStatus.ASSIGNED) {
-        if (role !== 'ADMIN' && role !== 'DISPATCHER' && role !== 'BUYER') {
-          throw new ForbiddenException('Only admin, dispatcher, or buyer can assign work orders');
-        }
-        if (role === 'BUYER') {
-          const resolvedBuyerId =
-            callerProfileId ??
-            (
-              await tx
-                .select({ id: buyerProfiles.id })
-                .from(buyerProfiles)
-                .where(eq(buyerProfiles.userId, userId))
-                .limit(1)
-            )[0]?.id;
+      const context: TransitionContext = {
+        tx,
+        wo,
+        userId,
+        role,
+        dto,
+        correlationId,
+        callerProfileId,
+        currentStatus,
+        nextStatus: dto.nextStatus
+      };
 
-          if (!resolvedBuyerId || resolvedBuyerId !== wo.buyerId) {
-            throw new ForbiddenException(
-              'Only the owning buyer, dispatcher, or admin can assign this work order'
-            );
-          }
-        }
-        if (!dto.assignedTechnicianId && !wo.assignedTechnicianId) {
-          throw new BadRequestException(
-            'assignedTechnicianId is required to transition to ASSIGNED'
-          );
-        }
-      } else if (
-        dto.nextStatus === WorkOrderStatus.EN_ROUTE ||
-        dto.nextStatus === WorkOrderStatus.ON_SITE ||
-        dto.nextStatus === WorkOrderStatus.COMPLETED
-      ) {
-        if (role !== 'ADMIN') {
-          const resolvedTechnicianId =
-            callerProfileId ??
-            (
-              await tx
-                .select({ id: technicianProfiles.id })
-                .from(technicianProfiles)
-                .where(eq(technicianProfiles.userId, userId))
-                .limit(1)
-            )[0]?.id;
-
-          if (!resolvedTechnicianId || resolvedTechnicianId !== wo.assignedTechnicianId) {
-            throw new ForbiddenException(
-              'Only the assigned technician or an admin can perform this transition'
-            );
-          }
-        }
-
-        // Server-side geofence enforcement for arrival (H5, SRS FR-MOB-001)
-        if (dto.nextStatus === WorkOrderStatus.ON_SITE) {
-          if (dto.latitude === undefined || dto.longitude === undefined) {
-            throw new BadRequestException(
-              'latitude and longitude are required to transition to ON_SITE'
-            );
-          }
-
-          const techLocation = { latitude: dto.latitude, longitude: dto.longitude };
-          const jobLocation = { latitude: Number(wo.latitude), longitude: Number(wo.longitude) };
-          const withinGeofence = isWithinGeofence(techLocation, jobLocation, 200);
-
-          if (!withinGeofence) {
-            const distance = Math.round(calculateDistanceMeters(techLocation, jobLocation));
-            throw new BadRequestException(
-              `Technician coordinates are outside 200m geofence tolerance (actual: ${distance}m, allowed: 200m)`
-            );
-          }
-        }
-      } else if (dto.nextStatus === WorkOrderStatus.APPROVED) {
-        if (role !== 'ADMIN' && role !== 'SYSTEM') {
-          const resolvedBuyerId =
-            callerProfileId ??
-            (
-              await tx
-                .select({ id: buyerProfiles.id })
-                .from(buyerProfiles)
-                .where(eq(buyerProfiles.userId, userId))
-                .limit(1)
-            )[0]?.id;
-
-          if (!resolvedBuyerId || resolvedBuyerId !== wo.buyerId) {
-            throw new ForbiddenException(
-              'Only the owning buyer or an admin can approve this work order'
-            );
-          }
-        }
-      } else if (dto.nextStatus === WorkOrderStatus.CANCELLED) {
-        if (role === 'TECHNICIAN') {
-          throw new ForbiddenException('Technicians cannot cancel work orders');
-        }
-        if (role === 'BUYER') {
-          const resolvedBuyerId =
-            callerProfileId ??
-            (
-              await tx
-                .select({ id: buyerProfiles.id })
-                .from(buyerProfiles)
-                .where(eq(buyerProfiles.userId, userId))
-                .limit(1)
-            )[0]?.id;
-
-          if (!resolvedBuyerId || resolvedBuyerId !== wo.buyerId) {
-            throw new ForbiddenException(
-              'Only the owning buyer or an admin can cancel this work order'
-            );
-          }
-        }
-      } else if (dto.nextStatus === WorkOrderStatus.DISPUTED) {
-        if (role === 'BUYER') {
-          const resolvedBuyerId =
-            callerProfileId ??
-            (
-              await tx
-                .select({ id: buyerProfiles.id })
-                .from(buyerProfiles)
-                .where(eq(buyerProfiles.userId, userId))
-                .limit(1)
-            )[0]?.id;
-
-          if (!resolvedBuyerId || resolvedBuyerId !== wo.buyerId) {
-            throw new ForbiddenException(
-              'Only the owning buyer or assigned technician can dispute this work order'
-            );
-          }
-        } else if (role === 'TECHNICIAN') {
-          const resolvedTechnicianId =
-            callerProfileId ??
-            (
-              await tx
-                .select({ id: technicianProfiles.id })
-                .from(technicianProfiles)
-                .where(eq(technicianProfiles.userId, userId))
-                .limit(1)
-            )[0]?.id;
-
-          if (!resolvedTechnicianId || resolvedTechnicianId !== wo.assignedTechnicianId) {
-            throw new ForbiddenException(
-              'Only the owning buyer or assigned technician can dispute this work order'
-            );
-          }
-        } else if (role !== 'ADMIN' && role !== 'DISPATCHER') {
-          throw new ForbiddenException('Unauthorized to dispute this work order');
-        }
-      } else if (dto.nextStatus === WorkOrderStatus.PAID) {
-        throw new ForbiddenException(
-          'Work order cannot be manually transitioned to PAID via API; settlement to PAID is exclusively event-driven upon payout disbursement (billing.payout.disbursed)'
-        );
+      // 1. Enforce status-specific guards and authorization (OCP)
+      const guard = transitionGuards[dto.nextStatus];
+      if (guard) {
+        await guard(context);
       }
 
-      if (dto.nextStatus === WorkOrderStatus.ASSIGNED) {
-        const assignedTechnicianId = dto.assignedTechnicianId || wo.assignedTechnicianId || '';
-        const agreedRateMinor = await resolveAgreedRateMinor(tx, wo.id, wo.budgetAmount);
+      // 2. Execute status-specific transition strategy (SRP)
+      const executor = transitionExecutors[dto.nextStatus] ?? executeDefaultTransition;
+      const result = await executor(context, this.fsmService, this.eventPublisher);
 
-        const assignmentResult = await executeWorkOrderAssignment(
-          tx,
-          this.fsmService,
-          this.eventPublisher,
-          {
-            workOrderId,
-            technicianId: assignedTechnicianId,
-            fromStatus: currentStatus,
-            changedBy: userId,
-            reason: dto.reason || null,
-            agreedRateMinor,
-            correlationId,
-            validateFsm: false
-          }
-        );
-
-        eventsToPublish.push(assignmentResult.publishEvent);
-
-        const updatedRow = {
-          ...wo,
-          status: WorkOrderStatus.ASSIGNED,
-          assignedTechnicianId,
-          updatedAt: assignmentResult.now
-        };
-
-        updatedOrder = this.mapToResponseDto(updatedRow as typeof workOrders.$inferSelect);
-      } else {
-        const now = new Date();
-        const updateData: Partial<typeof workOrders.$inferInsert> = {
-          status: dto.nextStatus,
-          updatedAt: now
-        };
-
-        await tx.update(workOrders).set(updateData).where(eq(workOrders.id, workOrderId));
-
-        await tx.insert(workOrderStatusHistory).values({
-          id: randomUUID(),
-          workOrderId,
-          fromStatus: currentStatus,
-          toStatus: dto.nextStatus,
-          changedBy: userId,
-          reason: dto.reason || null,
-          createdAt: now
-        });
-
-        const updatedRow = {
-          ...wo,
-          ...updateData
-        };
-
-        updatedOrder = this.mapToResponseDto(updatedRow as typeof workOrders.$inferSelect);
-
-        if (dto.nextStatus === WorkOrderStatus.APPROVED) {
-          const payoutAmountMinor = await resolveAgreedRateMinor(tx, wo.id, wo.budgetAmount);
-          const assignedTechnicianId = wo.assignedTechnicianId || '';
-          eventsToPublish.push(async () => {
-            const event = createEvent(
-              EventType.WORK_ORDER_APPROVED,
-              {
-                workOrderId: wo.id,
-                buyerId: wo.buyerId,
-                technicianId: assignedTechnicianId,
-                payoutAmountMinor
-              },
-              correlationId
-            );
-            await this.eventPublisher.publishWorkOrderApproved(event);
-          });
-        }
-      }
+      eventsToPublish.push(...result.eventsToPublish);
+      updatedOrder = this.mapToResponseDto(result.updatedRow);
     });
 
     for (const publishFn of eventsToPublish) {
