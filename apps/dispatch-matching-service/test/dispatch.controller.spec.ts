@@ -57,6 +57,48 @@ describe('DispatchController', () => {
       );
     });
 
+    it('prefers technician profileId from token payload when present', async () => {
+      mockJwtService.verify.mockReturnValue({
+        sub: 'user-tech-1',
+        role: 'TECHNICIAN',
+        profileId: 'tp-profile-999'
+      });
+
+      const result = await controller.updateLocation(
+        { latitude: 37.7749, longitude: -122.4194 },
+        'Bearer token',
+        'user-tech-1'
+      );
+
+      expect(result.statusCode).toBe(200);
+      expect(mockGeoSearchService.updateTechnicianLocation).toHaveBeenCalledWith(
+        'tp-profile-999',
+        37.7749,
+        -122.4194
+      );
+    });
+
+    it('prefers gateway profileId header when token has no profileId', async () => {
+      mockJwtService.verify.mockReturnValue({
+        sub: 'user-tech-1',
+        role: 'TECHNICIAN'
+      });
+
+      const result = await controller.updateLocation(
+        { latitude: 37.7749, longitude: -122.4194 },
+        'Bearer token',
+        'user-tech-1',
+        'tp-hdr-777'
+      );
+
+      expect(result.statusCode).toBe(200);
+      expect(mockGeoSearchService.updateTechnicianLocation).toHaveBeenCalledWith(
+        'tp-hdr-777',
+        37.7749,
+        -122.4194
+      );
+    });
+
     it('rejects location updates from buyers', async () => {
       mockJwtService.verify.mockReturnValue({
         sub: 'user-buyer-1',

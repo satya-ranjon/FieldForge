@@ -6,7 +6,8 @@ import {
   text,
   decimal,
   int,
-  boolean
+  boolean,
+  foreignKey
 } from 'drizzle-orm/mysql-core';
 
 export const users = mysqlTable('users', {
@@ -57,14 +58,22 @@ export const refreshTokens = mysqlTable('refresh_tokens', {
   createdAt: timestamp('created_at').defaultNow().notNull()
 });
 
-export const technicianCertifications = mysqlTable('technician_certifications', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  technicianId: varchar('technician_id', { length: 36 })
-    .references(() => users.id, { onDelete: 'cascade' })
-    .notNull(),
-  name: varchar('name', { length: 100 }).notNull(),
-  issuedDate: timestamp('issued_date').notNull(),
-  expiryDate: timestamp('expiry_date').notNull(),
-  isVerified: boolean('is_verified').default(false).notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull()
-});
+export const technicianCertifications = mysqlTable(
+  'technician_certifications',
+  {
+    id: varchar('id', { length: 36 }).primaryKey(),
+    technicianId: varchar('technician_id', { length: 36 }).notNull(),
+    name: varchar('name', { length: 100 }).notNull(),
+    issuedDate: timestamp('issued_date').notNull(),
+    expiryDate: timestamp('expiry_date').notNull(),
+    isVerified: boolean('is_verified').default(false).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull()
+  },
+  (table) => ({
+    technicianFk: foreignKey({
+      columns: [table.technicianId],
+      foreignColumns: [technicianProfiles.id],
+      name: 'tech_certs_technician_id_fk'
+    }).onDelete('cascade')
+  })
+);

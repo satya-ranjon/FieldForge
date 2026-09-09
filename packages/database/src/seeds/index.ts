@@ -108,7 +108,7 @@ async function seed() {
     .values([
       {
         id: '60000000-0000-4000-8000-000000000001',
-        technicianId: tech1UserId,
+        technicianId: tech1ProfileId,
         name: 'Cisco CCNA',
         issuedDate: new Date('2025-01-15'),
         expiryDate: new Date('2028-01-15'),
@@ -116,7 +116,7 @@ async function seed() {
       },
       {
         id: '60000000-0000-4000-8000-000000000002',
-        technicianId: tech1UserId,
+        technicianId: tech1ProfileId,
         name: 'OSHA 10',
         issuedDate: new Date('2024-06-10'),
         expiryDate: new Date('2027-06-10'),
@@ -124,7 +124,7 @@ async function seed() {
       },
       {
         id: '60000000-0000-4000-8000-000000000003',
-        technicianId: tech1UserId,
+        technicianId: tech1ProfileId,
         name: 'Background Checked',
         issuedDate: new Date('2026-02-01'),
         expiryDate: new Date('2027-02-01'),
@@ -132,7 +132,7 @@ async function seed() {
       },
       {
         id: '60000000-0000-4000-8000-000000000004',
-        technicianId: tech2UserId,
+        technicianId: tech2ProfileId,
         name: 'CompTIA A+',
         issuedDate: new Date('2024-11-20'),
         expiryDate: new Date('2027-11-20'),
@@ -140,7 +140,7 @@ async function seed() {
       },
       {
         id: '60000000-0000-4000-8000-000000000005',
-        technicianId: tech2UserId,
+        technicianId: tech2ProfileId,
         name: 'Fiber Optic Certified',
         issuedDate: new Date('2025-03-01'),
         expiryDate: new Date('2028-03-01'),
@@ -148,7 +148,7 @@ async function seed() {
       },
       {
         id: '60000000-0000-4000-8000-000000000006',
-        technicianId: tech2UserId,
+        technicianId: tech2ProfileId,
         name: 'Background Checked',
         issuedDate: new Date('2026-01-10'),
         expiryDate: new Date('2027-01-10'),

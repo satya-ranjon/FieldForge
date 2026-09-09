@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-09  
-**Phase:** Phase 25 complete — Cross-Context Database Decoupling & Inter-Service Directory Resolution (FF-CODE-04 / Code Quality Issue 4). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 26 complete — Identifier Semantics Harmonization Across Schemas (technicianId vs userId) (FF-CODE-05 / Code Quality Issue 5). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -10,7 +10,7 @@
   shared contracts, database, common, messaging, and UI packages.
 - Drizzle schemas and migrations for users, work orders, status history, bids,
   deliverables, escrow, refresh tokens, technician certifications, idempotency keys,
-  invoices, and payout ledger (`0000`, `0001`, `0002_auth.sql`, `0003_wo_history.sql`, `0004_long_marvel_boy.sql`, `0005_chubby_iron_lad.sql`).
+  invoices, and payout ledger (`0000`, `0001`, `0002_auth.sql`, `0003_wo_history.sql`, `0004_long_marvel_boy.sql`, `0005_chubby_iron_lad.sql`, `0006_green_wild_pack.sql`).
 - Local Docker Compose definitions for MySQL, Redis, RabbitMQ, Jaeger,
   Prometheus, and Grafana.
 - Architecture rules, ten accepted ADRs (including ADR 005, ADR 006, ADR 007, ADR 008, ADR 009, and ADR 010 `010_headless_notification_worker_boundary.md`), and CI/build scaffolding.

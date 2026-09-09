@@ -1087,6 +1087,33 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   8. Created unit test suite `packages/common/test/profile-directory.spec.ts` (31 tests) and added unit tests in `auth-service`, `billing-service`, and `work-order-service`.
   9. Zero database migrations (`RULE-DB-02`).
 
+### FF-CODE-05 · 🆔 Inconsistent Identifier Semantics Across Schemas (technicianId vs userId) (Code Quality Issue 5)
+
+- **Root Cause**: Inconsistent semantics between IAM account identifier (`userId`, referencing `users.id`) and marketplace profile identifier (`technicianId`, referencing `technician_profiles.id`):
+  1. In `packages/database/src/schemas/users.schema.ts`, `technician_certifications.technician_id` was configured with a foreign key referencing `users.id`, whereas all other tables in the repository (`work_order_bids.technician_id`, `work_orders.assigned_technician_id`, `payout_ledger.technician_id`), Redis spatial indexes (`tech:locations`), and batch directory APIs (`getTechniciansBatch`) defined `technicianId` as referencing `technician_profiles.id`.
+  2. Because of this foreign key misalignment, database seeds (`packages/database/src/seeds/index.ts`) inserted `tech1UserId` into `technician_certifications` instead of `tech1ProfileId`.
+  3. In `apps/auth-service/src/modules/vetting/certifications.service.ts`, `getTechniciansBatch(ids: string[])` receives `technicianProfiles.id` values, selects from `technicianProfiles`, and then executed `WHERE technicianCertifications.technicianId IN (ids)` — which matched 0 rows because the table stored user IDs, resulting in empty badge arrays returned to dispatch matching.
+  4. In `apps/auth-service/src/modules/vetting/certifications.controller.ts`, `addCertification()` passed `user.userId` rather than `user.profileId`.
+  5. In `apps/dispatch-matching-service/src/modules/dispatch/dispatch.controller.ts`, `updateLocation()` passed `user.userId` to `GeoSearchService.updateTechnicianLocation()`, causing Redis to index `userId` and `UPDATE technician_profiles` to match 0 rows (`WHERE id = userId`).
+- **Fix**: Harmonized identifier semantics across schemas, vetting services, location indexing, and migrations:
+  1. Updated `packages/database/src/schemas/users.schema.ts` to point `technicianCertifications.technicianId` foreign key to `technicianProfiles.id` with cascade deletion and explicit 28-character constraint name `tech_certs_technician_id_fk` (respecting MySQL's 64-character identifier limit).
+  2. Generated and applied migration `0006_green_wild_pack.sql` via `pnpm run db:generate` and `pnpm run db:migrate` per `RULE-DB-02`.
+  3. Updated `packages/database/src/seeds/index.ts` so `seedTechnicianCertifications` links to `tech1ProfileId` and `tech2ProfileId`.
+  4. Refactored `apps/auth-service/src/modules/vetting/certifications.controller.ts`:
+     - Injected `@Optional() ProfilesService` and updated `addCertification()` to derive `technicianId` from `user.profileId` with fallback resolution via `resolveProfileId()`.
+  5. Refactored `apps/auth-service/src/modules/vetting/certifications.service.ts`:
+     - Updated `addCertification(technicianId, dto)` to accept and persist `technicianId` (profile ID).
+     - Enhanced `getTechnicianBadges(technicianIdOrUserId)` with robust bidirectional fallback: checks direct `technician_id` match first, and if 0 rows, resolves profile ID from `userId` (preserving full backwards compatibility).
+     - `getTechniciansBatch(ids: string[])` now directly and accurately matches certifications for contractor profile IDs.
+  6. Refactored `apps/dispatch-matching-service/src/modules/dispatch/dispatch.controller.ts`:
+     - `updateLocation()` now prefers `user.profileId` with fallback to `user.userId`.
+  7. Refactored `apps/dispatch-matching-service/src/modules/geo-search/geo-search.service.ts`:
+     - `updateTechnicianLocation()` updates `technicianProfiles` coordinates by `technicianId`, and includes fallback resolution to look up `technician_profiles` by `userId` if 0 rows were updated, guaranteeing that Redis `tech:locations` always indexes the profile ID.
+  8. Updated and added automated tests in `auth-service` and `dispatch-matching-service`:
+     - `certifications.controller.spec.ts`: verified `profileId` extraction from token and resolution via `ProfilesService`.
+     - `certifications.service.spec.ts`: verified `getTechniciansBatch` populated badges and `getTechnicianBadges` dual-lookup fallback.
+     - `dispatch.controller.spec.ts`: verified `profileId` derivation from token and gateway headers.
+
 ---
 
 ## Suggested remediation order

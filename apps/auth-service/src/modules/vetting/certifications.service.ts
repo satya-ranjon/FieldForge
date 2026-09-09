@@ -48,18 +48,34 @@ export class CertificationsService {
         .where(eq(technicianCertifications.technicianId, technicianIdOrUserId));
 
       if (rows.length === 0) {
-        // Check if technicianIdOrUserId is a profile ID rather than user ID
-        const profiles = await this.db
+        // Fallback 1: If technicianIdOrUserId is actually a userId rather than technicianProfileId
+        const profilesByUser = await this.db
+          .select({ id: technicianProfiles.id })
+          .from(technicianProfiles)
+          .where(eq(technicianProfiles.userId, technicianIdOrUserId))
+          .limit(1);
+
+        if (profilesByUser.length > 0 && profilesByUser[0]?.id) {
+          rows = await this.db
+            .select()
+            .from(technicianCertifications)
+            .where(eq(technicianCertifications.technicianId, profilesByUser[0].id));
+        }
+      }
+
+      if (rows.length === 0) {
+        // Fallback 2: If technicianIdOrUserId is a profileId but rows held legacy userId
+        const profilesById = await this.db
           .select({ userId: technicianProfiles.userId })
           .from(technicianProfiles)
           .where(eq(technicianProfiles.id, technicianIdOrUserId))
           .limit(1);
 
-        if (profiles.length > 0 && profiles[0]?.userId) {
+        if (profilesById.length > 0 && profilesById[0]?.userId) {
           rows = await this.db
             .select()
             .from(technicianCertifications)
-            .where(eq(technicianCertifications.technicianId, profiles[0].userId));
+            .where(eq(technicianCertifications.technicianId, profilesById[0].userId));
         }
       }
 
@@ -87,7 +103,10 @@ export class CertificationsService {
   /**
    * Adds a new technician certification for vetting.
    */
-  async addCertification(userId: string, dto: CreateCertificationDto): Promise<TechnicianBadgeDto> {
+  async addCertification(
+    technicianId: string,
+    dto: CreateCertificationDto
+  ): Promise<TechnicianBadgeDto> {
     const certId = randomUUID();
     const issuedDate = new Date(dto.issuedDate);
     const expiryDate = new Date(dto.expiryDate);
@@ -95,28 +114,28 @@ export class CertificationsService {
     if (this.db) {
       await this.db.insert(technicianCertifications).values({
         id: certId,
-        technicianId: userId,
+        technicianId,
         name: dto.name,
         issuedDate,
         expiryDate,
         isVerified: false
       });
     } else {
-      const existing = this.mockCertifications[userId] ?? [];
+      const existing = this.mockCertifications[technicianId] ?? [];
       existing.push({
         badgeId: certId,
-        technicianId: userId,
+        technicianId,
         name: dto.name,
         issuedDate: dto.issuedDate,
         expiryDate: dto.expiryDate,
         isVerified: false
       });
-      this.mockCertifications[userId] = existing;
+      this.mockCertifications[technicianId] = existing;
     }
 
     return {
       badgeId: certId,
-      technicianId: userId,
+      technicianId,
       name: dto.name,
       issuedDate: dto.issuedDate,
       expiryDate: dto.expiryDate,

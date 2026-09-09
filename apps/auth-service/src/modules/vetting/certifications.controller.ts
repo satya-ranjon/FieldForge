@@ -8,11 +8,13 @@ import {
   Headers,
   ForbiddenException,
   BadRequestException,
+  Optional,
   HttpCode,
   HttpStatus
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { CertificationsService } from './certifications.service';
+import { ProfilesService } from '../profiles/profiles.service';
 import {
   createCertificationSchema,
   verifyCertificationSchema,
@@ -29,11 +31,16 @@ import { verifyGatewayUser, type AuthenticatedUser } from '@fieldforge/common';
 export class CertificationsController {
   constructor(
     private readonly certService: CertificationsService,
-    private readonly jwtService: JwtService
+    private readonly jwtService: JwtService,
+    @Optional() private readonly profilesService?: ProfilesService
   ) {}
 
-  private authenticateUser(authHeader?: string, gatewayUserId?: string): AuthenticatedUser {
-    return verifyGatewayUser(this.jwtService, authHeader, gatewayUserId);
+  private authenticateUser(
+    authHeader?: string,
+    gatewayUserId?: string,
+    gatewayProfileId?: string
+  ): AuthenticatedUser {
+    return verifyGatewayUser(this.jwtService, authHeader, gatewayUserId, gatewayProfileId);
   }
 
   /**
@@ -43,24 +50,26 @@ export class CertificationsController {
   async getBadges(
     @Param('id') technicianId: string,
     @Headers('authorization') authHeader?: string,
-    @Headers('x-ff-user-id') gatewayUserId?: string
+    @Headers('x-ff-user-id') gatewayUserId?: string,
+    @Headers('x-ff-profile-id') gatewayProfileId?: string
   ): Promise<TechnicianBadgeDto[]> {
-    this.authenticateUser(authHeader, gatewayUserId);
+    this.authenticateUser(authHeader, gatewayUserId, gatewayProfileId);
     return this.certService.getTechnicianBadges(technicianId);
   }
 
   /**
    * Submit technician certification for vetting.
-   * Derives technician identity from verified JWT.
+   * Derives technician identity from verified JWT profileId or user resolution.
    */
   @Post('certifications')
   @HttpCode(HttpStatus.CREATED)
   async addCertification(
     @Body() body: unknown,
     @Headers('authorization') authHeader?: string,
-    @Headers('x-ff-user-id') gatewayUserId?: string
+    @Headers('x-ff-user-id') gatewayUserId?: string,
+    @Headers('x-ff-profile-id') gatewayProfileId?: string
   ): Promise<TechnicianBadgeDto> {
-    const user = this.authenticateUser(authHeader, gatewayUserId);
+    const user = this.authenticateUser(authHeader, gatewayUserId, gatewayProfileId);
 
     if (user.role !== UserRole.TECHNICIAN && user.role !== UserRole.ADMIN) {
       throw new ForbiddenException('Only technicians may submit certifications');
@@ -71,7 +80,17 @@ export class CertificationsController {
       throw new BadRequestException(parsed.error.issues);
     }
 
-    return this.certService.addCertification(user.userId, parsed.data as CreateCertificationDto);
+    let technicianId = user.profileId;
+    if (!technicianId && this.profilesService) {
+      technicianId = await this.profilesService.resolveProfileId(user.userId, UserRole.TECHNICIAN);
+    }
+
+    const targetTechnicianId = technicianId || user.userId;
+
+    return this.certService.addCertification(
+      targetTechnicianId,
+      parsed.data as CreateCertificationDto
+    );
   }
 
   /**

@@ -1018,6 +1018,47 @@ Eliminated direct foreign schema imports (`usersSchema.buyerProfiles`, `usersSch
 
 ---
 
+## Phase 26 — Identifier Semantics Harmonization Across Schemas (technicianId vs userId)
+
+**Size: M · Dependencies: Phase 21, Phase 25.** Resolves **FF-CODE-05** (Code Quality Issue 5).
+
+Harmonized the semantic distinction and foreign key relationships between IAM account identity (`userId`, referencing `users.id`) and domain technician profile identity (`technicianId`, referencing `technician_profiles.id`) across database schemas, vetting certifications, spatial indexing, and dispatch matching.
+
+**Deliverables:**
+
+- **Database Schema & Migration Alignment (`packages/database`).**
+  - Updated `technicianCertifications.technicianId` in `packages/database/src/schemas/users.schema.ts` to reference `technicianProfiles.id` with cascade deletion and explicit 28-character constraint name `tech_certs_technician_id_fk` (safely below MySQL's 64-character identifier ceiling).
+  - Generated and applied migration `0006_green_wild_pack.sql` via `pnpm run db:generate` and `pnpm run db:migrate` per `RULE-DB-02`.
+  - Updated `packages/database/src/seeds/index.ts` so `seedTechnicianCertifications` references `tech1ProfileId` and `tech2ProfileId` instead of user IDs.
+- **Contractor Vetting Identity Resolution (`apps/auth-service`).**
+  - Updated `CertificationsController.addCertification()` to derive `technicianId` from `user.profileId` (or resolve via `ProfilesService.resolveProfileId()` if absent), avoiding binding certifications to IAM `userId`.
+  - Updated `CertificationsService.addCertification()` to store `technicianId` directly as the profile ID.
+  - Implemented bidirectional identifier resolution in `CertificationsService.getTechnicianBadges()`: queries `technician_id` directly, falling back to resolving profile ID from `userId` if 0 rows were found (preserving backwards compatibility for legacy callers).
+  - Verified `CertificationsService.getTechniciansBatch()`: cleanly and accurately joins certifications for contractor profile IDs, resolving the previously silent empty badges bug in dispatch search.
+- **Spatial Indexing & GPS Ingestion Alignment (`apps/dispatch-matching-service`).**
+  - Updated `DispatchController.updateLocation()` to derive `technicianId` from `user.profileId` with fallback to `user.userId`.
+  - Updated `GeoSearchService.updateTechnicianLocation()` to update `technicianProfiles` coordinates by `technicianId`, with fallback resolution of `technician_profiles` by `userId` if 0 rows were affected. This guarantees that Redis `tech:locations` spatial index always stores the profile ID.
+  - Aligned direct DB fallback query in `GeoSearchService.findNearbyTechnicians()` to query certifications by `technicianProfiles.id`.
+
+**Verification:**
+
+- 562 automated unit/integration tests passing across 15 packages/apps in monorepo (zero `--passWithNoTests`):
+  - 63 tests in `apps/auth-service` (6 suites, +4 tests).
+  - 30 tests in `apps/dispatch-matching-service` (4 suites, +2 tests).
+  - 234 tests in `apps/work-order-service` (13 suites).
+  - 28 tests in `apps/billing-service` (4 suites).
+  - 31 tests in `@fieldforge/common` (4 suites).
+  - 21 tests in `@fieldforge/messaging` (5 suites).
+  - 104 tests in `apps/web-buyer-portal` (1 suite).
+  - 76 tests in `@fieldforge/contracts` (3 suites).
+  - 44 tests in `apps/api-gateway` (6 suites).
+  - 14 tests in `apps/notification-service` (1 suite).
+  - 21 tests in `@fieldforge/mobile-tech-app` (3 suites).
+- 28 Playwright E2E tests validated (`pnpm test:e2e`). Total verified tests: 590 tests.
+- `pnpm check && pnpm build` pass cleanly.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

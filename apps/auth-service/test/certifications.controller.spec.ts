@@ -106,6 +106,67 @@ describe('CertificationsController', () => {
       });
     });
 
+    it('prefers technicianProfileId from JWT profileId payload when available', async () => {
+      mockJwtService.verify.mockReturnValueOnce({
+        sub: TECH_USER_ID,
+        email: 'tech@example.com',
+        role: UserRole.TECHNICIAN,
+        profileId: 'tp-profile-999'
+      });
+
+      await controller.addCertification(
+        {
+          name: 'OSHA 10',
+          issuedDate: '2025-02-01',
+          expiryDate: '2028-02-01'
+        },
+        'Bearer valid.jwt'
+      );
+
+      expect(mockCertService.addCertification).toHaveBeenCalledWith('tp-profile-999', {
+        name: 'OSHA 10',
+        issuedDate: '2025-02-01',
+        expiryDate: '2028-02-01'
+      });
+    });
+
+    it('resolves profileId via ProfilesService when absent from token', async () => {
+      mockJwtService.verify.mockReturnValueOnce({
+        sub: TECH_USER_ID,
+        email: 'tech@example.com',
+        role: UserRole.TECHNICIAN
+      });
+
+      const mockProfilesService = {
+        resolveProfileId: jest.fn().mockResolvedValue('tp-resolved-888')
+      };
+
+      const controllerWithProfiles = new CertificationsController(
+        mockCertService,
+        mockJwtService,
+        mockProfilesService as unknown as import('../src/modules/profiles/profiles.service').ProfilesService
+      );
+
+      await controllerWithProfiles.addCertification(
+        {
+          name: 'OSHA 10',
+          issuedDate: '2025-02-01',
+          expiryDate: '2028-02-01'
+        },
+        'Bearer valid.jwt'
+      );
+
+      expect(mockProfilesService.resolveProfileId).toHaveBeenCalledWith(
+        TECH_USER_ID,
+        UserRole.TECHNICIAN
+      );
+      expect(mockCertService.addCertification).toHaveBeenCalledWith('tp-resolved-888', {
+        name: 'OSHA 10',
+        issuedDate: '2025-02-01',
+        expiryDate: '2028-02-01'
+      });
+    });
+
     it('forbids buyer from submitting technician certifications', async () => {
       mockJwtService.verify.mockReturnValueOnce({
         sub: BUYER_USER_ID,

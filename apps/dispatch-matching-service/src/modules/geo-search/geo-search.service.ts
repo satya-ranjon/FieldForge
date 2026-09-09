@@ -46,17 +46,43 @@ export class GeoSearchService implements OnApplicationShutdown {
     latitude: number,
     longitude: number
   ): Promise<void> {
-    await this.redis.geoadd(TECH_LOCATIONS_KEY, longitude, latitude, technicianId);
+    let targetProfileId = technicianId;
 
     if (this.db) {
-      await this.db
+      const updateResult = await this.db
         .update(technicianProfiles)
         .set({
           currentLatitude: latitude.toFixed(8),
           currentLongitude: longitude.toFixed(8)
         })
         .where(eq(technicianProfiles.id, technicianId));
+
+      const resultHeader = Array.isArray(updateResult)
+        ? (updateResult[0] as { affectedRows?: number } | undefined)
+        : (updateResult as { affectedRows?: number } | undefined);
+      const affected = resultHeader?.affectedRows;
+      if (affected === 0) {
+        // Fallback: check if technicianId is actually a userId in technicianProfiles
+        const [profile] = await this.db
+          .select({ id: technicianProfiles.id })
+          .from(technicianProfiles)
+          .where(eq(technicianProfiles.userId, technicianId))
+          .limit(1);
+
+        if (profile?.id) {
+          targetProfileId = profile.id;
+          await this.db
+            .update(technicianProfiles)
+            .set({
+              currentLatitude: latitude.toFixed(8),
+              currentLongitude: longitude.toFixed(8)
+            })
+            .where(eq(technicianProfiles.id, targetProfileId));
+        }
+      }
     }
+
+    await this.redis.geoadd(TECH_LOCATIONS_KEY, longitude, latitude, targetProfileId);
   }
 
   async findNearbyTechnicians(

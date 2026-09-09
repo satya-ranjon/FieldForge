@@ -51,7 +51,8 @@ export class DispatchController {
     }
 
     const dto = updateTechnicianLocationSchema.parse(body);
-    await this.geoSearchService.updateTechnicianLocation(user.userId, dto.latitude, dto.longitude);
+    const technicianId = user.profileId || user.userId;
+    await this.geoSearchService.updateTechnicianLocation(technicianId, dto.latitude, dto.longitude);
 
     return {
       statusCode: 200,

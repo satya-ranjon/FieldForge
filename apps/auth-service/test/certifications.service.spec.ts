@@ -139,4 +139,94 @@ describe('CertificationsService', () => {
       )
     ).toBe(true);
   });
+
+  it('resolves certifications when queried by userId fallback in getTechnicianBadges', async () => {
+    const mockDb = {
+      select: jest
+        .fn()
+        // 1st call: select from technicianCertifications where technicianId = 'u-user-1' -> empty
+        .mockReturnValueOnce({
+          from: jest.fn().mockReturnValue({
+            where: jest.fn().mockResolvedValue([])
+          })
+        })
+        // 2nd call: select id from technicianProfiles where userId = 'u-user-1' -> finds profile 'tp-profile-1'
+        .mockReturnValueOnce({
+          from: jest.fn().mockReturnValue({
+            where: jest.fn().mockReturnValue({
+              limit: jest.fn().mockResolvedValue([{ id: 'tp-profile-1' }])
+            })
+          })
+        })
+        // 3rd call: select from technicianCertifications where technicianId = 'tp-profile-1' -> finds cert
+        .mockReturnValueOnce({
+          from: jest.fn().mockReturnValue({
+            where: jest.fn().mockResolvedValue([
+              {
+                id: 'cert-resolved-1',
+                technicianId: 'tp-profile-1',
+                name: 'Cisco CCNA',
+                issuedDate: new Date('2025-01-15'),
+                expiryDate: new Date('2028-01-15'),
+                isVerified: true
+              }
+            ])
+          })
+        })
+    };
+
+    const serviceWithDb = new CertificationsService(
+      mockDb as unknown as import('@fieldforge/common').DrizzleClient
+    );
+    const badges = await serviceWithDb.getTechnicianBadges('u-user-1');
+
+    expect(badges).toHaveLength(1);
+    expect(badges[0]?.badgeId).toBe('cert-resolved-1');
+    expect(badges[0]?.technicianId).toBe('tp-profile-1');
+    expect(badges[0]?.name).toBe('Cisco CCNA');
+  });
+
+  it('populates badges and certifications in getTechniciansBatch using profile IDs', async () => {
+    const mockDb = {
+      select: jest
+        .fn()
+        // 1st call: select from technicianProfiles innerJoin users where id IN ('tp-1')
+        .mockReturnValueOnce({
+          from: jest.fn().mockReturnValue({
+            innerJoin: jest.fn().mockReturnValue({
+              where: jest.fn().mockResolvedValue([
+                {
+                  id: 'tp-1',
+                  firstName: 'Alex',
+                  lastName: 'Rivas',
+                  ratingAverage: '4.95',
+                  jobsCompleted: 42,
+                  hourlyRate: '85.00',
+                  userStatus: 'ACTIVE'
+                }
+              ])
+            })
+          })
+        })
+        // 2nd call: select from technicianCertifications where technicianId IN ('tp-1')
+        .mockReturnValueOnce({
+          from: jest.fn().mockReturnValue({
+            where: jest.fn().mockResolvedValue([
+              { technicianId: 'tp-1', badgeName: 'Cisco CCNA' },
+              { technicianId: 'tp-1', badgeName: 'OSHA 10' }
+            ])
+          })
+        })
+    };
+
+    const serviceWithDb = new CertificationsService(
+      mockDb as unknown as import('@fieldforge/common').DrizzleClient
+    );
+    const result = await serviceWithDb.getTechniciansBatch(['tp-1']);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.id).toBe('tp-1');
+    expect(result[0]?.badges).toEqual(['Cisco CCNA', 'OSHA 10']);
+    expect(result[0]?.certifications).toEqual(['Cisco CCNA', 'OSHA 10']);
+  });
 });
