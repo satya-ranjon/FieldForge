@@ -991,6 +991,23 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   5. Added comprehensive test suites in `packages/common/test/gateway-auth.spec.ts` (9 tests) and `apps/billing-service/test/billing.controller.spec.ts` (4 tests).
   6. Zero database migrations (`RULE-DB-02`).
 
+### FF-CODE-02 · 🧹 Triplicate Implementation of Work Order Assignment Business Logic (Code Quality Issue 2)
+
+- **Root Cause**: Work order assignment to a technician (transitioning status to `ASSIGNED`, setting `assignedTechnicianId`, recording transition history in `workOrderStatusHistory`, and publishing `EventType.WORK_ORDER_ASSIGNED`) was copy-pasted across three separate methods in `apps/work-order-service`:
+  1. `BidsService.acceptBid()` (lines 268–289 & 315–330)
+  2. `WorkOrdersService.transition()` (lines 501–521 & 530–552)
+  3. `WorkOrdersService.assignTechnicianFromBid()` (lines 785–803 & 820–823)
+     This caused drift risk between direct manual transitions, bid acceptance, and event-driven assignments, duplicated SQL updates and event envelope construction, and resulted in inconsistent agreed rate lookups.
+- **Fix**: Centralized work order assignment logic and agreed rate resolution in `apps/work-order-service`:
+  1. Created `apps/work-order-service/src/modules/work-orders/work-order-assignment.ts` exporting `executeWorkOrderAssignment()` and `resolveAgreedRateMinor()`.
+  2. Atomically updates `workOrders` and records transition history in `workOrderStatusHistory` within the caller's active Drizzle transaction `tx`.
+  3. Returns `now`, the canonical `WORK_ORDER_ASSIGNED` event, and an atomic `publishEvent` callback so the caller can emit the event after transaction completion.
+  4. Refactored `BidsService.acceptBid()` to delegate to `executeWorkOrderAssignment()` while preserving constructor signatures and test mocks.
+  5. Refactored `WorkOrdersService.transition()` and `WorkOrdersService.assignTechnicianFromBid()` to delegate to `executeWorkOrderAssignment()` and `resolveAgreedRateMinor()`.
+  6. Added public `executeAssignment(tx, params)` method to `WorkOrdersService`.
+  7. Added unit test suite `apps/work-order-service/test/work-order-assignment.spec.ts` (6 tests).
+  8. Zero database migrations (`RULE-DB-02`).
+
 ---
 
 ## Suggested remediation order

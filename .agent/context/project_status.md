@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-09  
-**Phase:** Phase 22 complete — Centralize Gateway User Authentication Across Microservice Controllers (FF-CODE-01 / Code Quality Issue 1). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 23 complete — Consolidate Triplicate Work Order Assignment Business Logic (FF-CODE-02 / Code Quality Issue 2). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -45,6 +45,7 @@
   via `WorkOrderFsmService`, and records status history in `work_order_status_history` within one ACID transaction.
   Sole mutator of `work_orders`, `work_order_bids`, and `work_order_status_history`. Sole emitter of
   `work_order.lifecycle.assigned`, `work_order.lifecycle.approved`, and `work_order.lifecycle.paid` (`tech.bidding.accepted` retired in Phase 18).
+  Assignment business logic across `BidsService.acceptBid`, `WorkOrdersService.transition`, and `WorkOrdersService.assignTechnicianFromBid` is unified into `executeWorkOrderAssignment()` and `resolveAgreedRateMinor()` (`work-order-assignment.ts`, FF-CODE-02 / Phase 23).
 - **Pure Geospatial Matching Engine (`apps/dispatch-matching-service`).**
   - Redis `GEOADD` and `GEOSEARCH` on `tech:locations` with Haversine exact distance filtering.
   - Multi-parameter contractor scoring algorithm: 40% distance, 30% rating, 15% completed jobs, 15% verified certifications.

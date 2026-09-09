@@ -39,6 +39,13 @@ import {
 } from '@fieldforge/common';
 import { WorkOrderFsmService } from '../fsm/work-order-fsm.service';
 import { WorkOrderEventPublisher } from '../../events/work-order-event.publisher';
+import {
+  executeWorkOrderAssignment,
+  resolveAgreedRateMinor,
+  type AssignmentDbTx,
+  type ExecuteAssignmentParams,
+  type ExecuteAssignmentResult
+} from './work-order-assignment';
 import { randomUUID } from 'node:crypto';
 
 @Injectable()
@@ -498,80 +505,79 @@ export class WorkOrdersService {
         );
       }
 
-      const now = new Date();
-      const updateData: Partial<typeof workOrders.$inferInsert> = {
-        status: dto.nextStatus,
-        updatedAt: now
-      };
-
-      if (dto.nextStatus === WorkOrderStatus.ASSIGNED && dto.assignedTechnicianId) {
-        updateData.assignedTechnicianId = dto.assignedTechnicianId;
-      }
-
-      await tx.update(workOrders).set(updateData).where(eq(workOrders.id, workOrderId));
-
-      await tx.insert(workOrderStatusHistory).values({
-        id: randomUUID(),
-        workOrderId,
-        fromStatus: currentStatus,
-        toStatus: dto.nextStatus,
-        changedBy: userId,
-        reason: dto.reason || null,
-        createdAt: now
-      });
-
-      const updatedRow = {
-        ...wo,
-        ...updateData
-      };
-
-      updatedOrder = this.mapToResponseDto(updatedRow as typeof workOrders.$inferSelect);
-
       if (dto.nextStatus === WorkOrderStatus.ASSIGNED) {
         const assignedTechnicianId = dto.assignedTechnicianId || wo.assignedTechnicianId || '';
-        const [acceptedBid] = await tx
-          .select()
-          .from(workOrderBids)
-          .where(and(eq(workOrderBids.workOrderId, wo.id), eq(workOrderBids.bidStatus, 'ACCEPTED')))
-          .limit(1);
-        const agreedRateMinor = acceptedBid
-          ? toMinor(Number(acceptedBid.bidAmount))
-          : toMinor(Number(wo.budgetAmount));
-        eventsToPublish.push(async () => {
-          const event = createEvent(
-            EventType.WORK_ORDER_ASSIGNED,
-            {
-              workOrderId: wo.id,
-              technicianId: assignedTechnicianId,
-              agreedRateMinor
-            },
-            correlationId
-          );
-          await this.eventPublisher.publishWorkOrderAssigned(event);
+        const agreedRateMinor = await resolveAgreedRateMinor(tx, wo.id, wo.budgetAmount);
+
+        const assignmentResult = await executeWorkOrderAssignment(
+          tx,
+          this.fsmService,
+          this.eventPublisher,
+          {
+            workOrderId,
+            technicianId: assignedTechnicianId,
+            fromStatus: currentStatus,
+            changedBy: userId,
+            reason: dto.reason || null,
+            agreedRateMinor,
+            correlationId,
+            validateFsm: false
+          }
+        );
+
+        eventsToPublish.push(assignmentResult.publishEvent);
+
+        const updatedRow = {
+          ...wo,
+          status: WorkOrderStatus.ASSIGNED,
+          assignedTechnicianId,
+          updatedAt: assignmentResult.now
+        };
+
+        updatedOrder = this.mapToResponseDto(updatedRow as typeof workOrders.$inferSelect);
+      } else {
+        const now = new Date();
+        const updateData: Partial<typeof workOrders.$inferInsert> = {
+          status: dto.nextStatus,
+          updatedAt: now
+        };
+
+        await tx.update(workOrders).set(updateData).where(eq(workOrders.id, workOrderId));
+
+        await tx.insert(workOrderStatusHistory).values({
+          id: randomUUID(),
+          workOrderId,
+          fromStatus: currentStatus,
+          toStatus: dto.nextStatus,
+          changedBy: userId,
+          reason: dto.reason || null,
+          createdAt: now
         });
-      } else if (dto.nextStatus === WorkOrderStatus.APPROVED) {
-        const [acceptedBid] = await tx
-          .select()
-          .from(workOrderBids)
-          .where(and(eq(workOrderBids.workOrderId, wo.id), eq(workOrderBids.bidStatus, 'ACCEPTED')))
-          .limit(1);
-        const payoutAmountMinor = acceptedBid
-          ? toMinor(Number(acceptedBid.bidAmount))
-          : toMinor(Number(wo.budgetAmount));
-        const assignedTechnicianId = wo.assignedTechnicianId || '';
-        eventsToPublish.push(async () => {
-          const event = createEvent(
-            EventType.WORK_ORDER_APPROVED,
-            {
-              workOrderId: wo.id,
-              buyerId: wo.buyerId,
-              technicianId: assignedTechnicianId,
-              payoutAmountMinor
-            },
-            correlationId
-          );
-          await this.eventPublisher.publishWorkOrderApproved(event);
-        });
+
+        const updatedRow = {
+          ...wo,
+          ...updateData
+        };
+
+        updatedOrder = this.mapToResponseDto(updatedRow as typeof workOrders.$inferSelect);
+
+        if (dto.nextStatus === WorkOrderStatus.APPROVED) {
+          const payoutAmountMinor = await resolveAgreedRateMinor(tx, wo.id, wo.budgetAmount);
+          const assignedTechnicianId = wo.assignedTechnicianId || '';
+          eventsToPublish.push(async () => {
+            const event = createEvent(
+              EventType.WORK_ORDER_APPROVED,
+              {
+                workOrderId: wo.id,
+                buyerId: wo.buyerId,
+                technicianId: assignedTechnicianId,
+                payoutAmountMinor
+              },
+              correlationId
+            );
+            await this.eventPublisher.publishWorkOrderApproved(event);
+          });
+        }
       }
     });
 
@@ -741,24 +747,28 @@ export class WorkOrdersService {
   }
 
   /**
-   * Transitions work order to ASSIGNED upon bid acceptance.
+   * Executes atomic assignment of a work order within an active transaction.
+   */
+  async executeAssignment(
+    tx: AssignmentDbTx,
+    params: ExecuteAssignmentParams
+  ): Promise<ExecuteAssignmentResult> {
+    return executeWorkOrderAssignment(tx, this.fsmService, this.eventPublisher, params);
+  }
+
+  /**
+   * Transitions a work order to ASSIGNED directly from an accepted bid event.
    * Note: With commercial bidding re-homed to BidsService (ADR 007), canonical bid acceptance
    * and assignment are executed atomically in BidsService.acceptBid(). This method is retained
    * for programmatic or direct invocation (FF-ARCH-07).
-   * Enforces FSM transition rules, logs status history, and emits canonical WORK_ORDER_ASSIGNED event.
+   * Ensures idempotency: if already assigned to the same technician, returns existing state.
    */
   async assignTechnicianFromBid(
     payload: TechBidAcceptedPayload,
     correlationId: string
   ): Promise<WorkOrderResponseDto> {
-    let updatedOrder: WorkOrderResponseDto;
-    let assignedEventPayload:
-      | {
-          workOrderId: string;
-          technicianId: string;
-          agreedRateMinor: number;
-        }
-      | undefined;
+    let updatedOrder: WorkOrderResponseDto | null = null;
+    const eventsToPublish: Array<() => Promise<void>> = [];
 
     await this.db.transaction(async (tx) => {
       const [wo] = await tx
@@ -780,46 +790,29 @@ export class WorkOrdersService {
         return;
       }
 
-      this.fsmService.validateTransition(currentStatus, WorkOrderStatus.ASSIGNED);
-
-      const now = new Date();
-      await tx
-        .update(workOrders)
-        .set({
-          assignedTechnicianId: payload.technicianId,
-          status: WorkOrderStatus.ASSIGNED,
-          updatedAt: now
-        })
-        .where(eq(workOrders.id, payload.workOrderId));
-
-      await tx.insert(workOrderStatusHistory).values({
-        id: randomUUID(),
+      const assignmentResult = await this.executeAssignment(tx, {
         workOrderId: payload.workOrderId,
+        technicianId: payload.technicianId,
         fromStatus: currentStatus,
-        toStatus: WorkOrderStatus.ASSIGNED,
         changedBy: payload.buyerUserId || 'dispatch-service',
         reason: `Bid ${payload.bidId} accepted`,
-        createdAt: now
+        agreedRateMinor: payload.agreedRateMinor,
+        correlationId,
+        validateFsm: true
       });
 
       const updatedRow = {
         ...wo,
         assignedTechnicianId: payload.technicianId,
         status: WorkOrderStatus.ASSIGNED,
-        updatedAt: now
+        updatedAt: assignmentResult.now
       };
       updatedOrder = this.mapToResponseDto(updatedRow as typeof workOrders.$inferSelect);
-
-      assignedEventPayload = {
-        workOrderId: wo.id,
-        technicianId: payload.technicianId,
-        agreedRateMinor: payload.agreedRateMinor
-      };
+      eventsToPublish.push(assignmentResult.publishEvent);
     });
 
-    if (assignedEventPayload) {
-      const event = createEvent(EventType.WORK_ORDER_ASSIGNED, assignedEventPayload, correlationId);
-      await this.eventPublisher.publishWorkOrderAssigned(event);
+    for (const publishFn of eventsToPublish) {
+      await publishFn();
     }
 
     return updatedOrder!;

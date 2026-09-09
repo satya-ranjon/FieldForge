@@ -11,7 +11,6 @@ import type { MySql2Database } from 'drizzle-orm/mysql2';
 import {
   workOrders,
   workOrderBids,
-  workOrderStatusHistory,
   buyerProfiles,
   technicianProfiles,
   idempotencyKeys
@@ -28,6 +27,7 @@ import {
 } from '@fieldforge/contracts';
 import { WorkOrderEventPublisher } from '../../events/work-order-event.publisher';
 import { WorkOrderFsmService } from '../fsm/work-order-fsm.service';
+import { executeWorkOrderAssignment } from '../work-orders/work-order-assignment';
 import { randomUUID } from 'node:crypto';
 
 @Injectable()
@@ -265,27 +265,22 @@ export class BidsService {
           )
         );
 
-      // 7. Atomically transition work order to ASSIGNED
-      const now = new Date();
-      await tx
-        .update(workOrders)
-        .set({
-          status: WorkOrderStatus.ASSIGNED,
-          assignedTechnicianId: bid.technicianId,
-          updatedAt: now
-        })
-        .where(eq(workOrders.id, wo.id));
-
-      // 8. Log status transition history
-      await tx.insert(workOrderStatusHistory).values({
-        id: randomUUID(),
-        workOrderId: wo.id,
-        fromStatus: WorkOrderStatus.PUBLISHED,
-        toStatus: WorkOrderStatus.ASSIGNED,
-        changedBy: buyerUserId,
-        reason: `Bid accepted (agreed rate $${bid.bidAmount})`,
-        createdAt: now
-      });
+      // 7 & 8. Atomically transition work order to ASSIGNED and record status history
+      const { publishEvent: publishAssignedEvent } = await executeWorkOrderAssignment(
+        tx,
+        this.fsmService,
+        this.eventPublisher,
+        {
+          workOrderId: wo.id,
+          technicianId: bid.technicianId,
+          fromStatus: (wo.status as WorkOrderStatus) || WorkOrderStatus.PUBLISHED,
+          changedBy: buyerUserId,
+          reason: `Bid accepted (agreed rate $${bid.bidAmount})`,
+          agreedRateMinor: decimalStringToMinor(bid.bidAmount),
+          correlationId,
+          validateFsm: false
+        }
+      );
 
       const responseDto: BidDetailsDto = {
         id: bid.id,
@@ -313,21 +308,7 @@ export class BidsService {
       }
 
       // 9. Publish canonical work_order.lifecycle.assigned event
-      // Note: With commercial bidding re-homed to work-order-service (ADR 007),
-      // work order assignment executes atomically above and is announced exclusively
-      // via canonical WORK_ORDER_ASSIGNED. Publishing TECH_BID_ACCEPTED was a legacy remnant
-      // from when bidding lived in dispatch-matching-service; emitting it created an orphaned
-      // message with zero subscribers across the platform (FF-ARCH-11 / Service Audit Issue B).
-      const assignedEvent = createEvent(
-        EventType.WORK_ORDER_ASSIGNED,
-        {
-          workOrderId: wo.id,
-          technicianId: bid.technicianId,
-          agreedRateMinor: decimalStringToMinor(bid.bidAmount)
-        },
-        correlationId
-      );
-      await this.eventPublisher.publishWorkOrderAssigned(assignedEvent);
+      await publishAssignedEvent();
 
       return responseDto;
     });

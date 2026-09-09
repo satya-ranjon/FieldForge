@@ -888,6 +888,43 @@ NFR-PERF-001.
 
 ---
 
+## Phase 23 — Consolidate Triplicate Work Order Assignment Business Logic
+
+**Status: Completed (2026-09-09).** Resolves **Backend Code Quality Issue 2 (Triplicate Implementation of Work Order Assignment Business Logic)** / `FF-CODE-02`.
+
+- **Centralized Work Order Assignment Domain Helper (`apps/work-order-service`).**
+  - Created `apps/work-order-service/src/modules/work-orders/work-order-assignment.ts` with `executeWorkOrderAssignment()` and `resolveAgreedRateMinor()`.
+  - Atomically transitions work order status to `ASSIGNED`, sets `assignedTechnicianId`, and updates `updatedAt: now` within the caller's active Drizzle transaction (`tx`).
+  - Records canonical status transition history in `work_order_status_history` table (`fromStatus`, `toStatus: ASSIGNED`, `changedBy`, `reason`).
+  - Constructs and returns the canonical `EventType.WORK_ORDER_ASSIGNED` domain event envelope along with an atomic `publishEvent` callback to preserve ACID boundaries.
+  - Implemented `resolveAgreedRateMinor()` to look up accepted bids and convert amounts to minor units or fall back to `budgetAmount`.
+- **Deduplicated Service Implementations.**
+  - Refactored `apps/work-order-service/src/modules/bids/bids.service.ts`: `acceptBid()` now delegates work order status transition, history logging, and `WORK_ORDER_ASSIGNED` publishing to `executeWorkOrderAssignment()`. Preserved original constructor signature (`db`, `eventPublisher`, `fsmService`) with zero test regressions.
+  - Refactored `apps/work-order-service/src/modules/work-orders/work-orders.service.ts`: `transition()` delegates `ASSIGNED` status mutations to `executeWorkOrderAssignment()` and uses `resolveAgreedRateMinor()` for both `ASSIGNED` and `APPROVED` transitions.
+  - Refactored `apps/work-order-service/src/modules/work-orders/work-orders.service.ts`: `assignTechnicianFromBid()` delegates assignment, history insertion, and event emission to `executeWorkOrderAssignment()`.
+  - Added public `executeAssignment(tx, params)` method on `WorkOrdersService` for unified programmatic access.
+- **Test Coverage Expansion.**
+  - Added unit test suite `apps/work-order-service/test/work-order-assignment.spec.ts` (6 tests) covering successful atomic assignment, database mutations, event payload generation, publish callback execution, FSM validation skipping/enforcement, and `resolveAgreedRateMinor()` bid vs budget fallback logic.
+  - All 12 test suites and 210 tests in `apps/work-order-service` passing with zero regressions.
+
+**Verification:**
+
+- 520 automated unit/integration tests passing across 15 packages/apps in monorepo (zero `--passWithNoTests`):
+  - 210 tests in `apps/work-order-service` (12 suites, +6 tests).
+  - 28 tests in `apps/billing-service` (4 suites).
+  - 21 tests in `@fieldforge/messaging` (5 suites).
+  - 28 tests in `apps/dispatch-matching-service` (4 suites).
+  - 104 tests in `apps/web-buyer-portal` (1 suite).
+  - 21 tests in `@fieldforge/common` (3 suites).
+  - 76 tests in `@fieldforge/contracts` (3 suites).
+  - 56 tests in `apps/auth-service` (6 suites).
+  - 44 tests in `apps/api-gateway` (6 suites).
+  - 14 tests in `apps/notification-service` (1 suite).
+- 28 Playwright E2E tests validated (`pnpm test:e2e`). Total verified tests: 548 tests.
+- `pnpm check && pnpm build` pass cleanly.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads
