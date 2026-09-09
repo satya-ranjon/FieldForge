@@ -1,8 +1,8 @@
 import { Controller, Get, Post, Param, Body, Headers, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { BidsService } from './bids.service';
-import { submitBidSchema } from '@fieldforge/contracts';
-import { verifyGatewayUser, type AuthenticatedUser } from '@fieldforge/common';
+import { submitBidSchema, type SubmitBidDto } from '@fieldforge/contracts';
+import { verifyGatewayUser, ZodValidationPipe, type AuthenticatedUser } from '@fieldforge/common';
 import { randomUUID } from 'node:crypto';
 
 @Controller('work-orders')
@@ -26,6 +26,7 @@ export class BidsController {
 
   /**
    * Submit a bid on a work order (canonical path: POST /work-orders/:id/bids).
+   * workOrderId is merged from the route param before validation.
    */
   @Post(':id/bids')
   async submitBidOnWorkOrder(
@@ -42,7 +43,7 @@ export class BidsController {
       throw new ForbiddenException('Only certified technicians can submit bids');
     }
 
-    const parsedBody = submitBidSchema.parse({
+    const parsedBody = ZodValidationPipe.validate<SubmitBidDto>(submitBidSchema, {
       ...(typeof body === 'object' && body !== null ? body : {}),
       workOrderId
     });
@@ -111,7 +112,7 @@ export class BidsController {
    */
   @Post('bids')
   async submitBidLegacy(
-    @Body() body: unknown,
+    @Body(new ZodValidationPipe(submitBidSchema)) dto: SubmitBidDto,
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string,
     @Headers('x-correlation-id') correlationHeader?: string,
@@ -123,7 +124,6 @@ export class BidsController {
       throw new ForbiddenException('Only certified technicians can submit bids');
     }
 
-    const dto = submitBidSchema.parse(body);
     const correlationId = correlationHeader || randomUUID();
     return await this.bidsService.submitBid(
       dto,

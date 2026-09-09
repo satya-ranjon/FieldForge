@@ -21,6 +21,7 @@ import {
   DRIZZLE,
   type DrizzleClient,
   verifyGatewayUser,
+  ZodValidationPipe,
   type AuthenticatedUser,
   ProfileDirectoryService
 } from '@fieldforge/common';
@@ -67,7 +68,7 @@ export class BillingController {
 
   @Post('escrow/preauth')
   async preAuthEscrow(
-    @Body() body: PreAuthEscrowDto,
+    @Body(new ZodValidationPipe(preAuthEscrowSchema)) parsed: PreAuthEscrowDto,
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string,
     @Headers('x-correlation-id') correlationId?: string,
@@ -77,8 +78,6 @@ export class BillingController {
     if (user.role !== 'BUYER' && user.role !== 'ADMIN') {
       throw new ForbiddenException('Only buyers or administrators can pre-authorize escrow');
     }
-
-    const parsed = preAuthEscrowSchema.parse(body);
 
     // Resolve buyer profile id: fast-path via token profileId or fallback to directory lookup
     let buyerProfileId = user.profileId;
@@ -106,7 +105,7 @@ export class BillingController {
 
   @Post('escrow/release')
   async releaseEscrow(
-    @Body() body: ReleaseEscrowDto,
+    @Body(new ZodValidationPipe(releaseEscrowSchema)) parsed: ReleaseEscrowDto,
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string,
     @Headers('x-correlation-id') correlationId?: string,
@@ -117,8 +116,6 @@ export class BillingController {
     if (user.role !== 'BUYER' && user.role !== 'ADMIN') {
       throw new ForbiddenException('Only buyers or administrators can release escrow');
     }
-
-    const parsed = releaseEscrowSchema.parse(body);
 
     return await this.escrowService.releaseFunds({
       workOrderId: parsed.workOrderId,

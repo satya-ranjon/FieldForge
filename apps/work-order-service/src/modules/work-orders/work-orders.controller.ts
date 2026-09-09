@@ -17,9 +17,14 @@ import {
   transitionStatusSchema,
   listWorkOrdersQuerySchema,
   generatePresignedUrlSchema,
-  recordSignatureSchema
+  recordSignatureSchema,
+  type CreateWorkOrderDto,
+  type TransitionWorkOrderDto,
+  type ListWorkOrdersQueryDto,
+  type GeneratePresignedUrlDto,
+  type RecordSignatureDto
 } from '@fieldforge/contracts';
-import { verifyGatewayUser, type AuthenticatedUser } from '@fieldforge/common';
+import { verifyGatewayUser, ZodValidationPipe, type AuthenticatedUser } from '@fieldforge/common';
 import { randomUUID } from 'node:crypto';
 
 @Controller('work-orders')
@@ -44,7 +49,7 @@ export class WorkOrdersController {
 
   @Post()
   async create(
-    @Body() body: unknown,
+    @Body(new ZodValidationPipe(createWorkOrderSchema)) dto: CreateWorkOrderDto,
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string,
     @Headers('x-ff-profile-id') gatewayProfileId?: string
@@ -54,7 +59,6 @@ export class WorkOrdersController {
       throw new ForbiddenException('Only buyers and admins can create work orders');
     }
 
-    const dto = createWorkOrderSchema.parse(body);
     return this.workOrdersService.create(
       user.userId,
       dto,
@@ -64,13 +68,12 @@ export class WorkOrdersController {
 
   @Get()
   async list(
-    @Query() query: unknown,
+    @Query(new ZodValidationPipe(listWorkOrdersQuerySchema)) parsedQuery: ListWorkOrdersQueryDto,
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string,
     @Headers('x-ff-profile-id') gatewayProfileId?: string
   ) {
     this.authenticateUser(authHeader, gatewayUserId, gatewayProfileId);
-    const parsedQuery = listWorkOrdersQuerySchema.parse(query);
     return this.workOrdersService.list(parsedQuery);
   }
 
@@ -117,14 +120,13 @@ export class WorkOrdersController {
   @Post(':id/transition')
   async transition(
     @Param('id') id: string,
-    @Body() body: unknown,
+    @Body(new ZodValidationPipe(transitionStatusSchema)) dto: TransitionWorkOrderDto,
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string,
     @Headers('x-correlation-id') correlationId?: string,
     @Headers('x-ff-profile-id') gatewayProfileId?: string
   ) {
     const user = this.authenticateUser(authHeader, gatewayUserId, gatewayProfileId);
-    const dto = transitionStatusSchema.parse(body);
     return this.workOrdersService.transition(
       id,
       user.userId,
@@ -138,37 +140,52 @@ export class WorkOrdersController {
   @Post(':id/transitions')
   async transitionPlural(
     @Param('id') id: string,
-    @Body() body: unknown,
+    @Body(new ZodValidationPipe(transitionStatusSchema)) dto: TransitionWorkOrderDto,
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string,
     @Headers('x-correlation-id') correlationId?: string,
     @Headers('x-ff-profile-id') gatewayProfileId?: string
   ) {
-    return this.transition(id, body, authHeader, gatewayUserId, correlationId, gatewayProfileId);
+    const user = this.authenticateUser(authHeader, gatewayUserId, gatewayProfileId);
+    return this.workOrdersService.transition(
+      id,
+      user.userId,
+      user.role,
+      dto,
+      correlationId || randomUUID(),
+      ...(user.profileId ? [user.profileId] : [])
+    );
   }
 
   @Patch(':id/status')
   async updateStatus(
     @Param('id') id: string,
-    @Body() body: unknown,
+    @Body(new ZodValidationPipe(transitionStatusSchema)) dto: TransitionWorkOrderDto,
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string,
     @Headers('x-correlation-id') correlationId?: string,
     @Headers('x-ff-profile-id') gatewayProfileId?: string
   ) {
-    return this.transition(id, body, authHeader, gatewayUserId, correlationId, gatewayProfileId);
+    const user = this.authenticateUser(authHeader, gatewayUserId, gatewayProfileId);
+    return this.workOrdersService.transition(
+      id,
+      user.userId,
+      user.role,
+      dto,
+      correlationId || randomUUID(),
+      ...(user.profileId ? [user.profileId] : [])
+    );
   }
 
   @Post(':id/deliverables/presigned-url')
   async getPresignedUploadUrl(
     @Param('id') id: string,
-    @Body() body: unknown,
+    @Body(new ZodValidationPipe(generatePresignedUrlSchema)) dto: GeneratePresignedUrlDto,
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string,
     @Headers('x-ff-profile-id') gatewayProfileId?: string
   ) {
     const user = this.authenticateUser(authHeader, gatewayUserId, gatewayProfileId);
-    const dto = generatePresignedUrlSchema.parse(body);
     return this.deliverablesService.generatePresignedUploadUrl(
       id,
       user.userId,
@@ -182,13 +199,12 @@ export class WorkOrdersController {
   @Post(':id/signature')
   async recordSignature(
     @Param('id') id: string,
-    @Body() body: unknown,
+    @Body(new ZodValidationPipe(recordSignatureSchema)) dto: RecordSignatureDto,
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string,
     @Headers('x-ff-profile-id') gatewayProfileId?: string
   ) {
     const user = this.authenticateUser(authHeader, gatewayUserId, gatewayProfileId);
-    const dto = recordSignatureSchema.parse(body);
     return this.deliverablesService.recordSignatureDeliverable(
       id,
       user.userId,
@@ -202,12 +218,20 @@ export class WorkOrdersController {
   @Post(':id/deliverables/signature')
   async recordDeliverableSignature(
     @Param('id') id: string,
-    @Body() body: unknown,
+    @Body(new ZodValidationPipe(recordSignatureSchema)) dto: RecordSignatureDto,
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string,
     @Headers('x-ff-profile-id') gatewayProfileId?: string
   ) {
-    return this.recordSignature(id, body, authHeader, gatewayUserId, gatewayProfileId);
+    const user = this.authenticateUser(authHeader, gatewayUserId, gatewayProfileId);
+    return this.deliverablesService.recordSignatureDeliverable(
+      id,
+      user.userId,
+      user.role,
+      dto.signatureSvg,
+      dto.clientName,
+      ...(user.profileId ? [user.profileId] : [])
+    );
   }
 
   @Get(':id/deliverables')

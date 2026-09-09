@@ -1,7 +1,14 @@
 import { DispatchController } from '../src/modules/dispatch/dispatch.controller';
 import type { GeoSearchService } from '../src/modules/geo-search/geo-search.service';
 import type { JwtService } from '@nestjs/jwt';
-import { ForbiddenException, UnauthorizedException, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  UnauthorizedException,
+  NotFoundException,
+  BadRequestException
+} from '@nestjs/common';
+import { ZodValidationPipe } from '@fieldforge/common';
+import { autoRouteSchema, updateTechnicianLocationSchema } from '@fieldforge/contracts';
 
 describe('DispatchController', () => {
   let controller: DispatchController;
@@ -113,6 +120,16 @@ describe('DispatchController', () => {
         )
       ).rejects.toThrow(ForbiddenException);
     });
+
+    it('rejects invalid coordinates via ZodValidationPipe', () => {
+      const pipe = new ZodValidationPipe(updateTechnicianLocationSchema);
+      expect(() =>
+        pipe.transform(
+          { latitude: 200, longitude: -122.4194 },
+          { type: 'body', metatype: Object, data: '' }
+        )
+      ).toThrow(BadRequestException);
+    });
   });
 
   describe('findNearby', () => {
@@ -123,7 +140,7 @@ describe('DispatchController', () => {
       });
 
       const result = await controller.findNearby(
-        { latitude: '37.7749', longitude: '-122.4194', radiusMiles: '15' },
+        { latitude: 37.7749, longitude: -122.4194, radiusMiles: 15 },
         'Bearer token',
         'user-buyer-1'
       );
@@ -170,6 +187,32 @@ describe('DispatchController', () => {
         )
       ).rejects.toThrow(NotFoundException);
     });
+
+    it('rejects invalid maxRadiusMiles via ZodValidationPipe', () => {
+      const pipe = new ZodValidationPipe(autoRouteSchema);
+      expect(() =>
+        pipe.transform({ maxRadiusMiles: -10 }, { type: 'body', metatype: Object, data: '' })
+      ).toThrow(BadRequestException);
+    });
+
+    it('validates autoRouteSchema accepts valid payloads', () => {
+      const pipe = new ZodValidationPipe(autoRouteSchema);
+      const result = pipe.transform(
+        {
+          workOrderId: 'a1111111-1111-4111-8111-111111111111',
+          latitude: 37.7749,
+          longitude: -122.4194,
+          maxRadiusMiles: 10
+        },
+        { type: 'body', metatype: Object, data: '' }
+      );
+      expect(result).toEqual({
+        workOrderId: 'a1111111-1111-4111-8111-111111111111',
+        latitude: 37.7749,
+        longitude: -122.4194,
+        maxRadiusMiles: 10
+      });
+    });
   });
 
   describe('C5 Token/Header Guard', () => {
@@ -181,7 +224,7 @@ describe('DispatchController', () => {
 
       await expect(
         controller.findNearby(
-          { latitude: '37.7749', longitude: '-122.4194' },
+          { latitude: 37.7749, longitude: -122.4194, radiusMiles: 25 },
           'Bearer token',
           'user-impostor'
         )

@@ -25,6 +25,8 @@ export const nearbyTechniciansQuerySchema = z.object({
 });
 
 export const autoRouteSchema = z.object({
-  workOrderId: z.uuid(),
+  workOrderId: z.string().uuid().optional(),
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
   maxRadiusMiles: z.number().positive().max(100).default(5)
 });

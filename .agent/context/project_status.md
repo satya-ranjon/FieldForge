@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-09  
-**Phase:** Phase 26 complete — Identifier Semantics Harmonization Across Schemas (technicianId vs userId) (FF-CODE-05 / Code Quality Issue 5). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 27 complete — Standardize Request Body Validation Across Microservices (FF-CODE-06 / Code Quality Issue 6). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -78,7 +78,13 @@
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
   - `AppNavigator` mounting `JobListScreen` and `ActiveJobScreen` wrapped in Redux store.
-- **A test harness that can fail.** 556 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 584 total verified tests).
+- **A test harness that can fail.** 598 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 626 total verified tests).
+- **Standardized Declarative Request Body Validation & Error Hardening (Phase 27, Resolves FF-CODE-06 / Code Quality Issue 6).**
+  - Implemented reusable `@Injectable()` `ZodValidationPipe` in `@fieldforge/common` (`pipes/zod-validation.pipe.ts`) implementing NestJS `PipeTransform` with automated schema parsing, typed DTO casting, and static `ZodValidationPipe.validate<T>()` programmatic helper.
+  - Enhanced `GlobalHttpExceptionFilter` in `@fieldforge/common` to intercept `ZodError` exceptions and map them to HTTP 400 Bad Request with structured `{ message: 'Validation failed', errors: [...] }`, resolving the critical error boundary defect where unhandled schema parsing errors returned HTTP 500.
+  - Harmonized `autoRouteSchema` and `AutoRouteDto` in `@fieldforge/contracts` to support optional coordinate overrides (`latitude`, `longitude`, `workOrderId`, `maxRadiusMiles`) with range validation.
+  - Refactored controllers across `apps/auth-service` (5 IAM + 3 vetting endpoints), `apps/work-order-service` (8 routes), `apps/billing-service` (2 escrow endpoints), and `apps/dispatch-matching-service` (3 endpoints, including previously unvalidated `POST /dispatch/auto-route`) to use `@Body(new ZodValidationPipe(schema))` and `@Query(new ZodValidationPipe(schema))`.
+  - Zero database migrations (`RULE-DB-02`).
 - **Cross-Context Database Decoupling & Inter-Service Directory Resolution (Phase 25, Resolves FF-CODE-04 / Code Quality Issue 4).**
   - Purged all foreign schema imports (`usersSchema.buyerProfiles`, `usersSchema.technicianProfiles`, `workOrdersSchema.workOrders`) from `apps/billing-service` and `apps/work-order-service`, establishing complete Domain-Driven Design bounded context isolation (`RULE-ARCH-01`, ADR 006).
   - Implemented `GET /users/:id/profile` on `UsersController` in `auth-service` and `@Injectable()` `ProfileDirectoryService` in `@fieldforge/common` with token-embedded `callerProfileId` fast-path, local test mocks, and 300s TTL in-memory caching.

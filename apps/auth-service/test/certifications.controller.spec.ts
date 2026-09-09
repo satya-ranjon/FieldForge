@@ -2,7 +2,8 @@ import { UnauthorizedException, ForbiddenException, BadRequestException } from '
 import { JwtService } from '@nestjs/jwt';
 import { CertificationsController } from '../src/modules/vetting/certifications.controller';
 import { CertificationsService } from '../src/modules/vetting/certifications.service';
-import { UserRole } from '@fieldforge/contracts';
+import { ZodValidationPipe } from '@fieldforge/common';
+import { createCertificationSchema, batchTechniciansSchema, UserRole } from '@fieldforge/contracts';
 
 describe('CertificationsController', () => {
   const TECH_USER_ID = 't1111111-1111-4111-8111-111111111111';
@@ -167,7 +168,7 @@ describe('CertificationsController', () => {
       });
     });
 
-    it('forbids buyer from submitting technician certifications', async () => {
+    it('forbids buyer from submitting certifications', async () => {
       mockJwtService.verify.mockReturnValueOnce({
         sub: BUYER_USER_ID,
         email: 'buyer@example.com',
@@ -186,17 +187,14 @@ describe('CertificationsController', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('rejects malformed date formats', async () => {
-      await expect(
-        controller.addCertification(
-          {
-            name: 'OSHA 10',
-            issuedDate: '02-01-2025',
-            expiryDate: '2028-02-01'
-          },
-          'Bearer valid.jwt'
+    it('rejects malformed date formats via ZodValidationPipe', () => {
+      const pipe = new ZodValidationPipe(createCertificationSchema);
+      expect(() =>
+        pipe.transform(
+          { name: 'OSHA 10', issuedDate: '02-01-2025', expiryDate: '2028-02-01' },
+          { type: 'body', metatype: Object, data: '' }
         )
-      ).rejects.toThrow(BadRequestException);
+      ).toThrow(BadRequestException);
     });
   });
 
@@ -252,13 +250,14 @@ describe('CertificationsController', () => {
       expect(mockCertService.getTechniciansBatch).toHaveBeenCalledWith([TECH_USER_ID]);
     });
 
-    it('rejects invalid payload format', async () => {
-      await expect(controller.getBatchTechnicians({ ids: [''] })).rejects.toThrow(
-        BadRequestException
-      );
-      await expect(controller.getBatchTechnicians({ ids: 'invalid' })).rejects.toThrow(
-        BadRequestException
-      );
+    it('rejects invalid payload format via ZodValidationPipe', () => {
+      const pipe = new ZodValidationPipe(batchTechniciansSchema);
+      expect(() =>
+        pipe.transform({ ids: [''] }, { type: 'body', metatype: Object, data: '' })
+      ).toThrow(BadRequestException);
+      expect(() =>
+        pipe.transform({ ids: 'invalid' }, { type: 'body', metatype: Object, data: '' })
+      ).toThrow(BadRequestException);
     });
   });
 });

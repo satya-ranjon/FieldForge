@@ -1052,9 +1052,54 @@ Harmonized the semantic distinction and foreign key relationships between IAM ac
   - 104 tests in `apps/web-buyer-portal` (1 suite).
   - 76 tests in `@fieldforge/contracts` (3 suites).
   - 44 tests in `apps/api-gateway` (6 suites).
+---
+
+## Phase 27 — Standardize Request Body Validation Across Microservices
+
+**Size: M · Dependencies: Phase 26.** Resolves **FF-CODE-06** (Code Quality Issue 6).
+
+Standardized request body and query parameter validation across all backend microservices, introducing a reusable NestJS `ZodValidationPipe` in `@fieldforge/common`, correcting the `GlobalHttpExceptionFilter` error boundary to catch `ZodError` as HTTP 400 Bad Request instead of HTTP 500, harmonizing dispatch contracts, and eliminating ad-hoc validation boilerplates.
+
+**Deliverables:**
+
+- **Standardized Validation Pipe (`packages/common`).**
+  - Implemented `ZodValidationPipe` in `packages/common/src/pipes/zod-validation.pipe.ts` implementing `PipeTransform`.
+  - Automatically parses incoming request payloads (`body`, `query`, `param`) against Zod schemas.
+  - Throws standardized `BadRequestException({ message: 'Validation failed', errors: result.error.issues })`.
+  - Added static `ZodValidationPipe.validate<T>(schema, value): T` programmatic helper for composite parameter validations.
+  - Exported `ZodValidationPipe` from `packages/common/src/index.ts` and added explicit `zod` dependency to `package.json`.
+- **Exception Filter Error Boundary Hardening (`packages/common`).**
+  - Enhanced `GlobalHttpExceptionFilter` in `packages/common/src/exceptions/http-exception.filter.ts` to detect `ZodError` (`exception instanceof ZodError || (exception as Error)?.name === 'ZodError'`).
+  - Maps `ZodError` to `HttpStatus.BAD_REQUEST` (400) and formats error issues as `{ message: 'Validation failed', errors: [...] }`, preventing client payload errors from triggering false HTTP 500 internal server alerts.
+- **Dispatch Routing Contract Harmonization (`packages/contracts`).**
+  - Updated `autoRouteSchema` and `AutoRouteDto` in `@fieldforge/contracts` to support optional coordinate overrides (`latitude`, `longitude`, `workOrderId`, `maxRadiusMiles`) with range validation.
+- **Controller Refactoring Across Microservices.**
+  - `apps/auth-service`: Refactored all 5 endpoints in `auth.controller.ts` (`register`, `login`, `refresh`, `sendPhoneOtp`, `verifyPhoneOtp`) and 3 endpoints in `certifications.controller.ts` (`addCertification`, `verifyCertification`, `getBatchTechnicians`) to use `@Body(new ZodValidationPipe(schema))` with explicit DTO parameter types, eliminating repetitive `safeParse` boilerplate.
+  - `apps/work-order-service`: Refactored `work-orders.controller.ts` to use `@Body(new ZodValidationPipe(schema))` and `@Query(new ZodValidationPipe(schema))`, removing manual `.parse()` calls. Refactored `bids.controller.ts` to use `ZodValidationPipe.validate()`.
+  - `apps/billing-service`: Refactored `billing.controller.ts` to use `@Body(new ZodValidationPipe(schema))` for `preAuthEscrow` and `releaseEscrow`.
+  - `apps/dispatch-matching-service`: Refactored `dispatch.controller.ts` to use `ZodValidationPipe` for `updateLocation` and `findNearby`. Added strict schema validation on `autoRouteRecommend` (`POST /dispatch/auto-route`) using `autoRouteSchema`, closing previously unvalidated parameters.
+- **Automated Test Suites.**
+  - Added unit test suite `packages/common/test/zod-validation.pipe.spec.ts` (6 tests).
+  - Added unit test suite `packages/common/test/http-exception.filter.spec.ts` (8 tests).
+  - Added unit test suite `apps/auth-service/test/auth.controller.spec.ts` (7 tests).
+  - Added dispatch validator tests to `packages/contracts/test/validators.spec.ts` (5 tests).
+  - Updated controller test suites across `auth-service`, `dispatch-matching-service`, and `work-order-service`.
+
+**Verification:**
+
+- 598 automated unit/integration tests passing across 15 packages/apps in monorepo (+36 new tests, zero `--passWithNoTests`):
+  - 73 tests in `apps/auth-service` (7 suites, +10 tests).
+  - 49 tests in `@fieldforge/common` (6 suites, +18 tests).
+  - 81 tests in `@fieldforge/contracts` (3 suites, +5 tests).
+  - 33 tests in `apps/dispatch-matching-service` (4 suites, +3 tests).
+  - 234 tests in `apps/work-order-service` (13 suites).
+  - 28 tests in `apps/billing-service` (4 suites).
+  - 21 tests in `@fieldforge/messaging` (5 suites).
+  - 104 tests in `apps/web-buyer-portal` (1 suite).
+  - 44 tests in `apps/api-gateway` (6 suites).
   - 14 tests in `apps/notification-service` (1 suite).
   - 21 tests in `@fieldforge/mobile-tech-app` (3 suites).
-- 28 Playwright E2E tests validated (`pnpm test:e2e`). Total verified tests: 590 tests.
+- 28 Playwright E2E tests validated (`pnpm test:e2e`). Total verified tests: 626 tests.
 - `pnpm check && pnpm build` pass cleanly.
 
 ---

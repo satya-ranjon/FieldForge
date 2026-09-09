@@ -35,7 +35,9 @@ export interface NearbyTechniciansQueryDto {
 }
 
 export interface AutoRouteDto {
-  workOrderId: string;
+  workOrderId?: string;
+  latitude?: number;
+  longitude?: number;
   maxRadiusMiles?: number;
 }
 

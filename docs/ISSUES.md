@@ -1114,6 +1114,38 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
      - `certifications.service.spec.ts`: verified `getTechniciansBatch` populated badges and `getTechnicianBadges` dual-lookup fallback.
      - `dispatch.controller.spec.ts`: verified `profileId` derivation from token and gateway headers.
 
+### FF-CODE-06 · 🧹 Ad-Hoc Request Body Validation Across Microservices (Code Quality Issue 6)
+
+- **Root Cause**: Request body and query parameter validation was implemented inconsistently and in an ad-hoc fashion across backend microservices:
+  1. `apps/auth-service` (`auth.controller.ts` and `certifications.controller.ts`): duplicated 8 instances of boilerplate `const parsed = schema.safeParse(body); if (!parsed.success) throw new BadRequestException(parsed.error.issues);`.
+  2. `apps/work-order-service` (`work-orders.controller.ts`, `bids.controller.ts`) and `apps/billing-service` (`billing.controller.ts`): called `schema.parse(body)` directly inside handler methods.
+  3. `apps/dispatch-matching-service` (`dispatch.controller.ts`): `autoRouteRecommend` had **no schema validation at all**, accepting an arbitrary untyped payload `{ latitude?: number; longitude?: number; ... }` and completely ignoring `autoRouteSchema`.
+  4. **Critical Error Boundary Flaw**: `GlobalHttpExceptionFilter` in `packages/common/src/exceptions/http-exception.filter.ts` checked only `exception instanceof HttpException`. Whenever `schema.parse(body)` failed and threw a raw `ZodError`, because `ZodError` extends standard JavaScript `Error` rather than Nest's `HttpException`, the filter classified it as an unhandled internal error and returned **`500 INTERNAL_SERVER_ERROR`** instead of **`400 BAD_REQUEST`**, turning client input errors into false platform error spikes.
+- **Fix**: Centralized declarative Zod validation via NestJS pipes and fixed the exception filter:
+  1. Implemented `@Injectable()` `ZodValidationPipe` in `@fieldforge/common` (`pipes/zod-validation.pipe.ts`):
+     - Automatically validates request payloads (`body`, `query`, `param`) against Zod schemas.
+     - On validation failure, throws standard `BadRequestException({ message: 'Validation failed', errors: result.error.issues })`.
+     - Provides static `ZodValidationPipe.validate<T>(schema, value): T` helper for merged parameter validations.
+     - Exported from `@fieldforge/common` and added `zod` to `packages/common/package.json`.
+  2. Enhanced `GlobalHttpExceptionFilter` in `packages/common/src/exceptions/http-exception.filter.ts`:
+     - Detects `ZodError` (`exception instanceof ZodError || (exception as Error)?.name === 'ZodError'`).
+     - Maps raw Zod errors to `HttpStatus.BAD_REQUEST` (400).
+     - Formats the response payload consistently with `{ statusCode: 400, timestamp, path, correlationId, error: { message: 'Validation failed', errors: exception.issues } }`.
+  3. Harmonized `autoRouteSchema` and `AutoRouteDto` in `@fieldforge/contracts` to support optional coordinate overrides (`latitude`, `longitude`, `workOrderId`, `maxRadiusMiles`) with proper bounds checking.
+  4. Refactored microservice controllers to use `@Body(new ZodValidationPipe(schema))` and `@Query(new ZodValidationPipe(schema))`:
+     - `auth.controller.ts`: all 5 endpoints (`register`, `login`, `refresh`, `sendPhoneOtp`, `verifyPhoneOtp`).
+     - `certifications.controller.ts`: `addCertification`, `verifyCertification`, `getBatchTechnicians`.
+     - `work-orders.controller.ts`: `create`, `list`, `transition`, `transitionPlural`, `updateStatus`, `getPresignedUploadUrl`, `recordSignature`, `recordDeliverableSignature`.
+     - `bids.controller.ts`: `submitBidOnWorkOrder` uses `ZodValidationPipe.validate()`; `submitBidLegacy` uses `ZodValidationPipe`.
+     - `billing.controller.ts`: `preAuthEscrow`, `releaseEscrow`.
+     - `dispatch.controller.ts`: `updateLocation`, `findNearby`, and `autoRouteRecommend` (now strictly validated against `autoRouteSchema`).
+  5. Added comprehensive automated test suites:
+     - `packages/common/test/zod-validation.pipe.spec.ts` (6 tests).
+     - `packages/common/test/http-exception.filter.spec.ts` (8 tests).
+     - `apps/auth-service/test/auth.controller.spec.ts` (7 tests).
+     - Updated `certifications.controller.spec.ts`, `dispatch.controller.spec.ts`, `work-orders.controller.spec.ts`, and `validators.spec.ts`.
+  6. Zero database migrations (`RULE-DB-02`).
+
 ---
 
 ## Suggested remediation order

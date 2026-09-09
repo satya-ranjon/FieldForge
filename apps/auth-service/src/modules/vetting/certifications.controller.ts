@@ -7,7 +7,6 @@ import {
   Body,
   Headers,
   ForbiddenException,
-  BadRequestException,
   Optional,
   HttpCode,
   HttpStatus
@@ -25,7 +24,7 @@ import {
   type TechnicianSummaryDto,
   UserRole
 } from '@fieldforge/contracts';
-import { verifyGatewayUser, type AuthenticatedUser } from '@fieldforge/common';
+import { verifyGatewayUser, ZodValidationPipe, type AuthenticatedUser } from '@fieldforge/common';
 
 @Controller('technicians')
 export class CertificationsController {
@@ -64,7 +63,7 @@ export class CertificationsController {
   @Post('certifications')
   @HttpCode(HttpStatus.CREATED)
   async addCertification(
-    @Body() body: unknown,
+    @Body(new ZodValidationPipe(createCertificationSchema)) dto: CreateCertificationDto,
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string,
     @Headers('x-ff-profile-id') gatewayProfileId?: string
@@ -75,11 +74,6 @@ export class CertificationsController {
       throw new ForbiddenException('Only technicians may submit certifications');
     }
 
-    const parsed = createCertificationSchema.safeParse(body);
-    if (!parsed.success) {
-      throw new BadRequestException(parsed.error.issues);
-    }
-
     let technicianId = user.profileId;
     if (!technicianId && this.profilesService) {
       technicianId = await this.profilesService.resolveProfileId(user.userId, UserRole.TECHNICIAN);
@@ -87,10 +81,7 @@ export class CertificationsController {
 
     const targetTechnicianId = technicianId || user.userId;
 
-    return this.certService.addCertification(
-      targetTechnicianId,
-      parsed.data as CreateCertificationDto
-    );
+    return this.certService.addCertification(targetTechnicianId, dto);
   }
 
   /**
@@ -100,7 +91,7 @@ export class CertificationsController {
   @HttpCode(HttpStatus.OK)
   async verifyCertification(
     @Param('id') certId: string,
-    @Body() body: unknown,
+    @Body(new ZodValidationPipe(verifyCertificationSchema)) dto: VerifyCertificationDto,
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string
   ): Promise<TechnicianBadgeDto> {
@@ -110,13 +101,7 @@ export class CertificationsController {
       throw new ForbiddenException('Only administrators or dispatchers may verify certifications');
     }
 
-    const parsed = verifyCertificationSchema.safeParse(body);
-    if (!parsed.success) {
-      throw new BadRequestException(parsed.error.issues);
-    }
-
-    const { isVerified } = parsed.data as VerifyCertificationDto;
-    return this.certService.verifyCertification(certId, isVerified);
+    return this.certService.verifyCertification(certId, dto.isVerified);
   }
 
   /**
@@ -143,11 +128,9 @@ export class CertificationsController {
    */
   @Post('batch')
   @HttpCode(HttpStatus.OK)
-  async getBatchTechnicians(@Body() body: unknown): Promise<TechnicianSummaryDto[]> {
-    const parsed = batchTechniciansSchema.safeParse(body);
-    if (!parsed.success) {
-      throw new BadRequestException(parsed.error.issues);
-    }
-    return this.certService.getTechniciansBatch(parsed.data.ids);
+  async getBatchTechnicians(
+    @Body(new ZodValidationPipe(batchTechniciansSchema)) dto: { ids: string[] }
+  ): Promise<TechnicianSummaryDto[]> {
+    return this.certService.getTechniciansBatch(dto.ids);
   }
 }

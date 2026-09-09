@@ -1,6 +1,7 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { PhoneOtpService } from './phone-otp.service';
+import { ZodValidationPipe } from '@fieldforge/common';
 import {
   registerUserSchema,
   loginSchema,
@@ -25,53 +26,39 @@ export class AuthController {
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  async register(@Body() body: unknown): Promise<AuthTokensDto> {
-    const parsed = registerUserSchema.safeParse(body);
-    if (!parsed.success) {
-      throw new BadRequestException(parsed.error.issues);
-    }
-    return this.authService.register(parsed.data as RegisterUserDto);
+  async register(
+    @Body(new ZodValidationPipe(registerUserSchema)) dto: RegisterUserDto
+  ): Promise<AuthTokensDto> {
+    return this.authService.register(dto);
   }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body() body: unknown): Promise<AuthTokensDto> {
-    const parsed = loginSchema.safeParse(body);
-    if (!parsed.success) {
-      throw new BadRequestException(parsed.error.issues);
-    }
-    return this.authService.login(parsed.data as LoginDto);
+  async login(@Body(new ZodValidationPipe(loginSchema)) dto: LoginDto): Promise<AuthTokensDto> {
+    return this.authService.login(dto);
   }
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  async refresh(@Body() body: unknown): Promise<AuthTokensDto> {
-    const parsed = refreshTokenSchema.safeParse(body);
-    if (!parsed.success) {
-      throw new BadRequestException(parsed.error.issues);
-    }
-    return this.authService.refresh((parsed.data as RefreshTokenDto).refreshToken);
+  async refresh(
+    @Body(new ZodValidationPipe(refreshTokenSchema)) dto: RefreshTokenDto
+  ): Promise<AuthTokensDto> {
+    return this.authService.refresh(dto.refreshToken);
   }
 
   @Post('phone/send-otp')
   @HttpCode(HttpStatus.OK)
-  async sendPhoneOtp(@Body() body: unknown): Promise<PhoneOtpResponseDto> {
-    const parsed = sendPhoneOtpSchema.safeParse(body);
-    if (!parsed.success) {
-      throw new BadRequestException(parsed.error.issues);
-    }
-    const { phoneNumber } = parsed.data as SendPhoneOtpDto;
-    return this.phoneOtpService.sendOtp(phoneNumber);
+  async sendPhoneOtp(
+    @Body(new ZodValidationPipe(sendPhoneOtpSchema)) dto: SendPhoneOtpDto
+  ): Promise<PhoneOtpResponseDto> {
+    return this.phoneOtpService.sendOtp(dto.phoneNumber);
   }
 
   @Post('phone/verify-otp')
   @HttpCode(HttpStatus.OK)
-  async verifyPhoneOtp(@Body() body: unknown): Promise<PhoneOtpResponseDto> {
-    const parsed = verifyPhoneOtpSchema.safeParse(body);
-    if (!parsed.success) {
-      throw new BadRequestException(parsed.error.issues);
-    }
-    const { phoneNumber, code } = parsed.data as VerifyPhoneOtpDto;
-    return this.phoneOtpService.verifyOtp(phoneNumber, code);
+  async verifyPhoneOtp(
+    @Body(new ZodValidationPipe(verifyPhoneOtpSchema)) dto: VerifyPhoneOtpDto
+  ): Promise<PhoneOtpResponseDto> {
+    return this.phoneOtpService.verifyOtp(dto.phoneNumber, dto.code);
   }
 }

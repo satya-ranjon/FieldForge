@@ -12,9 +12,11 @@ import { JwtService } from '@nestjs/jwt';
 import { GeoSearchService } from '../geo-search/geo-search.service';
 import {
   updateTechnicianLocationSchema,
-  nearbyTechniciansQuerySchema
+  nearbyTechniciansQuerySchema,
+  autoRouteSchema,
+  type AutoRouteDto
 } from '@fieldforge/contracts';
-import { verifyGatewayUser, type AuthenticatedUser } from '@fieldforge/common';
+import { verifyGatewayUser, ZodValidationPipe, type AuthenticatedUser } from '@fieldforge/common';
 
 @Controller('dispatch')
 export class DispatchController {
@@ -40,7 +42,8 @@ export class DispatchController {
    */
   @Post('technicians/location')
   async updateLocation(
-    @Body() body: unknown,
+    @Body(new ZodValidationPipe(updateTechnicianLocationSchema))
+    dto: { latitude: number; longitude: number },
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string,
     @Headers('x-ff-profile-id') gatewayProfileId?: string
@@ -50,7 +53,6 @@ export class DispatchController {
       throw new ForbiddenException('Only technicians can update location');
     }
 
-    const dto = updateTechnicianLocationSchema.parse(body);
     const technicianId = user.profileId || user.userId;
     await this.geoSearchService.updateTechnicianLocation(technicianId, dto.latitude, dto.longitude);
 
@@ -67,7 +69,8 @@ export class DispatchController {
    */
   @Get('technicians/nearby')
   async findNearby(
-    @Query() query: unknown,
+    @Query(new ZodValidationPipe(nearbyTechniciansQuerySchema))
+    parsedQuery: { latitude: number; longitude: number; radiusMiles: number },
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string,
     @Headers('x-ff-profile-id') gatewayProfileId?: string,
@@ -75,7 +78,6 @@ export class DispatchController {
   ) {
     this.authenticateUser(authHeader, gatewayUserId, gatewayProfileId);
 
-    const parsedQuery = nearbyTechniciansQuerySchema.parse(query);
     const technicians = correlationId
       ? await this.geoSearchService.findNearbyTechnicians(
           parsedQuery.latitude,
@@ -98,11 +100,11 @@ export class DispatchController {
 
   /**
    * Intelligent dispatch routing recommendation based on proximity and composite score.
+   * Now validated via autoRouteSchema from @fieldforge/contracts.
    */
   @Post('auto-route')
   async autoRouteRecommend(
-    @Body()
-    body: { latitude?: number; longitude?: number; maxRadiusMiles?: number; workOrderId?: string },
+    @Body(new ZodValidationPipe(autoRouteSchema)) dto: AutoRouteDto,
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string,
     @Headers('x-ff-profile-id') gatewayProfileId?: string,
@@ -110,9 +112,9 @@ export class DispatchController {
   ) {
     this.authenticateUser(authHeader, gatewayUserId, gatewayProfileId);
 
-    const lat = body.latitude ?? 37.7749;
-    const lng = body.longitude ?? -122.4194;
-    const radiusMiles = body.maxRadiusMiles || 5;
+    const lat = dto.latitude ?? 37.7749;
+    const lng = dto.longitude ?? -122.4194;
+    const radiusMiles = dto.maxRadiusMiles || 5;
 
     const candidates = correlationId
       ? await this.geoSearchService.findNearbyTechnicians(lat, lng, radiusMiles, [], correlationId)
@@ -126,7 +128,7 @@ export class DispatchController {
     }
 
     return {
-      workOrderId: body.workOrderId || 'recommendation',
+      workOrderId: dto.workOrderId || 'recommendation',
       technicianId: candidate.technicianId,
       status: 'MATCHED',
       candidate

@@ -72,14 +72,22 @@ describe('WorkOrdersController', () => {
 
   describe('Authentication & Trust Boundary (C5)', () => {
     it('throws UnauthorizedException when Authorization header is missing', async () => {
-      await expect(controller.create({ title: 'Test' }, undefined, undefined)).rejects.toThrow(
-        UnauthorizedException
-      );
+      await expect(
+        controller.create(
+          { title: 'Test' } as unknown as import('@fieldforge/contracts').CreateWorkOrderDto,
+          undefined,
+          undefined
+        )
+      ).rejects.toThrow(UnauthorizedException);
     });
 
     it('rejects caller when gateway userId does NOT match token sub (spoofing guard)', async () => {
       await expect(
-        controller.create({ title: 'Test' }, `Bearer ${validToken}`, 'spoofed-victim-id')
+        controller.create(
+          { title: 'Test' } as unknown as import('@fieldforge/contracts').CreateWorkOrderDto,
+          `Bearer ${validToken}`,
+          'spoofed-victim-id'
+        )
       ).rejects.toThrow(/Identity mismatch/);
     });
 

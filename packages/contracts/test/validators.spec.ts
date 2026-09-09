@@ -1,5 +1,10 @@
 import { preAuthEscrowSchema } from '../src/validators/billing.schema';
-import { submitBidSchema } from '../src/validators/dispatch.schema';
+import {
+  submitBidSchema,
+  autoRouteSchema,
+  updateTechnicianLocationSchema,
+  nearbyTechniciansQuerySchema
+} from '../src/validators/dispatch.schema';
 import {
   createWorkOrderSchema,
   transitionStatusSchema,
@@ -279,5 +284,57 @@ describe('certifications and phone OTP schemas', () => {
       code: '123456'
     });
     expect(parsed.code).toBe('123456');
+  });
+});
+
+describe('dispatch schemas', () => {
+  it('autoRouteSchema accepts valid parameters with optional coordinates and workOrderId', () => {
+    const parsed = autoRouteSchema.parse({
+      workOrderId: WORK_ORDER_ID,
+      latitude: 37.7749,
+      longitude: -122.4194,
+      maxRadiusMiles: 15
+    });
+    expect(parsed.workOrderId).toBe(WORK_ORDER_ID);
+    expect(parsed.latitude).toBe(37.7749);
+    expect(parsed.longitude).toBe(-122.4194);
+    expect(parsed.maxRadiusMiles).toBe(15);
+  });
+
+  it('autoRouteSchema defaults maxRadiusMiles to 5 when omitted', () => {
+    const parsed = autoRouteSchema.parse({
+      latitude: 37.7749,
+      longitude: -122.4194
+    });
+    expect(parsed.maxRadiusMiles).toBe(5);
+  });
+
+  it('autoRouteSchema rejects out of bound coordinates and negative radius', () => {
+    expect(() => autoRouteSchema.parse({ latitude: 100 })).toThrow();
+    expect(() => autoRouteSchema.parse({ longitude: -200 })).toThrow();
+    expect(() => autoRouteSchema.parse({ maxRadiusMiles: -1 })).toThrow();
+    expect(() => autoRouteSchema.parse({ maxRadiusMiles: 101 })).toThrow();
+  });
+
+  it('updateTechnicianLocationSchema validates valid lat/lng boundaries', () => {
+    const parsed = updateTechnicianLocationSchema.parse({
+      latitude: 37.7749,
+      longitude: -122.4194
+    });
+    expect(parsed.latitude).toBe(37.7749);
+    expect(parsed.longitude).toBe(-122.4194);
+
+    expect(() => updateTechnicianLocationSchema.parse({ latitude: 91, longitude: 0 })).toThrow();
+    expect(() => updateTechnicianLocationSchema.parse({ latitude: 0, longitude: 181 })).toThrow();
+  });
+
+  it('nearbyTechniciansQuerySchema coerces string coordinates and provides default radius', () => {
+    const parsed = nearbyTechniciansQuerySchema.parse({
+      latitude: '37.7749',
+      longitude: '-122.4194'
+    });
+    expect(parsed.latitude).toBe(37.7749);
+    expect(parsed.longitude).toBe(-122.4194);
+    expect(parsed.radiusMiles).toBe(25);
   });
 });
