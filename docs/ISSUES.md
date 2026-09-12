@@ -230,6 +230,20 @@
 > `GeoSearchService` while preserving 100% backward-compatible default fallback. Zero database migrations (`RULE-DB-02`).
 > Total verified tests: 628 unit/integration + 28 E2E = 656 tests.
 
+> **Phase 30 update — 2026-09-09:** Phase 30 of [`DEVELOPMENT_PLAN.md`](./DEVELOPMENT_PLAN.md)
+> delivered Canonical Drizzle Transaction Typing Across Microservices (Resolves **FF-CODE-09 / Code Quality Issue 9**).
+> Centralized canonical Drizzle transaction types in `@fieldforge/database` and `@fieldforge/common`, eliminating untyped
+> `tx: unknown` parameters across services and test doubles. Zero database migrations (`RULE-DB-02`).
+> Total verified tests: 628 unit/integration + 28 E2E = 656 tests.
+
+> **Phase 31 update — 2026-09-12:** Phase 31 of [`DEVELOPMENT_PLAN.md`](./DEVELOPMENT_PLAN.md)
+> delivered Centralized Profile ID Resolution Across Services (Resolves **FF-CODE-10 / Code Quality Issue 10**).
+> Unified ad-hoc profile resolution queries across `work-order-service`, `billing-service`, `auth-service`, and
+> `dispatch-matching-service` into standardized `ProfileDirectoryService.resolveProfileId()` / `resolveProfileIdOrThrow()`
+> in `@fieldforge/common` and `ProfilesService.resolveProfileId()` / `resolveUserIdByProfileId()` in `apps/auth-service`,
+> eliminating repetitive boilerplate checks and direct cross-service table querying. Zero database migrations (`RULE-DB-02`).
+> Total verified tests: 640 unit/integration + 28 E2E = 668 tests.
+
 ---
 
 ## How to read this report
@@ -1215,6 +1229,28 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   6. Refactored `BidsService` and `GeoSearchService` to inject `DrizzleClient` from `@fieldforge/common` instead of ad-hoc `MySql2Database<Record<string, unknown>>`.
   7. Updated transaction test mocks across `escrow.service.spec.ts`, `invoices.service.spec.ts`, `auth.service.spec.ts`, `profiles.service.spec.ts`, `work-orders.service.spec.ts`, and `bids.service.spec.ts` with strongly typed `DrizzleTransaction` and `DbOrTx`.
   8. Zero database migrations (`RULE-DB-02`).
+
+### FF-CODE-10 · 🧹 Repeated Ad-Hoc Profile ID Resolution Across Services (Code Quality Issue 10)
+
+- **Root Cause**: Resolving a user ID into an associated domain profile ID (`buyerProfiles` or `technicianProfiles`) was repeated across multiple controllers and domain services in `work-order-service`, `billing-service`, `auth-service`, and `dispatch-matching-service`. Service methods repeatedly executed ad-hoc lookups, null checks, and error throwing boilerplate (`if (!resolvedId) throw new NotFoundException(...)` / `ForbiddenException`), leading to widespread code duplication and DRY violations:
+  1. `apps/work-order-service/src/modules/work-orders/work-orders.service.ts`: `create()` and `publish()` repeated buyer profile lookups and error validation.
+  2. `apps/work-order-service/src/modules/deliverables/deliverables.service.ts`: `uploadDeliverable()`, `recordSignature()`, and `getDeliverables()` repeated technician and buyer profile lookups.
+  3. `apps/work-order-service/src/modules/bids/bids.service.ts`: `submitBid()`, `acceptBid()`, and `listBidsForWorkOrder()` repeated manual profile lookups and null assertions.
+  4. `apps/work-order-service/src/modules/work-orders/work-order-transition.ts`: maintained redundant local resolver functions with dummy transaction arguments.
+  5. `apps/billing-service/src/controllers/billing.controller.ts`: `preAuthEscrow()` and `getTechnicianPayouts()` implemented ad-hoc resolution and error branching.
+  6. `apps/billing-service/src/modules/escrow/escrow.service.ts`: `releaseFunds()` resolved buyer profile ID via dedicated methods rather than unified profile resolution.
+  7. `apps/auth-service/src/modules/vetting/certifications.service.ts`: performed direct fallback queries against `technicianProfiles` rather than delegating to `ProfilesService`.
+  8. `apps/dispatch-matching-service/src/modules/geo-search/geo-search.service.ts`: performed direct fallback queries against `technicianProfiles` rather than delegating to profile directory resolution.
+- **Fix**: Centralized profile ID resolution into `@fieldforge/common` and `apps/auth-service`:
+  1. Enhanced `ProfileDirectoryService` in `@fieldforge/common` with unified `resolveProfileId(userId, role, callerProfileId, correlationId)` and `resolveProfileIdOrThrow(userId, role, callerProfileId, correlationId, notFoundMessage)`.
+  2. Enhanced `ProfilesService` in `apps/auth-service` with case-insensitive `resolveProfileId(userId, role)` and `resolveUserIdByProfileId(profileId, role)`.
+  3. Refactored `apps/billing-service`: `BillingController.preAuthEscrow()` utilizes `resolveProfileIdOrThrow()`, and `BillingController.getTechnicianPayouts()` and `EscrowService.releaseFunds()` use `resolveProfileId()`.
+  4. Refactored `apps/work-order-service`: `WorkOrdersService.create()` uses `resolveProfileIdOrThrow()`, and `WorkOrdersService.publish()`, `DeliverablesService`, and `BidsService` use `resolveProfileId()`.
+  5. Refactored `work-order-transition.ts`: exported unified `resolveProfileId()` and delegated `resolveBuyerProfileId` and `resolveTechnicianProfileId` to it.
+  6. Refactored `apps/auth-service`: `CertificationsService` delegates profile ID and user ID resolution to `ProfilesService`.
+  7. Refactored `apps/dispatch-matching-service`: `GeoSearchService` injects `ProfileDirectoryService` for technician profile resolution fallback, registered in `DispatchModule`.
+  8. Added unit test suites for `resolveProfileId` and `resolveProfileIdOrThrow` in `packages/common/test/profile-directory.spec.ts` (10 new tests), `apps/auth-service/test/profiles.service.spec.ts` (3 new tests), and `apps/work-order-service/test/work-order-transition.spec.ts` (2 new tests). Total unit tests increased to 640.
+  9. Zero database migrations (`RULE-DB-02`).
 
 ---
 

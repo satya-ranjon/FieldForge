@@ -1,6 +1,12 @@
 import { Injectable, Inject, Optional, OnApplicationShutdown } from '@nestjs/common';
 import Redis from 'ioredis';
-import { loadEnv, createLogger, DRIZZLE, type DrizzleClient } from '@fieldforge/common';
+import {
+  loadEnv,
+  createLogger,
+  DRIZZLE,
+  type DrizzleClient,
+  ProfileDirectoryService
+} from '@fieldforge/common';
 import type { NearbyTechnicianDto } from '@fieldforge/contracts';
 import { technicianProfiles, technicianCertifications, users } from '@fieldforge/database';
 import { eq, inArray } from 'drizzle-orm';
@@ -25,7 +31,8 @@ export class GeoSearchService implements OnApplicationShutdown {
     @Optional() @Inject(REDIS_CLIENT) redisClient?: Redis,
     @Optional() @Inject(DRIZZLE) private readonly db?: DrizzleClient,
     @Optional() private readonly directoryService?: TechnicianDirectoryService,
-    @Optional() @Inject(CANDIDATE_SCORER) candidateScorer?: CandidateScorerPort
+    @Optional() @Inject(CANDIDATE_SCORER) candidateScorer?: CandidateScorerPort,
+    @Optional() private readonly profileDirectory?: ProfileDirectoryService
   ) {
     this.scorer = candidateScorer ?? new CandidateScoringService();
     if (redisClient) {
@@ -70,15 +77,24 @@ export class GeoSearchService implements OnApplicationShutdown {
         : (updateResult as { affectedRows?: number } | undefined);
       const affected = resultHeader?.affectedRows;
       if (affected === 0) {
-        // Fallback: check if technicianId is actually a userId in technicianProfiles
-        const [profile] = await this.db
-          .select({ id: technicianProfiles.id })
-          .from(technicianProfiles)
-          .where(eq(technicianProfiles.userId, technicianId))
-          .limit(1);
+        // Fallback: check if technicianId is actually a userId via ProfileDirectoryService
+        let fallbackProfileId: string | null = null;
+        if (this.profileDirectory) {
+          fallbackProfileId = await this.profileDirectory.resolveProfileId(
+            technicianId,
+            'TECHNICIAN'
+          );
+        } else {
+          const [profile] = await this.db
+            .select({ id: technicianProfiles.id })
+            .from(technicianProfiles)
+            .where(eq(technicianProfiles.userId, technicianId))
+            .limit(1);
+          fallbackProfileId = profile?.id ?? null;
+        }
 
-        if (profile?.id) {
-          targetProfileId = profile.id;
+        if (fallbackProfileId) {
+          targetProfileId = fallbackProfileId;
           await this.db
             .update(technicianProfiles)
             .set({

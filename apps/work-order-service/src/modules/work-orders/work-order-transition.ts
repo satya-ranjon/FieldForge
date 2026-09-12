@@ -51,11 +51,12 @@ export type TransitionExecutionStrategy = (
 ) => Promise<TransitionExecutionResult>;
 
 /**
- * Resolves buyer profile ID from caller token, local directory, or auth service.
+ * Resolves profile ID from caller token, local directory, or auth service.
  */
-export async function resolveBuyerProfileId(
+export async function resolveProfileId(
   tx: AssignmentDbTx,
   userId: string,
+  role?: string,
   callerProfileId?: string,
   profileDirectory?: ProfileDirectoryService,
   correlationId?: string
@@ -65,11 +66,29 @@ export async function resolveBuyerProfileId(
   }
 
   if (profileDirectory) {
-    const id = await profileDirectory.resolveBuyerProfileId(userId, callerProfileId, correlationId);
+    const id = await profileDirectory.resolveProfileId(
+      userId,
+      role,
+      callerProfileId,
+      correlationId
+    );
     return id || undefined;
   }
 
   return undefined;
+}
+
+/**
+ * Resolves buyer profile ID from caller token, local directory, or auth service.
+ */
+export async function resolveBuyerProfileId(
+  tx: AssignmentDbTx,
+  userId: string,
+  callerProfileId?: string,
+  profileDirectory?: ProfileDirectoryService,
+  correlationId?: string
+): Promise<string | undefined> {
+  return resolveProfileId(tx, userId, 'BUYER', callerProfileId, profileDirectory, correlationId);
 }
 
 /**
@@ -82,20 +101,14 @@ export async function resolveTechnicianProfileId(
   profileDirectory?: ProfileDirectoryService,
   correlationId?: string
 ): Promise<string | undefined> {
-  if (callerProfileId) {
-    return callerProfileId;
-  }
-
-  if (profileDirectory) {
-    const id = await profileDirectory.resolveTechnicianProfileId(
-      userId,
-      callerProfileId,
-      correlationId
-    );
-    return id || undefined;
-  }
-
-  return undefined;
+  return resolveProfileId(
+    tx,
+    userId,
+    'TECHNICIAN',
+    callerProfileId,
+    profileDirectory,
+    correlationId
+  );
 }
 
 /**

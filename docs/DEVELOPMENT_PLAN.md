@@ -1230,6 +1230,50 @@ Eliminated unsafe `tx: unknown` and `dbOrTx: unknown` parameters, ad-hoc `MySql2
 
 ---
 
+## Phase 31 — Centralized Profile ID Resolution Across Services
+
+**Size: S · Dependencies: Phase 30.** Resolves **FF-CODE-10** (Code Quality Issue 10).
+
+Encapsulated and eliminated repeated ad-hoc profile ID queries and repetitive null-check boilerplate across `work-order-service`, `billing-service`, `auth-service`, and `dispatch-matching-service` by standardizing on `ProfileDirectoryService.resolveProfileId()` / `resolveProfileIdOrThrow()` in `@fieldforge/common` and `ProfilesService.resolveProfileId()` / `resolveUserIdByProfileId()` in `apps/auth-service`.
+
+**Deliverables:**
+
+- **Standardized Profile Resolution (`@fieldforge/common`).**
+  - Added `resolveProfileId(userId, role, callerProfileId, correlationId)` to `ProfileDirectoryService` supporting zero-network token fast-path, case-insensitive role dispatch ('BUYER', 'TECHNICIAN'), and fallback profile extraction.
+  - Added `resolveProfileIdOrThrow(userId, role, callerProfileId, correlationId, notFoundMessage)` encapsulating repeated null checking and exception throwing.
+- **Profiles Domain Service (`apps/auth-service`).**
+  - Enhanced `ProfilesService.resolveProfileId()` to support case-insensitive role strings.
+  - Added `ProfilesService.resolveUserIdByProfileId()` to resolve user identity from profile IDs without foreign ad-hoc queries.
+  - Refactored `CertificationsService.getTechnicianBadges()` to delegate fallback profile and user ID queries to `ProfilesService`.
+- **Consumer Service Refactoring.**
+  - `apps/billing-service`: `BillingController.preAuthEscrow()` uses `resolveProfileIdOrThrow()`, and `BillingController.getTechnicianPayouts()` and `EscrowService.releaseFunds()` use `resolveProfileId()`.
+  - `apps/work-order-service`: `WorkOrdersService.create()` uses `resolveProfileIdOrThrow()`, and `WorkOrdersService.publish()`, `DeliverablesService`, and `BidsService` use `resolveProfileId()`.
+  - `apps/work-order-service/src/modules/work-orders/work-order-transition.ts`: Exported `resolveProfileId()` and delegated `resolveBuyerProfileId` and `resolveTechnicianProfileId` to it.
+  - `apps/dispatch-matching-service`: Registered `ProfileDirectoryService` in `DispatchModule` and injected into `GeoSearchService` to eliminate ad-hoc `technicianProfiles` fallback query.
+- **Test Suite Updates.**
+  - Added 10 unit tests in `packages/common/test/profile-directory.spec.ts` (covering fast paths, role matching, fallbacks, and error throwing).
+  - Added 3 unit tests in `apps/auth-service/test/profiles.service.spec.ts`.
+  - Added 2 unit tests in `apps/work-order-service/test/work-order-transition.spec.ts`.
+
+**Verification:**
+
+- 640 automated unit/integration tests passing across 15 packages/apps in monorepo (zero `--passWithNoTests`):
+  - 58 tests in `apps/dispatch-matching-service` (5 suites).
+  - 33 tests in `apps/billing-service` (5 suites).
+  - 236 tests in `apps/work-order-service` (13 suites).
+  - 76 tests in `apps/auth-service` (7 suites).
+  - 59 tests in `@fieldforge/common` (6 suites).
+  - 81 tests in `@fieldforge/contracts` (3 suites).
+  - 21 tests in `@fieldforge/messaging` (5 suites).
+  - 104 tests in `apps/web-buyer-portal` (1 suite).
+  - 44 tests in `apps/api-gateway` (6 suites).
+  - 14 tests in `apps/notification-service` (1 suite).
+  - 21 tests in `@fieldforge/mobile-tech-app` (3 suites).
+- 28 Playwright E2E tests validated (`pnpm test:e2e`). Total verified tests: 668 tests.
+- `pnpm check && pnpm build` pass cleanly.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

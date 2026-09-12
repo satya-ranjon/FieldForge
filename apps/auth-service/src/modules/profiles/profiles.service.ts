@@ -58,7 +58,8 @@ export class ProfilesService {
    */
   async resolveProfileId(userId: string, role: string): Promise<string | undefined> {
     try {
-      if (role === 'BUYER') {
+      const normalizedRole = role?.toUpperCase();
+      if (normalizedRole === 'BUYER') {
         const query = this.db.select({ id: buyerProfiles.id });
         if (query && typeof query.from === 'function') {
           const rows = await query
@@ -67,7 +68,7 @@ export class ProfilesService {
             .limit(1);
           return rows?.[0]?.id;
         }
-      } else if (role === 'TECHNICIAN') {
+      } else if (normalizedRole === 'TECHNICIAN') {
         const query = this.db.select({ id: technicianProfiles.id });
         if (query && typeof query.from === 'function') {
           const rows = await query
@@ -75,6 +76,58 @@ export class ProfilesService {
             .where(eq(technicianProfiles.userId, userId))
             .limit(1);
           return rows?.[0]?.id;
+        }
+      }
+    } catch {
+      // Mock DB in unit tests without full table configurations
+    }
+    return undefined;
+  }
+
+  /**
+   * Resolves the associated userId for a given profileId without ad-hoc table queries.
+   */
+  async resolveUserIdByProfileId(profileId: string, role?: string): Promise<string | undefined> {
+    try {
+      const normalizedRole = role?.toUpperCase();
+      if (normalizedRole === 'BUYER') {
+        const query = this.db.select({ userId: buyerProfiles.userId });
+        if (query && typeof query.from === 'function') {
+          const rows = await query
+            .from(buyerProfiles)
+            .where(eq(buyerProfiles.id, profileId))
+            .limit(1);
+          return rows?.[0]?.userId;
+        }
+      } else if (normalizedRole === 'TECHNICIAN') {
+        const query = this.db.select({ userId: technicianProfiles.userId });
+        if (query && typeof query.from === 'function') {
+          const rows = await query
+            .from(technicianProfiles)
+            .where(eq(technicianProfiles.id, profileId))
+            .limit(1);
+          return rows?.[0]?.userId;
+        }
+      } else {
+        const techQuery = this.db.select({ userId: technicianProfiles.userId });
+        if (techQuery && typeof techQuery.from === 'function') {
+          const rows = await techQuery
+            .from(technicianProfiles)
+            .where(eq(technicianProfiles.id, profileId))
+            .limit(1);
+          if (rows?.[0]?.userId) {
+            return rows[0].userId;
+          }
+        }
+        const buyerQuery = this.db.select({ userId: buyerProfiles.userId });
+        if (buyerQuery && typeof buyerQuery.from === 'function') {
+          const rows = await buyerQuery
+            .from(buyerProfiles)
+            .where(eq(buyerProfiles.id, profileId))
+            .limit(1);
+          if (rows?.[0]?.userId) {
+            return rows[0].userId;
+          }
         }
       }
     } catch {

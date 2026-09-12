@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
-**Last reviewed:** 2026-09-09  
-**Phase:** Phase 30 complete — Canonical Drizzle Transaction Typing across Microservices (FF-CODE-09 / Code Quality Issue 9). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Last reviewed:** 2026-09-12  
+**Phase:** Phase 31 complete — Centralized Profile ID Resolution Across Services (FF-CODE-10 / Code Quality Issue 10). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -78,7 +78,14 @@
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
   - `AppNavigator` mounting `JobListScreen` and `ActiveJobScreen` wrapped in Redux store.
-- **A test harness that can fail.** 628 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 656 total verified tests).
+- **A test harness that can fail.** 640 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 668 total verified tests).
+- **Centralized Profile ID Resolution Across Services (Phase 31, Resolves FF-CODE-10 / Code Quality Issue 10).**
+  - Enhanced `ProfileDirectoryService` in `@fieldforge/common` with `resolveProfileId()` (supporting caller token fast path, case-insensitive role dispatch, and fallback profile extraction) and `resolveProfileIdOrThrow()` (encapsulating repetitive null checks and exceptions).
+  - Enhanced `ProfilesService` in `apps/auth-service` with case-insensitive `resolveProfileId()` and `resolveUserIdByProfileId()`, delegating fallback lookups in `CertificationsService` to it.
+  - Standardized profile identity resolution in `BillingController.preAuthEscrow()`, `BillingController.getTechnicianPayouts()`, `EscrowService.releaseFunds()`, `WorkOrdersService.create()`, `WorkOrdersService.publish()`, `DeliverablesService`, `BidsService`, and `work-order-transition.ts`.
+  - Injected `ProfileDirectoryService` into `GeoSearchService` in `apps/dispatch-matching-service`, eliminating ad-hoc fallback table querying against `technicianProfiles`.
+  - Added unit test suites across `@fieldforge/common` (10 tests), `apps/auth-service` (3 tests), and `apps/work-order-service` (2 tests), bringing total verified tests to 640 unit + 28 E2E = 668 tests.
+  - Zero database migrations (`RULE-DB-02`).
 - **Canonical Drizzle Transaction Typing across Microservices (Phase 30, Resolves FF-CODE-09 / Code Quality Issue 9).**
   - Exported canonical `DatabaseSchema`, `DatabaseClient`, `DatabaseTransaction`, and `DbOrTx` from `packages/database/src/index.ts`.
   - Re-exported and aliased `DrizzleClient`, `DrizzleTransaction`, `DbOrTx`, and `DatabaseOrTransaction` from `packages/common/src/database/drizzle.module.ts` and `packages/common/src/index.ts`.

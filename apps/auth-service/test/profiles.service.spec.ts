@@ -124,6 +124,47 @@ describe('ProfilesService', () => {
     });
   });
 
+  describe('resolveUserIdByProfileId', () => {
+    it('resolves userId from buyer profile', async () => {
+      mockDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          where: jest.fn().mockReturnValue({
+            limit: jest.fn().mockResolvedValue([{ userId: 'u-buyer-99' }])
+          })
+        })
+      });
+
+      const userId = await service.resolveUserIdByProfileId('bp-123', UserRole.BUYER);
+      expect(userId).toBe('u-buyer-99');
+    });
+
+    it('resolves userId from technician profile', async () => {
+      mockDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          where: jest.fn().mockReturnValue({
+            limit: jest.fn().mockResolvedValue([{ userId: 'u-tech-88' }])
+          })
+        })
+      });
+
+      const userId = await service.resolveUserIdByProfileId('tp-456', UserRole.TECHNICIAN);
+      expect(userId).toBe('u-tech-88');
+    });
+
+    it('returns undefined if not found', async () => {
+      mockDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          where: jest.fn().mockReturnValue({
+            limit: jest.fn().mockResolvedValue([])
+          })
+        })
+      });
+
+      const userId = await service.resolveUserIdByProfileId('tp-none', UserRole.TECHNICIAN);
+      expect(userId).toBeUndefined();
+    });
+  });
+
   describe('getUserProfile', () => {
     it('throws NotFoundException when user not found', async () => {
       mockDb.select.mockReturnValue({

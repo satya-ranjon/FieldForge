@@ -8,6 +8,7 @@ import type {
   CreateCertificationDto,
   TechnicianSummaryDto
 } from '@fieldforge/contracts';
+import { ProfilesService } from '../profiles/profiles.service';
 
 export type TechnicianBadge = TechnicianBadgeDto;
 
@@ -34,7 +35,10 @@ export class CertificationsService {
     ]
   };
 
-  constructor(@Optional() @Inject(DRIZZLE) private readonly db?: DrizzleClient) {}
+  constructor(
+    @Optional() @Inject(DRIZZLE) private readonly db?: DrizzleClient,
+    @Optional() private readonly profilesService?: ProfilesService
+  ) {}
 
   /**
    * Reads stored certifications from `technician_certifications` when DB is
@@ -49,33 +53,51 @@ export class CertificationsService {
 
       if (rows.length === 0) {
         // Fallback 1: If technicianIdOrUserId is actually a userId rather than technicianProfileId
-        const profilesByUser = await this.db
-          .select({ id: technicianProfiles.id })
-          .from(technicianProfiles)
-          .where(eq(technicianProfiles.userId, technicianIdOrUserId))
-          .limit(1);
+        let resolvedProfileId: string | undefined;
+        if (this.profilesService) {
+          resolvedProfileId = await this.profilesService.resolveProfileId(
+            technicianIdOrUserId,
+            'TECHNICIAN'
+          );
+        } else {
+          const profilesByUser = await this.db
+            .select({ id: technicianProfiles.id })
+            .from(technicianProfiles)
+            .where(eq(technicianProfiles.userId, technicianIdOrUserId))
+            .limit(1);
+          resolvedProfileId = profilesByUser[0]?.id;
+        }
 
-        if (profilesByUser.length > 0 && profilesByUser[0]?.id) {
+        if (resolvedProfileId) {
           rows = await this.db
             .select()
             .from(technicianCertifications)
-            .where(eq(technicianCertifications.technicianId, profilesByUser[0].id));
+            .where(eq(technicianCertifications.technicianId, resolvedProfileId));
         }
       }
 
       if (rows.length === 0) {
         // Fallback 2: If technicianIdOrUserId is a profileId but rows held legacy userId
-        const profilesById = await this.db
-          .select({ userId: technicianProfiles.userId })
-          .from(technicianProfiles)
-          .where(eq(technicianProfiles.id, technicianIdOrUserId))
-          .limit(1);
+        let resolvedUserId: string | undefined;
+        if (this.profilesService) {
+          resolvedUserId = await this.profilesService.resolveUserIdByProfileId(
+            technicianIdOrUserId,
+            'TECHNICIAN'
+          );
+        } else {
+          const profilesById = await this.db
+            .select({ userId: technicianProfiles.userId })
+            .from(technicianProfiles)
+            .where(eq(technicianProfiles.id, technicianIdOrUserId))
+            .limit(1);
+          resolvedUserId = profilesById[0]?.userId;
+        }
 
-        if (profilesById.length > 0 && profilesById[0]?.userId) {
+        if (resolvedUserId) {
           rows = await this.db
             .select()
             .from(technicianCertifications)
-            .where(eq(technicianCertifications.technicianId, profilesById[0].userId));
+            .where(eq(technicianCertifications.technicianId, resolvedUserId));
         }
       }
 

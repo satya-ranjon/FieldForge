@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { UserProfileResponseDto } from '@fieldforge/contracts';
 
 export const PROFILE_DIRECTORY_CACHE_TTL_SECONDS = 300; // 5 minutes
@@ -92,6 +92,64 @@ export class ProfileDirectoryService {
 
     const profile = await this.getUserProfile(userId, correlationId);
     return profile?.technicianProfile?.id ?? null;
+  }
+
+  /**
+   * Resolves the profile ID (buyer or technician) for a given userId and role.
+   * 1. Uses callerProfileId directly if provided (zero network overhead fast-path).
+   * 2. Delegates to resolveBuyerProfileId for BUYER role.
+   * 3. Delegates to resolveTechnicianProfileId for TECHNICIAN role.
+   * 4. If role is unspecified, attempts to extract any available profile ID.
+   */
+  async resolveProfileId(
+    userId: string,
+    role?: string,
+    callerProfileId?: string,
+    correlationId?: string
+  ): Promise<string | null> {
+    if (callerProfileId) {
+      return callerProfileId;
+    }
+
+    const normalizedRole = role?.toUpperCase();
+    if (normalizedRole === 'BUYER') {
+      return await this.resolveBuyerProfileId(userId, callerProfileId, correlationId);
+    }
+    if (normalizedRole === 'TECHNICIAN') {
+      return await this.resolveTechnicianProfileId(userId, callerProfileId, correlationId);
+    }
+
+    // Role unspecified or fallback: check local profiles first
+    const local = this.localProfiles.get(userId);
+    if (local?.buyerProfileId) {
+      return local.buyerProfileId;
+    }
+    if (local?.technicianProfileId) {
+      return local.technicianProfileId;
+    }
+
+    const profile = await this.getUserProfile(userId, correlationId);
+    return profile?.buyerProfile?.id ?? profile?.technicianProfile?.id ?? null;
+  }
+
+  /**
+   * Resolves the profile ID for a given userId and role, or throws NotFoundException.
+   * Encapsulates repetitive null checks and error throwing across microservices.
+   */
+  async resolveProfileIdOrThrow(
+    userId: string,
+    role: string,
+    callerProfileId?: string,
+    correlationId?: string,
+    notFoundMessage?: string
+  ): Promise<string> {
+    const profileId = await this.resolveProfileId(userId, role, callerProfileId, correlationId);
+    if (!profileId) {
+      throw new NotFoundException(
+        notFoundMessage || `${role} profile not found for user ${userId}`
+      );
+    }
+    return profileId;
   }
 
   /**

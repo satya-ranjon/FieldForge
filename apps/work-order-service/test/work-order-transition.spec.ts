@@ -3,6 +3,7 @@ import { WorkOrderStatus, EventType } from '@fieldforge/contracts';
 import { ProfileDirectoryService } from '@fieldforge/common';
 import { workOrders } from '@fieldforge/database';
 import {
+  resolveProfileId,
   resolveBuyerProfileId,
   resolveTechnicianProfileId,
   guardAssignedTransition,
@@ -76,6 +77,31 @@ describe('work-order-transition strategies & guards', () => {
   });
 
   describe('profile resolvers', () => {
+    it('resolveProfileId returns cached callerProfileId without DB query', async () => {
+      const result = await resolveProfileId(
+        mockTx as unknown as AssignmentDbTx,
+        'user-1',
+        'BUYER',
+        'cached-buyer-id'
+      );
+      expect(result).toBe('cached-buyer-id');
+      expect(mockTx.select).not.toHaveBeenCalled();
+    });
+
+    it('resolveProfileId resolves via profileDirectory when callerProfileId is omitted', async () => {
+      const mockDirectory = new ProfileDirectoryService();
+      mockDirectory.setLocalProfile('user-1', 'BUYER', 'dir-buyer-id');
+
+      const result = await resolveProfileId(
+        mockTx as unknown as AssignmentDbTx,
+        'user-1',
+        'BUYER',
+        undefined,
+        mockDirectory
+      );
+      expect(result).toBe('dir-buyer-id');
+    });
+
     it('resolveBuyerProfileId returns cached callerProfileId without DB query', async () => {
       const result = await resolveBuyerProfileId(
         mockTx as unknown as AssignmentDbTx,

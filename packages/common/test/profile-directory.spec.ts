@@ -1,3 +1,4 @@
+import { NotFoundException } from '@nestjs/common';
 import { ProfileDirectoryService } from '../src/directory/profile-directory.service';
 import { UserRole, UserStatus, type UserProfileResponseDto } from '@fieldforge/contracts';
 
@@ -176,6 +177,119 @@ describe('ProfileDirectoryService', () => {
       const result = await service.resolveBuyerProfileId('usr-1');
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       expect(result).toBe('buyer-prof-456');
+    });
+  });
+
+  describe('resolveProfileId', () => {
+    it('returns callerProfileId immediately if provided', async () => {
+      const fetchSpy = jest.fn();
+      global.fetch = fetchSpy;
+
+      const profileId = await service.resolveProfileId('usr-1', 'BUYER', 'fast-prof-id');
+      expect(profileId).toBe('fast-prof-id');
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('resolves BUYER role (case-insensitive)', async () => {
+      service.setLocalProfile('usr-buyer', 'BUYER', 'bp-local-1');
+
+      expect(await service.resolveProfileId('usr-buyer', 'BUYER')).toBe('bp-local-1');
+      expect(await service.resolveProfileId('usr-buyer', 'buyer')).toBe('bp-local-1');
+      expect(await service.resolveProfileId('usr-buyer', 'Buyer')).toBe('bp-local-1');
+    });
+
+    it('resolves TECHNICIAN role (case-insensitive)', async () => {
+      service.setLocalProfile('usr-tech', 'TECHNICIAN', 'tp-local-1');
+
+      expect(await service.resolveProfileId('usr-tech', 'TECHNICIAN')).toBe('tp-local-1');
+      expect(await service.resolveProfileId('usr-tech', 'technician')).toBe('tp-local-1');
+      expect(await service.resolveProfileId('usr-tech', 'Technician')).toBe('tp-local-1');
+    });
+
+    it('resolves via network when role is BUYER and cache is empty', async () => {
+      const fetchSpy = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => mockUserProfile
+      });
+      global.fetch = fetchSpy;
+
+      const profileId = await service.resolveProfileId('usr-123', 'BUYER');
+      expect(profileId).toBe('buyer-prof-456');
+    });
+
+    it('resolves via network when role is TECHNICIAN and cache is empty', async () => {
+      const fetchSpy = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => mockTechProfile
+      });
+      global.fetch = fetchSpy;
+
+      const profileId = await service.resolveProfileId('usr-tech-789', 'TECHNICIAN');
+      expect(profileId).toBe('tech-prof-999');
+    });
+
+    it('resolves available profile when role is unspecified', async () => {
+      service.setLocalProfile('usr-tech-2', 'TECHNICIAN', 'tp-2');
+      expect(await service.resolveProfileId('usr-tech-2')).toBe('tp-2');
+
+      const fetchSpy = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => mockUserProfile
+      });
+      global.fetch = fetchSpy;
+      expect(await service.resolveProfileId('usr-123')).toBe('buyer-prof-456');
+    });
+
+    it('returns null when profile cannot be resolved', async () => {
+      const fetchSpy = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 404
+      });
+      global.fetch = fetchSpy;
+
+      const profileId = await service.resolveProfileId('usr-not-found', 'BUYER');
+      expect(profileId).toBeNull();
+    });
+  });
+
+  describe('resolveProfileIdOrThrow', () => {
+    it('returns resolved profile ID when found', async () => {
+      service.setLocalProfile('usr-buyer-ok', 'BUYER', 'bp-ok');
+      const result = await service.resolveProfileIdOrThrow('usr-buyer-ok', 'BUYER');
+      expect(result).toBe('bp-ok');
+    });
+
+    it('throws NotFoundException with default message when not found', async () => {
+      const fetchSpy = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 404
+      });
+      global.fetch = fetchSpy;
+
+      await expect(service.resolveProfileIdOrThrow('usr-missing', 'BUYER')).rejects.toThrow(
+        NotFoundException
+      );
+      await expect(service.resolveProfileIdOrThrow('usr-missing', 'BUYER')).rejects.toThrow(
+        'BUYER profile not found for user usr-missing'
+      );
+    });
+
+    it('throws NotFoundException with custom message when provided', async () => {
+      const fetchSpy = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 404
+      });
+      global.fetch = fetchSpy;
+
+      await expect(
+        service.resolveProfileIdOrThrow(
+          'usr-missing',
+          'BUYER',
+          undefined,
+          undefined,
+          'Custom not found message'
+        )
+      ).rejects.toThrow('Custom not found message');
     });
   });
 });

@@ -274,8 +274,9 @@ export class EscrowService {
         // 4. Caller Authority Verification (C3)
         if (callerRole && callerRole !== 'ADMIN' && callerRole !== 'SYSTEM') {
           // Must be the buyer who owns the work order
-          const resolvedBuyerId = await this.profileDirectory.resolveBuyerProfileId(
+          const resolvedBuyerId = await this.profileDirectory.resolveProfileId(
             callerUserId || '',
+            callerRole,
             callerProfileId,
             correlationId
           );

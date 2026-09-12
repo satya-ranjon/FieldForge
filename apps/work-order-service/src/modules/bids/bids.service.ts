@@ -64,18 +64,15 @@ export class BidsService {
       }
 
       // 1. Resolve technician profile from callerProfileId or user ID
-      let technicianId = callerProfileId;
-      if (!technicianId) {
-        const techId = await this.profileDirectory.resolveTechnicianProfileId(
-          technicianUserId,
-          callerProfileId,
-          correlationId
-        );
+      const technicianId = await this.profileDirectory.resolveProfileId(
+        technicianUserId,
+        'TECHNICIAN',
+        callerProfileId,
+        correlationId
+      );
 
-        if (!techId) {
-          throw new ForbiddenException('Only registered technicians can submit bids');
-        }
-        technicianId = techId;
+      if (!technicianId) {
+        throw new ForbiddenException('Only registered technicians can submit bids');
       }
 
       // 2. Lock work order FOR UPDATE
@@ -234,8 +231,9 @@ export class BidsService {
 
       // 3. Verify buyer ownership
       if (callerRole !== 'ADMIN') {
-        const resolvedBuyerId = await this.profileDirectory.resolveBuyerProfileId(
+        const resolvedBuyerId = await this.profileDirectory.resolveProfileId(
           buyerUserId,
+          'BUYER',
           callerProfileId,
           correlationId
         );
@@ -336,8 +334,9 @@ export class BidsService {
     }
 
     if (callerRole === 'BUYER') {
-      const resolvedBuyerId = await this.profileDirectory.resolveBuyerProfileId(
+      const resolvedBuyerId = await this.profileDirectory.resolveProfileId(
         callerUserId,
+        callerRole,
         callerProfileId
       );
 
@@ -352,17 +351,24 @@ export class BidsService {
       .where(eq(workOrderBids.workOrderId, workOrderId))
       .orderBy(desc(workOrderBids.createdAt));
 
-    if (callerRole === 'TECHNICIAN' && callerProfileId) {
-      query = this.db
-        .select()
-        .from(workOrderBids)
-        .where(
-          and(
-            eq(workOrderBids.workOrderId, workOrderId),
-            eq(workOrderBids.technicianId, callerProfileId)
+    if (callerRole === 'TECHNICIAN') {
+      const resolvedTechId = await this.profileDirectory.resolveProfileId(
+        callerUserId,
+        callerRole,
+        callerProfileId
+      );
+      if (resolvedTechId) {
+        query = this.db
+          .select()
+          .from(workOrderBids)
+          .where(
+            and(
+              eq(workOrderBids.workOrderId, workOrderId),
+              eq(workOrderBids.technicianId, resolvedTechId)
+            )
           )
-        )
-        .orderBy(desc(workOrderBids.createdAt));
+          .orderBy(desc(workOrderBids.createdAt));
+      }
     }
 
     const rows = await query;

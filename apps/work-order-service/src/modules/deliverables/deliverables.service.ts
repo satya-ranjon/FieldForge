@@ -71,8 +71,9 @@ export class DeliverablesService {
     }
 
     if (role === 'TECHNICIAN') {
-      const resolvedTechnicianId = await this.profileDirectory.resolveTechnicianProfileId(
+      const resolvedTechnicianId = await this.profileDirectory.resolveProfileId(
         userId,
+        role,
         callerProfileId
       );
 
@@ -143,8 +144,9 @@ export class DeliverablesService {
     }
 
     if (role === 'TECHNICIAN') {
-      const resolvedTechnicianId = await this.profileDirectory.resolveTechnicianProfileId(
+      const resolvedTechnicianId = await this.profileDirectory.resolveProfileId(
         userId,
+        role,
         callerProfileId
       );
 
@@ -216,8 +218,9 @@ export class DeliverablesService {
     }
 
     if (role === 'BUYER') {
-      const resolvedBuyerId = await this.profileDirectory.resolveBuyerProfileId(
+      const resolvedBuyerId = await this.profileDirectory.resolveProfileId(
         userId,
+        role,
         callerProfileId
       );
 
@@ -227,8 +230,9 @@ export class DeliverablesService {
         );
       }
     } else if (role === 'TECHNICIAN') {
-      const resolvedTechnicianId = await this.profileDirectory.resolveTechnicianProfileId(
+      const resolvedTechnicianId = await this.profileDirectory.resolveProfileId(
         userId,
+        role,
         callerProfileId
       );
 

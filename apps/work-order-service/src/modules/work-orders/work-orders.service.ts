@@ -93,18 +93,13 @@ export class WorkOrdersService {
     dto: CreateWorkOrderDto,
     callerProfileId?: string
   ): Promise<WorkOrderResponseDto> {
-    let resolvedBuyerId = callerProfileId;
-
-    if (!resolvedBuyerId) {
-      const buyerId = await this.profileDirectory.resolveBuyerProfileId(buyerUserId);
-
-      if (!buyerId) {
-        throw new NotFoundException(
-          'Buyer profile not found for user. Please complete buyer onboarding.'
-        );
-      }
-      resolvedBuyerId = buyerId;
-    }
+    const resolvedBuyerId = await this.profileDirectory.resolveProfileIdOrThrow(
+      buyerUserId,
+      'BUYER',
+      callerProfileId,
+      undefined,
+      'Buyer profile not found for user. Please complete buyer onboarding.'
+    );
 
     const startTime = new Date(dto.scheduledStartTime);
     const endTime = new Date(dto.scheduledEndTime);
@@ -259,8 +254,9 @@ export class WorkOrdersService {
       }
 
       if (role === 'BUYER') {
-        const resolvedBuyerId = await this.profileDirectory.resolveBuyerProfileId(
+        const resolvedBuyerId = await this.profileDirectory.resolveProfileId(
           userId,
+          role,
           callerProfileId
         );
 

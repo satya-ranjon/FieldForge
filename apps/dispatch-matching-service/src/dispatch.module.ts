@@ -7,7 +7,8 @@ import {
   HealthController,
   GlobalHttpExceptionFilter,
   requireJwtSecret,
-  loadEnv
+  loadEnv,
+  ProfileDirectoryService
 } from '@fieldforge/common';
 import { MessagingModule } from '@fieldforge/messaging';
 import { CandidateScoringService, CANDIDATE_SCORER } from './modules/scoring';
@@ -62,6 +63,7 @@ const redisProvider = {
       useClass: CandidateScoringService
     },
     TechnicianDirectoryService,
+    ProfileDirectoryService,
     GeoSearchService,
     WorkOrderCreatedConsumer
   ],
@@ -70,6 +72,7 @@ const redisProvider = {
     CANDIDATE_SCORER,
     GeoSearchService,
     TechnicianDirectoryService,
+    ProfileDirectoryService,
     REDIS_CLIENT
   ]
 })

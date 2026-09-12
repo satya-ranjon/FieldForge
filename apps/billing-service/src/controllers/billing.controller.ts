@@ -8,8 +8,7 @@ import {
   Res,
   Inject,
   Optional,
-  ForbiddenException,
-  NotFoundException
+  ForbiddenException
 } from '@nestjs/common';
 interface MinimalResponse {
   setHeader(name: string, value: string | number): void;
@@ -80,19 +79,13 @@ export class BillingController {
     }
 
     // Resolve buyer profile id: fast-path via token profileId or fallback to directory lookup
-    let buyerProfileId = user.profileId;
-    if (!buyerProfileId) {
-      const resolved = await this.profileDirectory.resolveBuyerProfileId(
-        user.userId,
-        undefined,
-        correlationId
-      );
-
-      if (!resolved) {
-        throw new NotFoundException(`Buyer profile not found for user ${user.userId}`);
-      }
-      buyerProfileId = resolved;
-    }
+    const buyerProfileId = await this.profileDirectory.resolveProfileIdOrThrow(
+      user.userId,
+      user.role,
+      user.profileId,
+      correlationId,
+      `Buyer profile not found for user ${user.userId}`
+    );
 
     return await this.escrowService.lockFunds(
       parsed.workOrderId,
@@ -174,8 +167,9 @@ export class BillingController {
 
     // If caller is technician, verify they are accessing their own profile
     if (user.role === 'TECHNICIAN') {
-      const resolvedTechnicianId = await this.profileDirectory.resolveTechnicianProfileId(
+      const resolvedTechnicianId = await this.profileDirectory.resolveProfileId(
         user.userId,
+        user.role,
         user.profileId
       );
 
