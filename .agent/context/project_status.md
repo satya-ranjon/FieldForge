@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-12  
-**Phase:** Phase 31 complete — Centralized Profile ID Resolution Across Services (FF-CODE-10 / Code Quality Issue 10). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 32 complete — Remove In-Memory Mocks from Production Service Classes (FF-CODE-11 / Code Quality Issue 11). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -78,7 +78,13 @@
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
   - `AppNavigator` mounting `JobListScreen` and `ActiveJobScreen` wrapped in Redux store.
-- **A test harness that can fail.** 640 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 668 total verified tests).
+- **A test harness that can fail.** 641 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 669 total verified tests).
+- **Remove In-Memory Mocks from Production Service Classes (Phase 32, Resolves FF-CODE-11 / Code Quality Issue 11).**
+  - Removed `mockCertifications` fixture and all `if (this.db)` conditional branches from `CertificationsService` in `apps/auth-service`.
+  - Required `@Inject(DRIZZLE) private readonly db: DrizzleClient` as a mandatory constructor dependency.
+  - Installed `@nestjs/testing` and updated `apps/auth-service/test/certifications.service.spec.ts` to instantiate `CertificationsService` via `Test.createTestingModule()` with an in-memory repository mock simulating Drizzle operations.
+  - Added unit test asserting `NotFoundException` on missing certification verification.
+  - Zero database migrations (`RULE-DB-02`).
 - **Centralized Profile ID Resolution Across Services (Phase 31, Resolves FF-CODE-10 / Code Quality Issue 10).**
   - Enhanced `ProfileDirectoryService` in `@fieldforge/common` with `resolveProfileId()` (supporting caller token fast path, case-insensitive role dispatch, and fallback profile extraction) and `resolveProfileIdOrThrow()` (encapsulating repetitive null checks and exceptions).
   - Enhanced `ProfilesService` in `apps/auth-service` with case-insensitive `resolveProfileId()` and `resolveUserIdByProfileId()`, delegating fallback lookups in `CertificationsService` to it.

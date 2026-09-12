@@ -1274,6 +1274,42 @@ Encapsulated and eliminated repeated ad-hoc profile ID queries and repetitive nu
 
 ---
 
+## Phase 32 — Remove In-Memory Mocks from Production Service Classes
+
+**Size: S · Dependencies: Phase 31.** Resolves **FF-CODE-11** (Code Quality Issue 11).
+
+Removed embedded in-memory mock data fixtures and conditional fallback logic from `CertificationsService` in `apps/auth-service`, enforcing mandatory `@Inject(DRIZZLE)` database dependency injection and providing typed mock database client doubles via NestJS module testing utilities (`Test.createTestingModule`).
+
+**Deliverables:**
+
+- **Production Service Hardening (`apps/auth-service`).**
+  - Removed `mockCertifications` fixture and all `if (this.db)` conditional branches from `CertificationsService` (`apps/auth-service/src/modules/vetting/certifications.service.ts`).
+  - Required `@Inject(DRIZZLE) private readonly db: DrizzleClient` as a mandatory constructor dependency.
+- **Unit Testing Refactoring (`apps/auth-service`).**
+  - Added `@nestjs/testing` to `apps/auth-service/package.json` devDependencies.
+  - Refactored `apps/auth-service/test/certifications.service.spec.ts` to instantiate `CertificationsService` via `Test.createTestingModule()`.
+  - Implemented an in-memory repository mock simulating Drizzle queries (`select`, `where`, `insert`, `update`, `limit`) against `technicianCertifications` and `technicianProfiles`.
+  - Added test verifying `NotFoundException` on missing certification verification. Total tests in `auth-service` increased to 77 (+1 test).
+
+**Verification:**
+
+- 641 automated unit/integration tests passing across 15 packages/apps in monorepo (+1 new test, zero `--passWithNoTests`):
+  - 77 tests in `apps/auth-service` (7 suites, +1 test).
+  - 58 tests in `apps/dispatch-matching-service` (5 suites).
+  - 33 tests in `apps/billing-service` (5 suites).
+  - 236 tests in `apps/work-order-service` (13 suites).
+  - 59 tests in `@fieldforge/common` (6 suites).
+  - 81 tests in `@fieldforge/contracts` (3 suites).
+  - 21 tests in `@fieldforge/messaging` (5 suites).
+  - 104 tests in `apps/web-buyer-portal` (1 suite).
+  - 44 tests in `apps/api-gateway` (6 suites).
+  - 14 tests in `apps/notification-service` (1 suite).
+  - 21 tests in `@fieldforge/mobile-tech-app` (3 suites).
+- 28 Playwright E2E tests validated (`pnpm test:e2e`). Total verified tests: 669 tests.
+- `pnpm check && pnpm build` pass cleanly.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

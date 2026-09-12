@@ -1,25 +1,160 @@
+import { NotFoundException } from '@nestjs/common';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { CertificationsService } from '../src/modules/vetting/certifications.service';
+import { DRIZZLE, type DrizzleClient } from '@fieldforge/common';
+import { technicianProfiles } from '@fieldforge/database';
 
 const KNOWN_TECH = 't0000000-0000-0000-0000-000000000001';
 
-/**
- * Certifications are read from an in-memory map until Phase 1 of
- * docs/DEVELOPMENT_PLAN.md adds the `technician_certifications` table
- * (FR-AUTH-003). The invariant worth pinning now is the failure mode: an
- * unknown technician must read as "holds no badges", never as "unverified" or
- * as an error, because dispatch scoring will gate eligibility on this list.
- */
-describe('CertificationsService', () => {
-  let certifications: CertificationsService;
+interface CertRecord {
+  id: string;
+  technicianId: string;
+  name: string;
+  issuedDate: Date;
+  expiryDate: Date;
+  isVerified: boolean;
+}
 
-  beforeEach(() => {
-    certifications = new CertificationsService();
+interface DrizzleCondition {
+  queryChunks?: Array<{ name?: string; value?: unknown } | unknown>;
+}
+
+function extractEq(condition: unknown): { col: string; val: unknown } | null {
+  const cond = condition as DrizzleCondition | undefined;
+  if (cond?.queryChunks && cond.queryChunks.length >= 4) {
+    const colObj = cond.queryChunks[1] as { name?: string } | undefined;
+    const col = colObj?.name || (typeof colObj === 'string' ? colObj : '');
+    const chunk3 = cond.queryChunks[3] as { value?: unknown } | unknown;
+    const val = chunk3 && typeof chunk3 === 'object' && 'value' in chunk3 ? chunk3.value : chunk3;
+    return { col, val };
+  }
+  return null;
+}
+
+function createMockDb(initialCerts: CertRecord[] = []) {
+  const certStore: CertRecord[] = initialCerts.map((c) => ({ ...c }));
+
+  return {
+    certStore,
+    select: jest.fn().mockImplementation(() => ({
+      from: jest.fn().mockImplementation((table: unknown) => ({
+        where: jest.fn().mockImplementation((condition: unknown) => {
+          const executeQuery = () => {
+            if (table === technicianProfiles) {
+              return [];
+            }
+            const eqParsed = extractEq(condition);
+            if (eqParsed) {
+              if (eqParsed.col === 'technician_id') {
+                return certStore.filter((c) => c.technicianId === eqParsed.val);
+              }
+              if (eqParsed.col === 'id') {
+                return certStore.filter((c) => c.id === eqParsed.val);
+              }
+              if (eqParsed.col === 'is_verified') {
+                return certStore.filter((c) => c.isVerified === Boolean(eqParsed.val));
+              }
+            }
+            return certStore;
+          };
+
+          const promise = Promise.resolve(executeQuery());
+          return Object.assign(promise, {
+            limit: jest.fn().mockImplementation(async (n: number) => {
+              const res = await promise;
+              return res.slice(0, n);
+            })
+          });
+        }),
+        limit: jest.fn().mockResolvedValue([])
+      }))
+    })),
+    insert: jest.fn().mockImplementation(() => ({
+      values: jest
+        .fn()
+        .mockImplementation(
+          async (val: {
+            id: string;
+            technicianId: string;
+            name: string;
+            issuedDate: string | Date;
+            expiryDate: string | Date;
+            isVerified?: boolean;
+          }) => {
+            const record: CertRecord = {
+              id: val.id,
+              technicianId: val.technicianId,
+              name: val.name,
+              issuedDate:
+                val.issuedDate instanceof Date ? val.issuedDate : new Date(val.issuedDate),
+              expiryDate:
+                val.expiryDate instanceof Date ? val.expiryDate : new Date(val.expiryDate),
+              isVerified: Boolean(val.isVerified)
+            };
+            certStore.push(record);
+            return [record];
+          }
+        )
+    })),
+    update: jest.fn().mockImplementation(() => ({
+      set: jest.fn().mockImplementation((setValues: Partial<CertRecord>) => ({
+        where: jest.fn().mockImplementation(async (condition: unknown) => {
+          const eqParsed = extractEq(condition);
+          if (eqParsed && eqParsed.col === 'id') {
+            const target = certStore.find((c) => c.id === eqParsed.val);
+            if (target) {
+              Object.assign(target, setValues);
+              return [target];
+            }
+          }
+          return [];
+        })
+      }))
+    }))
+  };
+}
+
+describe('CertificationsService', () => {
+  let moduleRef: TestingModule;
+  let certifications: CertificationsService;
+  let mockDb: ReturnType<typeof createMockDb>;
+
+  const defaultKnownCerts: CertRecord[] = [
+    {
+      id: 'b0000000-0000-0000-0000-000000000001',
+      technicianId: KNOWN_TECH,
+      name: 'Cisco CCNA',
+      issuedDate: new Date('2023-01-15'),
+      expiryDate: new Date('2026-01-15'),
+      isVerified: true
+    },
+    {
+      id: 'b0000000-0000-0000-0000-000000000002',
+      technicianId: KNOWN_TECH,
+      name: 'Background Checked',
+      issuedDate: new Date('2024-06-01'),
+      expiryDate: new Date('2025-06-01'),
+      isVerified: true
+    }
+  ];
+
+  beforeEach(async () => {
+    mockDb = createMockDb(defaultKnownCerts);
+
+    moduleRef = await Test.createTestingModule({
+      providers: [
+        CertificationsService,
+        {
+          provide: DRIZZLE,
+          useValue: mockDb as unknown as DrizzleClient
+        }
+      ]
+    }).compile();
+
+    certifications = moduleRef.get<CertificationsService>(CertificationsService);
   });
 
   it('returns an empty list for a technician it has never seen', async () => {
-    // Not undefined and not a throw: a caller that has to distinguish "no
-    // record" from "no badges" will eventually get it wrong in the direction
-    // that grants access.
     await expect(certifications.getTechnicianBadges('nobody')).resolves.toEqual([]);
   });
 
@@ -39,8 +174,6 @@ describe('CertificationsService', () => {
   });
 
   it('marks verification explicitly rather than by omission', async () => {
-    // `isVerified` decides whether a badge counts toward eligibility, so it has
-    // to be a real boolean on every record, not an absent field read as falsy.
     for (const badge of await certifications.getTechnicianBadges(KNOWN_TECH)) {
       expect(typeof badge.isVerified).toBe('boolean');
     }
@@ -57,15 +190,12 @@ describe('CertificationsService', () => {
     const first = await certifications.getTechnicianBadges(KNOWN_TECH);
     first.pop();
 
-    // A shared array handed out by reference is a background check one caller
-    // can delete for everyone. Phase 1's table read makes this structural; the
-    // test states the requirement in the meantime.
     const second = await certifications.getTechnicianBadges(KNOWN_TECH);
     expect(second.length).toBeGreaterThan(first.length);
   });
 
-  it('reads certifications from database when Drizzle client is injected', async () => {
-    const mockDb = {
+  it('reads certifications from database when Drizzle client is injected via TestingModule', async () => {
+    const testDb = {
       select: jest.fn().mockReturnValue({
         from: jest.fn().mockReturnValue({
           where: jest.fn().mockResolvedValue([
@@ -82,9 +212,17 @@ describe('CertificationsService', () => {
       })
     };
 
-    const serviceWithDb = new CertificationsService(
-      mockDb as unknown as import('@fieldforge/common').DrizzleClient
-    );
+    const module = await Test.createTestingModule({
+      providers: [
+        CertificationsService,
+        {
+          provide: DRIZZLE,
+          useValue: testDb as unknown as DrizzleClient
+        }
+      ]
+    }).compile();
+
+    const serviceWithDb = module.get<CertificationsService>(CertificationsService);
     const badges = await serviceWithDb.getTechnicianBadges('t-123');
 
     expect(badges).toHaveLength(1);
@@ -124,6 +262,12 @@ describe('CertificationsService', () => {
     expect(badges[0]?.isVerified).toBe(true);
   });
 
+  it('throws NotFoundException when verifying non-existent certification', async () => {
+    await expect(certifications.verifyCertification('non-existent-cert', true)).rejects.toThrow(
+      NotFoundException
+    );
+  });
+
   it('lists pending certifications', async () => {
     await certifications.addCertification('t-777', {
       name: 'OSHA 10',
@@ -141,7 +285,7 @@ describe('CertificationsService', () => {
   });
 
   it('resolves certifications when queried by userId fallback in getTechnicianBadges', async () => {
-    const mockDb = {
+    const customMockDb = {
       select: jest
         .fn()
         // 1st call: select from technicianCertifications where technicianId = 'u-user-1' -> empty
@@ -175,9 +319,17 @@ describe('CertificationsService', () => {
         })
     };
 
-    const serviceWithDb = new CertificationsService(
-      mockDb as unknown as import('@fieldforge/common').DrizzleClient
-    );
+    const module = await Test.createTestingModule({
+      providers: [
+        CertificationsService,
+        {
+          provide: DRIZZLE,
+          useValue: customMockDb as unknown as DrizzleClient
+        }
+      ]
+    }).compile();
+
+    const serviceWithDb = module.get<CertificationsService>(CertificationsService);
     const badges = await serviceWithDb.getTechnicianBadges('u-user-1');
 
     expect(badges).toHaveLength(1);
@@ -187,7 +339,7 @@ describe('CertificationsService', () => {
   });
 
   it('populates badges and certifications in getTechniciansBatch using profile IDs', async () => {
-    const mockDb = {
+    const customMockDb = {
       select: jest
         .fn()
         // 1st call: select from technicianProfiles innerJoin users where id IN ('tp-1')
@@ -219,9 +371,17 @@ describe('CertificationsService', () => {
         })
     };
 
-    const serviceWithDb = new CertificationsService(
-      mockDb as unknown as import('@fieldforge/common').DrizzleClient
-    );
+    const module = await Test.createTestingModule({
+      providers: [
+        CertificationsService,
+        {
+          provide: DRIZZLE,
+          useValue: customMockDb as unknown as DrizzleClient
+        }
+      ]
+    }).compile();
+
+    const serviceWithDb = module.get<CertificationsService>(CertificationsService);
     const result = await serviceWithDb.getTechniciansBatch(['tp-1']);
 
     expect(result).toHaveLength(1);

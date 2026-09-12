@@ -1252,6 +1252,16 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   8. Added unit test suites for `resolveProfileId` and `resolveProfileIdOrThrow` in `packages/common/test/profile-directory.spec.ts` (10 new tests), `apps/auth-service/test/profiles.service.spec.ts` (3 new tests), and `apps/work-order-service/test/work-order-transition.spec.ts` (2 new tests). Total unit tests increased to 640.
   9. Zero database migrations (`RULE-DB-02`).
 
+### FF-CODE-11 · 🧹 In-Memory Mocks Embedded in Production Service Classes (Code Quality Issue 11)
+
+- **Root Cause**: In `apps/auth-service/src/modules/vetting/certifications.service.ts`, hardcoded mock data fixtures (`private readonly mockCertifications: Record<string, TechnicianBadgeDto[]>`) and conditional `if (this.db) { ... } else return this.mockCertifications` logic were embedded directly inside the production service class. This antipattern treated the database dependency as optional in production code, introducing dead branch complexity and over-engineering. Unit tests historically instantiated the service with `new CertificationsService()` without passing a database client, bypassing the Drizzle repository layer.
+- **Fix**: Purged embedded mock fixtures from production code and required mandatory database injection:
+  1. Removed `mockCertifications` and all `if (this.db)` conditional branches from `CertificationsService` in `apps/auth-service/src/modules/vetting/certifications.service.ts`.
+  2. Made `@Inject(DRIZZLE) private readonly db: DrizzleClient` a mandatory constructor dependency (removed optional fallback).
+  3. Installed `@nestjs/testing` in `apps/auth-service` and updated `apps/auth-service/test/certifications.service.spec.ts` to instantiate `CertificationsService` via `Test.createTestingModule()` with a typed mock database client double providing deterministic repository simulation.
+  4. Added test asserting `NotFoundException` when verifying non-existent certifications. Total unit tests in `auth-service` increased to 77 (+1 test, 641 total across the monorepo).
+  5. Zero database migrations (`RULE-DB-02`).
+
 ---
 
 ## Suggested remediation order

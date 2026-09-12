@@ -27,6 +27,7 @@
     "@fieldforge/jest-config": "workspace:*",
     "@fieldforge/tsconfig": "workspace:*",
     "@nestjs/cli": "^12.0.0",
+    "@nestjs/testing": "^12.0.1",
     "@types/bcrypt": "^6.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^26.4.0",

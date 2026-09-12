@@ -14,112 +14,85 @@ export type TechnicianBadge = TechnicianBadgeDto;
 
 @Injectable()
 export class CertificationsService {
-  private readonly mockCertifications: Record<string, TechnicianBadgeDto[]> = {
-    't0000000-0000-0000-0000-000000000001': [
-      {
-        badgeId: 'badge-01',
-        technicianId: 't0000000-0000-0000-0000-000000000001',
-        name: 'Cisco CCNA',
-        issuedDate: '2025-01-15',
-        expiryDate: '2028-01-15',
-        isVerified: true
-      },
-      {
-        badgeId: 'badge-02',
-        technicianId: 't0000000-0000-0000-0000-000000000001',
-        name: 'Background Checked',
-        issuedDate: '2026-02-01',
-        expiryDate: '2027-02-01',
-        isVerified: true
-      }
-    ]
-  };
-
   constructor(
-    @Optional() @Inject(DRIZZLE) private readonly db?: DrizzleClient,
+    @Inject(DRIZZLE) private readonly db: DrizzleClient,
     @Optional() private readonly profilesService?: ProfilesService
   ) {}
 
   /**
-   * Reads stored certifications from `technician_certifications` when DB is
-   * available, seamlessly resolving technicianProfileId or userId.
+   * Reads stored certifications from `technician_certifications`,
+   * seamlessly resolving technicianProfileId or userId.
    */
   async getTechnicianBadges(technicianIdOrUserId: string): Promise<TechnicianBadgeDto[]> {
-    if (this.db) {
-      let rows = await this.db
-        .select()
-        .from(technicianCertifications)
-        .where(eq(technicianCertifications.technicianId, technicianIdOrUserId));
+    let rows = await this.db
+      .select()
+      .from(technicianCertifications)
+      .where(eq(technicianCertifications.technicianId, technicianIdOrUserId));
 
-      if (rows.length === 0) {
-        // Fallback 1: If technicianIdOrUserId is actually a userId rather than technicianProfileId
-        let resolvedProfileId: string | undefined;
-        if (this.profilesService) {
-          resolvedProfileId = await this.profilesService.resolveProfileId(
-            technicianIdOrUserId,
-            'TECHNICIAN'
-          );
-        } else {
-          const profilesByUser = await this.db
-            .select({ id: technicianProfiles.id })
-            .from(technicianProfiles)
-            .where(eq(technicianProfiles.userId, technicianIdOrUserId))
-            .limit(1);
-          resolvedProfileId = profilesByUser[0]?.id;
-        }
-
-        if (resolvedProfileId) {
-          rows = await this.db
-            .select()
-            .from(technicianCertifications)
-            .where(eq(technicianCertifications.technicianId, resolvedProfileId));
-        }
+    if (rows.length === 0) {
+      // Fallback 1: If technicianIdOrUserId is actually a userId rather than technicianProfileId
+      let resolvedProfileId: string | undefined;
+      if (this.profilesService) {
+        resolvedProfileId = await this.profilesService.resolveProfileId(
+          technicianIdOrUserId,
+          'TECHNICIAN'
+        );
+      } else {
+        const profilesByUser = await this.db
+          .select({ id: technicianProfiles.id })
+          .from(technicianProfiles)
+          .where(eq(technicianProfiles.userId, technicianIdOrUserId))
+          .limit(1);
+        resolvedProfileId = profilesByUser[0]?.id;
       }
 
-      if (rows.length === 0) {
-        // Fallback 2: If technicianIdOrUserId is a profileId but rows held legacy userId
-        let resolvedUserId: string | undefined;
-        if (this.profilesService) {
-          resolvedUserId = await this.profilesService.resolveUserIdByProfileId(
-            technicianIdOrUserId,
-            'TECHNICIAN'
-          );
-        } else {
-          const profilesById = await this.db
-            .select({ userId: technicianProfiles.userId })
-            .from(technicianProfiles)
-            .where(eq(technicianProfiles.id, technicianIdOrUserId))
-            .limit(1);
-          resolvedUserId = profilesById[0]?.userId;
-        }
-
-        if (resolvedUserId) {
-          rows = await this.db
-            .select()
-            .from(technicianCertifications)
-            .where(eq(technicianCertifications.technicianId, resolvedUserId));
-        }
-      }
-
-      if (rows.length > 0) {
-        return rows.map((row) => ({
-          badgeId: row.id,
-          technicianId: row.technicianId,
-          name: row.name,
-          issuedDate:
-            row.issuedDate instanceof Date
-              ? row.issuedDate.toISOString().split('T')[0]!
-              : String(row.issuedDate),
-          expiryDate:
-            row.expiryDate instanceof Date
-              ? row.expiryDate.toISOString().split('T')[0]!
-              : String(row.expiryDate),
-          isVerified: Boolean(row.isVerified)
-        }));
+      if (resolvedProfileId) {
+        rows = await this.db
+          .select()
+          .from(technicianCertifications)
+          .where(eq(technicianCertifications.technicianId, resolvedProfileId));
       }
     }
 
-    return (this.mockCertifications[technicianIdOrUserId] ?? []).map((badge) => ({ ...badge }));
+    if (rows.length === 0) {
+      // Fallback 2: If technicianIdOrUserId is a profileId but rows held legacy userId
+      let resolvedUserId: string | undefined;
+      if (this.profilesService) {
+        resolvedUserId = await this.profilesService.resolveUserIdByProfileId(
+          technicianIdOrUserId,
+          'TECHNICIAN'
+        );
+      } else {
+        const profilesById = await this.db
+          .select({ userId: technicianProfiles.userId })
+          .from(technicianProfiles)
+          .where(eq(technicianProfiles.id, technicianIdOrUserId))
+          .limit(1);
+        resolvedUserId = profilesById[0]?.userId;
+      }
+
+      if (resolvedUserId) {
+        rows = await this.db
+          .select()
+          .from(technicianCertifications)
+          .where(eq(technicianCertifications.technicianId, resolvedUserId));
+      }
+    }
+
+    return rows.map((row) => ({
+      badgeId: row.id,
+      technicianId: row.technicianId,
+      name: row.name,
+      issuedDate:
+        row.issuedDate instanceof Date
+          ? row.issuedDate.toISOString().split('T')[0]!
+          : String(row.issuedDate),
+      expiryDate:
+        row.expiryDate instanceof Date
+          ? row.expiryDate.toISOString().split('T')[0]!
+          : String(row.expiryDate),
+      isVerified: Boolean(row.isVerified)
+    }));
   }
 
   /**
@@ -133,27 +106,14 @@ export class CertificationsService {
     const issuedDate = new Date(dto.issuedDate);
     const expiryDate = new Date(dto.expiryDate);
 
-    if (this.db) {
-      await this.db.insert(technicianCertifications).values({
-        id: certId,
-        technicianId,
-        name: dto.name,
-        issuedDate,
-        expiryDate,
-        isVerified: false
-      });
-    } else {
-      const existing = this.mockCertifications[technicianId] ?? [];
-      existing.push({
-        badgeId: certId,
-        technicianId,
-        name: dto.name,
-        issuedDate: dto.issuedDate,
-        expiryDate: dto.expiryDate,
-        isVerified: false
-      });
-      this.mockCertifications[technicianId] = existing;
-    }
+    await this.db.insert(technicianCertifications).values({
+      id: certId,
+      technicianId,
+      name: dto.name,
+      issuedDate,
+      expiryDate,
+      isVerified: false
+    });
 
     return {
       badgeId: certId,
@@ -169,86 +129,61 @@ export class CertificationsService {
    * Verifies or rejects a technician certification (admin / dispatcher vetting).
    */
   async verifyCertification(certId: string, isVerified: boolean): Promise<TechnicianBadgeDto> {
-    if (this.db) {
-      const rows = await this.db
-        .select()
-        .from(technicianCertifications)
-        .where(eq(technicianCertifications.id, certId))
-        .limit(1);
+    const rows = await this.db
+      .select()
+      .from(technicianCertifications)
+      .where(eq(technicianCertifications.id, certId))
+      .limit(1);
 
-      if (rows.length === 0 || !rows[0]) {
-        throw new NotFoundException(`Certification with ID ${certId} not found`);
-      }
-
-      await this.db
-        .update(technicianCertifications)
-        .set({ isVerified })
-        .where(eq(technicianCertifications.id, certId));
-
-      const row = rows[0];
-      return {
-        badgeId: row.id,
-        technicianId: row.technicianId,
-        name: row.name,
-        issuedDate:
-          row.issuedDate instanceof Date
-            ? row.issuedDate.toISOString().split('T')[0]!
-            : String(row.issuedDate),
-        expiryDate:
-          row.expiryDate instanceof Date
-            ? row.expiryDate.toISOString().split('T')[0]!
-            : String(row.expiryDate),
-        isVerified
-      };
+    if (rows.length === 0 || !rows[0]) {
+      throw new NotFoundException(`Certification with ID ${certId} not found`);
     }
 
-    // Mock fallback
-    for (const badges of Object.values(this.mockCertifications)) {
-      const badge = badges.find((b) => b.badgeId === certId);
-      if (badge) {
-        badge.isVerified = isVerified;
-        return { ...badge };
-      }
-    }
+    await this.db
+      .update(technicianCertifications)
+      .set({ isVerified })
+      .where(eq(technicianCertifications.id, certId));
 
-    throw new NotFoundException(`Certification with ID ${certId} not found`);
+    const row = rows[0];
+    return {
+      badgeId: row.id,
+      technicianId: row.technicianId,
+      name: row.name,
+      issuedDate:
+        row.issuedDate instanceof Date
+          ? row.issuedDate.toISOString().split('T')[0]!
+          : String(row.issuedDate),
+      expiryDate:
+        row.expiryDate instanceof Date
+          ? row.expiryDate.toISOString().split('T')[0]!
+          : String(row.expiryDate),
+      isVerified
+    };
   }
 
   /**
    * Lists all pending certifications awaiting vetting sign-off.
    */
   async listPendingCertifications(): Promise<TechnicianBadgeDto[]> {
-    if (this.db) {
-      const rows = await this.db
-        .select()
-        .from(technicianCertifications)
-        .where(eq(technicianCertifications.isVerified, false));
+    const rows = await this.db
+      .select()
+      .from(technicianCertifications)
+      .where(eq(technicianCertifications.isVerified, false));
 
-      return rows.map((row) => ({
-        badgeId: row.id,
-        technicianId: row.technicianId,
-        name: row.name,
-        issuedDate:
-          row.issuedDate instanceof Date
-            ? row.issuedDate.toISOString().split('T')[0]!
-            : String(row.issuedDate),
-        expiryDate:
-          row.expiryDate instanceof Date
-            ? row.expiryDate.toISOString().split('T')[0]!
-            : String(row.expiryDate),
-        isVerified: false
-      }));
-    }
-
-    const pending: TechnicianBadgeDto[] = [];
-    for (const badges of Object.values(this.mockCertifications)) {
-      for (const badge of badges) {
-        if (!badge.isVerified) {
-          pending.push({ ...badge });
-        }
-      }
-    }
-    return pending;
+    return rows.map((row) => ({
+      badgeId: row.id,
+      technicianId: row.technicianId,
+      name: row.name,
+      issuedDate:
+        row.issuedDate instanceof Date
+          ? row.issuedDate.toISOString().split('T')[0]!
+          : String(row.issuedDate),
+      expiryDate:
+        row.expiryDate instanceof Date
+          ? row.expiryDate.toISOString().split('T')[0]!
+          : String(row.expiryDate),
+      isVerified: false
+    }));
   }
 
   /**
@@ -260,59 +195,45 @@ export class CertificationsService {
       return [];
     }
 
-    if (this.db) {
-      const profiles = await this.db
-        .select({
-          id: technicianProfiles.id,
-          firstName: technicianProfiles.firstName,
-          lastName: technicianProfiles.lastName,
-          ratingAverage: technicianProfiles.ratingAverage,
-          jobsCompleted: technicianProfiles.jobsCompleted,
-          hourlyRate: technicianProfiles.hourlyRate,
-          userStatus: users.status
-        })
-        .from(technicianProfiles)
-        .innerJoin(users, eq(technicianProfiles.userId, users.id))
-        .where(inArray(technicianProfiles.id, ids));
+    const profiles = await this.db
+      .select({
+        id: technicianProfiles.id,
+        firstName: technicianProfiles.firstName,
+        lastName: technicianProfiles.lastName,
+        ratingAverage: technicianProfiles.ratingAverage,
+        jobsCompleted: technicianProfiles.jobsCompleted,
+        hourlyRate: technicianProfiles.hourlyRate,
+        userStatus: users.status
+      })
+      .from(technicianProfiles)
+      .innerJoin(users, eq(technicianProfiles.userId, users.id))
+      .where(inArray(technicianProfiles.id, ids));
 
-      const certs = await this.db
-        .select({
-          technicianId: technicianCertifications.technicianId,
-          badgeName: technicianCertifications.name
-        })
-        .from(technicianCertifications)
-        .where(inArray(technicianCertifications.technicianId, ids));
+    const certs = await this.db
+      .select({
+        technicianId: technicianCertifications.technicianId,
+        badgeName: technicianCertifications.name
+      })
+      .from(technicianCertifications)
+      .where(inArray(technicianCertifications.technicianId, ids));
 
-      const certMap = new Map<string, string[]>();
-      for (const c of certs) {
-        const existing = certMap.get(c.technicianId) || [];
-        existing.push(c.badgeName);
-        certMap.set(c.technicianId, existing);
-      }
-
-      return profiles.map((p) => ({
-        id: p.id,
-        firstName: p.firstName,
-        lastName: p.lastName,
-        ratingAverage: p.ratingAverage,
-        jobsCompleted: p.jobsCompleted,
-        hourlyRate: p.hourlyRate,
-        userStatus: p.userStatus || 'ACTIVE',
-        badges: certMap.get(p.id) || [],
-        certifications: certMap.get(p.id) || []
-      }));
+    const certMap = new Map<string, string[]>();
+    for (const c of certs) {
+      const existing = certMap.get(c.technicianId) || [];
+      existing.push(c.badgeName);
+      certMap.set(c.technicianId, existing);
     }
 
-    return ids.map((id) => ({
-      id,
-      firstName: 'Mock',
-      lastName: 'Technician',
-      ratingAverage: '5.00',
-      jobsCompleted: 10,
-      hourlyRate: '50.00',
-      userStatus: 'ACTIVE',
-      badges: (this.mockCertifications[id] || []).map((b) => b.name),
-      certifications: (this.mockCertifications[id] || []).map((b) => b.name)
+    return profiles.map((p) => ({
+      id: p.id,
+      firstName: p.firstName,
+      lastName: p.lastName,
+      ratingAverage: p.ratingAverage,
+      jobsCompleted: p.jobsCompleted,
+      hourlyRate: p.hourlyRate,
+      userStatus: p.userStatus || 'ACTIVE',
+      badges: certMap.get(p.id) || [],
+      certifications: certMap.get(p.id) || []
     }));
   }
 }
