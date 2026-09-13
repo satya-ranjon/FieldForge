@@ -1310,6 +1310,43 @@ Removed embedded in-memory mock data fixtures and conditional fallback logic fro
 
 ---
 
+## Phase 33 — Eliminate Defensive Duck-Typing and Fix Unit Test Mocks
+
+**Size: S · Dependencies: Phase 32.** Resolves **FF-CODE-12** (Code Quality Issue 12).
+
+Eliminated defensive duck-typing checks (`query && typeof query.from === 'function'`) and silent error-suppression `try/catch` blocks from `ProfilesService` in `apps/auth-service`, restoring direct, idiomatic Drizzle query builder chaining and upgrading unit test doubles in `apps/auth-service/test/profiles.service.spec.ts` to natively conform to Drizzle ORM's fluent builder interface.
+
+**Deliverables:**
+
+- **Production Service Hardening (`apps/auth-service`).**
+  - Removed all `if (query && typeof query.from === 'function')` defensive checks from `resolveProfileId` and `resolveUserIdByProfileId` in `apps/auth-service/src/modules/profiles/profiles.service.ts`.
+  - Removed empty `try/catch` blocks that silently swallowed runtime database errors as `undefined`.
+  - Replaced with direct, idiomatic Drizzle query execution (`await this.db.select(...).from(...).where(...).limit(1)`).
+- **Unit Testing Refactoring (`apps/auth-service`).**
+  - Implemented `createQueryChain()` and `createMockDb()` in `apps/auth-service/test/profiles.service.spec.ts` returning mock query builders with chainable `.from()`, `.where()`, and `.limit()` methods conforming to Drizzle ORM.
+  - Added unit tests asserting database error propagation in `resolveProfileId` and `resolveUserIdByProfileId`.
+  - Added unit tests asserting fallback user ID resolution when role is omitted or undefined.
+  - Total unit tests in `auth-service` increased to 82 (+5 tests).
+
+**Verification:**
+
+- 646 automated unit/integration tests passing across 15 packages/apps in monorepo (+5 new tests, zero `--passWithNoTests`):
+  - 82 tests in `apps/auth-service` (7 suites, +5 tests).
+  - 58 tests in `apps/dispatch-matching-service` (5 suites).
+  - 33 tests in `apps/billing-service` (5 suites).
+  - 236 tests in `apps/work-order-service` (13 suites).
+  - 59 tests in `@fieldforge/common` (6 suites).
+  - 81 tests in `@fieldforge/contracts` (3 suites).
+  - 21 tests in `@fieldforge/messaging` (5 suites).
+  - 104 tests in `apps/web-buyer-portal` (1 suite).
+  - 44 tests in `apps/api-gateway` (6 suites).
+  - 14 tests in `apps/notification-service` (1 suite).
+  - 21 tests in `@fieldforge/mobile-tech-app` (3 suites).
+- 28 Playwright E2E tests validated (`pnpm test:e2e`). Total verified tests: 674 tests.
+- `pnpm check && pnpm build` pass cleanly.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

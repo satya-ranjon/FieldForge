@@ -57,30 +57,25 @@ export class ProfilesService {
    * Resolves the domain profileId for a user without coupling auth logic to profile tables.
    */
   async resolveProfileId(userId: string, role: string): Promise<string | undefined> {
-    try {
-      const normalizedRole = role?.toUpperCase();
-      if (normalizedRole === 'BUYER') {
-        const query = this.db.select({ id: buyerProfiles.id });
-        if (query && typeof query.from === 'function') {
-          const rows = await query
-            .from(buyerProfiles)
-            .where(eq(buyerProfiles.userId, userId))
-            .limit(1);
-          return rows?.[0]?.id;
-        }
-      } else if (normalizedRole === 'TECHNICIAN') {
-        const query = this.db.select({ id: technicianProfiles.id });
-        if (query && typeof query.from === 'function') {
-          const rows = await query
-            .from(technicianProfiles)
-            .where(eq(technicianProfiles.userId, userId))
-            .limit(1);
-          return rows?.[0]?.id;
-        }
-      }
-    } catch {
-      // Mock DB in unit tests without full table configurations
+    const normalizedRole = role?.toUpperCase();
+    if (normalizedRole === 'BUYER') {
+      const rows = await this.db
+        .select({ id: buyerProfiles.id })
+        .from(buyerProfiles)
+        .where(eq(buyerProfiles.userId, userId))
+        .limit(1);
+      return rows[0]?.id;
     }
+
+    if (normalizedRole === 'TECHNICIAN') {
+      const rows = await this.db
+        .select({ id: technicianProfiles.id })
+        .from(technicianProfiles)
+        .where(eq(technicianProfiles.userId, userId))
+        .limit(1);
+      return rows[0]?.id;
+    }
+
     return undefined;
   }
 
@@ -88,52 +83,40 @@ export class ProfilesService {
    * Resolves the associated userId for a given profileId without ad-hoc table queries.
    */
   async resolveUserIdByProfileId(profileId: string, role?: string): Promise<string | undefined> {
-    try {
-      const normalizedRole = role?.toUpperCase();
-      if (normalizedRole === 'BUYER') {
-        const query = this.db.select({ userId: buyerProfiles.userId });
-        if (query && typeof query.from === 'function') {
-          const rows = await query
-            .from(buyerProfiles)
-            .where(eq(buyerProfiles.id, profileId))
-            .limit(1);
-          return rows?.[0]?.userId;
-        }
-      } else if (normalizedRole === 'TECHNICIAN') {
-        const query = this.db.select({ userId: technicianProfiles.userId });
-        if (query && typeof query.from === 'function') {
-          const rows = await query
-            .from(technicianProfiles)
-            .where(eq(technicianProfiles.id, profileId))
-            .limit(1);
-          return rows?.[0]?.userId;
-        }
-      } else {
-        const techQuery = this.db.select({ userId: technicianProfiles.userId });
-        if (techQuery && typeof techQuery.from === 'function') {
-          const rows = await techQuery
-            .from(technicianProfiles)
-            .where(eq(technicianProfiles.id, profileId))
-            .limit(1);
-          if (rows?.[0]?.userId) {
-            return rows[0].userId;
-          }
-        }
-        const buyerQuery = this.db.select({ userId: buyerProfiles.userId });
-        if (buyerQuery && typeof buyerQuery.from === 'function') {
-          const rows = await buyerQuery
-            .from(buyerProfiles)
-            .where(eq(buyerProfiles.id, profileId))
-            .limit(1);
-          if (rows?.[0]?.userId) {
-            return rows[0].userId;
-          }
-        }
-      }
-    } catch {
-      // Mock DB in unit tests without full table configurations
+    const normalizedRole = role?.toUpperCase();
+    if (normalizedRole === 'BUYER') {
+      const rows = await this.db
+        .select({ userId: buyerProfiles.userId })
+        .from(buyerProfiles)
+        .where(eq(buyerProfiles.id, profileId))
+        .limit(1);
+      return rows[0]?.userId;
     }
-    return undefined;
+
+    if (normalizedRole === 'TECHNICIAN') {
+      const rows = await this.db
+        .select({ userId: technicianProfiles.userId })
+        .from(technicianProfiles)
+        .where(eq(technicianProfiles.id, profileId))
+        .limit(1);
+      return rows[0]?.userId;
+    }
+
+    const techRows = await this.db
+      .select({ userId: technicianProfiles.userId })
+      .from(technicianProfiles)
+      .where(eq(technicianProfiles.id, profileId))
+      .limit(1);
+    if (techRows[0]?.userId) {
+      return techRows[0].userId;
+    }
+
+    const buyerRows = await this.db
+      .select({ userId: buyerProfiles.userId })
+      .from(buyerProfiles)
+      .where(eq(buyerProfiles.id, profileId))
+      .limit(1);
+    return buyerRows[0]?.userId;
   }
 
   /**

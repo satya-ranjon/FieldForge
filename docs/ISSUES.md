@@ -1262,6 +1262,17 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   4. Added test asserting `NotFoundException` when verifying non-existent certifications. Total unit tests in `auth-service` increased to 77 (+1 test, 641 total across the monorepo).
   5. Zero database migrations (`RULE-DB-02`).
 
+### FF-CODE-12 · 🧹 Defensive Duck-Typing to Mask Incomplete Test Mocks (Code Quality Issue 12)
+
+- **Root Cause**: In `apps/auth-service/src/modules/profiles/profiles.service.ts`, production domain methods `resolveProfileId` and `resolveUserIdByProfileId` employed defensive duck-typing checks (`if (query && typeof query.from === 'function')`) and empty `try { ... } catch { // Mock DB in unit tests without full table configurations }` blocks. This violated KISS principles and constituted a code smell: production business logic was defensively distorted and suppressed real runtime database errors solely to accommodate incomplete mock objects in unit tests. Real query failures (deadlocks, connection drops, transaction aborts) were silently swallowed and returned `undefined`, masquerading as "profile not found".
+- **Fix**: Removed defensive checks and silent error suppression from production code, and upgraded unit test fixtures:
+  1. Removed `if (query && typeof query.from === 'function')` and `try { ... } catch` blocks from `resolveProfileId` and `resolveUserIdByProfileId` in `apps/auth-service/src/modules/profiles/profiles.service.ts`. Queries now execute idiomatic, direct Drizzle query builder chains (`await this.db.select(...).from(...).where(...).limit(1)`).
+  2. Upgraded unit test doubles in `apps/auth-service/test/profiles.service.spec.ts` with `createQueryChain()` and `createMockDb()`, providing mock query builders that natively adhere to Drizzle ORM's fluent builder interface (`.select().from().where().limit()`).
+  3. Added unit tests verifying real database runtime error propagation in `resolveProfileId` and `resolveUserIdByProfileId`.
+  4. Added unit tests for role-omitted fallback lookups in `resolveUserIdByProfileId` (technician hit, buyer fallback hit, neither found).
+  5. Total unit tests in `auth-service` increased to 82 (+5 tests, 646 total across the monorepo).
+  6. Zero database migrations (`RULE-DB-02`).
+
 ---
 
 ## Suggested remediation order
