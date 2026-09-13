@@ -111,7 +111,8 @@ describe('EscrowService', () => {
         workOrderId: WORK_ORDER_ID,
         buyerId: BUYER_ID,
         amountMinor: 45000,
-        paymentMethodId: 'pm_card_default'
+        paymentMethodId: 'pm_card_default',
+        idempotencyKey: `escrow-capture:${WORK_ORDER_ID}`
       });
       expect(mockProducer.publish).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -138,6 +139,105 @@ describe('EscrowService', () => {
 
       await expect(
         escrow.lockFunds(WORK_ORDER_ID, BUYER_ID, 45000, CORRELATION_ID)
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('forwards caller-supplied idempotencyKey directly to paymentProvider.captureEscrow with prefix', async () => {
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            limit: () => Promise.resolve([]) // idempotency check: no existing key
+          })
+        })
+      });
+
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            limit: () => Promise.resolve([]) // escrow check: no existing escrow
+          })
+        })
+      });
+
+      const customKey = 'req-buyer-preauth-999';
+      await escrow.lockFunds(
+        WORK_ORDER_ID,
+        BUYER_ID,
+        45000,
+        CORRELATION_ID,
+        'pm_card_visa',
+        customKey
+      );
+
+      expect(mockPaymentProvider.captureEscrow).toHaveBeenCalledWith({
+        workOrderId: WORK_ORDER_ID,
+        buyerId: BUYER_ID,
+        amountMinor: 45000,
+        paymentMethodId: 'pm_card_visa',
+        idempotencyKey: `escrow-capture:${customKey}`
+      });
+    });
+
+    it('returns cached result when preauth idempotencyKey is already COMPLETED', async () => {
+      const cached = {
+        escrowId: 'escrow-cached-1',
+        workOrderId: WORK_ORDER_ID,
+        amountLockedMinor: 45000,
+        status: EscrowStatus.HELD
+      };
+
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            limit: () =>
+              Promise.resolve([
+                {
+                  key: 'preauth-completed-key',
+                  status: 'COMPLETED',
+                  responsePayload: cached
+                }
+              ])
+          })
+        })
+      });
+
+      const res = await escrow.lockFunds(
+        WORK_ORDER_ID,
+        BUYER_ID,
+        45000,
+        CORRELATION_ID,
+        'pm_card_default',
+        'preauth-completed-key'
+      );
+
+      expect(res).toEqual(cached);
+      expect(mockPaymentProvider.captureEscrow).not.toHaveBeenCalled();
+    });
+
+    it('throws ConflictException when preauth idempotencyKey is IN_PROGRESS', async () => {
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            limit: () =>
+              Promise.resolve([
+                {
+                  key: 'preauth-in-progress-key',
+                  status: 'IN_PROGRESS'
+                }
+              ])
+          })
+        })
+      });
+
+      await expect(
+        escrow.lockFunds(
+          WORK_ORDER_ID,
+          BUYER_ID,
+          45000,
+          CORRELATION_ID,
+          'pm_card_default',
+          'preauth-in-progress-key'
+        )
       ).rejects.toThrow(ConflictException);
     });
   });
@@ -364,7 +464,8 @@ describe('EscrowService', () => {
       expect(mockPaymentProvider.disbursePayout).toHaveBeenCalledWith({
         workOrderId: WORK_ORDER_ID,
         technicianId: TECH_ID,
-        amountMinor: 45000
+        amountMinor: 45000,
+        idempotencyKey: `escrow-payout:${WORK_ORDER_ID}`
       });
 
       // Assert invoice generated
@@ -464,7 +565,8 @@ describe('EscrowService', () => {
       expect(mockPaymentProvider.disbursePayout).toHaveBeenCalledWith({
         workOrderId: WORK_ORDER_ID,
         technicianId: TECH_ID,
-        amountMinor: 35000
+        amountMinor: 35000,
+        idempotencyKey: `escrow-payout:${WORK_ORDER_ID}`
       });
 
       // Verify buyer received automatic refund of the $150.00 unused remainder (15000 minor)
@@ -472,7 +574,8 @@ describe('EscrowService', () => {
         workOrderId: WORK_ORDER_ID,
         buyerId: 'owner-buyer-profile-id',
         amountMinor: 15000,
-        reason: expect.stringContaining('Unused escrow balance refunded')
+        reason: expect.stringContaining('Unused escrow balance refunded'),
+        idempotencyKey: `escrow-remainder-refund:${WORK_ORDER_ID}`
       });
 
       // Verify invoice generated for agreed payout amount
@@ -602,13 +705,15 @@ describe('EscrowService', () => {
       expect(mockPaymentProvider.disbursePayout).toHaveBeenCalledWith({
         workOrderId: WORK_ORDER_ID,
         technicianId: TECH_ID,
-        amountMinor: 35000
+        amountMinor: 35000,
+        idempotencyKey: `escrow-payout:${WORK_ORDER_ID}`
       });
       expect(mockPaymentProvider.refundEscrow).toHaveBeenCalledWith({
         workOrderId: WORK_ORDER_ID,
         buyerId: 'owner-buyer-profile-id',
         amountMinor: 15000,
-        reason: expect.stringContaining('Unused escrow balance refunded')
+        reason: expect.stringContaining('Unused escrow balance refunded'),
+        idempotencyKey: `escrow-remainder-refund:${WORK_ORDER_ID}`
       });
     });
   });
@@ -702,6 +807,280 @@ describe('EscrowService', () => {
       expect(earnings.payouts[0].amountMinor).toBe(10);
       expect(earnings.payouts[1].amountMinor).toBe(20);
       expect(earnings.payouts[2].amountMinor).toBe(5);
+    });
+  });
+
+  describe('refundEscrow', () => {
+    it('refunds HELD escrow account, updates status to REFUNDED, and calls payment provider', async () => {
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            for: () =>
+              Promise.resolve([
+                {
+                  id: 'escrow-held-1',
+                  workOrderId: WORK_ORDER_ID,
+                  amountLocked: '450.00',
+                  status: 'HELD'
+                }
+              ])
+          })
+        })
+      });
+
+      const result = await escrow.refundEscrow({
+        workOrderId: WORK_ORDER_ID,
+        buyerId: BUYER_ID,
+        reason: 'Work order cancelled by buyer',
+        correlationId: CORRELATION_ID
+      });
+
+      expect(result).not.toBeNull();
+      expect(result!.escrowId).toBe('escrow-held-1');
+      expect(result!.workOrderId).toBe(WORK_ORDER_ID);
+      expect(result!.refundedAmountMinor).toBe(45000);
+      expect(result!.status).toBe(EscrowStatus.REFUNDED);
+
+      expect(mockPaymentProvider.refundEscrow).toHaveBeenCalledWith({
+        workOrderId: WORK_ORDER_ID,
+        buyerId: BUYER_ID,
+        amountMinor: 45000,
+        reason: 'Work order cancelled by buyer',
+        idempotencyKey: `escrow-refund:${WORK_ORDER_ID}`
+      });
+
+      expect(mockTx.update).toHaveBeenCalled();
+    });
+
+    it('returns null and does not throw if no escrow account exists (e.g. cancelled in DRAFT)', async () => {
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            for: () => Promise.resolve([])
+          })
+        })
+      });
+
+      const result = await escrow.refundEscrow({
+        workOrderId: WORK_ORDER_ID,
+        buyerId: BUYER_ID,
+        correlationId: CORRELATION_ID
+      });
+
+      expect(result).toBeNull();
+      expect(mockPaymentProvider.refundEscrow).not.toHaveBeenCalled();
+    });
+
+    it('returns existing refund result as idempotent no-op if escrow is already REFUNDED', async () => {
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            for: () =>
+              Promise.resolve([
+                {
+                  id: 'escrow-refunded-1',
+                  workOrderId: WORK_ORDER_ID,
+                  amountLocked: '450.00',
+                  status: 'REFUNDED'
+                }
+              ])
+          })
+        })
+      });
+
+      const result = await escrow.refundEscrow({
+        workOrderId: WORK_ORDER_ID,
+        buyerId: BUYER_ID,
+        correlationId: CORRELATION_ID
+      });
+
+      expect(result).not.toBeNull();
+      expect(result!.status).toBe(EscrowStatus.REFUNDED);
+      expect(result!.refundedAmountMinor).toBe(45000);
+      expect(mockPaymentProvider.refundEscrow).not.toHaveBeenCalled();
+    });
+
+    it('skips refund and logs warning if escrow is already RELEASED', async () => {
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            for: () =>
+              Promise.resolve([
+                {
+                  id: 'escrow-released-1',
+                  workOrderId: WORK_ORDER_ID,
+                  amountLocked: '450.00',
+                  status: 'RELEASED'
+                }
+              ])
+          })
+        })
+      });
+
+      const result = await escrow.refundEscrow({
+        workOrderId: WORK_ORDER_ID,
+        buyerId: BUYER_ID,
+        correlationId: CORRELATION_ID
+      });
+
+      expect(result).toBeNull();
+      expect(mockPaymentProvider.refundEscrow).not.toHaveBeenCalled();
+    });
+
+    it('skips refund and logs warning if escrow is in DISPUTED status', async () => {
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            for: () =>
+              Promise.resolve([
+                {
+                  id: 'escrow-disputed-1',
+                  workOrderId: WORK_ORDER_ID,
+                  amountLocked: '450.00',
+                  status: 'DISPUTED'
+                }
+              ])
+          })
+        })
+      });
+
+      const result = await escrow.refundEscrow({
+        workOrderId: WORK_ORDER_ID,
+        buyerId: BUYER_ID,
+        correlationId: CORRELATION_ID
+      });
+
+      expect(result).toBeNull();
+      expect(mockPaymentProvider.refundEscrow).not.toHaveBeenCalled();
+    });
+
+    it('returns cached response when idempotency key is COMPLETED', async () => {
+      const cachedResult = {
+        escrowId: 'escrow-1',
+        workOrderId: WORK_ORDER_ID,
+        refundedAmountMinor: 45000,
+        status: EscrowStatus.REFUNDED
+      };
+
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            limit: () =>
+              Promise.resolve([
+                {
+                  key: 'idempotent-refund-1',
+                  status: 'COMPLETED',
+                  responsePayload: cachedResult
+                }
+              ])
+          })
+        })
+      });
+
+      const result = await escrow.refundEscrow({
+        workOrderId: WORK_ORDER_ID,
+        buyerId: BUYER_ID,
+        idempotencyKey: 'idempotent-refund-1'
+      });
+
+      expect(result).toEqual(cachedResult);
+      expect(mockPaymentProvider.refundEscrow).not.toHaveBeenCalled();
+    });
+
+    it('throws ConflictException when idempotency key is IN_PROGRESS', async () => {
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            limit: () =>
+              Promise.resolve([
+                {
+                  key: 'idempotent-refund-2',
+                  status: 'IN_PROGRESS'
+                }
+              ])
+          })
+        })
+      });
+
+      await expect(
+        escrow.refundEscrow({
+          workOrderId: WORK_ORDER_ID,
+          buyerId: BUYER_ID,
+          idempotencyKey: 'idempotent-refund-2'
+        })
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('rethrows and records failure metric when payment provider refund fails', async () => {
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            for: () =>
+              Promise.resolve([
+                {
+                  id: 'escrow-held-fail',
+                  workOrderId: WORK_ORDER_ID,
+                  amountLocked: '450.00',
+                  status: 'HELD'
+                }
+              ])
+          })
+        })
+      });
+
+      mockPaymentProvider.refundEscrow.mockRejectedValueOnce(
+        new Error('Payment gateway refund failure')
+      );
+
+      await expect(
+        escrow.refundEscrow({
+          workOrderId: WORK_ORDER_ID,
+          buyerId: BUYER_ID,
+          reason: 'Work order cancelled'
+        })
+      ).rejects.toThrow('Payment gateway refund failure');
+    });
+
+    it('propagates caller-supplied idempotencyKey directly to paymentProvider.refundEscrow', async () => {
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            limit: () => [] // idempotency check
+          })
+        })
+      });
+
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            for: () =>
+              Promise.resolve([
+                {
+                  id: 'escrow-held-2',
+                  workOrderId: WORK_ORDER_ID,
+                  amountLocked: '450.00',
+                  status: 'HELD'
+                }
+              ])
+          })
+        })
+      });
+
+      const customKey = 'escrow-refund:custom-evt-uuid-999';
+      await escrow.refundEscrow({
+        workOrderId: WORK_ORDER_ID,
+        buyerId: BUYER_ID,
+        reason: 'Cancellation test',
+        idempotencyKey: customKey
+      });
+
+      expect(mockPaymentProvider.refundEscrow).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workOrderId: WORK_ORDER_ID,
+          buyerId: BUYER_ID,
+          idempotencyKey: customKey
+        })
+      );
     });
   });
 });

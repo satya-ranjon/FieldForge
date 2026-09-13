@@ -4,9 +4,11 @@ import type { IdempotentConsumer, EventPublisher } from '@fieldforge/messaging';
 import {
   EventType,
   EscrowStatus,
+  WorkOrderStatus,
   createEvent,
   type WorkOrderApprovedEvent,
-  type WorkOrderAssignedEvent
+  type WorkOrderAssignedEvent,
+  type WorkOrderCancelledEvent
 } from '@fieldforge/contracts';
 
 describe('BillingConsumer', () => {
@@ -23,6 +25,12 @@ describe('BillingConsumer', () => {
         technicianId: 'tech-1',
         disbursedAmountMinor: 45000,
         status: EscrowStatus.RELEASED
+      }),
+      refundEscrow: jest.fn().mockResolvedValue({
+        escrowId: 'escrow-1',
+        workOrderId: 'wo-1',
+        refundedAmountMinor: 45000,
+        status: EscrowStatus.REFUNDED
       })
     } as unknown as jest.Mocked<EscrowService>;
 
@@ -42,7 +50,7 @@ describe('BillingConsumer', () => {
 
     expect(mockMessagingConsumer.subscribe).toHaveBeenCalledWith(
       BILLING_WORK_ORDERS_QUEUE,
-      [EventType.WORK_ORDER_APPROVED],
+      [EventType.WORK_ORDER_APPROVED, EventType.WORK_ORDER_CANCELLED],
       expect.any(Function)
     );
   });
@@ -159,5 +167,108 @@ describe('BillingConsumer', () => {
     expect(mockLogger.info).toHaveBeenCalledWith(
       expect.stringContaining('assigned to technician tech-1')
     );
+  });
+
+  it('handles WorkOrderCancelled event by invoking escrow refund', async () => {
+    const event: WorkOrderCancelledEvent = createEvent(
+      EventType.WORK_ORDER_CANCELLED,
+      {
+        workOrderId: 'wo-1',
+        buyerId: 'buyer-1',
+        assignedTechnicianId: 'tech-1',
+        reason: 'Client requested cancellation',
+        cancelledBy: 'user-buyer-1',
+        previousStatus: WorkOrderStatus.ASSIGNED
+      },
+      'corr-bill-cancel-1'
+    );
+
+    const mockLogger = { info: jest.fn(), error: jest.fn() };
+
+    await consumer.handleWorkOrderCancelled(event, mockLogger);
+
+    expect(mockEscrowService.refundEscrow).toHaveBeenCalledWith({
+      workOrderId: 'wo-1',
+      buyerId: 'buyer-1',
+      reason: 'Client requested cancellation',
+      correlationId: 'corr-bill-cancel-1',
+      idempotencyKey: `escrow-refund:${event.eventId}`
+    });
+    expect(mockLogger.info).toHaveBeenCalledWith(
+      expect.stringContaining('Processing cancelled work order wo-1 for escrow refund')
+    );
+  });
+
+  it('handles WorkOrderCancelled failure by logging error and rethrowing', async () => {
+    const error = new Error('Database deadlock during refund');
+    mockEscrowService.refundEscrow.mockRejectedValueOnce(error);
+
+    const event: WorkOrderCancelledEvent = createEvent(
+      EventType.WORK_ORDER_CANCELLED,
+      {
+        workOrderId: 'wo-1',
+        buyerId: 'buyer-1',
+        assignedTechnicianId: 'tech-1',
+        reason: 'Client requested cancellation',
+        cancelledBy: 'user-buyer-1',
+        previousStatus: WorkOrderStatus.ASSIGNED
+      },
+      'corr-bill-cancel-fail-1'
+    );
+
+    const mockLogger = { info: jest.fn(), error: jest.fn() };
+
+    await expect(consumer.handleWorkOrderCancelled(event, mockLogger)).rejects.toThrow(
+      'Database deadlock during refund'
+    );
+
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'Escrow refund failed for work order wo-1: Database deadlock during refund'
+      )
+    );
+  });
+
+  it('dispatches incoming subscribed events to handleWorkOrderApproved and handleWorkOrderCancelled', async () => {
+    let capturedHandler: ((event: unknown, logger: unknown) => Promise<void>) | undefined;
+    mockMessagingConsumer.subscribe.mockImplementationOnce(async (_queue, _topics, handler) => {
+      capturedHandler = handler as (event: unknown, logger: unknown) => Promise<void>;
+      return 'tag-1';
+    });
+
+    await consumer.onApplicationBootstrap();
+    expect(capturedHandler).toBeDefined();
+
+    const handleApprovedSpy = jest.spyOn(consumer, 'handleWorkOrderApproved').mockResolvedValue();
+    const handleCancelledSpy = jest.spyOn(consumer, 'handleWorkOrderCancelled').mockResolvedValue();
+
+    const approvedEvent: WorkOrderApprovedEvent = createEvent(
+      EventType.WORK_ORDER_APPROVED,
+      {
+        workOrderId: 'wo-10',
+        buyerId: 'b-10',
+        technicianId: 't-10',
+        payoutAmountMinor: 50000
+      },
+      'corr-10'
+    );
+
+    const cancelledEvent: WorkOrderCancelledEvent = createEvent(
+      EventType.WORK_ORDER_CANCELLED,
+      {
+        workOrderId: 'wo-20',
+        buyerId: 'b-20',
+        cancelledBy: 'u-20',
+        previousStatus: WorkOrderStatus.PUBLISHED
+      },
+      'corr-20'
+    );
+
+    const dummyLogger = { info: jest.fn(), error: jest.fn() };
+    await capturedHandler!(approvedEvent, dummyLogger);
+    expect(handleApprovedSpy).toHaveBeenCalledWith(approvedEvent, dummyLogger);
+
+    await capturedHandler!(cancelledEvent, dummyLogger);
+    expect(handleCancelledSpy).toHaveBeenCalledWith(cancelledEvent, dummyLogger);
   });
 });

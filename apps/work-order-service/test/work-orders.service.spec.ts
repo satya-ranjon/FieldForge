@@ -647,6 +647,37 @@ describe('WorkOrdersService (Persistent, Transactional Lifecycle)', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
+    it('allows owning buyer to cancel work order and publishes WORK_ORDER_CANCELLED event', async () => {
+      const created = await service.create(BUYER_USER_ID, defaultDto);
+      const woId = created.id;
+      await service.publish(woId, BUYER_USER_ID, 'BUYER', CORRELATION_ID);
+
+      const cancelSpy = jest.spyOn(publisher, 'publishWorkOrderCancelled').mockResolvedValue();
+
+      const cancelled = await service.transition(
+        woId,
+        BUYER_USER_ID,
+        'BUYER',
+        { nextStatus: WorkOrderStatus.CANCELLED, reason: 'No longer required' },
+        CORRELATION_ID
+      );
+
+      expect(cancelled.status).toBe(WorkOrderStatus.CANCELLED);
+      expect(cancelSpy).toHaveBeenCalledTimes(1);
+      expect(cancelSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: EventType.WORK_ORDER_CANCELLED,
+          correlationId: CORRELATION_ID,
+          payload: expect.objectContaining({
+            workOrderId: woId,
+            buyerId: BUYER_PROFILE_ID,
+            reason: 'No longer required',
+            previousStatus: WorkOrderStatus.PUBLISHED
+          })
+        })
+      );
+    });
+
     it('rejects unauthorized user trying to dispute work order', async () => {
       const created = await service.create(BUYER_USER_ID, defaultDto);
       const woId = created.id;

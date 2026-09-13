@@ -125,6 +125,8 @@ technician accreditation verification.
   or the 72-hour automatic approval window.
 - **FR-BILL-003 — Invoices and audit:** Produce immutable PDF buyer invoices,
   itemized 1099 payout summaries, and complete audit logs.
+- **FR-BILL-004 — Cancellation refund:** Refund held escrow funds to the buyer
+  upon work-order cancellation with pessimistic row locking and idempotency protection.
 
 ### 3.6 Observability and reliability
 

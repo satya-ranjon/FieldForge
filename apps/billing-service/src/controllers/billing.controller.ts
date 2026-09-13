@@ -71,6 +71,7 @@ export class BillingController {
     @Headers('authorization') authHeader?: string,
     @Headers('x-ff-user-id') gatewayUserId?: string,
     @Headers('x-correlation-id') correlationId?: string,
+    @Headers('idempotency-key') idempotencyKey?: string,
     @Headers('x-ff-profile-id') gatewayProfileId?: string
   ) {
     const user = this.authenticateUser(authHeader, gatewayUserId, gatewayProfileId);
@@ -92,7 +93,8 @@ export class BillingController {
       buyerProfileId,
       parsed.amountMinor,
       correlationId || randomUUID(),
-      parsed.paymentMethodId
+      parsed.paymentMethodId,
+      idempotencyKey
     );
   }
 

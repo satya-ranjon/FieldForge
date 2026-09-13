@@ -4,7 +4,8 @@ import type {
   WorkOrderPublishedEvent,
   WorkOrderAssignedEvent,
   WorkOrderApprovedEvent,
-  WorkOrderPaidEvent
+  WorkOrderPaidEvent,
+  WorkOrderCancelledEvent
 } from '@fieldforge/contracts';
 import { EventPublisher } from '@fieldforge/messaging';
 
@@ -29,6 +30,10 @@ export class WorkOrderEventPublisher {
   }
 
   async publishWorkOrderPaid(event: WorkOrderPaidEvent): Promise<void> {
+    await this.emit(event);
+  }
+
+  async publishWorkOrderCancelled(event: WorkOrderCancelledEvent): Promise<void> {
     await this.emit(event);
   }
 

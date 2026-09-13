@@ -12,12 +12,14 @@ export interface PaymentProviderPort {
     buyerId: string;
     amountMinor: MinorUnits;
     paymentMethodId: string;
+    idempotencyKey: string;
   }): Promise<PaymentResult>;
 
   disbursePayout(params: {
     workOrderId: string;
     technicianId: string;
     amountMinor: MinorUnits;
+    idempotencyKey: string;
   }): Promise<PaymentResult>;
 
   refundEscrow(params: {
@@ -25,6 +27,7 @@ export interface PaymentProviderPort {
     buyerId: string;
     amountMinor: MinorUnits;
     reason?: string;
+    idempotencyKey: string;
   }): Promise<PaymentResult>;
 }
 

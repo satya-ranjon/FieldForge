@@ -101,6 +101,7 @@
 | `work_order.lifecycle.published` | `work_order.lifecycle.published` | `work-order-service` | `fieldforge.notifications.work-orders`    | `notification-service`         | `WorkOrderPublishedPayload`   |
 | `work_order.lifecycle.assigned`  | `work_order.lifecycle.assigned`  | `work-order-service` | `fieldforge.notifications.work-orders`    | `notification-service`         | `WorkOrderAssignedPayload`    |
 | `work_order.lifecycle.approved`  | `work_order.lifecycle.approved`  | `work-order-service` | `fieldforge.billing.work-orders`          | `billing-service`              | `WorkOrderApprovedPayload`    |
+| `work_order.lifecycle.cancelled` | `work_order.lifecycle.cancelled` | `work-order-service` | `fieldforge.billing.work-orders`          | `billing-service`              | `WorkOrderCancelledPayload`   |
 | `work_order.lifecycle.paid`      | `work_order.lifecycle.paid`      | `work-order-service` | `fieldforge.notifications.work-orders`    | `notification-service`         | `WorkOrderPaidPayload`        |
 | `tech.bidding.submitted`         | `tech.bidding.submitted`         | `work-order-service` | `fieldforge.notifications.work-orders`    | `notification-service`         | `TechBiddingSubmittedPayload` |
 | `tech.bidding.accepted`          | `tech.bidding.accepted`          | `work-order-service` | _(Deprecated / Retired)_                  | _(Eliminated; see FF-ARCH-11)_ | `TechBidAcceptedPayload`      |

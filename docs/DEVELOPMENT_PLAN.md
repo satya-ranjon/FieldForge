@@ -1392,6 +1392,78 @@ Eliminated manual floating-point arithmetic (`(amountMinor / 100).toFixed(2)`, `
 
 ---
 
+## Phase 35 — Work Order Cancellation Escrow Refund Path (ISSUE-001)
+
+**Size: S · Dependencies: Phase 34.** Resolves **ISSUE-001** (Work Order Cancellation Traps Escrow in HELD Status Without Refund Path).
+
+Eliminated trapped escrow funds when a work order is cancelled by establishing an end-to-end event-driven refund pipeline with pessimistic database locking, state guards, and multi-layered idempotency.
+
+**Deliverables:**
+
+- **Contracts Package (`@fieldforge/contracts`).**
+  - Added `EventType.WORK_ORDER_CANCELLED = 'work_order.lifecycle.cancelled'` to `EventType` enum in `packages/contracts/src/events/envelope.ts`.
+  - Added `WorkOrderCancelledPayload` and `WorkOrderCancelledEvent` to `packages/contracts/src/events/work-order.events.ts`.
+- **Work Order Service (`apps/work-order-service`).**
+  - Added `publishWorkOrderCancelled(event: WorkOrderCancelledEvent)` to `WorkOrderEventPublisher`.
+  - Implemented `executeCancelledTransition()` in `apps/work-order-service/src/modules/work-orders/work-order-transition.ts` and registered it in `transitionExecutors[WorkOrderStatus.CANCELLED]`, ensuring cancellation transitions update database state, insert status history, and emit `EventType.WORK_ORDER_CANCELLED`.
+- **Billing Service (`apps/billing-service`).**
+  - Subscribed `BillingConsumer` in `apps/billing-service/src/consumers/billing.consumer.ts` to `[EventType.WORK_ORDER_APPROVED, EventType.WORK_ORDER_CANCELLED]`.
+  - Implemented `handleWorkOrderCancelled()` routing to `EscrowService.refundEscrow()`.
+  - Implemented `refundEscrow()` in `apps/billing-service/src/modules/escrow/escrow.service.ts`:
+    - Row-level pessimistic locking (`SELECT ... FOR UPDATE`) on `escrow_accounts`.
+    - Multi-layered idempotency via `idempotency_keys` table (`ESCROW_REFUND`) and Redis consumer deduplication.
+    - Idempotent no-op when no escrow exists (e.g. cancelled while DRAFT before pre-authorization), logging info without throwing 404.
+    - Idempotent no-op when escrow is already `REFUNDED` (does not re-call payment provider).
+    - Safety guard when escrow is `RELEASED` (logs warning, does not refund funds already disbursed).
+    - Transitions `HELD` status to `REFUNDED` and dispatches refund to `PaymentProviderPort.refundEscrow()`. Rolls back database transaction if payment provider fails.
+  - Resolved **`FINDING-ISSUE-001-A`**: Added mandatory `idempotencyKey: string` parameter to `PaymentProviderPort.refundEscrow()`. Implemented in-memory idempotency deduplication with parameter conflict verification in `LedgerPaymentProvider`. Propagated deterministic `escrow-refund:${event.eventId}` throughout the cancellation pipeline and `escrow-remainder-refund:${key}` for unused remainder refunds.
+- **Unit and Integration Test Suites.**
+  - Added unit test in `work-order-event.publisher.spec.ts` verifying `publishWorkOrderCancelled`.
+  - Added unit test in `work-order-transition.spec.ts` verifying `executeCancelledTransition`.
+  - Added integration test in `work-orders.service.spec.ts` verifying cancellation emits `WORK_ORDER_CANCELLED`.
+  - Added unit tests in `billing.consumer.spec.ts` verifying queue subscription and cancellation routing.
+  - Added comprehensive unit test suite in `escrow.service.spec.ts` covering all status branches, idempotency checks, and provider error rollbacks.
+  - Added dedicated unit test suite in `ledger-payment.provider.spec.ts` (6 scenarios) verifying provider idempotency caching, distinct transaction generation, and parameter conflict detection (`ConflictException`).
+
+**Verification:**
+
+- `pnpm check && pnpm build` pass cleanly.
+- All 15 test suites pass across monorepo (+22 new tests across ISSUE-001 remediation, zero `--passWithNoTests`).
+- Total verified tests: 671 unit/integration tests + 28 E2E tests = 699 tests.
+
+---
+
+### Phase 36: Provider-Level Financial Idempotency for Escrow Pre-Authorization and Technician Payout (Resolves FINDING-PAY-001 & FINDING-PAY-002)
+
+**Goal:** Eliminate external double-capture and double-disbursement vulnerabilities by enforcing mandatory provider-level idempotency keys on `PaymentProviderPort.captureEscrow` and `PaymentProviderPort.disbursePayout`, modeling simulated provider deduplication with parameter mismatch protection in `LedgerPaymentProvider`, and wiring deterministic key propagation through `BillingController` and `EscrowService`.
+
+**Deliverables:**
+
+- **Payment Provider Port (`apps/billing-service`).**
+  - Extended `PaymentProviderPort.captureEscrow()` to require `idempotencyKey: string;`.
+  - Extended `PaymentProviderPort.disbursePayout()` to require `idempotencyKey: string;`.
+- **Ledger Payment Provider (`apps/billing-service`).**
+  - Implemented `captureIdempotencyMap` and `payoutIdempotencyMap` in `LedgerPaymentProvider`.
+  - Added parameter mismatch detection throwing `ConflictException` on reused keys with conflicting financial arguments.
+  - Returns cached `PaymentResult` with identical `transactionId` on repeated invocations with identical parameters.
+- **Billing Controller (`apps/billing-service`).**
+  - Updated `BillingController.preAuthEscrow()` to extract `@Headers('idempotency-key') idempotencyKey?: string` and pass it to `EscrowService.lockFunds()`.
+- **Escrow Service (`apps/billing-service`).**
+  - Updated `EscrowService.lockFunds()` to support caller-supplied idempotency keys, record in-progress/completed states in `idempotency_keys` table with scope `ESCROW_CAPTURE`, and pass `escrow-capture:${idempotencyKey || workOrderId}` to `paymentProvider.captureEscrow()`.
+  - Updated `EscrowService.releaseFunds()` to derive deterministic `escrow-payout:${keySuffix}` for technician disbursement and `escrow-remainder-refund:${keySuffix}` for buyer remainder refunds.
+- **Unit and Integration Test Suites.**
+  - Added 11 unit tests in `ledger-payment.provider.spec.ts` covering `captureEscrow` and `disbursePayout` idempotency caching, unique transactions, and conflict detection.
+  - Added 3 unit tests in `escrow.service.spec.ts` covering `lockFunds` idempotency caching, conflict rejection, and provider key derivation.
+  - Added 1 unit test in `billing.controller.spec.ts` asserting `idempotency-key` header extraction and propagation in `preAuthEscrow`.
+
+**Verification:**
+
+- `pnpm check && pnpm build` pass cleanly.
+- All 15 test suites pass across monorepo (+15 new tests, zero `--passWithNoTests`).
+- Total verified tests: 686 unit/integration tests + 28 E2E tests = 714 tests.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

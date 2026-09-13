@@ -46,7 +46,7 @@ export type TransitionExecutionStrategy = (
   fsmService: Pick<WorkOrderFsmService, 'validateTransition'>,
   eventPublisher: Pick<
     WorkOrderEventPublisher,
-    'publishWorkOrderAssigned' | 'publishWorkOrderApproved'
+    'publishWorkOrderAssigned' | 'publishWorkOrderApproved' | 'publishWorkOrderCancelled'
   >
 ) => Promise<TransitionExecutionResult>;
 
@@ -396,7 +396,65 @@ export async function executeApprovedTransition(
 }
 
 /**
- * Default execution strategy for transitions without custom domain events (e.g. EN_ROUTE, ON_SITE, COMPLETED, CANCELLED, DISPUTED):
+ * Execution strategy for CANCELLED transition:
+ * Transitions status to CANCELLED, records status history, and emits WORK_ORDER_CANCELLED event.
+ */
+export async function executeCancelledTransition(
+  ctx: TransitionContext,
+  _fsmService: Pick<WorkOrderFsmService, 'validateTransition'>,
+  eventPublisher: Pick<
+    WorkOrderEventPublisher,
+    'publishWorkOrderAssigned' | 'publishWorkOrderApproved' | 'publishWorkOrderCancelled'
+  >
+): Promise<TransitionExecutionResult> {
+  const { tx, wo, dto, currentStatus, userId, correlationId } = ctx;
+  const now = new Date();
+  const updateData: Partial<typeof workOrders.$inferInsert> = {
+    status: WorkOrderStatus.CANCELLED,
+    updatedAt: now
+  };
+
+  await tx.update(workOrders).set(updateData).where(eq(workOrders.id, wo.id));
+
+  await tx.insert(workOrderStatusHistory).values({
+    id: randomUUID(),
+    workOrderId: wo.id,
+    fromStatus: currentStatus,
+    toStatus: WorkOrderStatus.CANCELLED,
+    changedBy: userId,
+    reason: dto.reason || null,
+    createdAt: now
+  });
+
+  const updatedRow = {
+    ...wo,
+    ...updateData
+  };
+
+  const publishCancelled = async () => {
+    const event = createEvent(
+      EventType.WORK_ORDER_CANCELLED,
+      {
+        workOrderId: wo.id,
+        buyerId: wo.buyerId,
+        assignedTechnicianId: wo.assignedTechnicianId ?? undefined,
+        reason: dto.reason ?? undefined,
+        cancelledBy: userId,
+        previousStatus: currentStatus
+      },
+      correlationId
+    );
+    await eventPublisher.publishWorkOrderCancelled(event);
+  };
+
+  return {
+    updatedRow: updatedRow as typeof workOrders.$inferSelect,
+    eventsToPublish: [publishCancelled]
+  };
+}
+
+/**
+ * Default execution strategy for transitions without custom domain events (e.g. EN_ROUTE, ON_SITE, COMPLETED, DISPUTED):
  * Transitions status in workOrders table and records transition history in workOrderStatusHistory table.
  */
 export async function executeDefaultTransition(
@@ -437,5 +495,6 @@ export async function executeDefaultTransition(
  */
 export const transitionExecutors: Partial<Record<WorkOrderStatus, TransitionExecutionStrategy>> = {
   [WorkOrderStatus.ASSIGNED]: executeAssignedTransition,
-  [WorkOrderStatus.APPROVED]: executeApprovedTransition
+  [WorkOrderStatus.APPROVED]: executeApprovedTransition,
+  [WorkOrderStatus.CANCELLED]: executeCancelledTransition
 };

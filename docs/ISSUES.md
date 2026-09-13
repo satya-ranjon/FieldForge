@@ -244,6 +244,26 @@
 > eliminating repetitive boilerplate checks and direct cross-service table querying. Zero database migrations (`RULE-DB-02`).
 > Total verified tests: 640 unit/integration + 28 E2E = 668 tests.
 
+> **Remediation update — 2026-09-13:** Architecture Remediation Workflow
+> delivered the Work Order Cancellation Escrow Refund Path (Resolves **ISSUE-001** and **FINDING-ISSUE-001-A**).
+> Eliminated trapped escrow funds in `HELD` status upon work order cancellation.
+> Implemented `EventType.WORK_ORDER_CANCELLED` and `WorkOrderCancelledPayload` in `@fieldforge/contracts`,
+> emitted canonical cancellation events upon FSM transition in `work-order-service`, subscribed
+> `BillingConsumer` in `apps/billing-service` to route cancellations, and implemented `EscrowService.refundEscrow()`
+> with row-level locking (`SELECT ... FOR UPDATE`), multi-layer idempotency (Redis + DB `idempotency_keys`),
+> safe no-ops for nonexistent or already-refunded escrows, protections against refunding released funds, and
+> mandatory provider-level refund idempotency keys with parameter verification (`FINDING-ISSUE-001-A`).
+> Zero database migrations (`RULE-DB-02`). Total verified tests: 671 unit/integration + 28 E2E = 699 tests.
+
+> **Remediation update — 2026-09-13:** Financial Reliability Remediation
+> delivered Provider-Level Financial Idempotency for Escrow Pre-Authorization and Technician Payout (Resolves **FINDING-PAY-001** and **FINDING-PAY-002**).
+> Eliminated double-capture and double-disbursement risks in payment provider integration.
+> Extended `PaymentProviderPort.captureEscrow` and `PaymentProviderPort.disbursePayout` with mandatory `idempotencyKey: string;`.
+> Implemented provider-level idempotency caching with parameter mismatch validation throwing `ConflictException` in `LedgerPaymentProvider`.
+> Added database-backed idempotency tracking (`ESCROW_CAPTURE`) to `EscrowService.lockFunds()`, extracted `idempotency-key` header in `BillingController.preAuthEscrow()`,
+> and derived deterministic operation-scoped provider keys (`escrow-capture:`, `escrow-payout:`, `escrow-remainder-refund:`, `escrow-refund:`).
+> Zero database migrations (`RULE-DB-02`). Total verified tests: 686 unit/integration + 28 E2E = 714 tests.
+
 ---
 
 ## How to read this report

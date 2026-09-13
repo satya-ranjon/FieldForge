@@ -2,6 +2,7 @@ import { Injectable, OnApplicationBootstrap, Optional } from '@nestjs/common';
 import type {
   WorkOrderApprovedEvent,
   WorkOrderAssignedEvent,
+  WorkOrderCancelledEvent,
   PayoutFailedPayload
 } from '@fieldforge/contracts';
 import { EventType, createEvent } from '@fieldforge/contracts';
@@ -27,10 +28,15 @@ export class BillingConsumer implements OnApplicationBootstrap {
     if (this.consumer) {
       await this.consumer.subscribe<unknown>(
         BILLING_WORK_ORDERS_QUEUE,
-        [EventType.WORK_ORDER_APPROVED],
+        [EventType.WORK_ORDER_APPROVED, EventType.WORK_ORDER_CANCELLED],
         async (event, logger) => {
           if (event.eventType === EventType.WORK_ORDER_APPROVED) {
             await this.handleWorkOrderApproved(event as unknown as WorkOrderApprovedEvent, logger);
+          } else if (event.eventType === EventType.WORK_ORDER_CANCELLED) {
+            await this.handleWorkOrderCancelled(
+              event as unknown as WorkOrderCancelledEvent,
+              logger
+            );
           }
         }
       );
@@ -84,6 +90,39 @@ export class BillingConsumer implements OnApplicationBootstrap {
         });
       }
 
+      throw err;
+    }
+  }
+
+  /**
+   * Resolves ISSUE-001.
+   * Handles work order cancellation by triggering an escrow refund to the buyer.
+   */
+  async handleWorkOrderCancelled(
+    event: WorkOrderCancelledEvent,
+    logger?: ContextLogger
+  ): Promise<void> {
+    const { workOrderId, buyerId, reason } = event.payload;
+    if (logger?.info) {
+      logger.info(
+        `[BillingConsumer] Processing cancelled work order ${workOrderId} for escrow refund`
+      );
+    }
+    try {
+      await this.escrowService.refundEscrow({
+        workOrderId,
+        buyerId,
+        reason,
+        correlationId: event.correlationId,
+        idempotencyKey: `escrow-refund:${event.eventId}`
+      });
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      if (logger?.error) {
+        logger.error(
+          `[BillingConsumer] Escrow refund failed for work order ${workOrderId}: ${errorMsg}`
+        );
+      }
       throw err;
     }
   }

@@ -122,5 +122,31 @@ describe('BillingController', () => {
         )
       ).rejects.toThrow(ForbiddenException);
     });
+
+    it('forwards idempotency-key header to escrowService.lockFunds when pre-authorizing escrow', async () => {
+      mockJwtService.verify.mockReturnValue({
+        sub: BUYER_USER_ID,
+        email: 'buyer@fieldforge.dev',
+        role: UserRole.BUYER,
+        profileId: 'buyer-prof-1'
+      });
+
+      await controller.preAuthEscrow(
+        { workOrderId: WORK_ORDER_ID, amountMinor: 50000, paymentMethodId: 'pm_test_123' },
+        'Bearer buyer.token',
+        BUYER_USER_ID,
+        'corr-123',
+        'idemp-preauth-999'
+      );
+
+      expect(mockEscrowService.lockFunds).toHaveBeenCalledWith(
+        WORK_ORDER_ID,
+        'buyer-prof-1',
+        50000,
+        'corr-123',
+        'pm_test_123',
+        'idemp-preauth-999'
+      );
+    });
   });
 });

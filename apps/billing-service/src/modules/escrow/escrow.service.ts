@@ -56,6 +56,21 @@ export interface EscrowReleaseResult {
   invoiceId?: string;
 }
 
+export interface RefundEscrowParams {
+  workOrderId: string;
+  buyerId?: string;
+  reason?: string;
+  correlationId?: string;
+  idempotencyKey?: string;
+}
+
+export interface EscrowRefundResult {
+  escrowId: string;
+  workOrderId: string;
+  refundedAmountMinor: MinorUnits;
+  status: EscrowStatus;
+}
+
 @Injectable()
 export class EscrowService {
   private readonly logger = createLogger('billing-escrow');
@@ -91,14 +106,53 @@ export class EscrowService {
     buyerId: string,
     amountMinor: MinorUnits,
     correlationId: string,
-    paymentMethodId = 'pm_card_default'
+    paymentMethodId = 'pm_card_default',
+    idempotencyKey?: string
   ): Promise<{
     escrowId: string;
     workOrderId: string;
     amountLockedMinor: MinorUnits;
     status: EscrowStatus;
   }> {
+    const providerIdempotencyKey = idempotencyKey
+      ? idempotencyKey.startsWith('escrow-capture:')
+        ? idempotencyKey
+        : `escrow-capture:${idempotencyKey}`
+      : `escrow-capture:${workOrderId}`;
+
     return await this.db.transaction(async (tx) => {
+      // 1. Idempotency Check if key provided
+      if (idempotencyKey) {
+        const [existingKey] = await tx
+          .select()
+          .from(idempotencySchema.idempotencyKeys)
+          .where(eq(idempotencySchema.idempotencyKeys.key, idempotencyKey))
+          .limit(1);
+
+        if (existingKey) {
+          if (existingKey.status === 'COMPLETED' && existingKey.responsePayload) {
+            return existingKey.responsePayload as {
+              escrowId: string;
+              workOrderId: string;
+              amountLockedMinor: MinorUnits;
+              status: EscrowStatus;
+            };
+          }
+          if (existingKey.status === 'IN_PROGRESS') {
+            throw new ConflictException(
+              `An escrow pre-authorization with idempotency key ${idempotencyKey} is already in progress`
+            );
+          }
+        } else {
+          await tx.insert(idempotencySchema.idempotencyKeys).values({
+            key: idempotencyKey,
+            scope: 'ESCROW_CAPTURE',
+            resourceId: workOrderId,
+            status: 'IN_PROGRESS'
+          });
+        }
+      }
+
       // Check for existing escrow account (enforce 1:1 work order to escrow hold)
       const [existing] = await tx
         .select()
@@ -117,7 +171,8 @@ export class EscrowService {
         workOrderId,
         buyerId,
         amountMinor,
-        paymentMethodId
+        paymentMethodId,
+        idempotencyKey: providerIdempotencyKey
       });
 
       const escrowId = randomUUID();
@@ -135,6 +190,23 @@ export class EscrowService {
         `[Escrow] holding ${formatMinor(amountMinor)} for work order ${workOrderId} (buyer ${buyerId})`
       );
 
+      const result = {
+        escrowId,
+        workOrderId,
+        amountLockedMinor: amountMinor,
+        status: EscrowStatus.HELD
+      };
+
+      if (idempotencyKey) {
+        await tx
+          .update(idempotencySchema.idempotencyKeys)
+          .set({
+            status: 'COMPLETED',
+            responsePayload: result
+          })
+          .where(eq(idempotencySchema.idempotencyKeys.key, idempotencyKey));
+      }
+
       // Publish escrow funded event
       if (this.producer) {
         const event = createEvent(
@@ -148,12 +220,7 @@ export class EscrowService {
         });
       }
 
-      return {
-        escrowId,
-        workOrderId,
-        amountLockedMinor: amountMinor,
-        status: EscrowStatus.HELD
-      };
+      return result;
     });
   }
 
@@ -321,20 +388,28 @@ export class EscrowService {
           .where(eq(billingSchema.escrowAccounts.id, escrow.id));
 
         // 6. Disburse Payout to Technician via Provider
+        const keySuffix = params.idempotencyKey
+          ? params.idempotencyKey.replace(/^(escrow-release:|auto-release-)/, '')
+          : workOrderId;
+        const payoutIdempotencyKey = `escrow-payout:${keySuffix}`;
+
         await this.paymentProvider.disbursePayout({
           workOrderId,
           technicianId: woTechnicianId,
-          amountMinor
+          amountMinor,
+          idempotencyKey: payoutIdempotencyKey
         });
 
         // 7. Refund any unused escrow remainder to the buyer (e.g. agreed bid < budget ceiling)
         const unusedRemainderMinor = lockedMinor - amountMinor;
         if (unusedRemainderMinor > 0) {
+          const remainderIdempotencyKey = `escrow-remainder-refund:${keySuffix}`;
           await this.paymentProvider.refundEscrow({
             workOrderId,
             buyerId: woBuyerId,
             amountMinor: unusedRemainderMinor,
-            reason: 'Unused escrow balance refunded upon work order completion payout'
+            reason: 'Unused escrow balance refunded upon work order completion payout',
+            idempotencyKey: remainderIdempotencyKey
           });
           this.logger.info(
             `[Escrow] refunded unused escrow remainder of ${formatMinor(unusedRemainderMinor)} to buyer ${woBuyerId} for work order ${workOrderId}`
@@ -412,6 +487,184 @@ export class EscrowService {
       ) {
         metricsRegistry.incrementBillingReconciliationFailure(
           'escrow_release',
+          (error as Error)?.name || 'unknown'
+        );
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Resolves ISSUE-001.
+   * Refunds HELD escrow funds back to the buyer when a work order is cancelled.
+   * Concurrency-safe with row locking (SELECT ... FOR UPDATE) and multi-layer idempotency.
+   *
+   * State rules:
+   * - No escrow found: idempotent no-op (logs info, returns null, no 404).
+   * - Escrow REFUNDED: idempotent no-op (returns existing refund result without calling payment provider).
+   * - Escrow RELEASED: logs warning, returns null (cannot refund funds already disbursed to technician).
+   * - Escrow not HELD: logs warning, returns null.
+   * - Escrow HELD: updates status to REFUNDED, dispatches refundEscrow to payment provider.
+   *   Transaction rolls back DB update if payment provider call fails.
+   */
+  async refundEscrow(params: RefundEscrowParams): Promise<EscrowRefundResult | null> {
+    const { workOrderId, correlationId, idempotencyKey } = params;
+
+    try {
+      return await this.db.transaction(async (tx) => {
+        // 1. Idempotency Check
+        if (idempotencyKey) {
+          const [existingKey] = await tx
+            .select()
+            .from(idempotencySchema.idempotencyKeys)
+            .where(eq(idempotencySchema.idempotencyKeys.key, idempotencyKey))
+            .limit(1);
+
+          if (existingKey) {
+            if (existingKey.status === 'COMPLETED') {
+              return existingKey.responsePayload as EscrowRefundResult | null;
+            }
+            if (existingKey.status === 'IN_PROGRESS') {
+              throw new ConflictException(
+                `An escrow refund with idempotency key ${idempotencyKey} is already in progress`
+              );
+            }
+          } else {
+            await tx.insert(idempotencySchema.idempotencyKeys).values({
+              key: idempotencyKey,
+              scope: 'ESCROW_REFUND',
+              resourceId: workOrderId,
+              status: 'IN_PROGRESS'
+            });
+          }
+        }
+
+        // 2. Fetch Escrow Account with row lock
+        const [escrow] = await tx
+          .select()
+          .from(billingSchema.escrowAccounts)
+          .where(eq(billingSchema.escrowAccounts.workOrderId, workOrderId))
+          .for('update');
+
+        // Case A: No escrow exists (e.g. cancelled while DRAFT before pre-authorization)
+        if (!escrow) {
+          this.logger.info(
+            `[Escrow] No escrow found for cancelled work order ${workOrderId}; skipping refund`
+          );
+          if (idempotencyKey) {
+            await tx
+              .update(idempotencySchema.idempotencyKeys)
+              .set({ status: 'COMPLETED', responsePayload: null })
+              .where(eq(idempotencySchema.idempotencyKeys.key, idempotencyKey));
+          }
+          return null;
+        }
+
+        // Case B: Escrow is already REFUNDED (idempotent duplicate event)
+        if (escrow.status === 'REFUNDED') {
+          this.logger.info(
+            `[Escrow] Escrow for work order ${workOrderId} is already REFUNDED; skipping refund`
+          );
+          const result: EscrowRefundResult = {
+            escrowId: escrow.id,
+            workOrderId: escrow.workOrderId,
+            refundedAmountMinor: decimalStringToMinor(escrow.amountLocked),
+            status: EscrowStatus.REFUNDED
+          };
+          if (idempotencyKey) {
+            await tx
+              .update(idempotencySchema.idempotencyKeys)
+              .set({ status: 'COMPLETED', responsePayload: result })
+              .where(eq(idempotencySchema.idempotencyKeys.key, idempotencyKey));
+          }
+          return result;
+        }
+
+        // Case C: Escrow is RELEASED (payout already disbursed; cannot refund, log warning)
+        if (escrow.status === 'RELEASED') {
+          this.logger.warn(
+            `[Escrow] Cannot refund escrow for work order ${workOrderId}: escrow is already RELEASED`
+          );
+          if (idempotencyKey) {
+            await tx
+              .update(idempotencySchema.idempotencyKeys)
+              .set({ status: 'COMPLETED', responsePayload: null })
+              .where(eq(idempotencySchema.idempotencyKeys.key, idempotencyKey));
+          }
+          return null;
+        }
+
+        // Case D: Escrow is not in HELD status (e.g. DISPUTED)
+        if (escrow.status !== 'HELD') {
+          this.logger.warn(
+            `[Escrow] Cannot refund escrow for work order ${workOrderId}: status is ${escrow.status} (expected HELD)`
+          );
+          if (idempotencyKey) {
+            await tx
+              .update(idempotencySchema.idempotencyKeys)
+              .set({ status: 'COMPLETED', responsePayload: null })
+              .where(eq(idempotencySchema.idempotencyKeys.key, idempotencyKey));
+          }
+          return null;
+        }
+
+        // Case E: Escrow is HELD -> execute refund
+        let buyerId = params.buyerId;
+        if (!buyerId) {
+          const wo = await this.workOrderDirectory.getWorkOrder(workOrderId, correlationId);
+          buyerId = wo?.buyerId || 'unknown-buyer';
+        }
+
+        const amountMinor = decimalStringToMinor(escrow.amountLocked);
+
+        // Update DB status to REFUNDED
+        await tx
+          .update(billingSchema.escrowAccounts)
+          .set({ status: 'REFUNDED' })
+          .where(eq(billingSchema.escrowAccounts.id, escrow.id));
+
+        // Call payment provider to disburse refund back to buyer
+        const providerIdempotencyKey = idempotencyKey || `escrow-refund:${workOrderId}`;
+        await this.paymentProvider.refundEscrow({
+          workOrderId,
+          buyerId,
+          amountMinor,
+          reason: params.reason || 'Work order cancelled',
+          idempotencyKey: providerIdempotencyKey
+        });
+
+        this.logger.info(
+          `[Escrow] Refunded ${formatMinor(amountMinor)} to buyer ${buyerId} for cancelled work order ${workOrderId}`
+        );
+
+        const result: EscrowRefundResult = {
+          escrowId: escrow.id,
+          workOrderId,
+          refundedAmountMinor: amountMinor,
+          status: EscrowStatus.REFUNDED
+        };
+
+        if (idempotencyKey) {
+          await tx
+            .update(idempotencySchema.idempotencyKeys)
+            .set({
+              status: 'COMPLETED',
+              responsePayload: result
+            })
+            .where(eq(idempotencySchema.idempotencyKeys.key, idempotencyKey));
+        }
+
+        return result;
+      });
+    } catch (error) {
+      if (
+        !(error instanceof ConflictException) &&
+        !(error instanceof BadRequestException) &&
+        !(error instanceof ForbiddenException) &&
+        !(error instanceof NotFoundException)
+      ) {
+        metricsRegistry.incrementBillingReconciliationFailure(
+          'escrow_refund',
           (error as Error)?.name || 'unknown'
         );
       }

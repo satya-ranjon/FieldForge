@@ -2,11 +2,13 @@ import { WorkOrderEventPublisher } from '../src/events/work-order-event.publishe
 import type { EventPublisher } from '@fieldforge/messaging';
 import {
   EventType,
+  WorkOrderStatus,
   createEvent,
   type WorkOrderPublishedEvent,
   type WorkOrderAssignedEvent,
   type WorkOrderApprovedEvent,
-  type WorkOrderPaidEvent
+  type WorkOrderPaidEvent,
+  type WorkOrderCancelledEvent
 } from '@fieldforge/contracts';
 
 describe('WorkOrderEventPublisher', () => {
@@ -86,6 +88,25 @@ describe('WorkOrderEventPublisher', () => {
     );
 
     await publisher.publishWorkOrderPaid(event);
+
+    expect(mockEventPublisher.publish).toHaveBeenCalledWith(event);
+  });
+
+  it('publishes WorkOrderCancelled event over AMQP', async () => {
+    const event: WorkOrderCancelledEvent = createEvent(
+      EventType.WORK_ORDER_CANCELLED,
+      {
+        workOrderId: 'wo-1',
+        buyerId: 'b-1',
+        assignedTechnicianId: 'tech-1',
+        reason: 'Site no longer accessible',
+        cancelledBy: 'user-buyer-1',
+        previousStatus: WorkOrderStatus.ASSIGNED
+      },
+      'corr-cancel-1'
+    );
+
+    await publisher.publishWorkOrderCancelled(event);
 
     expect(mockEventPublisher.publish).toHaveBeenCalledWith(event);
   });

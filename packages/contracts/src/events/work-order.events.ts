@@ -1,5 +1,6 @@
 import type { MinorUnits } from '../money';
 import type { EventEnvelope } from './envelope';
+import type { WorkOrderStatus } from '../enums';
 
 /**
  * Work order lifecycle event payloads.
@@ -52,9 +53,19 @@ export interface TechBidAcceptedPayload {
   buyerUserId: string;
 }
 
+export interface WorkOrderCancelledPayload {
+  workOrderId: string;
+  buyerId: string;
+  assignedTechnicianId?: string;
+  reason?: string;
+  cancelledBy: string;
+  previousStatus: WorkOrderStatus;
+}
+
 export type WorkOrderPublishedEvent = EventEnvelope<WorkOrderPublishedPayload>;
 export type WorkOrderAssignedEvent = EventEnvelope<WorkOrderAssignedPayload>;
 export type WorkOrderApprovedEvent = EventEnvelope<WorkOrderApprovedPayload>;
 export type WorkOrderPaidEvent = EventEnvelope<WorkOrderPaidPayload>;
+export type WorkOrderCancelledEvent = EventEnvelope<WorkOrderCancelledPayload>;
 export type TechBiddingSubmittedEvent = EventEnvelope<TechBiddingSubmittedPayload>;
 export type TechBidAcceptedEvent = EventEnvelope<TechBidAcceptedPayload>;

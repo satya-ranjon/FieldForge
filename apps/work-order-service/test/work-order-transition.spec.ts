@@ -14,6 +14,7 @@ import {
   guardDisputedTransition,
   guardPaidTransition,
   executeApprovedTransition,
+  executeCancelledTransition,
   executeDefaultTransition,
   type TransitionContext
 } from '../src/modules/work-orders/work-order-transition';
@@ -32,6 +33,7 @@ describe('work-order-transition strategies & guards', () => {
   let mockEventPublisher: {
     publishWorkOrderAssigned: jest.Mock;
     publishWorkOrderApproved: jest.Mock;
+    publishWorkOrderCancelled: jest.Mock;
   };
 
   beforeEach(() => {
@@ -53,7 +55,8 @@ describe('work-order-transition strategies & guards', () => {
 
     mockEventPublisher = {
       publishWorkOrderAssigned: jest.fn().mockResolvedValue(undefined),
-      publishWorkOrderApproved: jest.fn().mockResolvedValue(undefined)
+      publishWorkOrderApproved: jest.fn().mockResolvedValue(undefined),
+      publishWorkOrderCancelled: jest.fn().mockResolvedValue(undefined)
     };
 
     baseContext = {
@@ -389,6 +392,38 @@ describe('work-order-transition strategies & guards', () => {
             buyerId: 'buyer-profile-1',
             technicianId: 'tech-profile-1',
             payoutAmountMinor: 45000
+          })
+        })
+      );
+    });
+
+    it('executeCancelledTransition updates status to CANCELLED, records history, and returns publishCancelled event callback', async () => {
+      const result = await executeCancelledTransition(
+        {
+          ...baseContext,
+          nextStatus: WorkOrderStatus.CANCELLED,
+          dto: { nextStatus: WorkOrderStatus.CANCELLED, reason: 'Site closed' }
+        },
+        mockFsmService,
+        mockEventPublisher
+      );
+
+      expect(mockTx.update).toHaveBeenCalled();
+      expect(mockTx.insert).toHaveBeenCalled();
+      expect(result.updatedRow.status).toBe(WorkOrderStatus.CANCELLED);
+      expect(result.eventsToPublish).toHaveLength(1);
+
+      await result.eventsToPublish[0]();
+      expect(mockEventPublisher.publishWorkOrderCancelled).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: EventType.WORK_ORDER_CANCELLED,
+          payload: expect.objectContaining({
+            workOrderId: 'wo-1',
+            buyerId: 'buyer-profile-1',
+            assignedTechnicianId: 'tech-profile-1',
+            reason: 'Site closed',
+            cancelledBy: 'user-1',
+            previousStatus: WorkOrderStatus.PUBLISHED
           })
         })
       );

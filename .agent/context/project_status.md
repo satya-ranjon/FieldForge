@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-13  
-**Phase:** Phase 34 complete — Centralize Lossless Currency Conversions Across Services (FF-CODE-13 / Code Quality Issue 13). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 36 complete — Financial Reliability Remediation: Payment Provider Capture & Payout Idempotency (Resolves FINDING-PAY-001 & FINDING-PAY-002). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -43,6 +43,7 @@
   Houses commercial bidding (`POST /work-orders/:id/bids`, `GET /work-orders/:id/bids`, `POST /work-orders/:id/bids/:bidId/accept`).
   Atomic bid acceptance locks bids `FOR UPDATE`, marks winner `ACCEPTED`, rejects siblings, executes FSM `PUBLISHED → ASSIGNED`
   via `WorkOrderFsmService`, and records status history in `work_order_status_history` within one ACID transaction.
+  Houses work order cancellation transition executor `executeCancelledTransition()` publishing canonical `work_order.lifecycle.cancelled`.
   Sole mutator of `work_orders`, `work_order_bids`, and `work_order_status_history`. Sole emitter of
   `work_order.lifecycle.assigned`, `work_order.lifecycle.approved`, and `work_order.lifecycle.paid` (`tech.bidding.accepted` retired in Phase 18).
   Assignment business logic across `BidsService.acceptBid`, `WorkOrdersService.transition`, and `WorkOrdersService.assignTechnicianFromBid` is unified into `executeWorkOrderAssignment()` and `resolveAgreedRateMinor()` (`work-order-assignment.ts`, FF-CODE-02 / Phase 23). Transition engine decoupled into modular transition guards and execution strategies (`work-order-transition.ts`, FF-CODE-03 / Phase 24), satisfying SRP and OCP.
@@ -53,6 +54,7 @@
   - Endpoints: `POST /dispatch/technicians/location`, `GET /dispatch/technicians/nearby`, and `POST /dispatch/auto-route`.
 - **Escrow & Money Safety (`apps/billing-service`).**
   - Fully resolves **C3**; `releaseFunds()` executes inside a locked `db.transaction()` with `FOR UPDATE` on `escrow_accounts`. Asserts `status === 'HELD'`, verifies buyer caller authority, transitions escrow to `RELEASED`, dispatches payout via `PaymentProviderPort` (`LedgerPaymentProvider`), logs double-entry `payout_ledger` credit, and emits `billing.payout.disbursed` (ADR 005). Consumes `work_order.lifecycle.approved` via `BillingConsumer`. Completely decoupled from `work_orders` table mutations (ADR 009).
+  - Fully resolves **ISSUE-001**: `refundEscrow()` executes inside a locked `db.transaction()` with `FOR UPDATE` on `escrow_accounts`. Consumes `work_order.lifecycle.cancelled` via `BillingConsumer`. Transitions HELD escrow to `REFUNDED` and dispatches refund to the buyer via `PaymentProviderPort.refundEscrow()`. Handles nonexistent escrow (e.g. cancelled in DRAFT) and already REFUNDED escrow as idempotent no-ops, and safely protects already RELEASED funds with warnings. Backed by `idempotency_keys` table.
   - Enforces request deduplication and replay via `idempotency_keys` table.
   - Deterministic SHA-256 content-hashed invoice generation (`InvoicesService`) and cryptographically verified PDF invoice generation via `pdfkit` (FR-BILL-003).
   - Technician earnings ledger query (`GET /billing/technicians/:id/payouts`).
@@ -77,8 +79,28 @@
   - Mandatory iOS/Android location, camera, and storage permissions strings and `PermissionsService` wrapper (resolving L7).
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
-  - `AppNavigator` mounting `JobListScreen` and `ActiveJobScreen` wrapped in Redux store.
-- **A test harness that can fail.** 649 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 677 total verified tests).
+- **A test harness that can fail.** 686 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 714 total verified tests).
+- **Payment Provider Capture & Payout Idempotency (Phase 36, Resolves FINDING-PAY-001 & FINDING-PAY-002).**
+  - Eliminated external double-charge and double-payout vulnerabilities when external payment provider calls succeed but MySQL transactions fail to commit or roll back.
+  - Extended `PaymentProviderPort.captureEscrow()` and `PaymentProviderPort.disbursePayout()` with mandatory `idempotencyKey: string;`.
+  - Implemented provider-level idempotency caching with parameter mismatch validation (`ConflictException`) in `LedgerPaymentProvider`.
+  - Wired deterministic operation keys end-to-end:
+    - Escrow preauthorization capture: `escrow-capture:${idempotencyKey || workOrderId}` via `BillingController.preAuthEscrow()` & `EscrowService.lockFunds()`.
+    - Technician payout disbursement: `escrow-payout:${keySuffix || workOrderId}` via `BillingConsumer` & `EscrowService.releaseFunds()`.
+    - Buyer remainder refund: `escrow-remainder-refund:${keySuffix || workOrderId}` via `EscrowService.releaseFunds()`.
+    - Work order cancellation refund: `escrow-refund:${eventId || workOrderId}` via `BillingConsumer` & `EscrowService.refundEscrow()`.
+  - Added unit test coverage across `ledger-payment.provider.spec.ts`, `escrow.service.spec.ts`, and `billing.controller.spec.ts`.
+  - Total unit tests in `billing-service` increased to 71 (+15 tests across Phase 36, 686 total across the monorepo).
+  - Zero database migrations (`RULE-DB-02`).
+- **Work Order Cancellation Escrow Refund Path & Provider Idempotency (Phase 35, Resolves ISSUE-001 & FINDING-ISSUE-001-A).**
+  - Eliminated trapped escrow funds in `HELD` status upon work order cancellation by introducing canonical `work_order.lifecycle.cancelled` (`EventType.WORK_ORDER_CANCELLED`) in `@fieldforge/contracts`.
+  - Implemented `publishWorkOrderCancelled` in `WorkOrderEventPublisher` and registered `executeCancelledTransition` in `transitionExecutors[WorkOrderStatus.CANCELLED]`.
+  - Subscribed `BillingConsumer` to `EventType.WORK_ORDER_CANCELLED`, routing events to `EscrowService.refundEscrow()`.
+  - Implemented `EscrowService.refundEscrow()` with pessimistic row-level locking (`SELECT ... FOR UPDATE`), dual idempotency (Redis and DB `idempotency_keys`), idempotent no-ops for already refunded or absent escrow accounts, and release guards.
+  - Resolved `FINDING-ISSUE-001-A` by enforcing mandatory `idempotencyKey: string` on `PaymentProviderPort.refundEscrow()`, implementing in-memory deduplication with parameter conflict verification in `LedgerPaymentProvider`, and propagating deterministic `escrow-refund:${event.eventId}` throughout the cancellation pipeline and `escrow-remainder-refund:${key}` in payout remainder refunding.
+  - Added unit test coverage across `work-order-event.publisher.spec.ts`, `work-order-transition.spec.ts`, `work-orders.service.spec.ts`, `billing.consumer.spec.ts`, `escrow.service.spec.ts`, and `ledger-payment.provider.spec.ts`.
+  - Total unit tests in `billing-service` increased to 56 (+20 tests across Phase 35, 671 total across the monorepo).
+  - Zero database migrations (`RULE-DB-02`).
 - **Centralize Lossless Currency Conversions Across Services (Phase 34, Resolves FF-CODE-13 / Code Quality Issue 13).**
   - Eliminated manual floating-point arithmetic (`(amountMinor / 100).toFixed(2)`, `Math.round(Number(row.amount) * 100)`) for minor currency conversions across `apps/billing-service`, `apps/work-order-service`, `apps/mobile-tech-app`, and `apps/notification-service`.
   - Standardized on lossless integer utilities from `@fieldforge/contracts`: `minorToDecimalString`, `decimalStringToMinor`, and `formatMinor`.
