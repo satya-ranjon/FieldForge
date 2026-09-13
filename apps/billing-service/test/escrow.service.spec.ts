@@ -612,4 +612,96 @@ describe('EscrowService', () => {
       });
     });
   });
+
+  describe('getEscrowByWorkOrder', () => {
+    it('accurately parses decimal amountLocked into minor units without floating-point drift', async () => {
+      mockDb.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            limit: () =>
+              Promise.resolve([
+                {
+                  id: 'escrow-99',
+                  workOrderId: WORK_ORDER_ID,
+                  amountLocked: '123.45',
+                  status: 'HELD',
+                  createdAt: new Date('2026-09-01T00:00:00.000Z'),
+                  releasedAt: null
+                }
+              ])
+          })
+        })
+      });
+
+      const details = await escrow.getEscrowByWorkOrder(WORK_ORDER_ID);
+
+      expect(details.id).toBe('escrow-99');
+      expect(details.workOrderId).toBe(WORK_ORDER_ID);
+      expect(details.amountLockedMinor).toBe(12345);
+      expect(details.status).toBe(EscrowStatus.HELD);
+    });
+
+    it('throws NotFoundException when escrow account is not found', async () => {
+      mockDb.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            limit: () => Promise.resolve([])
+          })
+        })
+      });
+
+      await expect(escrow.getEscrowByWorkOrder('non-existent-wo')).rejects.toThrow(
+        NotFoundException
+      );
+    });
+  });
+
+  describe('getTechnicianEarnings', () => {
+    it('aggregates credits and debits into exact integer minor units without float rounding errors', async () => {
+      mockDb.select.mockReturnValueOnce({
+        from: () => ({
+          where: () =>
+            Promise.resolve([
+              {
+                id: 'payout-1',
+                technicianId: TECH_ID,
+                workOrderId: 'wo-1',
+                amount: '0.10',
+                type: 'CREDIT',
+                description: 'Minor service fee',
+                createdAt: new Date('2026-09-01T00:00:00.000Z')
+              },
+              {
+                id: 'payout-2',
+                technicianId: TECH_ID,
+                workOrderId: 'wo-2',
+                amount: '0.20',
+                type: 'CREDIT',
+                description: 'Tip disbursement',
+                createdAt: new Date('2026-09-02T00:00:00.000Z')
+              },
+              {
+                id: 'payout-3',
+                technicianId: TECH_ID,
+                workOrderId: 'wo-3',
+                amount: '0.05',
+                type: 'DEBIT',
+                description: 'Adjustment fee',
+                createdAt: new Date('2026-09-03T00:00:00.000Z')
+              }
+            ])
+        })
+      });
+
+      const earnings = await escrow.getTechnicianEarnings(TECH_ID);
+
+      expect(earnings.technicianId).toBe(TECH_ID);
+      // 10 + 20 - 5 = 25 minor units (0.10 + 0.20 - 0.05 in float is 0.25000000000000006)
+      expect(earnings.totalEarningsMinor).toBe(25);
+      expect(earnings.payouts).toHaveLength(3);
+      expect(earnings.payouts[0].amountMinor).toBe(10);
+      expect(earnings.payouts[1].amountMinor).toBe(20);
+      expect(earnings.payouts[2].amountMinor).toBe(5);
+    });
+  });
 });

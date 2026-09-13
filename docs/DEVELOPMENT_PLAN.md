@@ -1347,6 +1347,51 @@ Eliminated defensive duck-typing checks (`query && typeof query.from === 'functi
 
 ---
 
+## Phase 34 — Centralize Lossless Currency Conversions Across Services
+
+**Size: S · Dependencies: Phase 33.** Resolves **FF-CODE-13** (Code Quality Issue 13).
+
+Eliminated manual floating-point arithmetic (`(amountMinor / 100).toFixed(2)`, `Math.round(Number(row.amount) * 100)`) for minor currency conversions across `apps/billing-service`, `apps/work-order-service`, `apps/mobile-tech-app`, and `apps/notification-service`, standardizing on lossless integer utilities (`minorToDecimalString`, `decimalStringToMinor`, and `formatMinor`) from `@fieldforge/contracts`.
+
+**Deliverables:**
+
+- **Billing Service Standardization (`apps/billing-service`).**
+  - Refactored `EscrowService` (`apps/billing-service/src/modules/escrow/escrow.service.ts`):
+    - Replaced `(amountMinor / 100).toFixed(2)` with `minorToDecimalString(amountMinor)` for database `amountDecimal` string insertion and payout ledger creation.
+    - Replaced `Math.round(Number(escrow.amountLocked) * 100)` and `Math.round(Number(row.amount) * 100)` with `decimalStringToMinor(escrow.amountLocked)` and `decimalStringToMinor(row.amount)` in `releaseFunds`, `getEscrowByWorkOrder`, and `getTechnicianEarnings`.
+  - Refactored `InvoicesService` (`apps/billing-service/src/modules/invoices/invoices.service.ts`):
+    - Replaced `(params.amountMinor / 100).toFixed(2)` with `minorToDecimalString(params.amountMinor)`.
+    - Replaced `Math.round(Number(row.amount) * 100)` with `decimalStringToMinor(row.amount)`.
+  - Refactored `PdfKitInvoicePdfRenderer` (`apps/billing-service/src/modules/invoices/pdfkit-invoice-pdf.renderer.ts`):
+    - Replaced `(invoice.amountMinor / 100).toFixed(2)` with `formatMinor(invoice.amountMinor)`.
+- **Work Order & Notification & Mobile Standardization.**
+  - Refactored `WorkOrderEventsConsumer` in `apps/work-order-service`: replaced `(amountMinor / 100).toFixed(2)` with `formatMinor(amountMinor)`.
+  - Refactored `JobListScreen` in `apps/mobile-tech-app`: replaced `(job.budgetAmountMinor / 100).toLocaleString('en-US', ...)` with `formatMinor(job.budgetAmountMinor)`.
+  - Refactored `NotificationConsumer` test in `apps/notification-service`: replaced `(payoutMinor / 100).toFixed(2)` with `minorToDecimalString(payoutMinor)`.
+- **Unit Testing Refactoring (`apps/billing-service`).**
+  - Added test suite for `getEscrowByWorkOrder` in `apps/billing-service/test/escrow.service.spec.ts` asserting exact parsing of decimal amounts to integer minor units without float drift and asserting `NotFoundException`.
+  - Added test suite for `getTechnicianEarnings` in `apps/billing-service/test/escrow.service.spec.ts` asserting exact summation of credit and debit ledger rows without floating-point rounding errors (e.g. `0.10 + 0.20 - 0.05`).
+  - Total unit tests in `billing-service` increased to 36 (+3 tests).
+
+**Verification:**
+
+- 649 automated unit/integration tests passing across 15 packages/apps in monorepo (+3 new tests, zero `--passWithNoTests`):
+  - 82 tests in `apps/auth-service` (7 suites).
+  - 58 tests in `apps/dispatch-matching-service` (5 suites).
+  - 36 tests in `apps/billing-service` (5 suites, +3 tests).
+  - 236 tests in `apps/work-order-service` (13 suites).
+  - 59 tests in `@fieldforge/common` (6 suites).
+  - 81 tests in `@fieldforge/contracts` (3 suites).
+  - 21 tests in `@fieldforge/messaging` (5 suites).
+  - 104 tests in `apps/web-buyer-portal` (1 suite).
+  - 44 tests in `apps/api-gateway` (6 suites).
+  - 14 tests in `apps/notification-service` (1 suite).
+  - 21 tests in `@fieldforge/mobile-tech-app` (3 suites).
+- 28 Playwright E2E tests validated (`pnpm test:e2e`). Total verified tests: 677 tests.
+- `pnpm check && pnpm build` pass cleanly.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

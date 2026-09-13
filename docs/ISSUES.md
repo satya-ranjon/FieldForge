@@ -1273,6 +1273,23 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   5. Total unit tests in `auth-service` increased to 82 (+5 tests, 646 total across the monorepo).
   6. Zero database migrations (`RULE-DB-02`).
 
+### FF-CODE-13 · 🧹 Manual Floating-Point Arithmetic for Minor Currency Conversions (Code Quality Issue 13)
+
+- **Root Cause**: While `@fieldforge/contracts` provides strict, lossless integer conversion utilities (`minorToDecimalString`, `decimalStringToMinor`, and `formatMinor`), multiple services and applications performed manual, ad-hoc floating-point arithmetic for currency conversions:
+  1. `apps/billing-service/src/modules/escrow/escrow.service.ts`: performed `(amountMinor / 100).toFixed(2)` for string decimals and `Math.round(Number(escrow.amountLocked) * 100)` / `Math.round(Number(row.amount) * 100)` for decimal conversions, risking IEEE 754 precision drift.
+  2. `apps/billing-service/src/modules/invoices/invoices.service.ts`: performed `(params.amountMinor / 100).toFixed(2)` when creating invoices and `Math.round(Number(row.amount) * 100)` when reading invoice amounts.
+  3. `apps/billing-service/src/modules/invoices/pdfkit-invoice-pdf.renderer.ts`: performed manual string interpolation `$${(invoice.amountMinor / 100).toFixed(2)}` instead of `formatMinor`.
+  4. `apps/work-order-service/src/consumers/work-order-events.consumer.ts`: performed `$${(amountMinor / 100).toFixed(2)}` in payout logging.
+  5. `apps/mobile-tech-app/src/screens/JobListScreen.tsx`: performed `(job.budgetAmountMinor / 100).toLocaleString('en-US', ...)` instead of centralized `formatMinor`.
+  6. `apps/notification-service/test/notification.consumer.spec.ts`: used `(payoutMinor / 100).toFixed(2)` in test assertions.
+- **Fix**: Replaced all manual floating-point arithmetic with canonical currency utilities from `@fieldforge/contracts`:
+  1. Replaced all decimal string formatting with `minorToDecimalString(minor: MinorUnits): string`.
+  2. Replaced all decimal string parsing with `decimalStringToMinor(str: string): MinorUnits` (lossless integer parsing without floating-point math).
+  3. Replaced currency display formatting with `formatMinor(minor: MinorUnits): string`.
+  4. Added comprehensive unit tests in `apps/billing-service/test/escrow.service.spec.ts` for `getEscrowByWorkOrder` (asserting exact minor conversion and 404 handling) and `getTechnicianEarnings` (asserting float-drift-free credit/debit ledger aggregation).
+  5. Total unit tests in `billing-service` increased to 36 (+3 tests, 649 total across the monorepo).
+  6. Zero database migrations (`RULE-DB-02`).
+
 ---
 
 ## Suggested remediation order

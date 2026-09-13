@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
-import type { InvoiceDetailsDto } from '@fieldforge/contracts';
+import { formatMinor, type InvoiceDetailsDto } from '@fieldforge/contracts';
 import type { InvoicePdfRendererPort } from './invoice-pdf.renderer.port';
 
 @Injectable()
@@ -61,7 +61,7 @@ export class PdfKitInvoicePdfRenderer implements InvoicePdfRendererPort {
       doc.text('Total', 450, doc.y, { align: 'right' });
       doc.moveDown(0.5);
 
-      const amountFormatted = `$${(invoice.amountMinor / 100).toFixed(2)}`;
+      const amountFormatted = formatMinor(invoice.amountMinor);
       doc
         .font('Helvetica')
         .text(`Completed Services - Work Order ${invoice.workOrderId}`, 50, doc.y, {

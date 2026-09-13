@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store/store';
 import { setActiveJob, WorkOrderJob } from '../store/slices/jobSlice';
 import { GeofenceService } from '../services/geofencing.service';
+import { formatMinor } from '@fieldforge/contracts';
 
 interface JobListScreenProps {
   onSelectJob: (job: WorkOrderJob) => void;
@@ -66,10 +67,7 @@ export const JobListScreen: React.FC<JobListScreenProps> = ({ onSelectJob }) => 
               })
             : null;
 
-          const formattedPayout = (job.budgetAmountMinor / 100).toLocaleString('en-US', {
-            style: 'currency',
-            currency: 'USD'
-          });
+          const formattedPayout = formatMinor(job.budgetAmountMinor);
 
           return (
             <TouchableOpacity

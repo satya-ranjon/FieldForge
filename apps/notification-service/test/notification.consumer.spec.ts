@@ -1,4 +1,4 @@
-import { EventType } from '@fieldforge/contracts';
+import { EventType, minorToDecimalString } from '@fieldforge/contracts';
 import type { IdempotentConsumer } from '@fieldforge/messaging';
 import { PushNotificationChannel } from '../src/channels/push.channel';
 import { SmsNotificationChannel } from '../src/channels/sms.channel';
@@ -59,7 +59,7 @@ describe('NotificationConsumer', () => {
       const sendSms = jest.spyOn(sms, 'sendSms').mockResolvedValue();
       await consumer.handleDispatchNotification(TECH_PHONE, 'Job', payoutMinor);
 
-      const expected = (payoutMinor / 100).toFixed(2);
+      const expected = minorToDecimalString(payoutMinor);
       expect(sendSms.mock.calls[0][1]).toContain(`$${expected}`);
     });
 

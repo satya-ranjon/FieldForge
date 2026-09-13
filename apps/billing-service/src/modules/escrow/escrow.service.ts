@@ -23,7 +23,14 @@ import type {
   PayoutLedgerItemDto,
   TechnicianEarningsDto
 } from '@fieldforge/contracts';
-import { createEvent, EscrowStatus, EventType, formatMinor } from '@fieldforge/contracts';
+import {
+  createEvent,
+  EscrowStatus,
+  EventType,
+  formatMinor,
+  minorToDecimalString,
+  decimalStringToMinor
+} from '@fieldforge/contracts';
 import { EventPublisher } from '@fieldforge/messaging';
 import { InvoicesService } from '../invoices/invoices.service';
 import { PAYMENT_PROVIDER, type PaymentProviderPort } from '../payments/payment-provider.port';
@@ -114,7 +121,7 @@ export class EscrowService {
       });
 
       const escrowId = randomUUID();
-      const amountDecimal = (amountMinor / 100).toFixed(2);
+      const amountDecimal = minorToDecimalString(amountMinor);
 
       await tx.insert(billingSchema.escrowAccounts).values({
         id: escrowId,
@@ -288,7 +295,7 @@ export class EscrowService {
           }
         }
 
-        const lockedMinor = Math.round(Number(escrow.amountLocked) * 100);
+        const lockedMinor = decimalStringToMinor(escrow.amountLocked);
         let amountMinor: MinorUnits = lockedMinor;
 
         if (requestedAmountMinor !== undefined) {
@@ -339,7 +346,7 @@ export class EscrowService {
           id: randomUUID(),
           technicianId: woTechnicianId,
           workOrderId,
-          amount: (amountMinor / 100).toFixed(2),
+          amount: minorToDecimalString(amountMinor),
           type: 'CREDIT',
           description: 'Work order completion payout',
           createdAt: now
@@ -426,7 +433,7 @@ export class EscrowService {
     return {
       id: row.id,
       workOrderId: row.workOrderId,
-      amountLockedMinor: Math.round(Number(row.amountLocked) * 100),
+      amountLockedMinor: decimalStringToMinor(row.amountLocked),
       status: row.status as EscrowStatus,
       createdAt: row.createdAt.toISOString(),
       releasedAt: row.releasedAt?.toISOString()
@@ -443,7 +450,7 @@ export class EscrowService {
     const payouts: PayoutLedgerItemDto[] = [];
 
     for (const row of rows) {
-      const amountMinor = Math.round(Number(row.amount) * 100);
+      const amountMinor = decimalStringToMinor(row.amount);
       if (row.type === 'CREDIT') {
         totalMinor += amountMinor;
       } else if (row.type === 'DEBIT') {

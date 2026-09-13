@@ -3,7 +3,12 @@ import { createHash, randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleClient, type DbOrTx } from '@fieldforge/common';
 import { billingSchema } from '@fieldforge/database';
-import type { InvoiceDetailsDto, MinorUnits } from '@fieldforge/contracts';
+import {
+  type InvoiceDetailsDto,
+  type MinorUnits,
+  minorToDecimalString,
+  decimalStringToMinor
+} from '@fieldforge/contracts';
 import { INVOICE_PDF_RENDERER, type InvoicePdfRendererPort } from './invoice-pdf.renderer.port';
 import { PdfKitInvoicePdfRenderer } from './pdfkit-invoice-pdf.renderer';
 
@@ -59,7 +64,7 @@ export class InvoicesService {
     const id = randomUUID();
     const year = new Date().getFullYear();
     const invoiceNumber = `INV-${year}-${id.slice(0, 8).toUpperCase()}`;
-    const amountStr = (params.amountMinor / 100).toFixed(2);
+    const amountStr = minorToDecimalString(params.amountMinor);
     const issuedAt = new Date();
 
     const contentHash = this.computeContentHash({
@@ -132,7 +137,7 @@ export class InvoicesService {
       workOrderId: row.workOrderId,
       buyerId: row.buyerId,
       invoiceNumber: row.invoiceNumber,
-      amountMinor: Math.round(Number(row.amount) * 100),
+      amountMinor: decimalStringToMinor(row.amount),
       contentHash: row.contentHash,
       issuedAt: row.issuedAt.toISOString(),
       createdAt: row.createdAt.toISOString()

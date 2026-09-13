@@ -4,7 +4,7 @@ import type {
   PayoutFailedEvent,
   TechBidAcceptedEvent
 } from '@fieldforge/contracts';
-import { EventType } from '@fieldforge/contracts';
+import { EventType, formatMinor } from '@fieldforge/contracts';
 import { IdempotentConsumer } from '@fieldforge/messaging';
 import { WorkOrdersService } from '../modules/work-orders/work-orders.service';
 
@@ -42,7 +42,7 @@ export class WorkOrderEventsConsumer implements OnApplicationBootstrap {
     const { workOrderId, amountMinor } = event.payload;
     if (logger?.info) {
       logger.info(
-        `[WorkOrderEventsConsumer] Processing payout disbursement for work order ${workOrderId} ($${(amountMinor / 100).toFixed(2)})`
+        `[WorkOrderEventsConsumer] Processing payout disbursement for work order ${workOrderId} (${formatMinor(amountMinor)})`
       );
     }
     await this.workOrdersService.settlePaid(

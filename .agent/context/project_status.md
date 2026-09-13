@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-13  
-**Phase:** Phase 33 complete — Eliminate Defensive Duck-Typing and Fix Unit Test Mocks (FF-CODE-12 / Code Quality Issue 12). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 34 complete — Centralize Lossless Currency Conversions Across Services (FF-CODE-13 / Code Quality Issue 13). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -78,7 +78,13 @@
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
   - `AppNavigator` mounting `JobListScreen` and `ActiveJobScreen` wrapped in Redux store.
-- **A test harness that can fail.** 646 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 674 total verified tests).
+- **A test harness that can fail.** 649 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 677 total verified tests).
+- **Centralize Lossless Currency Conversions Across Services (Phase 34, Resolves FF-CODE-13 / Code Quality Issue 13).**
+  - Eliminated manual floating-point arithmetic (`(amountMinor / 100).toFixed(2)`, `Math.round(Number(row.amount) * 100)`) for minor currency conversions across `apps/billing-service`, `apps/work-order-service`, `apps/mobile-tech-app`, and `apps/notification-service`.
+  - Standardized on lossless integer utilities from `@fieldforge/contracts`: `minorToDecimalString`, `decimalStringToMinor`, and `formatMinor`.
+  - Added unit test coverage in `apps/billing-service/test/escrow.service.spec.ts` asserting exact parsing of decimal amounts into integer minor units and lossless credit/debit ledger aggregation.
+  - Total unit tests in `billing-service` increased to 36 (+3 tests, 649 total across the monorepo).
+  - Zero database migrations (`RULE-DB-02`).
 - **Eliminate Defensive Duck-Typing and Fix Unit Test Mocks (Phase 33, Resolves FF-CODE-12 / Code Quality Issue 12).**
   - Removed defensive duck-typing checks (`query && typeof query.from === 'function'`) and silent error-suppression `try/catch` blocks from `ProfilesService` in `apps/auth-service`.
   - Upgraded unit test doubles in `apps/auth-service/test/profiles.service.spec.ts` with `createQueryChain()` and `createMockDb()`, providing mock query builders that natively adhere to Drizzle ORM's fluent builder interface (`.select().from().where().limit()`).
