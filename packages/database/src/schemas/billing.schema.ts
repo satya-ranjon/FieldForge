@@ -1,4 +1,16 @@
-import { mysqlTable, varchar, timestamp, mysqlEnum, decimal } from 'drizzle-orm/mysql-core';
+import {
+  mysqlTable,
+  varchar,
+  timestamp,
+  mysqlEnum,
+  decimal,
+  bigint,
+  int,
+  json,
+  text,
+  index,
+  uniqueIndex
+} from 'drizzle-orm/mysql-core';
 import { workOrders } from './work-orders.schema';
 import { buyerProfiles, technicianProfiles } from './users.schema';
 
@@ -48,3 +60,34 @@ export const payoutLedger = mysqlTable('payout_ledger', {
   description: varchar('description', { length: 255 }),
   createdAt: timestamp('created_at').defaultNow().notNull()
 });
+
+export const billingOutboxEvents = mysqlTable(
+  'billing_outbox_events',
+  {
+    id: bigint('id', { mode: 'number' }).primaryKey().autoincrement(),
+    eventId: varchar('event_id', { length: 36 }).notNull(),
+    eventType: varchar('event_type', { length: 128 }).notNull(),
+    aggregateType: varchar('aggregate_type', { length: 64 }).notNull(),
+    aggregateId: varchar('aggregate_id', { length: 36 }).notNull(),
+    correlationId: varchar('correlation_id', { length: 255 }).notNull(),
+    payload: json('payload').notNull(),
+    status: mysqlEnum('status', ['PENDING', 'PROCESSING', 'PUBLISHED', 'FAILED', 'DEAD'])
+      .default('PENDING')
+      .notNull(),
+    attemptCount: int('attempt_count').default(0).notNull(),
+    nextAttemptAt: timestamp('next_attempt_at').defaultNow().notNull(),
+    leaseExpiresAt: timestamp('lease_expires_at'),
+    claimedBy: varchar('claimed_by', { length: 128 }),
+    claimToken: varchar('claim_token', { length: 36 }),
+    lastError: text('last_error'),
+    publishedAt: timestamp('published_at'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull()
+  },
+  (table) => [
+    uniqueIndex('uq_bill_outbox_event_id').on(table.eventId),
+    index('idx_bill_outbox_poller').on(table.status, table.nextAttemptAt),
+    index('idx_bill_outbox_lease').on(table.status, table.leaseExpiresAt),
+    index('idx_bill_outbox_fifo').on(table.aggregateType, table.aggregateId, table.id, table.status)
+  ]
+);

@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import {
   type TransitionWorkOrderDto,
+  type EventEnvelope,
   WorkOrderStatus,
   EventType,
   createEvent
@@ -36,6 +37,7 @@ export interface TransitionContext {
 
 export interface TransitionExecutionResult {
   updatedRow: typeof workOrders.$inferSelect;
+  eventsToRecord: Array<EventEnvelope<unknown>>;
   eventsToPublish: Array<() => Promise<void>>;
 }
 
@@ -333,6 +335,7 @@ export async function executeAssignedTransition(
 
   return {
     updatedRow: updatedRow as typeof workOrders.$inferSelect,
+    eventsToRecord: [assignmentResult.event],
     eventsToPublish: [assignmentResult.publishEvent]
   };
 }
@@ -375,22 +378,23 @@ export async function executeApprovedTransition(
 
   const payoutAmountMinor = await resolveAgreedRateMinor(tx, wo.id, wo.budgetAmount);
   const assignedTechnicianId = wo.assignedTechnicianId || '';
+  const event = createEvent(
+    EventType.WORK_ORDER_APPROVED,
+    {
+      workOrderId: wo.id,
+      buyerId: wo.buyerId,
+      technicianId: assignedTechnicianId,
+      payoutAmountMinor
+    },
+    correlationId
+  );
   const publishApproved = async () => {
-    const event = createEvent(
-      EventType.WORK_ORDER_APPROVED,
-      {
-        workOrderId: wo.id,
-        buyerId: wo.buyerId,
-        technicianId: assignedTechnicianId,
-        payoutAmountMinor
-      },
-      correlationId
-    );
     await eventPublisher.publishWorkOrderApproved(event);
   };
 
   return {
     updatedRow: updatedRow as typeof workOrders.$inferSelect,
+    eventsToRecord: [event],
     eventsToPublish: [publishApproved]
   };
 }
@@ -431,24 +435,25 @@ export async function executeCancelledTransition(
     ...updateData
   };
 
+  const event = createEvent(
+    EventType.WORK_ORDER_CANCELLED,
+    {
+      workOrderId: wo.id,
+      buyerId: wo.buyerId,
+      assignedTechnicianId: wo.assignedTechnicianId ?? undefined,
+      reason: dto.reason ?? undefined,
+      cancelledBy: userId,
+      previousStatus: currentStatus
+    },
+    correlationId
+  );
   const publishCancelled = async () => {
-    const event = createEvent(
-      EventType.WORK_ORDER_CANCELLED,
-      {
-        workOrderId: wo.id,
-        buyerId: wo.buyerId,
-        assignedTechnicianId: wo.assignedTechnicianId ?? undefined,
-        reason: dto.reason ?? undefined,
-        cancelledBy: userId,
-        previousStatus: currentStatus
-      },
-      correlationId
-    );
     await eventPublisher.publishWorkOrderCancelled(event);
   };
 
   return {
     updatedRow: updatedRow as typeof workOrders.$inferSelect,
+    eventsToRecord: [event],
     eventsToPublish: [publishCancelled]
   };
 }
@@ -486,6 +491,7 @@ export async function executeDefaultTransition(
 
   return {
     updatedRow: updatedRow as typeof workOrders.$inferSelect,
+    eventsToRecord: [],
     eventsToPublish: []
   };
 }

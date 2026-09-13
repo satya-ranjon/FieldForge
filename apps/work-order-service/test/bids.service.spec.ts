@@ -179,7 +179,7 @@ describe('BidsService in work-order-service', () => {
       expect(result.id).toBe('bid-1');
       expect(result.bidStatus).toBe('ACCEPTED');
       expect(tx.update).toHaveBeenCalledTimes(3); // 1. accept bid, 2. reject siblings, 3. update work order to ASSIGNED
-      expect(tx.insert).toHaveBeenCalledTimes(1); // work order status history
+      expect(tx.insert).toHaveBeenCalledTimes(2); // 1. work order status history, 2. outbox event
       expect(mockEventPublisher.publishWorkOrderAssigned).toHaveBeenCalledTimes(1);
       expect(mockEventPublisher.publishTechBidAccepted).not.toHaveBeenCalled();
     });

@@ -18,6 +18,7 @@ import { PAYMENT_PROVIDER } from './modules/payments/payment-provider.port';
 import { LedgerPaymentProvider } from './modules/payments/ledger-payment.provider';
 import { BillingController } from './controllers/billing.controller';
 import { WorkOrderDirectoryService } from './modules/work-orders/work-order-directory.service';
+import { BillingOutboxRelay } from './events/billing-outbox.relay';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { WorkOrderDirectoryService } from './modules/work-orders/work-order-dire
     InvoicesService,
     PdfKitInvoicePdfRenderer,
     BillingConsumer,
+    BillingOutboxRelay,
     ProfileDirectoryService,
     WorkOrderDirectoryService
   ],
@@ -57,6 +59,7 @@ import { WorkOrderDirectoryService } from './modules/work-orders/work-order-dire
     INVOICE_PDF_RENDERER,
     PdfKitInvoicePdfRenderer,
     BillingConsumer,
+    BillingOutboxRelay,
     ProfileDirectoryService,
     WorkOrderDirectoryService
   ]

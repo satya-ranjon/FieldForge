@@ -1464,6 +1464,52 @@ Eliminated trapped escrow funds when a work order is cancelled by establishing a
 
 ---
 
+### Phase 37: Transactional Outbox Pattern for Microservice Event Publication (Resolves ISSUE-005)
+
+**Goal:** Eliminate non-transactional database + RabbitMQ dual-write hazards (ghost events emitted on DB transaction rollback, lost events on network or broker failure post-commit) by introducing dedicated transactional outbox tables in `work-order-service` and `billing-service`, writing domain events atomically in the same MySQL transaction as domain mutations, and publishing asynchronously via background relays with lease-based crash recovery, CAS claim token fencing, bounded concurrency, and monotonic per-aggregate FIFO ordering.
+
+**Deliverables:**
+
+- **Database Schemas & Migrations (`packages/database`).**
+  - Added `workOrderOutboxEvents` table to `packages/database/src/schemas/work-orders.schema.ts` with `id BIGINT AUTO_INCREMENT PRIMARY KEY`, `event_id VARCHAR(36) UNIQUE`, `aggregate_type`, `aggregate_id`, `event_type`, `payload JSON`, `correlation_id`, `status ENUM('PENDING', 'PROCESSING', 'PUBLISHED', 'FAILED')`, `retry_count`, `claimed_by`, `claim_token VARCHAR(36)`, `lease_expires_at`, `last_error TEXT`, `created_at`, `updated_at`.
+  - Added `billingOutboxEvents` table to `packages/database/src/schemas/billing.schema.ts` with identical schema definition.
+  - Generated and applied migration `0007_blue_malice.sql` via `pnpm run db:generate` (`RULE-DB-02`).
+  - Exported query operators (`sql, and, or, eq, inArray, lte, asc, isNull`) and outbox schemas from `@fieldforge/database`.
+- **Shared Transactional Outbox Engine (`@fieldforge/common`).**
+  - Implemented `packages/common/src/outbox/outbox.types.ts`: `OutboxEventRecord`, `OutboxInsertParams`, `OutboxTableConfig`, and `EventPublisherPort`.
+  - Implemented `insertOutboxEvent(tx, table, params)` in `packages/common/src/outbox/outbox.service.ts` for atomic in-transaction row insertions.
+  - Implemented `OutboxRelay` abstract base class in `packages/common/src/outbox/outbox-relay.ts`:
+    - CAS claim token fencing (`claim_token` matched on both `markPublished` and `markFailed` updates) preventing stale workers from overwriting subsequent state.
+    - Crash recovery via 30s leases (`leaseExpiresAt < NOW()`), re-claiming stuck `PROCESSING` rows.
+    - Monotonic per-aggregate FIFO ordering: prevents claiming newer events for an `aggregateId` if an older event is currently pending or processing.
+    - Small-batch claiming (`LIMIT 5`) with bounded concurrent publishing (`Promise.allSettled`, concurrency limit 5).
+    - Publisher timeout handling (10s timeout with guaranteed timer handle cleanup).
+    - Poison message dead-lettering: marks row `FAILED` after exceeding `maxRetries` (5).
+    - Single-flight trigger coalescing via event loop microtasks (`trigger()` coalesced to prevent concurrent execution overlap).
+- **Work Order Service Integration (`apps/work-order-service`).**
+  - Added `publish(event: EventEnvelope<unknown>)` method to `WorkOrderEventPublisher` implementing `EventPublisherPort`.
+  - Created `WorkOrderOutboxRelay` extending `OutboxRelay` and registered it as an `@Injectable()` provider in `WorkOrderModule`.
+  - Updated `executeCancelledTransition()` in `work-order-transition.ts` to return pending events to caller.
+  - Replaced direct in-transaction network publishes in `work-orders.service.ts` (`publish`, `transition`, `settlePaid`) with atomic `insertOutboxEvent(tx, workOrderOutboxEvents, ...)` calls, followed by post-commit `this.outboxRelay?.trigger()` calls.
+  - Replaced direct in-transaction network publishes in `bids.service.ts` (`submitBid`, `acceptBid`) with atomic `insertOutboxEvent(tx, workOrderOutboxEvents, ...)` calls, followed by post-commit `this.outboxRelay?.trigger()` calls.
+- **Billing Service Integration (`apps/billing-service`).**
+  - Created `BillingOutboxRelay` extending `OutboxRelay` and registered it as an `@Injectable()` provider in `BillingModule`.
+  - Replaced direct in-transaction network publishes in `EscrowService.lockFunds()` (`ESCROW_FUNDED`) and `EscrowService.releaseFunds()` (`PAYOUT_DISBURSED`) with atomic `insertOutboxEvent(tx, billingOutboxEvents, ...)` calls, followed by post-commit `this.outboxRelay?.trigger()` calls.
+  - Preserved `PAYOUT_FAILED` handling outside outbox (error telemetry handled via broker DLQ).
+- **Unit and Integration Test Suites.**
+  - Added comprehensive test suite in `packages/common/test/outbox-relay.spec.ts` (7 tests) covering batch claiming, FIFO aggregate blocker, lease expiration recovery, claim fencing against stale workers, timeout cleanup, poison dead-lettering, and single-flight coalescing.
+  - Added comprehensive test suite in `apps/work-order-service/test/work-order-outbox.spec.ts` (6 tests) covering outbox insertion on publish, assign, accept bid, submit bid, cancel, and paid settlement.
+  - Added unit test suite in `apps/billing-service/test/billing-outbox.spec.ts` (2 tests) covering escrow lock and payout release outbox persistence.
+
+**Verification:**
+
+- `pnpm check && pnpm build` pass cleanly.
+- `pnpm test` and `pnpm test:e2e` pass across all packages (+15 new tests, zero `--passWithNoTests`).
+- `pnpm validate:clean-typecheck` passes with 18/18 packages validated from scratch.
+- Total verified tests: 706 unit/integration tests + 28 E2E tests = 734 tests.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

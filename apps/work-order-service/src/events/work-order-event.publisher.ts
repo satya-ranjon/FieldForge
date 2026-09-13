@@ -17,6 +17,10 @@ import { EventPublisher } from '@fieldforge/messaging';
 export class WorkOrderEventPublisher {
   constructor(@Optional() private readonly eventPublisher?: EventPublisher) {}
 
+  async publish(event: EventEnvelope<unknown>): Promise<void> {
+    await this.emit(event);
+  }
+
   async publishWorkOrderPublished(event: WorkOrderPublishedEvent): Promise<void> {
     await this.emit(event);
   }

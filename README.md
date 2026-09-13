@@ -39,7 +39,7 @@ FieldForge is an enterprise field service marketplace and autonomous dispatch pl
 - **📄 Hexagonal PDF Invoicing:** Decoupled PDF generation using Ports & Adapters (`InvoicePdfRendererPort` + `PdfKitInvoicePdfRenderer`), isolating imperative layout math and SHA-256 content hashes from domain services.
 - **🔔 Autonomous Headless Worker:** Event-driven notification daemon consuming AMQP topics to dispatch push (FCM) and SMS alerts (Twilio/SES) with zero public HTTP exposure (ADR 010).
 - **📊 99.9% SLI/SLO Reliability:** Production Prometheus metrics (`/metrics`), live Grafana dashboard (`http://localhost:3009`), Pino structured logging with PII redaction, distributed `x-correlation-id` propagation, and k6 load validation.
-- **🧪 631 Verified Tests:** 603 automated unit/integration tests across 15 packages/apps and 28 Playwright E2E tests (100% real assertions, zero `--passWithNoTests`).
+- **🧪 734 Verified Tests:** 706 automated unit/integration tests across 15 packages/apps and 28 Playwright E2E tests (100% real assertions, zero `--passWithNoTests`).
 
 ---
 
@@ -606,22 +606,22 @@ pnpm dev
 
 The repository enforces strict test quality and continuous validation. Placeholder test suites (`--passWithNoTests`) and superficial assertions are prohibited.
 
-### Monorepo Test Inventory (656 Total Verified Tests)
+### Monorepo Test Inventory (734 Total Verified Tests)
 
 | Component / Workspace            | Type                  | Test Suites |  Tests  |    Status     |
 | :------------------------------- | :-------------------- | :---------: | :-----: | :-----------: |
-| `apps/work-order-service`        | Unit / Integration    |     13      |   234   |     PASS      |
-| `@fieldforge/contracts`          | Unit / Schema         |      3      |   81    |     PASS      |
-| `apps/auth-service`              | Unit / Integration    |      7      |   73    |     PASS      |
+| `apps/work-order-service`        | Unit / Integration    |     14      |   245   |     PASS      |
+| `@fieldforge/auth-service`       | Unit / Integration    |      7      |   82    |     PASS      |
+| `@fieldforge/contracts`          | Unit / Schema         |      3      |   82    |     PASS      |
+| `apps/billing-service`           | Unit / Integration    |      7      |   73    |     PASS      |
+| `@fieldforge/common`             | Unit / Infrastructure |      7      |   66    |     PASS      |
 | `apps/dispatch-matching-service` | Unit / Integration    |      5      |   58    |     PASS      |
-| `@fieldforge/common`             | Unit / Infrastructure |      6      |   49    |     PASS      |
 | `apps/api-gateway`               | Unit / Integration    |      6      |   44    |     PASS      |
-| `apps/billing-service`           | Unit / Integration    |      5      |   33    |     PASS      |
 | `@fieldforge/messaging`          | Unit / Integration    |      5      |   21    |     PASS      |
-| `apps/mobile-tech-app`           | Unit / Component      |      3      |   21    |     PASS      |
+| `apps/mobile-tech-app`           | Unit / Component      |      4      |   21    |     PASS      |
 | `apps/notification-service`      | Unit / Integration    |      1      |   14    |     PASS      |
 | **Playwright E2E Test Suite**    | End-to-End            |      1      |   28    |     PASS      |
-| **Monorepo Total**               |                       |   **50**    | **656** | **100% PASS** |
+| **Monorepo Total**               |                       |   **60**    | **734** | **100% PASS** |
 
 ### Standard Verification Commands
 

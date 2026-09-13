@@ -14,3 +14,6 @@ export * from './geo/haversine';
 export * from './auth/gateway-auth';
 export * from './directory/profile-directory.service';
 export * from './pipes/zod-validation.pipe';
+export * from './outbox/outbox.types';
+export * from './outbox/outbox.service';
+export * from './outbox/outbox-relay';

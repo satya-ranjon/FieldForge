@@ -26,7 +26,22 @@ export type DatabaseClient = ReturnType<typeof createDbClient>;
 export type DatabaseTransaction = Parameters<Parameters<DatabaseClient['transaction']>[0]>[0];
 export type DbOrTx = DatabaseClient | DatabaseTransaction;
 
-export { sql } from 'drizzle-orm';
+export {
+  sql,
+  and,
+  or,
+  eq,
+  ne,
+  inArray,
+  lte,
+  lt,
+  gte,
+  gt,
+  asc,
+  desc,
+  notExists,
+  aliasedTable
+} from 'drizzle-orm';
 
 export const iamSchema = {
   users: usersSchema.users,

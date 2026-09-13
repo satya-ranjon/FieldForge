@@ -7,12 +7,23 @@ import {
   ForbiddenException,
   ConflictException
 } from '@nestjs/common';
-import { DRIZZLE, ProfileDirectoryService, type DrizzleClient } from '@fieldforge/common';
-import { workOrders, workOrderBids, idempotencyKeys } from '@fieldforge/database';
+import {
+  DRIZZLE,
+  ProfileDirectoryService,
+  type DrizzleClient,
+  insertOutboxEvent
+} from '@fieldforge/common';
+import {
+  workOrders,
+  workOrderBids,
+  idempotencyKeys,
+  workOrderOutboxEvents
+} from '@fieldforge/database';
 import { eq, and, ne, desc } from 'drizzle-orm';
 import {
   type SubmitBidDto,
   type BidDetailsDto,
+  type EventEnvelope,
   WorkOrderStatus,
   EventType,
   createEvent,
@@ -20,6 +31,7 @@ import {
   decimalStringToMinor
 } from '@fieldforge/contracts';
 import { WorkOrderEventPublisher } from '../../events/work-order-event.publisher';
+import { WorkOrderOutboxRelay } from '../../events/work-order-outbox.relay';
 import { WorkOrderFsmService } from '../fsm/work-order-fsm.service';
 import { executeWorkOrderAssignment } from '../work-orders/work-order-assignment';
 import { randomUUID } from 'node:crypto';
@@ -32,7 +44,8 @@ export class BidsService {
     @Inject(DRIZZLE) private readonly db: DrizzleClient,
     private readonly eventPublisher: WorkOrderEventPublisher,
     private readonly fsmService: WorkOrderFsmService,
-    @Optional() profileDirectory?: ProfileDirectoryService
+    @Optional() profileDirectory?: ProfileDirectoryService,
+    @Optional() private readonly outboxRelay?: WorkOrderOutboxRelay
   ) {
     this.profileDirectory = profileDirectory || new ProfileDirectoryService();
   }
@@ -51,7 +64,8 @@ export class BidsService {
     idempotencyKey?: string,
     callerProfileId?: string
   ): Promise<BidDetailsDto> {
-    return await this.db.transaction(async (tx) => {
+    let eventToPublish: EventEnvelope<unknown> | undefined;
+    const responseDto = await this.db.transaction(async (tx) => {
       if (idempotencyKey) {
         const [existing] = await tx
           .select()
@@ -145,7 +159,7 @@ export class BidsService {
           });
       }
 
-      // 4. Publish confirmed event: tech.bidding.submitted
+      // 4. Record confirmed event in outbox
       const event = createEvent(
         EventType.TECH_BIDDING_SUBMITTED,
         {
@@ -158,10 +172,23 @@ export class BidsService {
         correlationId
       );
 
-      await this.eventPublisher.publishTechBiddingSubmitted(event);
+      await insertOutboxEvent(tx, workOrderOutboxEvents, {
+        event,
+        aggregateType: 'bid',
+        aggregateId: bidId
+      });
+      eventToPublish = event;
 
       return responseDto;
     });
+
+    if (this.outboxRelay) {
+      this.outboxRelay.trigger();
+    } else if (eventToPublish) {
+      await this.eventPublisher.publishTechBiddingSubmitted(eventToPublish);
+    }
+
+    return responseDto;
   }
 
   /**
@@ -177,7 +204,7 @@ export class BidsService {
     callerProfileId?: string,
     targetWorkOrderId?: string
   ): Promise<BidDetailsDto> {
-    return await this.db.transaction(async (tx) => {
+    const result = await this.db.transaction(async (tx) => {
       // 1. Check idempotency
       if (idempotencyKey) {
         const [existing] = await tx
@@ -186,7 +213,10 @@ export class BidsService {
           .where(eq(idempotencyKeys.key, idempotencyKey));
 
         if (existing && existing.status === 'COMPLETED' && existing.responsePayload) {
-          return existing.responsePayload as unknown as BidDetailsDto;
+          return {
+            responseDto: existing.responsePayload as unknown as BidDetailsDto,
+            publishAssignedEvent: undefined
+          };
         }
       }
 
@@ -265,11 +295,8 @@ export class BidsService {
         );
 
       // 7 & 8. Atomically transition work order to ASSIGNED and record status history
-      const { publishEvent: publishAssignedEvent } = await executeWorkOrderAssignment(
-        tx,
-        this.fsmService,
-        this.eventPublisher,
-        {
+      const { event: assignedEvent, publishEvent: publishAssignedEvent } =
+        await executeWorkOrderAssignment(tx, this.fsmService, this.eventPublisher, {
           workOrderId: wo.id,
           technicianId: bid.technicianId,
           fromStatus: (wo.status as WorkOrderStatus) || WorkOrderStatus.PUBLISHED,
@@ -278,8 +305,14 @@ export class BidsService {
           agreedRateMinor: decimalStringToMinor(bid.bidAmount),
           correlationId,
           validateFsm: false
-        }
-      );
+        });
+
+      // Record assigned event in outbox inside business transaction
+      await insertOutboxEvent(tx, workOrderOutboxEvents, {
+        event: assignedEvent,
+        aggregateType: 'work_order',
+        aggregateId: wo.id
+      });
 
       const responseDto: BidDetailsDto = {
         id: bid.id,
@@ -306,11 +339,16 @@ export class BidsService {
           });
       }
 
-      // 9. Publish canonical work_order.lifecycle.assigned event
-      await publishAssignedEvent();
-
-      return responseDto;
+      return { responseDto, publishAssignedEvent };
     });
+
+    if (this.outboxRelay) {
+      this.outboxRelay.trigger();
+    } else if (result.publishAssignedEvent) {
+      await result.publishAssignedEvent();
+    }
+
+    return result.responseDto;
   }
 
   /**

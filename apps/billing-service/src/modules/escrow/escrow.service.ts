@@ -14,14 +14,16 @@ import {
   type DrizzleClient,
   createLogger,
   metricsRegistry,
-  ProfileDirectoryService
+  ProfileDirectoryService,
+  insertOutboxEvent
 } from '@fieldforge/common';
-import { billingSchema, idempotencySchema } from '@fieldforge/database';
+import { billingSchema, idempotencySchema, billingOutboxEvents } from '@fieldforge/database';
 import type {
   EscrowDetailsDto,
   MinorUnits,
   PayoutLedgerItemDto,
-  TechnicianEarningsDto
+  TechnicianEarningsDto,
+  EventEnvelope
 } from '@fieldforge/contracts';
 import {
   createEvent,
@@ -32,6 +34,7 @@ import {
   decimalStringToMinor
 } from '@fieldforge/contracts';
 import { EventPublisher } from '@fieldforge/messaging';
+import { BillingOutboxRelay } from '../../events/billing-outbox.relay';
 import { InvoicesService } from '../invoices/invoices.service';
 import { PAYMENT_PROVIDER, type PaymentProviderPort } from '../payments/payment-provider.port';
 import { WorkOrderDirectoryService } from '../work-orders/work-order-directory.service';
@@ -83,7 +86,8 @@ export class EscrowService {
     private readonly invoicesService: InvoicesService,
     @Optional() private readonly producer?: EventPublisher,
     @Optional() workOrderDirectory?: WorkOrderDirectoryService,
-    @Optional() profileDirectory?: ProfileDirectoryService
+    @Optional() profileDirectory?: ProfileDirectoryService,
+    @Optional() private readonly outboxRelay?: BillingOutboxRelay
   ) {
     this.workOrderDirectory = workOrderDirectory || new WorkOrderDirectoryService();
     this.profileDirectory = profileDirectory || new ProfileDirectoryService();
@@ -120,7 +124,8 @@ export class EscrowService {
         : `escrow-capture:${idempotencyKey}`
       : `escrow-capture:${workOrderId}`;
 
-    return await this.db.transaction(async (tx) => {
+    let fundedEvent: EventEnvelope<unknown> | undefined;
+    const result = await this.db.transaction(async (tx) => {
       // 1. Idempotency Check if key provided
       if (idempotencyKey) {
         const [existingKey] = await tx
@@ -140,7 +145,7 @@ export class EscrowService {
           }
           if (existingKey.status === 'IN_PROGRESS') {
             throw new ConflictException(
-              `An escrow pre-authorization with idempotency key ${idempotencyKey} is already in progress`
+              `An escrow lock operation with idempotency key ${idempotencyKey} is already in progress`
             );
           }
         } else {
@@ -207,21 +212,33 @@ export class EscrowService {
           .where(eq(idempotencySchema.idempotencyKeys.key, idempotencyKey));
       }
 
-      // Publish escrow funded event
-      if (this.producer) {
-        const event = createEvent(
-          EventType.ESCROW_FUNDED,
-          { escrowId, workOrderId, buyerId, amountMinor },
-          correlationId
-        );
-        await this.producer.publish(event).catch((err: unknown) => {
-          const msg = err instanceof Error ? err.message : String(err);
-          this.logger.error(`[Escrow] Failed to publish ESCROW_FUNDED event: ${msg}`);
-        });
-      }
+      // Record escrow funded event in outbox inside business transaction
+      const event = createEvent(
+        EventType.ESCROW_FUNDED,
+        { escrowId, workOrderId, buyerId, amountMinor },
+        correlationId
+      );
+
+      await insertOutboxEvent(tx, billingOutboxEvents, {
+        event,
+        aggregateType: 'escrow',
+        aggregateId: escrowId
+      });
+      fundedEvent = event;
 
       return result;
     });
+
+    if (this.outboxRelay) {
+      this.outboxRelay.trigger();
+    } else if (this.producer && fundedEvent) {
+      await this.producer.publish(fundedEvent).catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.error(`[Escrow] Failed to publish ESCROW_FUNDED event: ${msg}`);
+      });
+    }
+
+    return result;
   }
 
   /**
@@ -265,8 +282,9 @@ export class EscrowService {
       amountMinor: requestedAmountMinor
     } = params;
 
+    let payoutEvent: EventEnvelope<unknown> | undefined;
     try {
-      return await this.db.transaction(async (tx) => {
+      const result = await this.db.transaction(async (tx) => {
         // 1. Idempotency Check
         if (idempotencyKey) {
           const [existingKey] = await tx
@@ -457,27 +475,39 @@ export class EscrowService {
             .where(eq(idempotencySchema.idempotencyKeys.key, idempotencyKey));
         }
 
-        // 11. Publish PAYOUT_DISBURSED Event
-        if (this.producer) {
-          const event = createEvent(
-            EventType.PAYOUT_DISBURSED,
-            {
-              escrowId: escrow.id,
-              workOrderId,
-              buyerId: woBuyerId,
-              technicianId: woTechnicianId,
-              amountMinor
-            },
-            correlationId || randomUUID()
-          );
-          await this.producer.publish(event).catch((err: unknown) => {
-            const msg = err instanceof Error ? err.message : String(err);
-            this.logger.error(`[Escrow] Failed to publish PAYOUT_DISBURSED event: ${msg}`);
-          });
-        }
+        // 11. Record PAYOUT_DISBURSED Event in outbox inside business transaction
+        const event = createEvent(
+          EventType.PAYOUT_DISBURSED,
+          {
+            escrowId: escrow.id,
+            workOrderId,
+            buyerId: woBuyerId,
+            technicianId: woTechnicianId,
+            amountMinor
+          },
+          correlationId || randomUUID()
+        );
+
+        await insertOutboxEvent(tx, billingOutboxEvents, {
+          event,
+          aggregateType: 'escrow',
+          aggregateId: escrow.id
+        });
+        payoutEvent = event;
 
         return result;
       });
+
+      if (this.outboxRelay) {
+        this.outboxRelay.trigger();
+      } else if (this.producer && payoutEvent) {
+        await this.producer.publish(payoutEvent).catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          this.logger.error(`[Escrow] Failed to publish PAYOUT_DISBURSED event: ${msg}`);
+        });
+      }
+
+      return result;
     } catch (error) {
       if (
         !(error instanceof ConflictException) &&

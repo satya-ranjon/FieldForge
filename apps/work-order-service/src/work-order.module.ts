@@ -16,6 +16,7 @@ import { BidsController } from './modules/bids/bids.controller';
 import { BidsService } from './modules/bids/bids.service';
 import { WorkOrderFsmService } from './modules/fsm/work-order-fsm.service';
 import { WorkOrderEventPublisher } from './events/work-order-event.publisher';
+import { WorkOrderOutboxRelay } from './events/work-order-outbox.relay';
 import { DeliverablesService } from './modules/deliverables/deliverables.service';
 import { SlaEscalationService } from './modules/sla/sla-escalation.service';
 import { SlaAutoApprovalService } from './modules/sla/sla-auto-approval.service';
@@ -50,6 +51,7 @@ import { WorkOrderEventsConsumer } from './consumers/work-order-events.consumer'
     BidsService,
     WorkOrderFsmService,
     WorkOrderEventPublisher,
+    WorkOrderOutboxRelay,
     DeliverablesService,
     SlaEscalationService,
     SlaAutoApprovalService,
@@ -60,6 +62,7 @@ import { WorkOrderEventsConsumer } from './consumers/work-order-events.consumer'
     WorkOrdersService,
     BidsService,
     WorkOrderFsmService,
+    WorkOrderOutboxRelay,
     DeliverablesService,
     SlaEscalationService,
     SlaAutoApprovalService,

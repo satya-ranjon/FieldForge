@@ -274,10 +274,10 @@ Codified under `.agent/` and `.cursorrules`:
 
 - `RULE-ARCH-01` — bounded contexts, no cross-service DB access, contracts as single source of truth.
 - `RULE-DB-02` — InnoDB/utf8mb4, UUID v4 `VARCHAR(36)` PKs, `db.transaction()` + `SELECT … FOR UPDATE` for multi-table state changes, composite `(status, scheduled_start_time)` index.
-- `RULE-EVENT-03` — topic exchange `fieldforge.events.topic`, `<domain>.<entity>.<action>` keys, idempotent consumers (7-day TTL), DLQ + exponential backoff (max 3 retries).
+- `RULE-EVENT-03` — topic exchange `fieldforge.events.topic`, `<domain>.<entity>.<action>` keys, transactional outbox pattern, idempotent consumers (7-day TTL), DLQ + exponential backoff (max 3 retries).
 - `RULE-FE-04` — Redux Toolkit + RTK Query, atomic components, Tailwind + `@fieldforge/ui`.
 - `RULE-MOB-05` — offline-first SQLite cache + auto-flush on reconnect, Haversine ≤100 m geofence.
-- ADRs (`.agent/memory/ADRs/`): MySQL 8.0 + Drizzle (001), RabbitMQ 3.13 topic exchanges (002), Redis 7 GEOSEARCH with 15 s heartbeat TTL (003).
+- ADRs (`.agent/memory/ADRs/`): MySQL 8.0 + Drizzle (001), RabbitMQ 3.13 topic exchanges (002), Redis 7 GEOSEARCH with 15 s heartbeat TTL (003), Work Order Aggregate Boundary Reconciliation (005), Bounded Context Data Isolation (006), Marketplace Bidding Work Order Cohesion (007), IAM, Domain Profiles & Contractor Vetting Separation (008), Event-Driven Settlement Choreography (009), Headless Notification Worker Boundary (010), Transactional Outbox Pattern for Microservice Event Publication (011).
 
 Several of these rules are currently unmet — see [`ISSUES.md`](./ISSUES.md).
 

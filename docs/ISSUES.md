@@ -264,6 +264,16 @@
 > and derived deterministic operation-scoped provider keys (`escrow-capture:`, `escrow-payout:`, `escrow-remainder-refund:`, `escrow-refund:`).
 > Zero database migrations (`RULE-DB-02`). Total verified tests: 686 unit/integration + 28 E2E = 714 tests.
 
+> **Remediation update — 2026-09-13:** Microservice Reliability Remediation
+> delivered the Transactional Outbox Pattern across `work-order-service` and `billing-service` (Resolves **ISSUE-005**).
+> Eliminated dual-write failure modes (ghost events published on DB rollback, lost events on network failure post-commit)
+> across all core domain event publishers (`WORK_ORDER_PUBLISHED`, `WORK_ORDER_ASSIGNED`, `WORK_ORDER_APPROVED`,
+> `WORK_ORDER_PAID`, `WORK_ORDER_CANCELLED`, `TECH_BIDDING_SUBMITTED`, `TECH_BID_ACCEPTED`, `ESCROW_FUNDED`, `PAYOUT_DISBURSED`).
+> Introduced service-owned outbox tables `work_order_outbox_events` and `billing_outbox_events` (`0007_blue_malice.sql`)
+> with auto-increment IDs for strict monotonic per-aggregate FIFO ordering, crash recovery via 30s leases, CAS claim token fencing,
+> bounded concurrency (batch limit 5, publish concurrency 5, 10s timeout with handle cleanup), and poison event dead-lettering (`FAILED`).
+> Integrated background polling + single-flight post-commit event loop triggers. Total verified tests: 706 unit/integration + 28 E2E = 734 tests.
+
 ---
 
 ## How to read this report

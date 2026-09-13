@@ -6,7 +6,11 @@ import {
   decimal,
   text,
   index,
-  datetime
+  datetime,
+  bigint,
+  int,
+  json,
+  uniqueIndex
 } from 'drizzle-orm/mysql-core';
 import { buyerProfiles, technicianProfiles } from './users.schema';
 
@@ -90,4 +94,35 @@ export const workOrderStatusHistory = mysqlTable(
     createdAt: timestamp('created_at').defaultNow().notNull()
   },
   (table) => [index('idx_wosh_wo_created').on(table.workOrderId, table.createdAt)]
+);
+
+export const workOrderOutboxEvents = mysqlTable(
+  'work_order_outbox_events',
+  {
+    id: bigint('id', { mode: 'number' }).primaryKey().autoincrement(),
+    eventId: varchar('event_id', { length: 36 }).notNull(),
+    eventType: varchar('event_type', { length: 128 }).notNull(),
+    aggregateType: varchar('aggregate_type', { length: 64 }).notNull(),
+    aggregateId: varchar('aggregate_id', { length: 36 }).notNull(),
+    correlationId: varchar('correlation_id', { length: 255 }).notNull(),
+    payload: json('payload').notNull(),
+    status: mysqlEnum('status', ['PENDING', 'PROCESSING', 'PUBLISHED', 'FAILED', 'DEAD'])
+      .default('PENDING')
+      .notNull(),
+    attemptCount: int('attempt_count').default(0).notNull(),
+    nextAttemptAt: timestamp('next_attempt_at').defaultNow().notNull(),
+    leaseExpiresAt: timestamp('lease_expires_at'),
+    claimedBy: varchar('claimed_by', { length: 128 }),
+    claimToken: varchar('claim_token', { length: 36 }),
+    lastError: text('last_error'),
+    publishedAt: timestamp('published_at'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull()
+  },
+  (table) => [
+    uniqueIndex('uq_wo_outbox_event_id').on(table.eventId),
+    index('idx_wo_outbox_poller').on(table.status, table.nextAttemptAt),
+    index('idx_wo_outbox_lease').on(table.status, table.leaseExpiresAt),
+    index('idx_wo_outbox_fifo').on(table.aggregateType, table.aggregateId, table.id, table.status)
+  ]
 );

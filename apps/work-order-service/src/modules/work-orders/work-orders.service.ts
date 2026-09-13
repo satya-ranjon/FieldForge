@@ -13,6 +13,8 @@ import type {
   WorkOrderStatusHistoryDto,
   TechBidAcceptedPayload,
   PayoutFailedPayload,
+  WorkOrderPublishedEvent,
+  WorkOrderPaidEvent,
   MinorUnits
 } from '@fieldforge/contracts';
 import {
@@ -23,12 +25,23 @@ import {
   fromMinor,
   toMinor
 } from '@fieldforge/contracts';
-import { workOrders, workOrderStatusHistory, workOrderBids } from '@fieldforge/database';
+import {
+  workOrders,
+  workOrderStatusHistory,
+  workOrderBids,
+  workOrderOutboxEvents
+} from '@fieldforge/database';
 import { eq, and, gte, lte, asc } from 'drizzle-orm';
-import { DRIZZLE, type DrizzleClient, ProfileDirectoryService } from '@fieldforge/common';
+import {
+  DRIZZLE,
+  type DrizzleClient,
+  ProfileDirectoryService,
+  insertOutboxEvent
+} from '@fieldforge/common';
 import { Optional } from '@nestjs/common';
 import { WorkOrderFsmService } from '../fsm/work-order-fsm.service';
 import { WorkOrderEventPublisher } from '../../events/work-order-event.publisher';
+import { WorkOrderOutboxRelay } from '../../events/work-order-outbox.relay';
 import {
   executeWorkOrderAssignment,
   type AssignmentDbTx,
@@ -52,7 +65,8 @@ export class WorkOrdersService {
     private readonly db: DrizzleClient,
     private readonly fsmService: WorkOrderFsmService,
     private readonly eventPublisher: WorkOrderEventPublisher,
-    @Optional() profileDirectory?: ProfileDirectoryService
+    @Optional() profileDirectory?: ProfileDirectoryService,
+    @Optional() private readonly outboxRelay?: WorkOrderOutboxRelay
   ) {
     this.profileDirectory = profileDirectory || new ProfileDirectoryService();
   }
@@ -233,14 +247,7 @@ export class WorkOrdersService {
     callerProfileId?: string
   ): Promise<WorkOrderResponseDto> {
     let updatedOrder: WorkOrderResponseDto;
-    let publishedEventPayload: {
-      workOrderId: string;
-      buyerId: string;
-      title: string;
-      maxBudgetMinor: number;
-      latitude: number;
-      longitude: number;
-    };
+    let publishedEvent: WorkOrderPublishedEvent | undefined;
 
     await this.db.transaction(async (tx) => {
       const [wo] = await tx
@@ -295,7 +302,7 @@ export class WorkOrdersService {
         updatedAt: now
       });
 
-      publishedEventPayload = {
+      const publishedEventPayload = {
         workOrderId: wo.id,
         buyerId: wo.buyerId,
         title: wo.title,
@@ -303,14 +310,26 @@ export class WorkOrdersService {
         latitude: Number(wo.latitude),
         longitude: Number(wo.longitude)
       };
+
+      const event = createEvent(
+        EventType.WORK_ORDER_PUBLISHED,
+        publishedEventPayload,
+        correlationId
+      );
+
+      await insertOutboxEvent(tx, workOrderOutboxEvents, {
+        event,
+        aggregateType: 'work_order',
+        aggregateId: wo.id
+      });
+      publishedEvent = event;
     });
 
-    const event = createEvent(
-      EventType.WORK_ORDER_PUBLISHED,
-      publishedEventPayload!,
-      correlationId
-    );
-    await this.eventPublisher.publishWorkOrderPublished(event);
+    if (this.outboxRelay) {
+      this.outboxRelay.trigger();
+    } else if (publishedEvent) {
+      await this.eventPublisher.publishWorkOrderPublished(publishedEvent);
+    }
 
     return updatedOrder!;
   }
@@ -369,12 +388,24 @@ export class WorkOrdersService {
       const executor = transitionExecutors[dto.nextStatus] ?? executeDefaultTransition;
       const result = await executor(context, this.fsmService, this.eventPublisher);
 
+      for (const event of result.eventsToRecord) {
+        await insertOutboxEvent(tx, workOrderOutboxEvents, {
+          event,
+          aggregateType: 'work_order',
+          aggregateId: wo.id
+        });
+      }
+
       eventsToPublish.push(...result.eventsToPublish);
       updatedOrder = this.mapToResponseDto(result.updatedRow);
     });
 
-    for (const publishFn of eventsToPublish) {
-      await publishFn();
+    if (this.outboxRelay) {
+      this.outboxRelay.trigger();
+    } else {
+      for (const publishFn of eventsToPublish) {
+        await publishFn();
+      }
     }
 
     return updatedOrder!;
@@ -391,14 +422,7 @@ export class WorkOrdersService {
     disbursedAmountMinor?: MinorUnits
   ): Promise<WorkOrderResponseDto> {
     let updatedOrder: WorkOrderResponseDto;
-    let paidEventPayload:
-      | {
-          workOrderId: string;
-          buyerId: string;
-          technicianId: string;
-          payoutAmountMinor: number;
-        }
-      | undefined;
+    let paidEvent: WorkOrderPaidEvent | undefined;
 
     await this.db.transaction(async (tx) => {
       const [wo] = await tx
@@ -457,17 +481,26 @@ export class WorkOrdersService {
           : toMinor(Number(wo.budgetAmount));
       }
 
-      paidEventPayload = {
+      const paidEventPayload = {
         workOrderId: wo.id,
         buyerId: wo.buyerId,
         technicianId: wo.assignedTechnicianId || '',
         payoutAmountMinor: effectivePayoutMinor
       };
+
+      const event = createEvent(EventType.WORK_ORDER_PAID, paidEventPayload, correlationId);
+      await insertOutboxEvent(tx, workOrderOutboxEvents, {
+        event,
+        aggregateType: 'work_order',
+        aggregateId: wo.id
+      });
+      paidEvent = event;
     });
 
-    if (paidEventPayload) {
-      const event = createEvent(EventType.WORK_ORDER_PAID, paidEventPayload, correlationId);
-      await this.eventPublisher.publishWorkOrderPaid(event);
+    if (this.outboxRelay) {
+      this.outboxRelay.trigger();
+    } else if (paidEvent) {
+      await this.eventPublisher.publishWorkOrderPaid(paidEvent);
     }
 
     return updatedOrder!;
