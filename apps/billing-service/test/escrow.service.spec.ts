@@ -2,7 +2,9 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
-  NotFoundException
+  NotFoundException,
+  InternalServerErrorException,
+  ServiceUnavailableException
 } from '@nestjs/common';
 import { EscrowStatus, EventType, WorkOrderStatus } from '@fieldforge/contracts';
 import type { DrizzleClient, DrizzleTransaction } from '@fieldforge/common';
@@ -243,6 +245,16 @@ describe('EscrowService', () => {
   });
 
   describe('releaseFunds (C3 resolution and transactional safety)', () => {
+    beforeEach(() => {
+      escrow.getWorkOrderDirectory().setLocalWorkOrder(WORK_ORDER_ID, {
+        id: WORK_ORDER_ID,
+        status: WorkOrderStatus.APPROVED,
+        buyerId: BUYER_ID,
+        assignedTechnicianId: TECH_ID
+      });
+      escrow.getProfileDirectory().setLocalProfile(BUYER_ID, 'BUYER', BUYER_ID);
+    });
+
     it('returns cached result when idempotency key is already COMPLETED', async () => {
       const cachedResult = {
         workOrderId: WORK_ORDER_ID,
@@ -418,6 +430,42 @@ describe('EscrowService', () => {
           callerRole: 'BUYER'
         })
       ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('rejects manual release with ConflictException and aborts before DB transaction when work order status is COMPLETED', async () => {
+      escrow.getWorkOrderDirectory().setLocalWorkOrder(WORK_ORDER_ID, {
+        id: WORK_ORDER_ID,
+        status: WorkOrderStatus.COMPLETED,
+        buyerId: 'owner-buyer-profile-id',
+        assignedTechnicianId: TECH_ID
+      });
+      escrow
+        .getProfileDirectory()
+        .setLocalProfile('buyer-user-id', 'BUYER', 'owner-buyer-profile-id');
+
+      await expect(
+        escrow.releaseFunds({
+          workOrderId: WORK_ORDER_ID,
+          callerUserId: 'buyer-user-id',
+          callerRole: 'BUYER',
+          correlationId: CORRELATION_ID
+        })
+      ).rejects.toThrow(ConflictException);
+
+      await expect(
+        escrow.releaseFunds({
+          workOrderId: WORK_ORDER_ID,
+          callerUserId: 'buyer-user-id',
+          callerRole: 'BUYER',
+          correlationId: CORRELATION_ID
+        })
+      ).rejects.toThrow(
+        `Work order must be APPROVED before escrow release: current status is ${WorkOrderStatus.COMPLETED}`
+      );
+
+      // Verify financial transaction and payment provider were NEVER reached
+      expect(mockDb.transaction).not.toHaveBeenCalled();
+      expect(mockPaymentProvider.disbursePayout).not.toHaveBeenCalled();
     });
 
     it('successfully releases funds when work order is APPROVED and caller is authorized', async () => {
@@ -715,6 +763,87 @@ describe('EscrowService', () => {
         reason: expect.stringContaining('Unused escrow balance refunded'),
         idempotencyKey: `escrow-remainder-refund:${WORK_ORDER_ID}`
       });
+    });
+
+    it('throws NotFoundException when work order is not found in directory (ISSUE-002)', async () => {
+      escrow.getWorkOrderDirectory().clearCache();
+      jest.spyOn(escrow.getWorkOrderDirectory(), 'getWorkOrder').mockResolvedValueOnce(null);
+
+      await expect(
+        escrow.releaseFunds({
+          workOrderId: 'wo-unlisted',
+          callerUserId: BUYER_ID,
+          callerRole: 'BUYER'
+        })
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('does NOT convert internal auth failure (401/403) into 404 NotFound (ISSUE-002)', async () => {
+      escrow.getWorkOrderDirectory().clearCache();
+      jest
+        .spyOn(escrow.getWorkOrderDirectory(), 'getWorkOrder')
+        .mockRejectedValueOnce(
+          new InternalServerErrorException('Internal work-order service authentication failed')
+        );
+
+      await expect(
+        escrow.releaseFunds({
+          workOrderId: WORK_ORDER_ID,
+          callerUserId: BUYER_ID,
+          callerRole: 'BUYER'
+        })
+      ).rejects.toThrow(InternalServerErrorException);
+    });
+
+    it('does NOT convert network/offline failure into 404 NotFound (ISSUE-002)', async () => {
+      escrow.getWorkOrderDirectory().clearCache();
+      jest
+        .spyOn(escrow.getWorkOrderDirectory(), 'getWorkOrder')
+        .mockRejectedValueOnce(
+          new ServiceUnavailableException(
+            'Internal work-order service unreachable: Connection refused'
+          )
+        );
+
+      await expect(
+        escrow.releaseFunds({
+          workOrderId: WORK_ORDER_ID,
+          callerUserId: BUYER_ID,
+          callerRole: 'BUYER'
+        })
+      ).rejects.toThrow(ServiceUnavailableException);
+    });
+
+    it('bypasses WorkOrderDirectoryService when caller is SYSTEM with complete payload (ISSUE-002 / FR-BILL-002)', async () => {
+      const dirSpy = jest.spyOn(escrow.getWorkOrderDirectory(), 'getWorkOrder');
+
+      // 1. Escrow lock returns HELD
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            for: () =>
+              Promise.resolve([
+                {
+                  id: 'escrow-1',
+                  workOrderId: WORK_ORDER_ID,
+                  amountLocked: '450.00',
+                  status: 'HELD'
+                }
+              ])
+          })
+        })
+      });
+
+      const result = await escrow.releaseFunds({
+        workOrderId: WORK_ORDER_ID,
+        callerRole: 'SYSTEM',
+        technicianId: TECH_ID,
+        buyerId: BUYER_ID,
+        amountMinor: 45000
+      });
+
+      expect(result.status).toBe(EscrowStatus.RELEASED);
+      expect(dirSpy).not.toHaveBeenCalled();
     });
   });
 

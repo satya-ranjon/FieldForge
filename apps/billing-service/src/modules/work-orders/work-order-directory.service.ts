@@ -1,46 +1,50 @@
-import { Injectable, Logger } from '@nestjs/common';
-import type { WorkOrderResponseDto } from '@fieldforge/contracts';
-
-export const WORK_ORDER_DIRECTORY_CACHE_TTL_SECONDS = 60; // 1 minute
-
-interface MemoryCacheEntry {
-  data: WorkOrderResponseDto;
-  expiresAt: number;
-}
+import {
+  Injectable,
+  Logger,
+  InternalServerErrorException,
+  ServiceUnavailableException
+} from '@nestjs/common';
+import type { WorkOrderBillingContextDto } from '@fieldforge/contracts';
+import {
+  INTERNAL_SECRET_HEADER,
+  SERVICE_NAME_HEADER,
+  getInternalServiceSecret
+} from '@fieldforge/common';
 
 @Injectable()
 export class WorkOrderDirectoryService {
   private readonly logger = new Logger(WorkOrderDirectoryService.name);
   private readonly workOrderServiceUrl: string;
-  private readonly memoryCache = new Map<string, MemoryCacheEntry>();
-  private readonly localWorkOrders = new Map<string, WorkOrderResponseDto>();
+  private readonly internalSecret?: string;
+  private readonly localWorkOrders = new Map<string, WorkOrderBillingContextDto>();
 
-  constructor() {
+  constructor(internalSecret?: string) {
     this.workOrderServiceUrl = process.env.WORK_ORDER_SERVICE_URL || 'http://localhost:8002';
+    this.internalSecret = internalSecret;
   }
 
   /**
    * Sets an in-memory work order for testing or local simulation.
    */
-  setLocalWorkOrder(id: string, workOrder: Partial<WorkOrderResponseDto>): void {
-    this.localWorkOrders.set(id, workOrder as WorkOrderResponseDto);
+  setLocalWorkOrder(id: string, workOrder: Partial<WorkOrderBillingContextDto>): void {
+    this.localWorkOrders.set(id, workOrder as WorkOrderBillingContextDto);
   }
 
   /**
-   * Clears in-memory caches and test overrides.
+   * Clears explicit test/local overrides.
    */
   clearCache(): void {
-    this.memoryCache.clear();
     this.localWorkOrders.clear();
   }
 
   /**
-   * Fetches work order summary from work-order-service over REST.
+   * Fetches narrow work order billing context from work-order-service over authenticated REST (ISSUE-002).
+   * Note: Remote responses are never cached to guarantee state and technician freshness during financial operations.
    */
   async getWorkOrder(
     workOrderId: string,
     correlationId?: string
-  ): Promise<WorkOrderResponseDto | null> {
+  ): Promise<WorkOrderBillingContextDto | null> {
     if (!workOrderId) {
       return null;
     }
@@ -50,62 +54,64 @@ export class WorkOrderDirectoryService {
       return local;
     }
 
-    const cached = this.getFromMemoryCache(workOrderId);
-    if (cached) {
-      return cached;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      [SERVICE_NAME_HEADER]: 'billing-service'
+    };
+
+    const secret =
+      this.internalSecret ?? (process.env.INTERNAL_SERVICE_SECRET || getInternalServiceSecret());
+    if (secret) {
+      headers[INTERNAL_SECRET_HEADER] = secret;
     }
 
+    if (correlationId) {
+      headers['x-correlation-id'] = correlationId;
+    }
+
+    let response: Response;
     try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
-      };
-      if (correlationId) {
-        headers['x-correlation-id'] = correlationId;
-      }
-
-      const response = await fetch(`${this.workOrderServiceUrl}/work-orders/${workOrderId}`, {
-        method: 'GET',
-        headers,
-        signal: AbortSignal.timeout(3000)
-      });
-
-      if (!response.ok) {
-        this.logger.warn(
-          `[WorkOrderDirectoryService] Work order lookup for ${workOrderId} returned HTTP ${response.status}`
-        );
-        return null;
-      }
-
-      const data = (await response.json()) as WorkOrderResponseDto;
-      if (data && data.id) {
-        this.saveToMemoryCache(workOrderId, data);
-        return data;
-      }
-
-      return null;
+      response = await fetch(
+        `${this.workOrderServiceUrl}/internal/work-orders/${workOrderId}/billing-context`,
+        {
+          method: 'GET',
+          headers,
+          signal: AbortSignal.timeout(3000)
+        }
+      );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      this.logger.warn(
-        `[WorkOrderDirectoryService] Work order lookup failed for ${workOrderId}: ${msg}`
+      this.logger.error(
+        `[WorkOrderDirectoryService] Network failure during work order lookup for ${workOrderId}: ${msg}`
       );
-      return null;
+      throw new ServiceUnavailableException(`Internal work-order service unreachable: ${msg}`);
     }
-  }
 
-  private getFromMemoryCache(workOrderId: string): WorkOrderResponseDto | null {
-    const entry = this.memoryCache.get(workOrderId);
-    if (!entry) {
+    if (response.status === 404) {
       return null;
     }
-    if (Date.now() > entry.expiresAt) {
-      this.memoryCache.delete(workOrderId);
-      return null;
-    }
-    return entry.data;
-  }
 
-  private saveToMemoryCache(workOrderId: string, data: WorkOrderResponseDto): void {
-    const expiresAt = Date.now() + WORK_ORDER_DIRECTORY_CACHE_TTL_SECONDS * 1000;
-    this.memoryCache.set(workOrderId, { data, expiresAt });
+    if (response.status === 401 || response.status === 403) {
+      this.logger.error(
+        `[WorkOrderDirectoryService] Authentication to work-order service failed with HTTP ${response.status}`
+      );
+      throw new InternalServerErrorException('Internal work-order service authentication failed');
+    }
+
+    if (!response.ok) {
+      this.logger.error(
+        `[WorkOrderDirectoryService] Work order lookup for ${workOrderId} returned HTTP ${response.status}`
+      );
+      throw new ServiceUnavailableException(
+        `Internal work-order service error: HTTP ${response.status}`
+      );
+    }
+
+    const data = (await response.json()) as WorkOrderBillingContextDto;
+    if (data && data.id) {
+      return data;
+    }
+
+    return null;
   }
 }

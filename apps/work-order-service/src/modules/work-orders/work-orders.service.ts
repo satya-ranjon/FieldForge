@@ -10,6 +10,7 @@ import type {
   TransitionWorkOrderDto,
   ListWorkOrdersQueryDto,
   WorkOrderResponseDto,
+  WorkOrderBillingContextDto,
   WorkOrderStatusHistoryDto,
   TechBidAcceptedPayload,
   PayoutFailedPayload,
@@ -215,6 +216,25 @@ export class WorkOrdersService {
     }
 
     return this.mapToResponseDto(row);
+  }
+
+  /**
+   * Resolves narrow billing context for service-to-service internal authorization (ISSUE-002).
+   * Does not expose PII, customer data, descriptions, or addresses (RULE-ARCH-01).
+   */
+  async getBillingContext(id: string): Promise<WorkOrderBillingContextDto> {
+    const [row] = await this.db.select().from(workOrders).where(eq(workOrders.id, id)).limit(1);
+
+    if (!row) {
+      throw new NotFoundException(`Work order with ID ${id} not found`);
+    }
+
+    return {
+      id: row.id,
+      buyerId: row.buyerId,
+      assignedTechnicianId: row.assignedTechnicianId,
+      status: row.status as WorkOrderStatus
+    };
   }
 
   async getStatusHistory(workOrderId: string): Promise<WorkOrderStatusHistoryDto[]> {

@@ -57,6 +57,17 @@ export interface WorkOrderResponseDto {
   updatedAt: string;
 }
 
+/**
+ * Narrow work order context required by billing service for escrow authorization and payout.
+ * Does not expose customer personal data, addresses, descriptions, or unrelated fields (RULE-ARCH-01).
+ */
+export interface WorkOrderBillingContextDto {
+  id: string;
+  buyerId: string;
+  assignedTechnicianId: string | null;
+  status: WorkOrderStatus;
+}
+
 export interface CreateDeliverableDto {
   workOrderId: string;
   deliverableType: DeliverableType;

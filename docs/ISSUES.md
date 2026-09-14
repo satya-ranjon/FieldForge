@@ -274,6 +274,16 @@
 > bounded concurrency (batch limit 5, publish concurrency 5, 10s timeout with handle cleanup), and poison event dead-lettering (`FAILED`).
 > Integrated background polling + single-flight post-commit event loop triggers. Total verified tests: 706 unit/integration + 28 E2E = 734 tests.
 
+> **Remediation update — 2026-09-13:** Microservice Internal Authentication Remediation
+> resolved inter-service authentication failures between `billing-service` and `work-order-service` (Resolves **ISSUE-002**).
+> Eliminated 401 Unauthorized errors during manual buyer escrow release by replacing public endpoint calls with authenticated
+> internal requests. Introduced narrow `WorkOrderBillingContextDto` (`@fieldforge/contracts`), reusable `InternalServiceGuard`
+> with constant-time secret comparison and service-name authorization (`@fieldforge/common`), mounted `InternalWorkOrdersController`
+> (`GET /internal/work-orders/:id/billing-context`), refactored `WorkOrderDirectoryService` with accurate error semantics (404 -> null;
+> 401/403 -> InternalServerErrorException; 5xx/network -> ServiceUnavailableException), and decoupled HTTP directory lookups from
+> database transactions in `EscrowService` to prevent holding InnoDB row locks across network boundaries. Enforced API gateway
+> anti-spoofing stripping internal credentials and blocking `/internal/*`. Total verified tests: 736 unit/integration + 28 E2E = 764 tests.
+
 ---
 
 ## How to read this report

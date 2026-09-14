@@ -20,7 +20,13 @@ interface AuthenticatedRequest extends Request {
  * the JWT guard allows anonymous access and so leaves `req.user` undefined —
  * would forward the caller's own `x-ff-user-id` untouched.
  */
-const GATEWAY_ASSERTED_HEADERS = ['x-ff-user-id', 'x-ff-user-role', 'x-ff-profile-id'] as const;
+const GATEWAY_STRIPPED_HEADERS = [
+  'x-ff-user-id',
+  'x-ff-user-role',
+  'x-ff-profile-id',
+  'x-fieldforge-service-name',
+  'x-fieldforge-internal-secret'
+] as const;
 
 const createServiceProxy = (targetUrl: string): RequestHandler => {
   return proxy(targetUrl, {
@@ -40,7 +46,8 @@ const createServiceProxy = (targetUrl: string): RequestHandler => {
       if (proxyReqOpts.headers) {
         // Drop first, then re-assert: a spoofed header must not survive on a
         // path where the gateway has no verified identity to overwrite it with.
-        for (const header of GATEWAY_ASSERTED_HEADERS) {
+        // Also strips internal-service authentication headers (ISSUE-002 anti-spoofing).
+        for (const header of GATEWAY_STRIPPED_HEADERS) {
           delete proxyReqOpts.headers[header];
         }
 
@@ -94,6 +101,15 @@ export class ProxyController {
   ])
   forward(@Req() req: Request, @Res() res: Response, @Next() next: NextFunction) {
     const rawPath = req.originalUrl.replace(/^\/api\/v1\/?/, '');
+
+    // Block any attempt to reach internal endpoints through the public gateway (ISSUE-002)
+    if (rawPath.startsWith('internal') || rawPath.includes('/internal/')) {
+      return res.status(404).json({
+        statusCode: 404,
+        message: `Internal routes are not accessible through the public API gateway: ${rawPath}`
+      });
+    }
+
     if (rawPath.startsWith('dispatch/bids')) {
       return this.proxies['work-orders'](req, res, next);
     }

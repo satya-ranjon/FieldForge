@@ -121,7 +121,7 @@ flowchart TD
     %% Inter-Service Directory Resolution (Decoupled Schemas)
     DispSvc -.->|POST /technicians/batch (cached)| AuthSvc
     WOSvc -.->|GET /users/:id/profile| AuthSvc
-    BillSvc -.->|GET /work-orders/:id| WOSvc
+    BillSvc -.->|GET /internal/work-orders/:id/billing-context| WOSvc
 
     %% Async Event Publish & Consume
     WOSvc -.->|Pub: work_order.lifecycle.*| RabbitMQ
@@ -583,6 +583,8 @@ pnpm dev
 ```
 
 > **`JWT_SECRET` Security Requirement:** `api-gateway` and `auth-service` share one HS256 key resolved through `requireJwtSecret()` ([`packages/common/src/config/jwt-secret.ts`](./packages/common/src/config/jwt-secret.ts)). There is deliberately no default fallback: a service with a missing, too-short (< 32 characters, per RFC 7518 §3.2), or previously published key exits immediately at startup. `pnpm setup` generates a cryptographically secure key for local development.
+>
+> **`INTERNAL_SERVICE_SECRET` Security Requirement:** Microservices communicating directly over internal HTTP mesh (`billing-service` → `work-order-service`) authenticate via `InternalServiceGuard` asserting `x-fieldforge-internal-secret` and `x-fieldforge-service-name`. In production (`NODE_ENV=production`), missing or blank secrets fail closed immediately at startup; edge gateway strips inbound headers and rejects `/internal/*` routes.
 
 ### 3. Core Service Endpoints
 
@@ -606,22 +608,22 @@ pnpm dev
 
 The repository enforces strict test quality and continuous validation. Placeholder test suites (`--passWithNoTests`) and superficial assertions are prohibited.
 
-### Monorepo Test Inventory (734 Total Verified Tests)
+### Monorepo Test Inventory (767 Total Verified Tests)
 
 | Component / Workspace            | Type                  | Test Suites |  Tests  |    Status     |
 | :------------------------------- | :-------------------- | :---------: | :-----: | :-----------: |
-| `apps/work-order-service`        | Unit / Integration    |     14      |   245   |     PASS      |
+| `apps/work-order-service`        | Unit / Integration    |     15      |   247   |     PASS      |
+| `apps/billing-service`           | Unit / Integration    |      8      |   88    |     PASS      |
+| `@fieldforge/contracts`          | Unit / Schema         |      3      |   86    |     PASS      |
 | `@fieldforge/auth-service`       | Unit / Integration    |      7      |   82    |     PASS      |
-| `@fieldforge/contracts`          | Unit / Schema         |      3      |   82    |     PASS      |
-| `apps/billing-service`           | Unit / Integration    |      7      |   73    |     PASS      |
-| `@fieldforge/common`             | Unit / Infrastructure |      7      |   66    |     PASS      |
+| `@fieldforge/common`             | Unit / Infrastructure |      8      |   80    |     PASS      |
 | `apps/dispatch-matching-service` | Unit / Integration    |      5      |   58    |     PASS      |
-| `apps/api-gateway`               | Unit / Integration    |      6      |   44    |     PASS      |
+| `apps/api-gateway`               | Unit / Integration    |      6      |   46    |     PASS      |
 | `@fieldforge/messaging`          | Unit / Integration    |      5      |   21    |     PASS      |
 | `apps/mobile-tech-app`           | Unit / Component      |      4      |   21    |     PASS      |
 | `apps/notification-service`      | Unit / Integration    |      1      |   14    |     PASS      |
 | **Playwright E2E Test Suite**    | End-to-End            |      1      |   28    |     PASS      |
-| **Monorepo Total**               |                       |   **60**    | **734** | **100% PASS** |
+| **Monorepo Total**               |                       |   **63**    | **767** | **100% PASS** |
 
 ### Standard Verification Commands
 

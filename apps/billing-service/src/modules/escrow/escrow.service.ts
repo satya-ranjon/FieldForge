@@ -282,6 +282,51 @@ export class EscrowService {
       amountMinor: requestedAmountMinor
     } = params;
 
+    // 1. Resolve work-order billing context & caller authority outside DB transaction (ISSUE-002, RULE-ARCH-01)
+    // Never hold an InnoDB row lock across inter-service network HTTP calls.
+    let woTechnicianId = params.technicianId;
+    let woBuyerId = params.buyerId;
+
+    if (
+      !woTechnicianId ||
+      !woBuyerId ||
+      (callerRole && callerRole !== 'SYSTEM' && callerRole !== 'ADMIN')
+    ) {
+      const workOrder = await this.workOrderDirectory.getWorkOrder(workOrderId, correlationId);
+      if (!workOrder) {
+        throw new NotFoundException(`Work order ${workOrderId} not found`);
+      }
+
+      if (workOrder.status !== 'APPROVED') {
+        throw new ConflictException(
+          `Work order must be APPROVED before escrow release: current status is ${workOrder.status}`
+        );
+      }
+
+      if (!workOrder.assignedTechnicianId) {
+        throw new BadRequestException(`Work order ${workOrderId} has no assigned technician`);
+      }
+
+      woTechnicianId = workOrder.assignedTechnicianId;
+      woBuyerId = workOrder.buyerId;
+    }
+
+    if (callerRole && callerRole !== 'ADMIN' && callerRole !== 'SYSTEM') {
+      // Must be the buyer who owns the work order
+      const resolvedBuyerId = await this.profileDirectory.resolveProfileId(
+        callerUserId || '',
+        callerRole,
+        callerProfileId,
+        correlationId
+      );
+
+      if (!resolvedBuyerId || resolvedBuyerId !== woBuyerId) {
+        throw new ForbiddenException(
+          'Only the work order buyer or an administrator may authorize escrow release'
+        );
+      }
+    }
+
     let payoutEvent: EventEnvelope<unknown> | undefined;
     try {
       const result = await this.db.transaction(async (tx) => {
@@ -312,7 +357,7 @@ export class EscrowService {
           }
         }
 
-        // 2. Fetch Escrow Account
+        // 2. Fetch Escrow Account with row lock (concurrency-safe financial invariant)
         const [escrow] = await tx
           .select()
           .from(billingSchema.escrowAccounts)
@@ -333,51 +378,6 @@ export class EscrowService {
           throw new ConflictException(
             `Escrow cannot be released: current status is ${escrow.status} (expected HELD)`
           );
-        }
-
-        // 3. Work Order FSM Status Verification (C3) & Directory Resolution (RULE-ARCH-01)
-        let woTechnicianId = params.technicianId;
-        let woBuyerId = params.buyerId;
-
-        if (
-          !woTechnicianId ||
-          !woBuyerId ||
-          (callerRole && callerRole !== 'SYSTEM' && callerRole !== 'ADMIN')
-        ) {
-          const workOrder = await this.workOrderDirectory.getWorkOrder(workOrderId, correlationId);
-          if (!workOrder) {
-            throw new NotFoundException(`Work order ${workOrderId} not found`);
-          }
-
-          if (workOrder.status !== 'APPROVED') {
-            throw new ConflictException(
-              `Work order must be APPROVED before escrow release: current status is ${workOrder.status}`
-            );
-          }
-
-          if (!workOrder.assignedTechnicianId) {
-            throw new BadRequestException(`Work order ${workOrderId} has no assigned technician`);
-          }
-
-          woTechnicianId = workOrder.assignedTechnicianId;
-          woBuyerId = workOrder.buyerId;
-        }
-
-        // 4. Caller Authority Verification (C3)
-        if (callerRole && callerRole !== 'ADMIN' && callerRole !== 'SYSTEM') {
-          // Must be the buyer who owns the work order
-          const resolvedBuyerId = await this.profileDirectory.resolveProfileId(
-            callerUserId || '',
-            callerRole,
-            callerProfileId,
-            correlationId
-          );
-
-          if (!resolvedBuyerId || resolvedBuyerId !== woBuyerId) {
-            throw new ForbiddenException(
-              'Only the work order buyer or an administrator may authorize escrow release'
-            );
-          }
         }
 
         const lockedMinor = decimalStringToMinor(escrow.amountLocked);
@@ -540,6 +540,13 @@ export class EscrowService {
   async refundEscrow(params: RefundEscrowParams): Promise<EscrowRefundResult | null> {
     const { workOrderId, correlationId, idempotencyKey } = params;
 
+    // Resolve buyerId before entering DB transaction (avoid holding InnoDB lock during HTTP call)
+    let buyerId = params.buyerId;
+    if (!buyerId) {
+      const wo = await this.workOrderDirectory.getWorkOrder(workOrderId, correlationId);
+      buyerId = wo?.buyerId || 'unknown-buyer';
+    }
+
     try {
       return await this.db.transaction(async (tx) => {
         // 1. Idempotency Check
@@ -639,12 +646,6 @@ export class EscrowService {
         }
 
         // Case E: Escrow is HELD -> execute refund
-        let buyerId = params.buyerId;
-        if (!buyerId) {
-          const wo = await this.workOrderDirectory.getWorkOrder(workOrderId, correlationId);
-          buyerId = wo?.buyerId || 'unknown-buyer';
-        }
-
         const amountMinor = decimalStringToMinor(escrow.amountLocked);
 
         // Update DB status to REFUNDED

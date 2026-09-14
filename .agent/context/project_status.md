@@ -79,7 +79,7 @@
   - Mandatory iOS/Android location, camera, and storage permissions strings and `PermissionsService` wrapper (resolving L7).
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
-- **A test harness that can fail.** 706 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 734 total verified tests).
+- **A test harness that can fail.** 736 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 764 total verified tests).
 - **Transactional Outbox Pattern for Microservice Event Publication (Phase 37, Resolves ISSUE-005).**
   - Eliminated non-transactional dual-write hazards across `work-order-service` and `billing-service` where domain database commits and RabbitMQ message publishes could diverge (ghost events on DB rollback, lost events on network/broker failure post-commit).
   - Provisioned service-owned outbox tables `work_order_outbox_events` and `billing_outbox_events` with auto-increment IDs for strict monotonic per-aggregate FIFO ordering, UUID event deduplication, and crash-recovery leases (`0007_blue_malice.sql`).
@@ -88,7 +88,15 @@
     - `OutboxRelay` abstract base class with CAS claim token fencing (`claim_token` on published/failed marks), 30s lease-based crash recovery, monotonic per-aggregate FIFO ordering blockers, batch claiming (`LIMIT 5`), bounded concurrent publishing (`Promise.allSettled`, limit 5), 10s timeout handle cleanup, poison dead-lettering (`FAILED`), and single-flight post-commit trigger coalescing.
   - Refactored `work-orders.service.ts`, `bids.service.ts`, and `escrow.service.ts` to replace direct in-transaction network publishes with outbox row insertions and post-commit relay triggers.
   - Added unit test suites across `outbox-relay.spec.ts` (7 tests), `work-order-outbox.spec.ts` (6 tests), and `billing-outbox.spec.ts` (2 tests).
-  - Total verified tests across monorepo increased to 706 unit/integration (+15 tests, 734 total including 28 E2E tests).
+- **Internal Service Authentication & Lookup Remediation (Phase 38, Resolves ISSUE-002).**
+  - Eliminated 401 Unauthorized errors during manual escrow release where `billing-service` called user-guarded endpoints on `work-order-service`.
+  - Introduced `WorkOrderBillingContextDto` (`@fieldforge/contracts`) containing only minimal fields (`id`, `buyerId`, `assignedTechnicianId`, `status`) to preserve bounded context privacy (`RULE-ARCH-01`).
+  - Implemented reusable `InternalServiceGuard` in `@fieldforge/common` enforcing constant-time comparison of `x-fieldforge-internal-secret` (`crypto.timingSafeEqual` with length validation) and service-name authorization via `x-fieldforge-service-name` (401 on invalid/missing secret; 403 on unauthorized service name).
+  - Mounted dedicated `InternalWorkOrdersController` on `work-order-service` (`GET /internal/work-orders/:id/billing-context`).
+  - Refactored `WorkOrderDirectoryService` in `billing-service` to call internal endpoint and provide semantic error handling (404 -> null; 401/403 -> `InternalServerErrorException`; 5xx/network -> `ServiceUnavailableException`).
+  - Decoupled `WorkOrderDirectoryService.getWorkOrder()` and caller profile checks from `db.transaction()` in `EscrowService.releaseFunds()` and `refundEscrow()`, eliminating holding InnoDB row locks (`SELECT ... FOR UPDATE`) during inter-service network HTTP calls.
+  - Enforced API Gateway anti-spoofing stripping internal credentials and explicitly blocking external routing to `/internal/*`.
+  - Removed unsafe 60-second in-memory response cache in `WorkOrderDirectoryService`, guaranteeing zero stale remote caching of mutable fields (`status`, `assignedTechnicianId`) for financial authorization.
 - **Payment Provider Capture & Payout Idempotency (Phase 36, Resolves FINDING-PAY-001 & FINDING-PAY-002).**
   - Eliminated external double-charge and double-payout vulnerabilities when external payment provider calls succeed but MySQL transactions fail to commit or roll back.
   - Extended `PaymentProviderPort.captureEscrow()` and `PaymentProviderPort.disbursePayout()` with mandatory `idempotencyKey: string;`.

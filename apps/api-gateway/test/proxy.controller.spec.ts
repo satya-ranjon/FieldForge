@@ -114,4 +114,37 @@ describe('ProxyController identity headers', () => {
       })
     );
   });
+
+  it('strips client-supplied internal service credentials (ISSUE-002 anti-spoofing)', () => {
+    const headers = run({
+      'x-fieldforge-service-name': 'billing-service',
+      'x-fieldforge-internal-secret': 'attacker-secret',
+      'x-correlation-id': 'corr-abc'
+    });
+
+    expect(headers['x-fieldforge-service-name']).toBeUndefined();
+    expect(headers['x-fieldforge-internal-secret']).toBeUndefined();
+    expect(headers['x-correlation-id']).toBe('corr-abc');
+  });
+
+  it('blocks any attempt to access internal routes through public gateway (ISSUE-002)', () => {
+    const controller = new ProxyController();
+    const req = { originalUrl: '/api/v1/internal/work-orders/wo-123/billing-context' } as Request;
+    const json = jest.fn();
+    const status = jest.fn().mockReturnValue({ json });
+    const res = { status } as unknown as import('express').Response;
+    const next = jest.fn();
+
+    controller.forward(req, res, next);
+
+    expect(status).toHaveBeenCalledWith(404);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: 404,
+        message: expect.stringContaining(
+          'Internal routes are not accessible through the public API gateway'
+        )
+      })
+    );
+  });
 });

@@ -11,6 +11,7 @@ import {
 } from '@fieldforge/common';
 import { MessagingModule } from '@fieldforge/messaging';
 import { WorkOrdersController } from './modules/work-orders/work-orders.controller';
+import { InternalWorkOrdersController } from './modules/work-orders/internal-work-orders.controller';
 import { WorkOrdersService } from './modules/work-orders/work-orders.service';
 import { BidsController } from './modules/bids/bids.controller';
 import { BidsService } from './modules/bids/bids.service';
@@ -37,7 +38,12 @@ import { WorkOrderEventsConsumer } from './consumers/work-order-events.consumer'
       })
     })
   ],
-  controllers: [WorkOrdersController, BidsController, HealthController],
+  controllers: [
+    WorkOrdersController,
+    InternalWorkOrdersController,
+    BidsController,
+    HealthController
+  ],
   providers: [
     {
       provide: APP_FILTER,

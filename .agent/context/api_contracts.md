@@ -59,6 +59,11 @@
 | `POST`  | `/work-orders/bids`                           | Legacy route alias to submit bid                                                | `TECHNICIAN`          | `submitBidSchema`            |
 | `GET`   | `/work-orders/bids/:id`                       | Legacy route alias to fetch bid by ID                                           | Authenticated         | None                         |
 | `POST`  | `/work-orders/bids/:id/accept`                | Legacy route alias to accept bid                                                | `BUYER`               | None                         |
+| `GET`   | `/internal/work-orders/:id/billing-context`   | Narrow billing context projection (id, buyerId, assignedTechnicianId, status)   | Internal Service Auth | None                         |
+
+> **Internal Service Authentication (ISSUE-002, ADR 006, RULE-ARCH-01):**
+> Endpoints under `/internal/*` are inaccessible via `api-gateway` (the gateway strips inbound `x-fieldforge-*` headers and drops `/internal/*` route matches).
+> Cross-service HTTP queries (e.g. `billing-service` → `work-order-service`) use `InternalServiceGuard` asserting `x-fieldforge-service-name` and `x-fieldforge-internal-secret` in constant time (`safeCompareSecrets`). The returned payload is strictly narrow (`WorkOrderBillingContextDto`), preventing leakage of contractor addresses, descriptions, or financial budgets.
 
 ---
 

@@ -1510,6 +1510,53 @@ Eliminated trapped escrow funds when a work order is cancelled by establishing a
 
 ---
 
+## Phase 38 — Internal Service Authentication & Lookup Remediation (ISSUE-002)
+
+**Size: S · Dependencies: Phase 25, Phase 37.** Resolves **ISSUE-002** (Billing Service → Work Order Service Internal Lookup Authentication Failure).
+
+Eliminated 401 Unauthorized errors during manual escrow release by implementing authenticated service-to-service communication with a narrow internal contract and decoupling inter-service HTTP queries from InnoDB database transaction row locks.
+
+**Deliverables:**
+
+- **Narrow Billing Context Contract (`@fieldforge/contracts`).**
+  - Exported `WorkOrderBillingContextDto` in `packages/contracts/src/dto/work-order.dto.ts` containing only `id`, `buyerId`, `assignedTechnicianId`, and `status`.
+  - Avoided leaking personal data, customer addresses, descriptions, or unrelated pricing fields (`RULE-ARCH-01`).
+- **Reusable Internal Service Authentication (`@fieldforge/common`).**
+  - Implemented `InternalServiceGuard`, `AllowedServices` decorator, `getInternalServiceSecret()`, and `safeCompareSecrets()` in `packages/common/src/auth/internal-service.guard.ts`.
+  - Required headers: `x-fieldforge-service-name` and `x-fieldforge-internal-secret`.
+  - Constant-time secret comparison via `crypto.timingSafeEqual()` with length pre-validation to guard against `RangeError`.
+  - Service-name authorization (rejects unauthorized callers with 403 Forbidden; missing/invalid credentials with 401 Unauthorized).
+  - Production fail-closed validation (`NODE_ENV=production` requires non-empty `INTERNAL_SERVICE_SECRET`).
+- **Work Order Service Internal Endpoint (`apps/work-order-service`).**
+  - Mounted `InternalWorkOrdersController` on `@Controller('internal/work-orders')` with route `@Get(':id/billing-context')`.
+  - Protected with `InternalServiceGuard(['billing-service'])`.
+  - Implemented `getBillingContext(id)` in `WorkOrdersService` returning `WorkOrderBillingContextDto` (or 404 `NotFoundException`).
+  - Registered controller in `WorkOrderModule`.
+- **Billing Service Directory & Non-Blocking Escrow Locking (`apps/billing-service`).**
+  - Refactored `WorkOrderDirectoryService` to target `GET /internal/work-orders/:id/billing-context` with `x-fieldforge-service-name: billing-service` and `x-fieldforge-internal-secret`.
+  - Preserved semantic HTTP error handling: 404 returns `null`; 401/403 throws `InternalServerErrorException`; 5xx/network errors throw `ServiceUnavailableException`.
+  - Refactored `EscrowService.releaseFunds()` and `EscrowService.refundEscrow()` to resolve work order directory context and caller ownership BEFORE entering `db.transaction()` and acquiring `SELECT ... FOR UPDATE` row locks.
+  - Preserved `SYSTEM` caller bypass when event payload already provides `buyerId` and `technicianId` (no unnecessary HTTP traffic for automated payouts).
+- **API Gateway Anti-Spoofing & Route Protection (`apps/api-gateway`).**
+  - Stripped client-supplied `x-fieldforge-service-name` and `x-fieldforge-internal-secret` in `ProxyController`.
+  - Explicitly blocked external routing to `/internal/*` with 404.
+- **Environment & Configuration Templates.**
+  - Added `INTERNAL_SERVICE_SECRET=` to `.env.example` and `infra/k8s/base/secrets.example.yaml`.
+- **Comprehensive Automated Tests.**
+  - `packages/common/test/internal-service.guard.spec.ts`: 14 tests verifying constant-time comparison, secret length mismatch, service authorization, and production fail-closed.
+  - `apps/work-order-service/test/internal-work-orders.controller.spec.ts`: 2 tests verifying narrow DTO projection and 404 handling.
+  - `apps/billing-service/test/work-order-directory.service.spec.ts`: 8 tests verifying 200, 404, 401/403, 500, network failure, and header assertions.
+  - `apps/billing-service/test/escrow.service.spec.ts`: 4 new integration tests verifying manual release directory resolution, error preservation, and SYSTEM bypass.
+  - `apps/api-gateway/test/proxy.controller.spec.ts`: 2 new tests verifying internal header stripping and `/internal/*` blocking.
+
+**Verification:**
+
+- `pnpm check && pnpm build` pass cleanly.
+- `pnpm test` and `pnpm test:e2e` pass across all packages (+30 new tests, zero `--passWithNoTests`).
+- Total verified tests: 736 unit/integration tests + 28 E2E tests = 764 tests.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

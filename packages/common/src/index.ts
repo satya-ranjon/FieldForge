@@ -12,6 +12,7 @@ export * from './exceptions/http-exception.filter';
 export * from './health/health.controller';
 export * from './geo/haversine';
 export * from './auth/gateway-auth';
+export * from './auth/internal-service.guard';
 export * from './directory/profile-directory.service';
 export * from './pipes/zod-validation.pipe';
 export * from './outbox/outbox.types';
