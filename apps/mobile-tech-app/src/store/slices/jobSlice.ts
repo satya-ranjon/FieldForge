@@ -22,9 +22,25 @@ export interface WorkOrderJob {
   slaExpirationTime: string;
 }
 
+export type DeliverableUploadStatus = 'PENDING' | 'UPLOADING' | 'UPLOADED' | 'FAILED';
+
+export interface MediaDeliverableState {
+  localUri?: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  status: DeliverableUploadStatus;
+  deliverableId?: string;
+  mediaUrl?: string;
+  objectKey?: string;
+  error?: string;
+}
+
 export interface DeliverablesState {
   checklist: ChecklistItem[];
   serialNumber: string;
+  photoBefore: MediaDeliverableState | null;
+  photoAfter: MediaDeliverableState | null;
   photoBeforeUrl: string | null;
   photoAfterUrl: string | null;
   clientSignature: {
@@ -95,6 +111,8 @@ const initialState: JobState = {
       }
     ],
     serialNumber: '',
+    photoBefore: null,
+    photoAfter: null,
     photoBeforeUrl: null,
     photoAfterUrl: null,
     clientSignature: null
@@ -129,11 +147,140 @@ export const jobSlice = createSlice({
     setSerialNumber: (state, action: PayloadAction<string>) => {
       state.deliverables.serialNumber = action.payload;
     },
+    setMediaPending: (
+      state,
+      action: PayloadAction<{
+        type: 'BEFORE' | 'AFTER';
+        file: {
+          localUri: string;
+          filename: string;
+          mimeType: string;
+          sizeBytes: number;
+        };
+      }>
+    ) => {
+      const mediaItem: MediaDeliverableState = {
+        localUri: action.payload.file.localUri,
+        filename: action.payload.file.filename,
+        mimeType: action.payload.file.mimeType,
+        sizeBytes: action.payload.file.sizeBytes,
+        status: 'PENDING'
+      };
+      if (action.payload.type === 'BEFORE') {
+        state.deliverables.photoBefore = mediaItem;
+        state.deliverables.photoBeforeUrl = null;
+      } else {
+        state.deliverables.photoAfter = mediaItem;
+        state.deliverables.photoAfterUrl = null;
+      }
+    },
+    setMediaUploading: (
+      state,
+      action: PayloadAction<{
+        type: 'BEFORE' | 'AFTER';
+        file?: {
+          localUri: string;
+          filename: string;
+          mimeType: string;
+          sizeBytes: number;
+        };
+      }>
+    ) => {
+      const existing =
+        action.payload.type === 'BEFORE'
+          ? state.deliverables.photoBefore
+          : state.deliverables.photoAfter;
+      const mediaItem: MediaDeliverableState = {
+        localUri: action.payload.file?.localUri || existing?.localUri,
+        filename: action.payload.file?.filename || existing?.filename || 'photo.jpg',
+        mimeType: action.payload.file?.mimeType || existing?.mimeType || 'image/jpeg',
+        sizeBytes: action.payload.file?.sizeBytes || existing?.sizeBytes || 0,
+        status: 'UPLOADING'
+      };
+      if (action.payload.type === 'BEFORE') {
+        state.deliverables.photoBefore = mediaItem;
+      } else {
+        state.deliverables.photoAfter = mediaItem;
+      }
+    },
+    setMediaUploaded: (
+      state,
+      action: PayloadAction<{
+        type: 'BEFORE' | 'AFTER';
+        deliverable: {
+          id: string;
+          mediaUrl: string;
+          objectKey?: string | null;
+        };
+      }>
+    ) => {
+      const existing =
+        action.payload.type === 'BEFORE'
+          ? state.deliverables.photoBefore
+          : state.deliverables.photoAfter;
+      const mediaItem: MediaDeliverableState = {
+        localUri: existing?.localUri,
+        filename: existing?.filename || 'photo.jpg',
+        mimeType: existing?.mimeType || 'image/jpeg',
+        sizeBytes: existing?.sizeBytes || 0,
+        status: 'UPLOADED',
+        deliverableId: action.payload.deliverable.id,
+        mediaUrl: action.payload.deliverable.mediaUrl,
+        objectKey: action.payload.deliverable.objectKey || undefined
+      };
+      if (action.payload.type === 'BEFORE') {
+        state.deliverables.photoBefore = mediaItem;
+        state.deliverables.photoBeforeUrl = action.payload.deliverable.mediaUrl;
+      } else {
+        state.deliverables.photoAfter = mediaItem;
+        state.deliverables.photoAfterUrl = action.payload.deliverable.mediaUrl;
+      }
+    },
+    setMediaFailed: (
+      state,
+      action: PayloadAction<{
+        type: 'BEFORE' | 'AFTER';
+        error: string;
+      }>
+    ) => {
+      const existing =
+        action.payload.type === 'BEFORE'
+          ? state.deliverables.photoBefore
+          : state.deliverables.photoAfter;
+      if (existing) {
+        existing.status = 'FAILED';
+        existing.error = action.payload.error;
+      }
+    },
     setPhotoBefore: (state, action: PayloadAction<string>) => {
       state.deliverables.photoBeforeUrl = action.payload;
+      if (!state.deliverables.photoBefore) {
+        state.deliverables.photoBefore = {
+          filename: 'photo_before.jpg',
+          mimeType: 'image/jpeg',
+          sizeBytes: 1024,
+          status: 'UPLOADED',
+          mediaUrl: action.payload
+        };
+      } else {
+        state.deliverables.photoBefore.mediaUrl = action.payload;
+        state.deliverables.photoBefore.status = 'UPLOADED';
+      }
     },
     setPhotoAfter: (state, action: PayloadAction<string>) => {
       state.deliverables.photoAfterUrl = action.payload;
+      if (!state.deliverables.photoAfter) {
+        state.deliverables.photoAfter = {
+          filename: 'photo_after.jpg',
+          mimeType: 'image/jpeg',
+          sizeBytes: 1024,
+          status: 'UPLOADED',
+          mediaUrl: action.payload
+        };
+      } else {
+        state.deliverables.photoAfter.mediaUrl = action.payload;
+        state.deliverables.photoAfter.status = 'UPLOADED';
+      }
     },
     setSignature: (
       state,
@@ -160,6 +307,10 @@ export const {
   updateCoordinates,
   toggleChecklistItem,
   setSerialNumber,
+  setMediaPending,
+  setMediaUploading,
+  setMediaUploaded,
+  setMediaFailed,
   setPhotoBefore,
   setPhotoAfter,
   setSignature,

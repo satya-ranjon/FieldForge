@@ -16,6 +16,8 @@ module.exports = {
   },
   moduleNameMapper: {
     '^react-native$': '<rootDir>/test/mocks/react-native.mock.js',
-    '^expo-location$': '<rootDir>/test/mocks/expo-location.mock.js'
+    '^expo-location$': '<rootDir>/test/mocks/expo-location.mock.js',
+    '^expo-image-picker$': '<rootDir>/test/mocks/expo-image-picker.mock.js',
+    '^expo-file-system$': '<rootDir>/test/mocks/expo-file-system.mock.js'
   }
 };

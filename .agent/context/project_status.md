@@ -79,8 +79,18 @@
   - Mandatory iOS/Android location, camera, and storage permissions strings and `PermissionsService` wrapper (resolving L7).
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
-- **A test harness that can fail.** 760 automated unit/integration tests across 15 packages/apps (+ 48 Playwright E2E tests = 808 total verified tests).
-- **Real Amazon S3 Deliverable Upload Flow Backend Implementation (Phase 42, Resolves ISSUE-003A).**
+- **A test harness that can fail.** 773 automated unit/integration tests across 15 packages/apps (+ 48 Playwright E2E tests = 821 total verified tests).
+- **Real Amazon S3 Deliverable Upload Mobile Client Integration (Phase 43, Resolves ISSUE-003A Mobile Client).**
+  - Connected the React Native technician mobile app (`apps/mobile-tech-app`) to canonical Amazon S3 deliverable storage, completely eradicating fake `media.fieldforge.dev` URLs.
+  - Mobile deliverable uploads use direct client-to-S3 presigned PUT with actual file bytes (`Blob`) via `DeliverableUploadService`.
+  - Direct S3 PUT preserves `Content-Type` and strictly strips all FieldForge authentication headers (`Authorization`, `x-ff-*`), cookies, and AWS credentials.
+  - Offline jobs store local file references (`localUri`, `filename`, `mimeType`, `sizeBytes`), never persisting time-limited (900s) presigned URLs.
+  - On network reconnection, requests fresh presigned URLs before PUTting bytes to S3.
+  - Deliverables become authoritative only after backend confirmation (`POST /work-orders/:id/deliverables`) completes `HeadObject` verification.
+  - Confirmation retry strategy: retains `objectKey` if confirmation drops after successful S3 PUT, allowing retry to confirm directly without re-uploading bytes.
+  - Durable local storage management (`FileSystem.documentDirectory`) saves queued offline photos to persistent app storage, preventing cache purging before reconnection.
+  - Added 13 unit tests in `apps/mobile-tech-app/test/deliverableUpload.service.spec.ts` and updated `activeJob.spec.ts`.
+- **Real Amazon S3 Deliverable Upload Flow Backend Implementation (Phase 42, Resolves ISSUE-003A Backend).**
   - Canonicalized Amazon S3 as the sole production storage engine for work order deliverable photos and documentation using `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner`.
   - Implemented fail-fast startup configuration checks in `S3MediaStorageAdapter` requiring `AWS_REGION` and `S3_DELIVERABLES_BUCKET`.
   - Fixed premature database write bug: generating presigned upload URLs creates strictly zero database rows.

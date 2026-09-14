@@ -1,6 +1,20 @@
+import { DeliverableType } from '@fieldforge/contracts';
 import { OfflineSyncService, OfflineQueueItem } from './offlineSync.service';
 import { store } from '../store/store';
 import { setPendingCount, syncCompleted, setIsSyncing } from '../store/slices/syncSlice';
+import { setMediaUploaded, setMediaFailed } from '../store/slices/jobSlice';
+import { DeliverableUploadService, DeliverableHttpError } from './deliverableUpload.service';
+
+export interface UploadPhotoOfflinePayload {
+  workOrderId: string;
+  deliverableType: DeliverableType;
+  localUri: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  objectKey?: string;
+  stage?: 'LOCAL_PENDING' | 'S3_UPLOADED_PENDING_CONFIRMATION';
+}
 
 /**
  * Mobile API Dispatcher that transmits mutations to the backend.
@@ -19,10 +33,6 @@ export async function defaultMobileDispatcher(item: OfflineQueueItem): Promise<b
   const gatewayUrl = 'http://localhost:8000/api/v1';
 
   try {
-    let endpoint = '';
-    const method = 'POST';
-    let body: Record<string, unknown> = {};
-
     switch (item.action) {
       case 'CHECK_IN': {
         const payload = item.payload as {
@@ -30,86 +40,211 @@ export async function defaultMobileDispatcher(item: OfflineQueueItem): Promise<b
           latitude: number;
           longitude: number;
         };
-        endpoint = `${gatewayUrl}/work-orders/${payload.workOrderId}/transition`;
-        body = {
+        const endpoint = `${gatewayUrl}/work-orders/${payload.workOrderId}/transition`;
+        const body = {
           nextStatus: 'ON_SITE',
           latitude: payload.latitude,
           longitude: payload.longitude
         };
-        break;
+        return await dispatchJsonMutation(endpoint, body, item.idempotencyKey, token);
       }
+
       case 'UPLOAD_PHOTO': {
-        const payload = item.payload as {
-          workOrderId: string;
-          deliverableType: string;
-          filename: string;
-        };
-        endpoint = `${gatewayUrl}/work-orders/${payload.workOrderId}/deliverables/presigned-url`;
-        body = {
-          deliverableType: payload.deliverableType,
-          filename: payload.filename
-        };
-        break;
+        const payload = item.payload as UploadPhotoOfflinePayload;
+
+        // If objectKey already exists (S3 PUT succeeded earlier, but confirmation failed)
+        // Attempt idempotent confirmation retry without re-uploading bytes (ISSUE-003A §19)
+        if (payload.objectKey) {
+          try {
+            const confirmed = await DeliverableUploadService.confirmDeliverable(
+              payload.workOrderId,
+              {
+                objectKey: payload.objectKey,
+                deliverableType: payload.deliverableType,
+                filename: payload.filename,
+                mimeType: payload.mimeType,
+                sizeBytes: payload.sizeBytes
+              },
+              token || undefined,
+              gatewayUrl
+            );
+
+            const type =
+              payload.deliverableType === DeliverableType.PHOTO_BEFORE ? 'BEFORE' : 'AFTER';
+            store.dispatch(
+              setMediaUploaded({
+                type,
+                deliverable: {
+                  id: confirmed.id,
+                  mediaUrl: confirmed.mediaUrl,
+                  objectKey: confirmed.objectKey
+                }
+              })
+            );
+
+            await DeliverableUploadService.cleanupDurableFile(payload.localUri);
+            return true;
+          } catch (err) {
+            if (err instanceof DeliverableHttpError) {
+              if (err.statusCode === 404) {
+                // Object not in S3, clear objectKey to trigger full re-upload
+                delete payload.objectKey;
+                payload.stage = 'LOCAL_PENDING';
+              } else if (err.isPermanent) {
+                const type =
+                  payload.deliverableType === DeliverableType.PHOTO_BEFORE ? 'BEFORE' : 'AFTER';
+                store.dispatch(setMediaFailed({ type, error: err.message }));
+                item.error = err.message;
+                item.retryCount = 5;
+                return false;
+              } else {
+                throw err;
+              }
+            } else {
+              throw err;
+            }
+          }
+        }
+
+        // Full upload flow: validate -> request fresh presign -> PUT to S3 -> confirm
+        DeliverableUploadService.validateDeliverableFile({
+          filename: payload.filename,
+          mimeType: payload.mimeType,
+          sizeBytes: payload.sizeBytes
+        });
+
+        // 1. Request fresh presigned URL (ISSUE-003A §14: never reuse stale/persisted presign URLs)
+        const presign = await DeliverableUploadService.requestPresignedUrl(
+          payload.workOrderId,
+          {
+            deliverableType: payload.deliverableType,
+            filename: payload.filename,
+            mimeType: payload.mimeType,
+            sizeBytes: payload.sizeBytes
+          },
+          token || undefined,
+          gatewayUrl
+        );
+
+        // 2. Direct client-to-S3 PUT with file bytes (zero FieldForge auth headers)
+        await DeliverableUploadService.uploadBytesToS3(
+          presign.uploadUrl,
+          payload.localUri,
+          payload.mimeType,
+          presign.requiredHeaders
+        );
+
+        // Record objectKey on queue item so if subsequent confirmation drops, retry will confirm directly
+        payload.objectKey = presign.objectKey;
+        payload.stage = 'S3_UPLOADED_PENDING_CONFIRMATION';
+
+        // 3. Backend HeadObject confirmation
+        const confirmed = await DeliverableUploadService.confirmDeliverable(
+          payload.workOrderId,
+          {
+            objectKey: presign.objectKey,
+            deliverableType: payload.deliverableType,
+            filename: payload.filename,
+            mimeType: payload.mimeType,
+            sizeBytes: payload.sizeBytes
+          },
+          token || undefined,
+          gatewayUrl
+        );
+
+        const type = payload.deliverableType === DeliverableType.PHOTO_BEFORE ? 'BEFORE' : 'AFTER';
+        store.dispatch(
+          setMediaUploaded({
+            type,
+            deliverable: {
+              id: confirmed.id,
+              mediaUrl: confirmed.mediaUrl,
+              objectKey: confirmed.objectKey
+            }
+          })
+        );
+
+        // Clean up temporary durable copy
+        await DeliverableUploadService.cleanupDurableFile(payload.localUri);
+        return true;
       }
+
       case 'CAPTURE_SIGNATURE': {
         const payload = item.payload as {
           workOrderId: string;
           signatureSvg: string;
           clientName: string;
         };
-        endpoint = `${gatewayUrl}/work-orders/${payload.workOrderId}/deliverables/signature`;
-        body = {
+        const endpoint = `${gatewayUrl}/work-orders/${payload.workOrderId}/deliverables/signature`;
+        const body = {
           signatureSvg: payload.signatureSvg,
           clientName: payload.clientName
         };
-        break;
+        return await dispatchJsonMutation(endpoint, body, item.idempotencyKey, token);
       }
+
       case 'COMPLETE_JOB': {
         const payload = item.payload as { workOrderId: string };
-        endpoint = `${gatewayUrl}/work-orders/${payload.workOrderId}/transition`;
-        body = {
+        const endpoint = `${gatewayUrl}/work-orders/${payload.workOrderId}/transition`;
+        const body = {
           nextStatus: 'COMPLETED'
         };
-        break;
+        return await dispatchJsonMutation(endpoint, body, item.idempotencyKey, token);
       }
+
       default:
         return false;
     }
-
-    // Perform network request with timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'x-idempotency-key': item.idempotencyKey
-    };
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    try {
-      const response = await fetch(endpoint, {
-        method,
-        headers,
-        body: JSON.stringify(body),
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-
-      // 2xx success or 409 Conflict with idempotency replay considered resolved
-      if (response.ok || response.status === 409) {
-        return true;
-      }
+  } catch (err) {
+    if (err instanceof DeliverableHttpError && err.isPermanent) {
+      item.error = err.message;
+      item.retryCount = 5;
       return false;
-    } catch {
-      clearTimeout(timeoutId);
-      // In offline / disconnected test environment where localhost:8000 is not running,
-      // allow successful dispatch simulation if running standalone
+    }
+    throw err;
+  }
+}
+
+async function dispatchJsonMutation(
+  endpoint: string,
+  body: Record<string, unknown>,
+  idempotencyKey: string,
+  token?: string | null
+): Promise<boolean> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'x-idempotency-key': idempotencyKey
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    if (response.ok || response.status === 409) {
       return true;
     }
-  } catch {
-    return false;
+    if (response.status === 401 || response.status === 403 || response.status === 422) {
+      throw new DeliverableHttpError(
+        response.status,
+        `Dispatch rejected with HTTP ${response.status}`,
+        true
+      );
+    }
+    throw new Error(`Dispatch failed with HTTP ${response.status}`);
+  } catch (err) {
+    clearTimeout(timeoutId);
+    throw err;
   }
 }
 

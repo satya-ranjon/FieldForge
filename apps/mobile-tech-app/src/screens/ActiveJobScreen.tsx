@@ -16,8 +16,10 @@ import {
   updateCoordinates,
   toggleChecklistItem,
   setSerialNumber,
-  setPhotoBefore,
-  setPhotoAfter,
+  setMediaPending,
+  setMediaUploading,
+  setMediaUploaded,
+  setMediaFailed,
   setSignature
 } from '../store/slices/jobSlice';
 import { toggleOnlineStatus } from '../store/slices/syncSlice';
@@ -25,7 +27,12 @@ import { GpsRadar } from '../components/GpsRadar';
 import { GeofenceService } from '../services/geofencing.service';
 import { PermissionsService } from '../services/permissions.service';
 import { syncServiceInstance, triggerManualSync } from '../services/syncManager';
-import { WorkOrderStatus } from '@fieldforge/contracts';
+import { DeliverableType, WorkOrderStatus } from '@fieldforge/contracts';
+import * as ImagePicker from 'expo-image-picker';
+import {
+  DeliverableUploadService,
+  DeliverableHttpError
+} from '../services/deliverableUpload.service';
 
 interface ActiveJobScreenProps {
   onBack?: () => void;
@@ -39,6 +46,7 @@ export const ActiveJobScreen: React.FC<ActiveJobScreenProps> = ({ onBack }) => {
   const isOnline = useSelector((state: RootState) => state.sync.isOnline);
   const pendingCount = useSelector((state: RootState) => state.sync.pendingCount);
   const isSyncing = useSelector((state: RootState) => state.sync.isSyncing);
+  const token = useSelector((state: RootState) => state.auth.accessToken);
 
   const [serialInput, setSerialInput] = useState(deliverables.serialNumber);
   const [signerName, setSignerName] = useState('');
@@ -145,26 +153,193 @@ export const ActiveJobScreen: React.FC<ActiveJobScreenProps> = ({ onBack }) => {
     Alert.alert('Saved', `Serial number recorded: ${serialInput.trim()}`);
   };
 
-  // Handle Deliverables: Photo capture simulation (FR-MOB-002)
+  // Handle Deliverables: Real S3 photo capture & upload (ISSUE-003A)
   const handleCapturePhoto = async (type: 'BEFORE' | 'AFTER') => {
-    const timestamp = Date.now();
-    const simulatedPhotoUrl = `https://media.fieldforge.dev/wo/${job.id}/${type.toLowerCase()}_${timestamp}.jpg`;
+    try {
+      // 1. Check & request camera permission with graceful fallback to image library
+      const cameraPerm = await ImagePicker.requestCameraPermissionsAsync();
+      let result: ImagePicker.ImagePickerResult;
 
-    if (type === 'BEFORE') {
-      dispatch(setPhotoBefore(simulatedPhotoUrl));
-    } else {
-      dispatch(setPhotoAfter(simulatedPhotoUrl));
-    }
+      if (cameraPerm.granted) {
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          quality: 0.8,
+          allowsEditing: false
+        });
+      } else {
+        const libraryPerm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!libraryPerm.granted) {
+          Alert.alert(
+            'Permission Denied',
+            'Camera and photo library permissions are required to capture deliverables.'
+          );
+          return;
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          quality: 0.8,
+          allowsEditing: false
+        });
+      }
 
-    if (!isOnline) {
-      await syncServiceInstance.enqueue('UPLOAD_PHOTO', {
-        workOrderId: job.id,
-        deliverableType: type === 'BEFORE' ? 'PHOTO_BEFORE' : 'PHOTO_AFTER',
-        filename: `${type.toLowerCase()}_${timestamp}.jpg`
-      });
-      Alert.alert('Offline Queue', `${type} photo queued for upload upon reconnection.`);
-    } else {
-      Alert.alert('Photo Uploaded', `${type} photo securely attached to work order.`);
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return;
+      }
+
+      const asset = result.assets[0];
+      const timestamp = Date.now();
+      const filename = asset.fileName || `${type.toLowerCase()}_${timestamp}.jpg`;
+      const mimeType = asset.mimeType || 'image/jpeg';
+      let sizeBytes = asset.fileSize || 0;
+
+      if (!sizeBytes) {
+        try {
+          const res = await fetch(asset.uri);
+          const blob = await res.blob();
+          sizeBytes = blob.size;
+        } catch {
+          sizeBytes = 1024 * 50;
+        }
+      }
+
+      // 2. Client-side validation against canonical contract rules (15 MiB limit, mime types)
+      try {
+        DeliverableUploadService.validateDeliverableFile({
+          filename,
+          mimeType,
+          sizeBytes,
+          uri: asset.uri
+        });
+      } catch (valErr) {
+        Alert.alert(
+          'Validation Error',
+          valErr instanceof Error ? valErr.message : 'Invalid file selected'
+        );
+        return;
+      }
+
+      const deliverableType =
+        type === 'BEFORE' ? DeliverableType.PHOTO_BEFORE : DeliverableType.PHOTO_AFTER;
+
+      // 3. Offline handling: store in durable app storage and queue offline mutation
+      if (!isOnline) {
+        const durableUri = await DeliverableUploadService.saveToDurableStorage(asset.uri, filename);
+
+        dispatch(
+          setMediaPending({
+            type,
+            file: {
+              localUri: durableUri,
+              filename,
+              mimeType,
+              sizeBytes
+            }
+          })
+        );
+
+        await syncServiceInstance.enqueue('UPLOAD_PHOTO', {
+          workOrderId: job.id,
+          deliverableType,
+          localUri: durableUri,
+          filename,
+          mimeType,
+          sizeBytes,
+          stage: 'LOCAL_PENDING'
+        });
+
+        Alert.alert(
+          'Offline Mode Active',
+          `${type} photo saved locally in durable storage. It will upload to S3 automatically upon reconnection.`
+        );
+        return;
+      }
+
+      // 4. Online handling: direct S3 presigned PUT + backend confirmation
+      dispatch(
+        setMediaUploading({
+          type,
+          file: {
+            localUri: asset.uri,
+            filename,
+            mimeType,
+            sizeBytes
+          }
+        })
+      );
+
+      try {
+        const confirmed = await DeliverableUploadService.executeOnlineUpload(
+          job.id,
+          {
+            uri: asset.uri,
+            filename,
+            mimeType,
+            sizeBytes,
+            deliverableType
+          },
+          token || undefined
+        );
+
+        dispatch(
+          setMediaUploaded({
+            type,
+            deliverable: {
+              id: confirmed.id,
+              mediaUrl: confirmed.mediaUrl,
+              objectKey: confirmed.objectKey
+            }
+          })
+        );
+
+        Alert.alert(
+          'Photo Uploaded',
+          `${type} photo verified by Amazon S3 and attached to work order.`
+        );
+      } catch (uploadErr) {
+        // If network dropped during online upload attempt, fallback to durable offline queue
+        const isPermanent =
+          uploadErr instanceof DeliverableHttpError ? uploadErr.isPermanent : false;
+        if (!isPermanent) {
+          const durableUri = await DeliverableUploadService.saveToDurableStorage(
+            asset.uri,
+            filename
+          );
+
+          dispatch(
+            setMediaPending({
+              type,
+              file: {
+                localUri: durableUri,
+                filename,
+                mimeType,
+                sizeBytes
+              }
+            })
+          );
+
+          await syncServiceInstance.enqueue('UPLOAD_PHOTO', {
+            workOrderId: job.id,
+            deliverableType,
+            localUri: durableUri,
+            filename,
+            mimeType,
+            sizeBytes,
+            stage: 'LOCAL_PENDING'
+          });
+
+          Alert.alert(
+            'Upload Interrupted',
+            `Network failure during upload. ${type} photo saved to offline queue and will retry on reconnection.`
+          );
+        } else {
+          const errMsg = uploadErr instanceof Error ? uploadErr.message : 'Upload failed';
+          dispatch(setMediaFailed({ type, error: errMsg }));
+          Alert.alert('Upload Failed', errMsg);
+        }
+      }
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : 'Media capture failed';
+      Alert.alert('Camera Error', errMsg);
     }
   };
 
@@ -385,30 +560,44 @@ export const ActiveJobScreen: React.FC<ActiveJobScreenProps> = ({ onBack }) => {
               ) : null}
             </View>
 
-            {/* Photo Deliverables (FR-MOB-002) */}
+            {/* Photo Deliverables (FR-MOB-002 & ISSUE-003A S3 Flow) */}
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>Proof of Work Photos</Text>
               <View style={styles.photoRow}>
                 <TouchableOpacity
                   style={[
                     styles.photoButton,
-                    deliverables.photoBeforeUrl && styles.photoButtonAttached
+                    getPhotoButtonStatusStyle(
+                      deliverables.photoBefore?.status ||
+                        (deliverables.photoBeforeUrl ? 'UPLOADED' : null)
+                    )
                   ]}
                   onPress={() => handleCapturePhoto('BEFORE')}
                 >
                   <Text style={styles.photoButtonText}>
-                    {deliverables.photoBeforeUrl ? '✓ Before Photo' : '📷 Take Before Photo'}
+                    {getPhotoButtonText(
+                      'Before Photo',
+                      deliverables.photoBefore?.status ||
+                        (deliverables.photoBeforeUrl ? 'UPLOADED' : null)
+                    )}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[
                     styles.photoButton,
-                    deliverables.photoAfterUrl && styles.photoButtonAttached
+                    getPhotoButtonStatusStyle(
+                      deliverables.photoAfter?.status ||
+                        (deliverables.photoAfterUrl ? 'UPLOADED' : null)
+                    )
                   ]}
                   onPress={() => handleCapturePhoto('AFTER')}
                 >
                   <Text style={styles.photoButtonText}>
-                    {deliverables.photoAfterUrl ? '✓ After Photo' : '📷 Take After Photo'}
+                    {getPhotoButtonText(
+                      'After Photo',
+                      deliverables.photoAfter?.status ||
+                        (deliverables.photoAfterUrl ? 'UPLOADED' : null)
+                    )}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -499,6 +688,36 @@ function getStatusStyle(status: string) {
       return { backgroundColor: '#0284c7' };
     default:
       return { backgroundColor: '#475569' };
+  }
+}
+
+function getPhotoButtonText(label: string, status: string | null | undefined): string {
+  switch (status) {
+    case 'UPLOADED':
+      return `✓ ${label} (Uploaded)`;
+    case 'UPLOADING':
+      return `⏳ Uploading ${label}...`;
+    case 'PENDING':
+      return `⏳ ${label} (Queued)`;
+    case 'FAILED':
+      return `⚠️ ${label} (Failed)`;
+    default:
+      return `📷 Take ${label}`;
+  }
+}
+
+function getPhotoButtonStatusStyle(status: string | null | undefined) {
+  switch (status) {
+    case 'UPLOADED':
+      return styles.photoButtonAttached;
+    case 'UPLOADING':
+      return styles.photoButtonUploading;
+    case 'PENDING':
+      return styles.photoButtonPending;
+    case 'FAILED':
+      return styles.photoButtonFailed;
+    default:
+      return null;
   }
 }
 
@@ -722,6 +941,18 @@ const styles = StyleSheet.create({
   photoButtonAttached: {
     borderColor: '#10b981',
     backgroundColor: '#064e3b'
+  },
+  photoButtonUploading: {
+    borderColor: '#38bdf8',
+    backgroundColor: '#0c4a6e'
+  },
+  photoButtonPending: {
+    borderColor: '#f59e0b',
+    backgroundColor: '#78350f'
+  },
+  photoButtonFailed: {
+    borderColor: '#ef4444',
+    backgroundColor: '#7f1d1d'
   },
   photoButtonText: {
     color: '#f8fafc',

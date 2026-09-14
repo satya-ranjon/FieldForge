@@ -1683,6 +1683,42 @@ Canonicalized Amazon S3 as the deliverable file storage system for work order ph
 - `pnpm validate:clean-typecheck` passes cleanly.
 - Total verified tests: 760 unit/integration tests + 48 E2E tests = 808 tests.
 
+## Phase 43 — Real Amazon S3 Deliverable Upload Flow Mobile Client Integration (ISSUE-003A)
+
+**Size: S · Dependencies: Phase 42.** Resolves **ISSUE-003A Mobile Client Integration** (Real Amazon S3 Deliverable Upload Flow).
+
+Connected the React Native technician mobile app (`apps/mobile-tech-app`) to the canonical backend S3 deliverable storage system, eliminating simulated fake `media.fieldforge.dev` URLs, implementing direct client-to-S3 presigned PUT with actual file bytes (`Blob`), persisting offline upload jobs with durable local file references without persisting presigned URLs, providing confirmation retry recovery for dropped confirmation requests, and strictly stripping FieldForge authorization headers from S3 requests.
+
+**Deliverables:**
+
+- **Mobile Deliverable Upload Service (`apps/mobile-tech-app`).**
+  - Implemented `DeliverableUploadService` with client-side contract validation (`MAX_DELIVERABLE_SIZE_BYTES` 15 MiB, `ALLOWED_DELIVERABLE_MIME_TYPES`, non-zero bytes).
+  - Implemented direct client-to-S3 PUT uploading raw file bytes (`Blob`) using `requiredHeaders` (`Content-Type`) and strictly stripping all FieldForge authorization tokens, cookies, `x-ff-*` headers, and AWS credentials.
+  - Implemented authoritative backend confirmation call (`POST /work-orders/:id/deliverables`) with `objectKey` verified via backend S3 `HeadObject`.
+  - Added durable storage helpers (`FileSystem.documentDirectory`) saving offline queued photos into app-managed document storage to prevent OS cache purging.
+- **Offline Sync & Reconnect Flow (`apps/mobile-tech-app`).**
+  - Refactored `UPLOAD_PHOTO` handler in `defaultMobileDispatcher` (`src/services/syncManager.ts`):
+    - Queued jobs store local file metadata (`localUri`, `filename`, `mimeType`, `sizeBytes`), NEVER persisting time-limited (900s) presigned URLs.
+    - On reconnection, requests a fresh presigned URL before uploading bytes to S3.
+    - Implemented confirmation recovery: retains `objectKey` upon successful S3 PUT so dropped confirmation calls can retry directly without re-uploading bytes.
+    - Handles permanent auth (401/403) and lifecycle (422) failures cleanly without infinite retry loops.
+    - Safely cleans up durable local file copies upon confirmed backend upload.
+- **Redux State & UI Enhancements (`apps/mobile-tech-app`).**
+  - Updated `jobSlice.ts` to manage granular deliverable states: `PENDING`, `UPLOADING`, `UPLOADED`, `FAILED`.
+  - Updated `ActiveJobScreen.tsx` with real photo capture (`expo-image-picker`) and telemetry status badges on proof-of-work action buttons.
+  - Completely removed fake `media.fieldforge.dev` URLs from client source and test fixtures.
+- **Automated Tests & Invariants.**
+  - Added 13 comprehensive unit tests in `apps/mobile-tech-app/test/deliverableUpload.service.spec.ts` testing online success, S3 PUT failure, confirmation retry recovery, offline queue storage, reconnect fresh presign generation, durable storage cleanup, contract validations, and permanent auth rejection.
+  - Updated `apps/mobile-tech-app/test/activeJob.spec.ts` asserting deliverable state progression without fake URLs.
+
+**Verification:**
+
+- `pnpm check && pnpm build` pass cleanly.
+- `pnpm test` passes across 15 packages with 773 automated unit/integration tests (zero `--passWithNoTests`).
+- `pnpm test:e2e` passes with 48 Playwright tests validated.
+- `pnpm validate:clean-typecheck` passes cleanly.
+- Total verified tests: 773 unit/integration tests + 48 E2E tests = 821 tests.
+
 ---
 
 ## Explicitly out of scope
