@@ -119,7 +119,10 @@ export const LiveDispatchBoard: React.FC = () => {
 
   const handleApprove = async (wo: ExtendedWorkOrder) => {
     try {
-      await transitionWorkOrderApi({ id: wo.id, status: WorkOrderStatus.APPROVED }).unwrap();
+      await transitionWorkOrderApi({
+        id: wo.id,
+        body: { nextStatus: WorkOrderStatus.APPROVED }
+      }).unwrap();
       await releaseEscrowApi({ workOrderId: wo.id }).unwrap();
     } catch {
       // Non-blocking fallback for offline/mock test environments
@@ -137,8 +140,10 @@ export const LiveDispatchBoard: React.FC = () => {
     try {
       await transitionWorkOrderApi({
         id: selectedOrder.id,
-        status: WorkOrderStatus.DISPUTED,
-        notes: disputeReasonInput.trim()
+        body: {
+          nextStatus: WorkOrderStatus.DISPUTED,
+          reason: disputeReasonInput.trim()
+        }
       }).unwrap();
     } catch {
       // Non-blocking fallback for offline/mock test environments

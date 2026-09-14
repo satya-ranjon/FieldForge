@@ -131,6 +131,42 @@ describe('transitionStatusSchema', () => {
     expect(() => transitionStatusSchema.parse({ nextStatus: 'SETTLED' })).toThrow();
   });
 
+  it('accepts canonical transition payload with nextStatus and reason (ISSUE-009)', () => {
+    const payload = {
+      nextStatus: WorkOrderStatus.APPROVED,
+      reason: 'Work reviewed'
+    };
+    const parsed = transitionStatusSchema.parse(payload);
+    expect(parsed.nextStatus).toBe(WorkOrderStatus.APPROVED);
+    expect(parsed.reason).toBe('Work reviewed');
+  });
+
+  it('accepts canonical dispute transition payload (ISSUE-009)', () => {
+    const payload = {
+      nextStatus: WorkOrderStatus.DISPUTED,
+      reason: 'Deliverables failed signal check'
+    };
+    const parsed = transitionStatusSchema.parse(payload);
+    expect(parsed.nextStatus).toBe(WorkOrderStatus.DISPUTED);
+    expect(parsed.reason).toBe('Deliverables failed signal check');
+  });
+
+  it('rejects outdated frontend shape using status and notes (ISSUE-009)', () => {
+    const outdatedPayload = {
+      status: 'APPROVED',
+      notes: 'Work reviewed'
+    };
+    expect(() => transitionStatusSchema.parse(outdatedPayload)).toThrow();
+  });
+
+  it('rejects outdated dispute shape using status and notes (ISSUE-009)', () => {
+    const outdatedPayload = {
+      status: 'DISPUTED',
+      notes: 'Deliverables failed signal check'
+    };
+    expect(() => transitionStatusSchema.parse(outdatedPayload)).toThrow();
+  });
+
   it.each([
     { latitude: 91, longitude: 0 },
     { latitude: 0, longitude: 181 }

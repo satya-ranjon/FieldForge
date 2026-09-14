@@ -79,7 +79,7 @@
   - Mandatory iOS/Android location, camera, and storage permissions strings and `PermissionsService` wrapper (resolving L7).
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
-- **A test harness that can fail.** 736 automated unit/integration tests across 15 packages/apps (+ 28 Playwright E2E tests = 764 total verified tests).
+- **A test harness that can fail.** 743 automated unit/integration tests across 15 packages/apps (+ 36 Playwright E2E tests = 779 total verified tests).
 - **Transactional Outbox Pattern for Microservice Event Publication (Phase 37, Resolves ISSUE-005).**
   - Eliminated non-transactional dual-write hazards across `work-order-service` and `billing-service` where domain database commits and RabbitMQ message publishes could diverge (ghost events on DB rollback, lost events on network/broker failure post-commit).
   - Provisioned service-owned outbox tables `work_order_outbox_events` and `billing_outbox_events` with auto-increment IDs for strict monotonic per-aggregate FIFO ordering, UUID event deduplication, and crash-recovery leases (`0007_blue_malice.sql`).
@@ -97,6 +97,12 @@
   - Decoupled `WorkOrderDirectoryService.getWorkOrder()` and caller profile checks from `db.transaction()` in `EscrowService.releaseFunds()` and `refundEscrow()`, eliminating holding InnoDB row locks (`SELECT ... FOR UPDATE`) during inter-service network HTTP calls.
   - Enforced API Gateway anti-spoofing stripping internal credentials and explicitly blocking external routing to `/internal/*`.
   - Removed unsafe 60-second in-memory response cache in `WorkOrderDirectoryService`, guaranteeing zero stale remote caching of mutable fields (`status`, `assignedTechnicianId`) for financial authorization.
+- **Frontend Work Order Transition Payload Contract Alignment (Phase 39, Resolves ISSUE-009).**
+  - Eliminated HTTP 400 Bad Request errors on buyer portal lifecycle transitions caused by payload mismatch (`{ status, notes }` sent by UI vs `{ nextStatus, reason }` expected by `WorkOrdersController` and `transitionStatusSchema`).
+  - Realigned `transitionWorkOrder` mutation in `apps/web-buyer-portal/src/store/services/api.ts` with canonical `TransitionWorkOrderDto` from `@fieldforge/contracts` and exported pure query builder `buildTransitionWorkOrderRequest`.
+  - Updated `handleApprove` and `handleRaiseDispute` in `LiveDispatchBoard.tsx` to dispatch canonical payloads (`{ nextStatus: WorkOrderStatus.APPROVED }` and `{ nextStatus: WorkOrderStatus.DISPUTED, reason }`).
+  - Added unit regression tests in `packages/contracts/test/validators.spec.ts` proving schema rejection of legacy `{ status, notes }` and acceptance of canonical `{ nextStatus, reason }`.
+  - Added Playwright tests in `apps/web-buyer-portal/e2e/transition.spec.ts` verifying API query generation and UI action interception. Total verified tests increased to 743 unit/integration + 36 E2E = 779 total.
 - **Payment Provider Capture & Payout Idempotency (Phase 36, Resolves FINDING-PAY-001 & FINDING-PAY-002).**
   - Eliminated external double-charge and double-payout vulnerabilities when external payment provider calls succeed but MySQL transactions fail to commit or roll back.
   - Extended `PaymentProviderPort.captureEscrow()` and `PaymentProviderPort.disbursePayout()` with mandatory `idempotencyKey: string;`.

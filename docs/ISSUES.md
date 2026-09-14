@@ -1330,6 +1330,18 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   5. Total unit tests in `billing-service` increased to 36 (+3 tests, 649 total across the monorepo).
   6. Zero database migrations (`RULE-DB-02`).
 
+### ISSUE-009 · 🐛 Frontend Work Order Transition Payload Contract Mismatch
+
+- **Status: resolved.**
+- **Root Cause**: `apps/web-buyer-portal` used a legacy transition request payload `{ status, notes }` in the `transitionWorkOrder` mutation and `LiveDispatchBoard` (`handleApprove`, `handleRaiseDispute`), while the backend `WorkOrdersController` and `transitionStatusSchema` strictly expected `TransitionWorkOrderDto` (`{ nextStatus: WorkOrderStatus, reason?: string }`). When sent, `nextStatus` was `undefined`, triggering `ZodValidationPipe` validation failures (HTTP 400 Bad Request) on all web buyer transition actions.
+- **Fix**: Realigned the web buyer portal with the canonical backend contract:
+  1. Updated `apps/web-buyer-portal/src/store/services/api.ts` to import `TransitionWorkOrderDto` from `@fieldforge/contracts`, typed mutation arguments with `TransitionWorkOrderArgs`, and extracted `buildTransitionWorkOrderRequest` generating the canonical `{ url: '/work-orders/:id/transition', method: 'POST', body: { nextStatus, reason } }` structure.
+  2. Updated `handleApprove` in `apps/web-buyer-portal/src/components/dispatch/LiveDispatchBoard.tsx` to send `{ id: wo.id, body: { nextStatus: WorkOrderStatus.APPROVED } }`.
+  3. Updated `handleRaiseDispute` in `LiveDispatchBoard.tsx` to map `disputeReasonInput.trim()` to `reason: disputeReasonInput.trim()` and send `{ id: selectedOrder.id, body: { nextStatus: WorkOrderStatus.DISPUTED, reason } }`.
+  4. Added contract schema regression tests in `packages/contracts/test/validators.spec.ts` proving canonical `{ nextStatus, reason }` parses and legacy `{ status, notes }` throws.
+  5. Added Playwright E2E and API client verification tests in `apps/web-buyer-portal/e2e/transition.spec.ts` asserting exact outgoing payload shape and absence of `status` or `notes`.
+  6. Zero database migrations (`RULE-DB-02`).
+
 ---
 
 ## Suggested remediation order

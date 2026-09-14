@@ -3,10 +3,10 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import type {
   WorkOrderResponseDto,
   CreateWorkOrderDto,
+  TransitionWorkOrderDto,
   NearbyTechnicianDto,
   BidDetailsDto,
   EscrowDetailsDto,
-  WorkOrderStatus,
   TechnicianBadgeDto
 } from '@fieldforge/contracts';
 
@@ -131,6 +131,37 @@ const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQue
   return result;
 };
 
+export type TransitionWorkOrderArgs =
+  { id: string; body: TransitionWorkOrderDto } | ({ id: string } & TransitionWorkOrderDto);
+
+export function buildTransitionWorkOrderRequest(arg: TransitionWorkOrderArgs): {
+  url: string;
+  method: 'POST';
+  body: TransitionWorkOrderDto;
+} {
+  let body: TransitionWorkOrderDto;
+  if ('body' in arg && arg.body) {
+    body = arg.body;
+  } else {
+    const direct = arg as { id: string } & TransitionWorkOrderDto;
+    body = {
+      nextStatus: direct.nextStatus,
+      ...(direct.reason !== undefined ? { reason: direct.reason } : {}),
+      ...(direct.latitude !== undefined ? { latitude: direct.latitude } : {}),
+      ...(direct.longitude !== undefined ? { longitude: direct.longitude } : {}),
+      ...(direct.assignedTechnicianId !== undefined
+        ? { assignedTechnicianId: direct.assignedTechnicianId }
+        : {})
+    };
+  }
+
+  return {
+    url: `/work-orders/${arg.id}/transition`,
+    method: 'POST',
+    body
+  };
+}
+
 export const fieldForgeApi = createApi({
   reducerPath: 'fieldForgeApi',
   baseQuery: baseQueryWithReauth,
@@ -228,17 +259,10 @@ export const fieldForgeApi = createApi({
       ]
     }),
 
-    transitionWorkOrder: builder.mutation<
-      WorkOrderResponseDto,
-      { id: string; status: WorkOrderStatus | string; notes?: string }
-    >({
-      query: ({ id, status, notes }) => ({
-        url: `/work-orders/${id}/transition`,
-        method: 'POST',
-        body: { status, notes }
-      }),
-      invalidatesTags: (_result, _err, { id }) => [
-        { type: 'WorkOrder', id },
+    transitionWorkOrder: builder.mutation<WorkOrderResponseDto, TransitionWorkOrderArgs>({
+      query: buildTransitionWorkOrderRequest,
+      invalidatesTags: (_result, _err, arg) => [
+        { type: 'WorkOrder', id: arg.id },
         { type: 'WorkOrder', id: 'LIST' }
       ]
     }),

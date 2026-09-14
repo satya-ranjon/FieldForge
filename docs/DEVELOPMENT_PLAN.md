@@ -1557,6 +1557,34 @@ Eliminated 401 Unauthorized errors during manual escrow release by implementing 
 
 ---
 
+## Phase 39 — Frontend Work Order Transition Payload Contract Alignment (ISSUE-009)
+
+**Size: XS · Dependencies: Phase 25, Phase 27.** Resolves **ISSUE-009** (Frontend Work Order Transition Payload Contract Mismatch).
+
+Aligned frontend work order state machine transition mutations in `apps/web-buyer-portal` with canonical backend `@fieldforge/contracts` schema (`TransitionWorkOrderDto`), eliminating HTTP 400 Bad Request validation failures when approving work orders or raising disputes.
+
+**Deliverables:**
+
+- **RTK Query Mutation & Request Builder Alignment (`apps/web-buyer-portal`).**
+  - Updated `transitionWorkOrder` mutation in `apps/web-buyer-portal/src/store/services/api.ts` to consume canonical `TransitionWorkOrderDto` (`nextStatus: WorkOrderStatus`, optional `reason?: string`, optional `latitude`, `longitude`, `assignedTechnicianId`).
+  - Extracted pure query builder `buildTransitionWorkOrderRequest(arg)` providing dual input compatibility (accepts either `{ id, body: TransitionWorkOrderDto }` or flat `{ id, ...TransitionWorkOrderDto }`) and explicitly serializing canonical `nextStatus` and `reason` while omitting obsolete `status` or `notes` fields.
+- **Dispatch UI Action Harmonization (`apps/web-buyer-portal`).**
+  - Updated `LiveDispatchBoard.tsx` `handleApprove` to dispatch `{ id: wo.id, body: { nextStatus: WorkOrderStatus.APPROVED } }`.
+  - Updated `LiveDispatchBoard.tsx` `handleRaiseDispute` to map dispute text to `reason` and dispatch `{ id: selectedOrder.id, body: { nextStatus: WorkOrderStatus.DISPUTED, reason: disputeReasonInput.trim() } }`.
+- **Contract & Validator Tests (`packages/contracts`).**
+  - Added test cases to `packages/contracts/test/validators.spec.ts` verifying `transitionStatusSchema` successfully parses canonical `{ nextStatus: WorkOrderStatus.APPROVED }` and `{ nextStatus: WorkOrderStatus.DISPUTED, reason: '...' }`, and rejects legacy payloads containing `{ status, notes }`.
+- **Frontend E2E & Query Builder Tests (`apps/web-buyer-portal`).**
+  - Added unit and Playwright integration tests in `apps/web-buyer-portal/e2e/transition.spec.ts` testing `buildTransitionWorkOrderRequest` payload formatting, legacy field omission, and UI transition intercept handling.
+
+**Verification:**
+
+- `pnpm check && pnpm build` pass cleanly.
+- `pnpm test` passes across 15 packages with 743 automated unit/integration tests (+7 tests, zero `--passWithNoTests`).
+- `pnpm test:e2e` passes with 36 Playwright tests validated (+8 tests).
+- Total verified tests: 743 unit/integration tests + 36 E2E tests = 779 tests.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads
