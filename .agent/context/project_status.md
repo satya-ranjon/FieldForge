@@ -79,7 +79,12 @@
   - Mandatory iOS/Android location, camera, and storage permissions strings and `PermissionsService` wrapper (resolving L7).
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
-- **A test harness that can fail.** 743 automated unit/integration tests across 15 packages/apps (+ 36 Playwright E2E tests = 779 total verified tests).
+- **A test harness that can fail.** 750 automated unit/integration tests across 15 packages/apps (+ 48 Playwright E2E tests = 798 total verified tests).
+- **Frontend Escrow Release Route Mismatch Alignment (Phase 40, Resolves ISSUE-010).**
+  - Eliminated HTTP 404 Not Found errors on buyer manual escrow release requests caused by route mismatch (`POST /billing/escrow/:workOrderId/release` sent by UI vs `POST /billing/escrow/release` with `ReleaseEscrowDto` expected by `BillingController`).
+  - Exported `EscrowReleaseResultDto` in `@fieldforge/contracts` and realigned RTK Query `releaseEscrow` mutation in `apps/web-buyer-portal/src/store/services/api.ts` with pure query builder `buildReleaseEscrowRequest`.
+  - Removed redundant `releaseEscrowApi` call from `LiveDispatchBoard.tsx` `handleApprove()`, preventing race conditions and 409 Conflict errors against the backend's canonical asynchronous event pipeline (`WORK_ORDER_APPROVED` → `BillingConsumer` → `releaseFunds(SYSTEM)`).
+  - Added unit test coverage in `packages/contracts/test/validators.spec.ts` for `releaseEscrowSchema`, in `apps/billing-service/test/billing.controller.spec.ts` for `releaseEscrow`, and in `apps/web-buyer-portal/e2e/transition.spec.ts` for `buildReleaseEscrowRequest`. Total verified tests increased to 750 unit/integration + 48 E2E = 798 total.
 - **Transactional Outbox Pattern for Microservice Event Publication (Phase 37, Resolves ISSUE-005).**
   - Eliminated non-transactional dual-write hazards across `work-order-service` and `billing-service` where domain database commits and RabbitMQ message publishes could diverge (ghost events on DB rollback, lost events on network/broker failure post-commit).
   - Provisioned service-owned outbox tables `work_order_outbox_events` and `billing_outbox_events` with auto-increment IDs for strict monotonic per-aggregate FIFO ordering, UUID event deduplication, and crash-recovery leases (`0007_blue_malice.sql`).

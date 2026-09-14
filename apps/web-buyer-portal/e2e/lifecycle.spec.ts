@@ -102,7 +102,7 @@ test.describe('Buyer Portal Full Lifecycle — SRS §5 Verification', () => {
       });
     });
 
-    await page.route('**/api/v1/billing/escrow/*/release', async (route) => {
+    await page.route('**/api/v1/billing/escrow/release', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',

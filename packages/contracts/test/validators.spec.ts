@@ -1,4 +1,4 @@
-import { preAuthEscrowSchema } from '../src/validators/billing.schema';
+import { preAuthEscrowSchema, releaseEscrowSchema } from '../src/validators/billing.schema';
 import {
   submitBidSchema,
   autoRouteSchema,
@@ -372,5 +372,50 @@ describe('dispatch schemas', () => {
     expect(parsed.latitude).toBe(37.7749);
     expect(parsed.longitude).toBe(-122.4194);
     expect(parsed.radiusMiles).toBe(25);
+  });
+});
+
+describe('releaseEscrowSchema', () => {
+  it('accepts valid payload with workOrderId (ISSUE-010)', () => {
+    const parsed = releaseEscrowSchema.parse({
+      workOrderId: WORK_ORDER_ID
+    });
+    expect(parsed.workOrderId).toBe(WORK_ORDER_ID);
+    expect(parsed.payoutAmountMinor).toBeUndefined();
+  });
+
+  it('accepts valid payload with workOrderId and positive payoutAmountMinor (ISSUE-010)', () => {
+    const parsed = releaseEscrowSchema.parse({
+      workOrderId: WORK_ORDER_ID,
+      payoutAmountMinor: 45000
+    });
+    expect(parsed.workOrderId).toBe(WORK_ORDER_ID);
+    expect(parsed.payoutAmountMinor).toBe(45000);
+  });
+
+  it('rejects invalid non-uuid workOrderId (ISSUE-010)', () => {
+    expect(() => releaseEscrowSchema.parse({ workOrderId: 'invalid-id' })).toThrow();
+  });
+
+  it('rejects non-positive payoutAmountMinor (ISSUE-010)', () => {
+    expect(() =>
+      releaseEscrowSchema.parse({ workOrderId: WORK_ORDER_ID, payoutAmountMinor: 0 })
+    ).toThrow();
+    expect(() =>
+      releaseEscrowSchema.parse({ workOrderId: WORK_ORDER_ID, payoutAmountMinor: -500 })
+    ).toThrow();
+  });
+
+  it('drops caller-supplied identity like buyerId, userId, and role (ISSUE-010)', () => {
+    const parsed = releaseEscrowSchema.parse({
+      workOrderId: WORK_ORDER_ID,
+      buyerId: 'attacker-buyer-id',
+      userId: 'attacker-user-id',
+      role: 'ADMIN'
+    });
+    expect(parsed).toEqual({ workOrderId: WORK_ORDER_ID });
+    expect(parsed).not.toHaveProperty('buyerId');
+    expect(parsed).not.toHaveProperty('userId');
+    expect(parsed).not.toHaveProperty('role');
   });
 });

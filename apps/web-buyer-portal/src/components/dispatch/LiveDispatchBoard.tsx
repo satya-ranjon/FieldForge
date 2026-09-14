@@ -32,11 +32,7 @@ import {
   type ExtendedWorkOrder
 } from '../../store/slices/workOrderSlice';
 import { releaseEscrow, disputeEscrow } from '../../store/slices/billingSlice';
-import {
-  useGetWorkOrdersQuery,
-  useTransitionWorkOrderMutation,
-  useReleaseEscrowMutation
-} from '../../store/services/api';
+import { useGetWorkOrdersQuery, useTransitionWorkOrderMutation } from '../../store/services/api';
 import { mockWorkOrders } from '../../mocks/fixtures';
 import {
   StatusBadge,
@@ -57,7 +53,6 @@ export const LiveDispatchBoard: React.FC = () => {
   const filters = useSelector((state: RootState) => state.workOrders.filters);
 
   const [transitionWorkOrderApi] = useTransitionWorkOrderMutation();
-  const [releaseEscrowApi] = useReleaseEscrowMutation();
   const { data: apiOrders } = useGetWorkOrdersQuery();
 
   const [inspectModalOpen, setInspectModalOpen] = useState(false);
@@ -123,7 +118,6 @@ export const LiveDispatchBoard: React.FC = () => {
         id: wo.id,
         body: { nextStatus: WorkOrderStatus.APPROVED }
       }).unwrap();
-      await releaseEscrowApi({ workOrderId: wo.id }).unwrap();
     } catch {
       // Non-blocking fallback for offline/mock test environments
     }

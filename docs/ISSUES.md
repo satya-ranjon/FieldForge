@@ -1342,6 +1342,19 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   5. Added Playwright E2E and API client verification tests in `apps/web-buyer-portal/e2e/transition.spec.ts` asserting exact outgoing payload shape and absence of `status` or `notes`.
   6. Zero database migrations (`RULE-DB-02`).
 
+### ISSUE-010 · 🐛 Frontend Escrow Release Route Mismatch
+
+- **Status: resolved.**
+- **Root Cause**: In `apps/web-buyer-portal`, the RTK Query mutation `releaseEscrow` targeted `POST /billing/escrow/${workOrderId}/release` with no body, producing `POST /api/v1/billing/escrow/:workOrderId/release` at the edge gateway. However, `apps/billing-service` exposes `@Post('escrow/release')` on `@Controller('billing')`, expecting `POST /api/v1/billing/escrow/release` with `ReleaseEscrowDto` (`{ workOrderId: string, payoutAmountMinor?: number }`) in the HTTP request body. This route mismatch returned HTTP 404 Not Found on manual release requests. Furthermore, `LiveDispatchBoard.tsx` `handleApprove()` redundantly called `releaseEscrowApi` right after `transitionWorkOrderApi(APPROVED)`, racing against the backend's canonical asynchronous event pipeline (`work_order.lifecycle.approved` → `BillingConsumer` → `releaseFunds(SYSTEM)`) and creating risk of duplicate payouts or 409 Conflict race conditions.
+- **Fix**: Realigned the buyer portal mutation and dispatch board:
+  1. Exported `EscrowReleaseResultDto` in `@fieldforge/contracts` matching the backend release result shape.
+  2. Updated `releaseEscrow` mutation in `apps/web-buyer-portal/src/store/services/api.ts` to consume canonical `ReleaseEscrowDto` and target `POST /billing/escrow/release`.
+  3. Extracted pure query builder `buildReleaseEscrowRequest` guaranteeing url `/billing/escrow/release`, method `POST`, body `{ workOrderId }`, and omission of untrusted caller identity (`buyerId`, `userId`, `role`).
+  4. Removed the redundant `releaseEscrowApi` invocation from `handleApprove()` in `LiveDispatchBoard.tsx`, letting the backend transactional outbox and `BillingConsumer` event choreography handle automated payout asynchronously.
+  5. Updated `EscrowManager.tsx` manual release flow and Playwright E2E route mocks in `e2e/lifecycle.spec.ts` and `e2e/transition.spec.ts` to target `**/api/v1/billing/escrow/release`.
+  6. Added automated unit tests in `packages/contracts/test/validators.spec.ts` for `releaseEscrowSchema`, in `apps/billing-service/test/billing.controller.spec.ts` for `releaseEscrow`, and in `apps/web-buyer-portal/e2e/transition.spec.ts` for `buildReleaseEscrowRequest`.
+  7. Zero database migrations (`RULE-DB-02`).
+
 ---
 
 ## Suggested remediation order

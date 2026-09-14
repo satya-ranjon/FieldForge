@@ -1585,6 +1585,36 @@ Aligned frontend work order state machine transition mutations in `apps/web-buye
 
 ---
 
+## Phase 40 — Frontend Escrow Release Route Mismatch Alignment (ISSUE-010)
+
+**Size: XS · Dependencies: Phase 25, Phase 39.** Resolves **ISSUE-010** (Frontend Escrow Release Route Mismatch).
+
+Aligned frontend escrow release mutation in `apps/web-buyer-portal` with canonical backend `@fieldforge/contracts` schema (`ReleaseEscrowDto` at `POST /billing/escrow/release`), eliminated HTTP 404 route failures on manual releases, and removed redundant duplicate release invocations from the dispatch board approval flow.
+
+**Deliverables:**
+
+- **Canonical Escrow Release Contract & Query Builder (`@fieldforge/contracts`, `apps/web-buyer-portal`).**
+  - Exported `EscrowReleaseResultDto` in `packages/contracts/src/dto/billing.dto.ts`.
+  - Updated `releaseEscrow` mutation in `apps/web-buyer-portal/src/store/services/api.ts` to target `POST /billing/escrow/release` with `ReleaseEscrowDto` body (`{ workOrderId: string, payoutAmountMinor?: number }`).
+  - Extracted pure query builder `buildReleaseEscrowRequest` guaranteeing url `/billing/escrow/release`, method `POST`, body `{ workOrderId }`, and strict omission of caller-supplied identity (`buyerId`, `userId`, `role`).
+- **Eliminate Redundant Release Invocation in Dispatch Board (`apps/web-buyer-portal`).**
+  - Removed redundant `releaseEscrowApi` call from `LiveDispatchBoard.tsx` `handleApprove()`, ensuring `transitionWorkOrderApi(APPROVED)` alone initiates order approval.
+  - Allowed the backend event-driven pipeline (`WORK_ORDER_APPROVED` → `BillingConsumer` → `releaseFunds(SYSTEM)` → `PAYOUT_DISBURSED` → `settlePaid`) to handle payout asynchronously without client duplication or row lock competition.
+- **Contract & Controller Automated Tests.**
+  - Added unit test suite in `packages/contracts/test/validators.spec.ts` (+5 tests) covering `releaseEscrowSchema` validation and caller identity stripping.
+  - Added unit tests in `apps/billing-service/test/billing.controller.spec.ts` (+2 tests) verifying authorization guards and delegation to `escrowService.releaseFunds`.
+  - Added unit and Playwright integration tests in `apps/web-buyer-portal/e2e/transition.spec.ts` (+12 tests discovered across browser configurations) verifying `buildReleaseEscrowRequest` payload construction and route handling.
+  - Updated E2E route mocks in `e2e/lifecycle.spec.ts` and `e2e/transition.spec.ts` to intercept `**/api/v1/billing/escrow/release`.
+
+**Verification:**
+
+- `pnpm check && pnpm build` pass cleanly.
+- `pnpm test` passes across 15 packages with 750 automated unit/integration tests (+7 tests, zero `--passWithNoTests`).
+- `pnpm test:e2e` passes with 48 Playwright tests validated (+12 tests).
+- Total verified tests: 750 unit/integration tests + 48 E2E tests = 798 tests.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

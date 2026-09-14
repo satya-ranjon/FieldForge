@@ -148,5 +148,45 @@ describe('BillingController', () => {
         'idemp-preauth-999'
       );
     });
+
+    it('rejects non-buyer and non-admin from releasing escrow (ISSUE-010)', async () => {
+      mockJwtService.verify.mockReturnValue({
+        sub: TECH_USER_ID,
+        email: 'tech@fieldforge.dev',
+        role: UserRole.TECHNICIAN
+      });
+
+      await expect(
+        controller.releaseEscrow({ workOrderId: WORK_ORDER_ID }, 'Bearer tech.token', TECH_USER_ID)
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('allows buyer to release escrow and forwards workOrderId and idempotencyKey (ISSUE-010)', async () => {
+      mockJwtService.verify.mockReturnValue({
+        sub: BUYER_USER_ID,
+        email: 'buyer@fieldforge.dev',
+        role: UserRole.BUYER,
+        profileId: 'buyer-prof-1'
+      });
+
+      await controller.releaseEscrow(
+        { workOrderId: WORK_ORDER_ID },
+        'Bearer buyer.token',
+        BUYER_USER_ID,
+        'corr-456',
+        'idemp-release-123',
+        'buyer-prof-1'
+      );
+
+      expect(mockEscrowService.releaseFunds).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workOrderId: WORK_ORDER_ID,
+          callerUserId: BUYER_USER_ID,
+          callerRole: UserRole.BUYER,
+          callerProfileId: 'buyer-prof-1',
+          idempotencyKey: 'idemp-release-123'
+        })
+      );
+    });
   });
 });

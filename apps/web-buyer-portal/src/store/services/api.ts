@@ -7,6 +7,8 @@ import type {
   NearbyTechnicianDto,
   BidDetailsDto,
   EscrowDetailsDto,
+  ReleaseEscrowDto,
+  EscrowReleaseResultDto,
   TechnicianBadgeDto
 } from '@fieldforge/contracts';
 
@@ -159,6 +161,21 @@ export function buildTransitionWorkOrderRequest(arg: TransitionWorkOrderArgs): {
     url: `/work-orders/${arg.id}/transition`,
     method: 'POST',
     body
+  };
+}
+
+export function buildReleaseEscrowRequest(body: ReleaseEscrowDto): {
+  url: string;
+  method: 'POST';
+  body: ReleaseEscrowDto;
+} {
+  return {
+    url: '/billing/escrow/release',
+    method: 'POST',
+    body: {
+      workOrderId: body.workOrderId,
+      ...(body.payoutAmountMinor !== undefined ? { payoutAmountMinor: body.payoutAmountMinor } : {})
+    }
   };
 }
 
@@ -324,14 +341,8 @@ export const fieldForgeApi = createApi({
       providesTags: (_result, _err, workOrderId) => [{ type: 'Escrow', id: workOrderId }]
     }),
 
-    releaseEscrow: builder.mutation<
-      { workOrderId: string; status: string },
-      { workOrderId: string }
-    >({
-      query: ({ workOrderId }) => ({
-        url: `/billing/escrow/${workOrderId}/release`,
-        method: 'POST'
-      }),
+    releaseEscrow: builder.mutation<EscrowReleaseResultDto, ReleaseEscrowDto>({
+      query: buildReleaseEscrowRequest,
       invalidatesTags: (_result, _err, { workOrderId }) => [
         { type: 'Escrow', id: workOrderId },
         { type: 'WorkOrder', id: workOrderId }

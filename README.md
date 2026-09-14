@@ -608,13 +608,13 @@ pnpm dev
 
 The repository enforces strict test quality and continuous validation. Placeholder test suites (`--passWithNoTests`) and superficial assertions are prohibited.
 
-### Monorepo Test Inventory (779 Total Verified Tests)
+### Monorepo Test Inventory (798 Total Verified Tests)
 
 | Component / Workspace            | Type                  | Test Suites |  Tests  |    Status     |
 | :------------------------------- | :-------------------- | :---------: | :-----: | :-----------: |
 | `apps/work-order-service`        | Unit / Integration    |     15      |   247   |     PASS      |
-| `apps/billing-service`           | Unit / Integration    |      8      |   88    |     PASS      |
-| `@fieldforge/contracts`          | Unit / Schema         |      3      |   86    |     PASS      |
+| `@fieldforge/contracts`          | Unit / Schema         |      3      |   91    |     PASS      |
+| `apps/billing-service`           | Unit / Integration    |      8      |   90    |     PASS      |
 | `@fieldforge/auth-service`       | Unit / Integration    |      7      |   82    |     PASS      |
 | `@fieldforge/common`             | Unit / Infrastructure |      8      |   80    |     PASS      |
 | `apps/dispatch-matching-service` | Unit / Integration    |      5      |   58    |     PASS      |
@@ -622,8 +622,8 @@ The repository enforces strict test quality and continuous validation. Placehold
 | `@fieldforge/messaging`          | Unit / Integration    |      5      |   21    |     PASS      |
 | `apps/mobile-tech-app`           | Unit / Component      |      4      |   21    |     PASS      |
 | `apps/notification-service`      | Unit / Integration    |      1      |   14    |     PASS      |
-| **Playwright E2E Test Suite**    | End-to-End            |      6      |   36    |     PASS      |
-| **Monorepo Total**               |                       |   **68**    | **779** | **100% PASS** |
+| **Playwright E2E Test Suite**    | End-to-End            |      6      |   48    |     PASS      |
+| **Monorepo Total**               |                       |   **68**    | **798** | **100% PASS** |
 
 ### Standard Verification Commands
 

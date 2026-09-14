@@ -25,6 +25,14 @@ export interface ReleaseEscrowDto {
   payoutAmountMinor?: MinorUnits;
 }
 
+export interface EscrowReleaseResultDto {
+  workOrderId: string;
+  technicianId: string;
+  disbursedAmountMinor: MinorUnits;
+  status: EscrowStatus;
+  invoiceId?: string;
+}
+
 export interface InvoiceDetailsDto {
   id: string;
   workOrderId: string;
