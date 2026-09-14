@@ -32,9 +32,20 @@ describe('WorkOrdersController', () => {
 
     mockDeliverablesService = {
       generatePresignedUploadUrl: jest.fn().mockResolvedValue({
-        id: 'del-1',
         uploadUrl: 'http://localhost/upload',
-        mediaUrl: 'http://localhost/media'
+        objectKey: 'work-orders/wo-1/deliverables/PHOTO_BEFORE/file.jpg',
+        expiresInSeconds: 900,
+        requiredHeaders: { 'Content-Type': 'image/jpeg' }
+      }),
+      confirmDeliverable: jest.fn().mockResolvedValue({
+        id: 'del-1',
+        workOrderId: WORK_ORDER_ID,
+        deliverableType: 'PHOTO_BEFORE',
+        mediaUrl: 's3://bucket/key'
+      }),
+      generatePresignedDownloadUrl: jest.fn().mockResolvedValue({
+        downloadUrl: 'https://s3.amazonaws.com/download',
+        expiresInSeconds: 900
       }),
       recordSignatureDeliverable: jest.fn().mockResolvedValue({
         id: 'del-sig-1',
@@ -192,7 +203,9 @@ describe('WorkOrdersController', () => {
     it('POST /work-orders/:id/deliverables/presigned-url generates upload URL', async () => {
       const body = {
         deliverableType: DeliverableType.PHOTO_BEFORE,
-        filename: 'before.jpg'
+        filename: 'before.jpg',
+        mimeType: 'image/jpeg',
+        sizeBytes: 1024 * 1024
       };
 
       const res = await controller.getPresignedUploadUrl(
@@ -203,12 +216,54 @@ describe('WorkOrdersController', () => {
       );
 
       expect(res.uploadUrl).toBeDefined();
+      expect(res.objectKey).toBeDefined();
       expect(mockDeliverablesService.generatePresignedUploadUrl).toHaveBeenCalledWith(
         WORK_ORDER_ID,
         TECH_USER_ID,
         'TECHNICIAN',
-        DeliverableType.PHOTO_BEFORE,
-        'before.jpg'
+        body
+      );
+    });
+
+    it('POST /work-orders/:id/deliverables confirms deliverable upload', async () => {
+      const body = {
+        objectKey: `work-orders/${WORK_ORDER_ID}/deliverables/PHOTO_BEFORE/file.jpg`,
+        deliverableType: DeliverableType.PHOTO_BEFORE,
+        filename: 'before.jpg',
+        mimeType: 'image/jpeg',
+        sizeBytes: 1024 * 1024
+      };
+
+      const res = await controller.confirmDeliverable(
+        WORK_ORDER_ID,
+        body,
+        'Bearer tech.jwt.token',
+        TECH_USER_ID
+      );
+
+      expect(res.id).toBe('del-1');
+      expect(mockDeliverablesService.confirmDeliverable).toHaveBeenCalledWith(
+        WORK_ORDER_ID,
+        TECH_USER_ID,
+        'TECHNICIAN',
+        body
+      );
+    });
+
+    it('GET /work-orders/:id/deliverables/:deliverableId/download-url generates download URL', async () => {
+      const res = await controller.getPresignedDownloadUrl(
+        WORK_ORDER_ID,
+        'del-1',
+        `Bearer ${validToken}`,
+        BUYER_USER_ID
+      );
+
+      expect(res.downloadUrl).toBe('https://s3.amazonaws.com/download');
+      expect(mockDeliverablesService.generatePresignedDownloadUrl).toHaveBeenCalledWith(
+        WORK_ORDER_ID,
+        'del-1',
+        BUYER_USER_ID,
+        'BUYER'
       );
     });
 

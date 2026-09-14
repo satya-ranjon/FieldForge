@@ -95,15 +95,56 @@ export interface WorkOrderStatusHistoryDto {
   createdAt: string;
 }
 
+export const MIME_TO_EXTENSION_MAP: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/heic': 'heic',
+  'application/pdf': 'pdf',
+  'text/plain': 'txt'
+};
+
+export function getExtensionFromMimeType(mimeType: string): string | null {
+  return MIME_TO_EXTENSION_MAP[mimeType.toLowerCase()] ?? null;
+}
+
+export function formatS3Uri(bucket: string, objectKey: string): string {
+  return `s3://${bucket}/${objectKey}`;
+}
+
+export function parseS3Uri(uri: string): { bucket: string; key: string } | null {
+  const match = /^s3:\/\/([^/]+)\/(.+)$/.exec(uri);
+  if (!match) return null;
+  return { bucket: match[1], key: match[2] };
+}
+
 export interface GeneratePresignedUrlDto {
   deliverableType: DeliverableType;
   filename: string;
+  mimeType: string;
+  sizeBytes: number;
 }
 
 export interface PresignedUrlResponseDto {
   uploadUrl: string;
-  mediaUrl: string;
-  key: string;
+  objectKey: string;
+  expiresInSeconds: number;
+  requiredHeaders: {
+    'Content-Type': string;
+  };
+}
+
+export interface ConfirmDeliverableDto {
+  objectKey: string;
+  deliverableType: DeliverableType;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+}
+
+export interface PresignedDownloadUrlResponseDto {
+  downloadUrl: string;
+  expiresInSeconds: number;
 }
 
 export interface RecordSignatureDto {
@@ -116,6 +157,7 @@ export interface DeliverableResponseDto {
   workOrderId: string;
   deliverableType: DeliverableType;
   mediaUrl: string;
+  objectKey?: string | null;
   signatureHash?: string | null;
   clientName?: string | null;
   signedAt?: string | null;

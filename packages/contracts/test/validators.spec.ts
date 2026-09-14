@@ -10,6 +10,7 @@ import {
   transitionStatusSchema,
   listWorkOrdersQuerySchema,
   generatePresignedUrlSchema,
+  confirmDeliverableSchema,
   recordSignatureSchema
 } from '../src/validators/work-order.schema';
 import {
@@ -252,9 +253,80 @@ describe('deliverables schemas', () => {
   it('generatePresignedUrlSchema accepts valid payload and trims filename', () => {
     const parsed = generatePresignedUrlSchema.parse({
       deliverableType: DeliverableType.PHOTO_BEFORE,
-      filename: '  site_check.jpg  '
+      filename: '  site_check.jpg  ',
+      mimeType: 'image/jpeg',
+      sizeBytes: 1024 * 1024
     });
     expect(parsed.filename).toBe('site_check.jpg');
+    expect(parsed.mimeType).toBe('image/jpeg');
+    expect(parsed.sizeBytes).toBe(1048576);
+  });
+
+  it('generatePresignedUrlSchema rejects unsupported MIME type', () => {
+    expect(() =>
+      generatePresignedUrlSchema.parse({
+        deliverableType: DeliverableType.PHOTO_BEFORE,
+        filename: 'malicious.exe',
+        mimeType: 'application/x-msdownload',
+        sizeBytes: 1024
+      })
+    ).toThrow();
+  });
+
+  it('generatePresignedUrlSchema rejects oversized file (>15MB) and non-positive size', () => {
+    expect(() =>
+      generatePresignedUrlSchema.parse({
+        deliverableType: DeliverableType.PHOTO_BEFORE,
+        filename: 'huge.jpg',
+        mimeType: 'image/jpeg',
+        sizeBytes: 16 * 1024 * 1024 // 16MB > 15MB limit
+      })
+    ).toThrow();
+
+    expect(() =>
+      generatePresignedUrlSchema.parse({
+        deliverableType: DeliverableType.PHOTO_BEFORE,
+        filename: 'zero.jpg',
+        mimeType: 'image/jpeg',
+        sizeBytes: 0
+      })
+    ).toThrow();
+  });
+
+  it('confirmDeliverableSchema validates valid payload and trims inputs', () => {
+    const parsed = confirmDeliverableSchema.parse({
+      objectKey: '  work-orders/test-id/deliverables/PHOTO_BEFORE/uuid.jpg  ',
+      deliverableType: DeliverableType.PHOTO_BEFORE,
+      filename: '  site_check.jpg  ',
+      mimeType: 'image/jpeg',
+      sizeBytes: 2048
+    });
+    expect(parsed.objectKey).toBe('work-orders/test-id/deliverables/PHOTO_BEFORE/uuid.jpg');
+    expect(parsed.filename).toBe('site_check.jpg');
+    expect(parsed.mimeType).toBe('image/jpeg');
+    expect(parsed.sizeBytes).toBe(2048);
+  });
+
+  it('confirmDeliverableSchema rejects unsupported MIME type and oversized file', () => {
+    expect(() =>
+      confirmDeliverableSchema.parse({
+        objectKey: 'work-orders/test-id/deliverables/PHOTO_BEFORE/uuid.exe',
+        deliverableType: DeliverableType.PHOTO_BEFORE,
+        filename: 'exploit.exe',
+        mimeType: 'application/octet-stream',
+        sizeBytes: 2048
+      })
+    ).toThrow();
+
+    expect(() =>
+      confirmDeliverableSchema.parse({
+        objectKey: 'work-orders/test-id/deliverables/PHOTO_BEFORE/uuid.jpg',
+        deliverableType: DeliverableType.PHOTO_BEFORE,
+        filename: 'huge.jpg',
+        mimeType: 'image/jpeg',
+        sizeBytes: 20 * 1024 * 1024
+      })
+    ).toThrow();
   });
 
   it('recordSignatureSchema accepts SVG signature and client name and trims inputs', () => {

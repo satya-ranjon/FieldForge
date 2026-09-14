@@ -40,26 +40,28 @@
 
 ## 2. Work Order Lifecycle Service (`work-order-service`)
 
-| Method  | Endpoint                                      | Description                                                                     | Auth / RBAC           | Payload Schema               |
-| :------ | :-------------------------------------------- | :------------------------------------------------------------------------------ | :-------------------- | :--------------------------- |
-| `POST`  | `/work-orders`                                | Create a new work order draft                                                   | `BUYER`               | `createWorkOrderSchema`      |
-| `GET`   | `/work-orders`                                | List & filter work orders (by status, date, location)                           | Authenticated         | `listWorkOrdersQuerySchema`  |
-| `GET`   | `/work-orders/:id`                            | Fetch complete work order details                                               | Authenticated         | None                         |
-| `GET`   | `/work-orders/:id/history`                    | Fetch immutable state transition audit history                                  | Authenticated         | None                         |
-| `POST`  | `/work-orders/:id/publish`                    | Transition draft work order to `PUBLISHED`                                      | `BUYER`               | None                         |
-| `POST`  | `/work-orders/:id/transition`                 | Execute validated FSM state transition (manual `PAID` blocked; event-driven)    | `BUYER`, `TECHNICIAN` | `transitionStatusSchema`     |
-| `PATCH` | `/work-orders/:id/status`                     | Alias to execute validated FSM transition (manual `PAID` blocked; event-driven) | `BUYER`, `TECHNICIAN` | `transitionStatusSchema`     |
-| `POST`  | `/work-orders/:id/deliverables/presigned-url` | Generate pre-signed upload URL for media storage                                | `TECHNICIAN`          | `generatePresignedUrlSchema` |
-| `POST`  | `/work-orders/:id/deliverables/signature`     | Submit cryptographic digital signature artifact                                 | `TECHNICIAN`          | `recordSignatureSchema`      |
-| `POST`  | `/work-orders/:id/signature`                  | Alias to submit digital signature artifact                                      | `TECHNICIAN`          | `recordSignatureSchema`      |
-| `GET`   | `/work-orders/:id/deliverables`               | Fetch deliverables for work order                                               | Authenticated         | None                         |
-| `POST`  | `/work-orders/:id/bids`                       | Submit contractor bid for work order                                            | `TECHNICIAN`          | `submitBidSchema`            |
-| `GET`   | `/work-orders/:id/bids`                       | List all bids submitted for work order                                          | Authenticated         | None                         |
-| `POST`  | `/work-orders/:id/bids/:bidId/accept`         | Atomic bid accept, reject siblings, assign job (FSM)                            | `BUYER`               | None                         |
-| `POST`  | `/work-orders/bids`                           | Legacy route alias to submit bid                                                | `TECHNICIAN`          | `submitBidSchema`            |
-| `GET`   | `/work-orders/bids/:id`                       | Legacy route alias to fetch bid by ID                                           | Authenticated         | None                         |
-| `POST`  | `/work-orders/bids/:id/accept`                | Legacy route alias to accept bid                                                | `BUYER`               | None                         |
-| `GET`   | `/internal/work-orders/:id/billing-context`   | Narrow billing context projection (id, buyerId, assignedTechnicianId, status)   | Internal Service Auth | None                         |
+| Method  | Endpoint                                                    | Description                                                                     | Auth / RBAC           | Payload Schema               |
+| :------ | :---------------------------------------------------------- | :------------------------------------------------------------------------------ | :-------------------- | :--------------------------- |
+| `POST`  | `/work-orders`                                              | Create a new work order draft                                                   | `BUYER`               | `createWorkOrderSchema`      |
+| `GET`   | `/work-orders`                                              | List & filter work orders (by status, date, location)                           | Authenticated         | `listWorkOrdersQuerySchema`  |
+| `GET`   | `/work-orders/:id`                                          | Fetch complete work order details                                               | Authenticated         | None                         |
+| `GET`   | `/work-orders/:id/history`                                  | Fetch immutable state transition audit history                                  | Authenticated         | None                         |
+| `POST`  | `/work-orders/:id/publish`                                  | Transition draft work order to `PUBLISHED`                                      | `BUYER`               | None                         |
+| `POST`  | `/work-orders/:id/transition`                               | Execute validated FSM state transition (manual `PAID` blocked; event-driven)    | `BUYER`, `TECHNICIAN` | `transitionStatusSchema`     |
+| `PATCH` | `/work-orders/:id/status`                                   | Alias to execute validated FSM transition (manual `PAID` blocked; event-driven) | `BUYER`, `TECHNICIAN` | `transitionStatusSchema`     |
+| `POST`  | `/work-orders/:id/deliverables/presigned-url`               | Generate pre-signed upload PUT URL for media storage                            | `TECHNICIAN`, `ADMIN` | `generatePresignedUrlSchema` |
+| `POST`  | `/work-orders/:id/deliverables`                             | Confirm deliverable upload with HeadObject verification & persist record        | `TECHNICIAN`, `ADMIN` | `confirmDeliverableSchema`   |
+| `GET`   | `/work-orders/:id/deliverables/:deliverableId/download-url` | Generate pre-signed download GET URL for authorized callers (900s)              | Authenticated (Owner) | None                         |
+| `POST`  | `/work-orders/:id/deliverables/signature`                   | Submit cryptographic digital signature artifact                                 | `TECHNICIAN`, `ADMIN` | `recordSignatureSchema`      |
+| `POST`  | `/work-orders/:id/signature`                                | Alias to submit digital signature artifact                                      | `TECHNICIAN`, `ADMIN` | `recordSignatureSchema`      |
+| `GET`   | `/work-orders/:id/deliverables`                             | Fetch deliverables for work order                                               | Authenticated (Owner) | None                         |
+| `POST`  | `/work-orders/:id/bids`                                     | Submit contractor bid for work order                                            | `TECHNICIAN`          | `submitBidSchema`            |
+| `GET`   | `/work-orders/:id/bids`                                     | List all bids submitted for work order                                          | Authenticated         | None                         |
+| `POST`  | `/work-orders/:id/bids/:bidId/accept`                       | Atomic bid accept, reject siblings, assign job (FSM)                            | `BUYER`               | None                         |
+| `POST`  | `/work-orders/bids`                                         | Legacy route alias to submit bid                                                | `TECHNICIAN`          | `submitBidSchema`            |
+| `GET`   | `/work-orders/bids/:id`                                     | Legacy route alias to fetch bid by ID                                           | Authenticated         | None                         |
+| `POST`  | `/work-orders/bids/:id/accept`                              | Legacy route alias to accept bid                                                | `BUYER`               | None                         |
+| `GET`   | `/internal/work-orders/:id/billing-context`                 | Narrow billing context projection (id, buyerId, assignedTechnicianId, status)   | Internal Service Auth | None                         |
 
 > **Internal Service Authentication (ISSUE-002, ADR 006, RULE-ARCH-01):**
 > Endpoints under `/internal/*` are inaccessible via `api-gateway` (the gateway strips inbound `x-fieldforge-*` headers and drops `/internal/*` route matches).

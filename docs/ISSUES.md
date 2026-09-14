@@ -1369,6 +1369,23 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   7. Updated `docs/MESSAGE_FLOW.md` and `README.md` to reflect broker retry/DLQ error semantics.
   8. Zero database migrations (`RULE-DB-02`).
 
+### ISSUE-003A · 📦 Real Amazon S3 Deliverable Upload Flow (Backend Implementation)
+
+- **Status: resolved.**
+- **Root Cause**: FieldForge specified Amazon S3 as the canonical deliverable file storage system for photos and inspection documents. However, runtime storage used a mock `LocalDiskMediaStorageAdapter` serving fake localhost URLs, with no `@aws-sdk/client-s3` dependencies or genuine object store integration. Furthermore, `POST /work-orders/:id/deliverables/presigned-url` prematurely inserted a database row into `work_order_deliverables` before the client uploaded any bytes, leaving dangling records if the upload failed or aborted. There was no `HeadObject` verification, no presigned GET download URL generation with caller access checks, and no S3 CORS or public access block in Terraform.
+- **Fix**: Implemented the complete backend Amazon S3 deliverable storage architecture:
+  1. Installed `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner` in `apps/work-order-service`.
+  2. Implemented `S3MediaStorageAdapter` implementing `MediaStoragePort` as the canonical runtime provider. Fails fast at startup if `AWS_REGION` or `S3_DELIVERABLES_BUCKET` is missing in non-test runtime.
+  3. Extended `MediaStoragePort` with `generatePresignedUploadUrl`, `generatePresignedDownloadUrl`, `headObject`, and `deleteObject`. Retained `LocalDiskMediaStorageAdapter` strictly as a test double.
+  4. Updated `generatePresignedUploadUrl` to generate a presigned PUT URL with 15-minute expiration, server-controlled object key (`work-orders/{id}/deliverables/{type}/{uuid}.{ext}`), and strictly zero premature database row insertions.
+  5. Implemented `confirmDeliverable` (`POST /work-orders/:id/deliverables`) with prefix security check, S3 `HeadObject` verification (checking existence, `ContentType`, and `ContentLength`), and idempotent database insertion storing canonical URI `s3://{bucket}/{objectKey}`.
+  6. Implemented `generatePresignedDownloadUrl` (`GET /work-orders/:id/deliverables/:deliverableId/download-url`) with caller authorization (owning buyer, assigned technician, or admin), returning a presigned GET URL valid for 900s.
+  7. Updated contracts (`@fieldforge/contracts`) with `GeneratePresignedUrlDto`, `ConfirmDeliverableDto`, `PresignedUrlResponseDto`, `PresignedDownloadUrlResponseDto`, `ALLOWED_DELIVERABLE_MIME_TYPES`, and `MAX_DELIVERABLE_SIZE_BYTES` (15 MiB).
+  8. Updated Terraform (`infra/terraform/main.tf` and `outputs.tf`) with `aws_s3_bucket_public_access_block` and `aws_s3_bucket_cors_configuration`.
+  9. Documented required S3 environment variables in `.env.example` and configured local dev defaults in `.env`.
+  10. Added comprehensive unit tests in `packages/contracts/test/validators.spec.ts`, `apps/work-order-service/test/s3-media-storage.adapter.spec.ts`, `apps/work-order-service/test/deliverables.service.spec.ts`, and `apps/work-order-service/test/work-orders.controller.spec.ts`.
+  11. Zero database migrations (`RULE-DB-02` - reused existing `s3Url` column).
+
 ---
 
 ## Suggested remediation order

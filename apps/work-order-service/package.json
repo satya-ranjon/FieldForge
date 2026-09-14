@@ -10,6 +10,8 @@
     "clean": "rm -rf dist .turbo coverage"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1131.0",
+    "@aws-sdk/s3-request-presigner": "^3.1131.0",
     "@fieldforge/common": "workspace:*",
     "@fieldforge/contracts": "workspace:*",
     "@fieldforge/database": "workspace:*",

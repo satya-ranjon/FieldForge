@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-14  
-**Phase:** Phase 41 complete — Premature PAYOUT_FAILED Emission & Financial Consistency Remediation (Resolves ISSUE-011). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 42 complete — Real Amazon S3 Deliverable Upload Flow Backend Implementation (Resolves ISSUE-003A). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -79,7 +79,15 @@
   - Mandatory iOS/Android location, camera, and storage permissions strings and `PermissionsService` wrapper (resolving L7).
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
-- **A test harness that can fail.** 750 automated unit/integration tests across 15 packages/apps (+ 48 Playwright E2E tests = 798 total verified tests).
+- **A test harness that can fail.** 760 automated unit/integration tests across 15 packages/apps (+ 48 Playwright E2E tests = 808 total verified tests).
+- **Real Amazon S3 Deliverable Upload Flow Backend Implementation (Phase 42, Resolves ISSUE-003A).**
+  - Canonicalized Amazon S3 as the sole production storage engine for work order deliverable photos and documentation using `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner`.
+  - Implemented fail-fast startup configuration checks in `S3MediaStorageAdapter` requiring `AWS_REGION` and `S3_DELIVERABLES_BUCKET`.
+  - Fixed premature database write bug: generating presigned upload URLs creates strictly zero database rows.
+  - Implemented secure two-phase upload flow: `POST /work-orders/:id/deliverables/presigned-url` returns presigned PUT URL and server-controlled object key (`work-orders/{id}/deliverables/{type}/{uuid}.{ext}`), followed by `POST /work-orders/:id/deliverables` confirming upload with S3 `HeadObject` verification (validating existence, `ContentType`, and `ContentLength`) before persisting database record.
+  - Implemented authorized presigned download GET URL endpoint: `GET /work-orders/:id/deliverables/:deliverableId/download-url` with caller role checks (owning buyer, assigned technician, or admin) returning 900s time-limited URLs without making S3 buckets public.
+  - Configured AWS S3 bucket public access blocks and CORS policies in Terraform (`infra/terraform/main.tf`).
+  - Added unit test coverage in `packages/contracts/test/validators.spec.ts`, `apps/work-order-service/test/s3-media-storage.adapter.spec.ts`, `apps/work-order-service/test/deliverables.service.spec.ts`, and `apps/work-order-service/test/work-orders.controller.spec.ts`.
 - **Premature PAYOUT_FAILED Emission & Financial Consistency Remediation (Phase 41, Resolves ISSUE-011).**
   - Eliminated critical financial consistency bug where transient payout failures during `BillingConsumer.handleWorkOrderApproved()` prematurely published `PAYOUT_FAILED`, causing `work-order-service` to execute a destructive compensating rollback `APPROVED → COMPLETED`. Subsequent successful retries disbursed funds and set escrow `RELEASED`, but `settlePaid()` failed because `COMPLETED → PAID` was rejected, stranding work orders in `COMPLETED`.
   - Removed `PAYOUT_FAILED` event creation and publication from `BillingConsumer.handleWorkOrderApproved()`. Structured failure context is logged and errors are re-thrown to engage RabbitMQ's broker-native delay retry queues (`<queue>.retry`) and DLQ (`fieldforge.billing.work-orders.dlq` on `fieldforge.dlx`) with zero status corruption.

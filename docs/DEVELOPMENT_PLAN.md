@@ -1647,6 +1647,42 @@ Decoupled payout infrastructure failure from customer approval status: eliminate
 - `pnpm test:e2e` passes with 48 Playwright tests validated.
 - Total verified tests: 750 unit/integration tests + 48 E2E tests = 798 tests.
 
+## Phase 42 — Real Amazon S3 Deliverable Upload Flow Backend Implementation (ISSUE-003A)
+
+**Size: S · Dependencies: Phase 2, Phase 25, Phase 41.** Resolves **ISSUE-003A** (Real Amazon S3 Deliverable Upload Flow Backend Implementation).
+
+Canonicalized Amazon S3 as the deliverable file storage system for work order photos and documentation, eliminating mock local URLs, introducing `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner`, fixing premature database writes during presigning, implementing `HeadObject` upload verification, and providing authorized presigned download URLs.
+
+**Deliverables:**
+
+- **Canonical S3 Storage Adapter (`apps/work-order-service`).**
+  - Implemented `S3MediaStorageAdapter` implementing `MediaStoragePort` as the primary production provider using `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner`.
+  - Added fail-fast startup configuration checks requiring `AWS_REGION` and `S3_DELIVERABLES_BUCKET`.
+  - Retained `LocalDiskMediaStorageAdapter` strictly as an in-memory test double for hermetic unit testing.
+- **Two-Phase Upload & Confirmation Flow (`apps/work-order-service`).**
+  - Updated `POST /work-orders/:id/deliverables/presigned-url` to generate presigned PUT URLs with 15-minute expiration and server-controlled object keys (`work-orders/{id}/deliverables/{type}/{uuid}.{ext}`). Strictly creates 0 database rows.
+  - Implemented `POST /work-orders/:id/deliverables` to confirm uploads via S3 `HeadObject` verification (validating object existence, `ContentType`, and `ContentLength`) before persisting database record with canonical `s3://{bucket}/{key}` URI.
+- **Presigned Download GET Endpoint (`apps/work-order-service`).**
+  - Implemented `GET /work-orders/:id/deliverables/:deliverableId/download-url` with caller role checks (owning buyer, assigned technician, or admin), returning 900-second time-limited presigned GET URLs without making S3 buckets public.
+  - Omitted presigned URL generation from `GET /work-orders/:id/deliverables` listing to keep metadata queries fast.
+- **Contract & Validator Updates (`@fieldforge/contracts`).**
+  - Added `ConfirmDeliverableDto`, `PresignedDownloadUrlResponseDto`, `ALLOWED_DELIVERABLE_MIME_TYPES`, `MAX_DELIVERABLE_SIZE_BYTES` (15 MiB), and MIME extension mapper `getExtensionFromMimeType`.
+- **Terraform & Environment (`infra/terraform`, `.env.example`).**
+  - Added `aws_s3_bucket_public_access_block` and `aws_s3_bucket_cors_configuration` to Terraform.
+  - Documented S3 environment variables in `.env.example` and configured local dev defaults in `.env`.
+- **Automated Tests & Invariants.**
+  - Added unit tests in `packages/contracts/test/validators.spec.ts` for `generatePresignedUrlSchema` and `confirmDeliverableSchema`.
+  - Added unit tests in `apps/work-order-service/test/s3-media-storage.adapter.spec.ts` for configuration, upload/download URLs, and HeadObject.
+  - Updated `apps/work-order-service/test/deliverables.service.spec.ts` and `apps/work-order-service/test/work-orders.controller.spec.ts`.
+
+**Verification:**
+
+- `pnpm check && pnpm build` pass cleanly.
+- `pnpm test` passes across 15 packages with 760 automated unit/integration tests (zero `--passWithNoTests`).
+- `pnpm test:e2e` passes with 48 Playwright tests validated.
+- `pnpm validate:clean-typecheck` passes cleanly.
+- Total verified tests: 760 unit/integration tests + 48 E2E tests = 808 tests.
+
 ---
 
 ## Explicitly out of scope
@@ -1663,9 +1699,8 @@ silence as completion.
   limits, no `securityContext`, and no notification-service Deployment. They remain a render-only
   scaffold.
 - **L3** — Dockerfiles remain single-stage and run as root.
-- **L4** — Terraform has no remote backend and no S3 public-access-block.
-- **Real provider SDKs** — Stripe, Twilio, FCM, SES, and S3 slot in behind the Phase 2/4 ports once
-  credentials exist.
+- **Real provider SDKs** — Stripe, Twilio, FCM, and SES slot in behind ports once credentials exist.
+  Amazon S3 is now implemented for deliverable storage (Phase 42).
 - **Service-to-service authentication** — no service authenticates its callers; reaching a service
   port directly still bypasses the edge. Since C5, no service _depends_ on the network being
   trusted — `/users/me` verifies the token itself — but nothing yet restricts who may open the

@@ -98,9 +98,30 @@ export const listWorkOrdersQuerySchema = z
     }
   );
 
+export const ALLOWED_DELIVERABLE_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'application/pdf',
+  'text/plain'
+] as const;
+
+export const MAX_DELIVERABLE_SIZE_BYTES = 15 * 1024 * 1024; // 15 MiB
+
 export const generatePresignedUrlSchema = z.object({
   deliverableType: z.enum(DeliverableType),
-  filename: z.string().trim().min(1).max(255)
+  filename: z.string().trim().min(1).max(255),
+  mimeType: z.enum(ALLOWED_DELIVERABLE_MIME_TYPES),
+  sizeBytes: z.number().int().positive().max(MAX_DELIVERABLE_SIZE_BYTES)
+});
+
+export const confirmDeliverableSchema = z.object({
+  objectKey: z.string().trim().min(1).max(512),
+  deliverableType: z.enum(DeliverableType),
+  filename: z.string().trim().min(1).max(255),
+  mimeType: z.enum(ALLOWED_DELIVERABLE_MIME_TYPES),
+  sizeBytes: z.number().int().positive().max(MAX_DELIVERABLE_SIZE_BYTES)
 });
 
 export const recordSignatureSchema = z.object({

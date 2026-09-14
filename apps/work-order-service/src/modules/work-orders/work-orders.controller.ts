@@ -17,11 +17,13 @@ import {
   transitionStatusSchema,
   listWorkOrdersQuerySchema,
   generatePresignedUrlSchema,
+  confirmDeliverableSchema,
   recordSignatureSchema,
   type CreateWorkOrderDto,
   type TransitionWorkOrderDto,
   type ListWorkOrdersQueryDto,
   type GeneratePresignedUrlDto,
+  type ConfirmDeliverableDto,
   type RecordSignatureDto
 } from '@fieldforge/contracts';
 import { verifyGatewayUser, ZodValidationPipe, type AuthenticatedUser } from '@fieldforge/common';
@@ -190,8 +192,43 @@ export class WorkOrdersController {
       id,
       user.userId,
       user.role,
-      dto.deliverableType,
-      dto.filename,
+      dto,
+      ...(user.profileId ? [user.profileId] : [])
+    );
+  }
+
+  @Post(':id/deliverables')
+  async confirmDeliverable(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(confirmDeliverableSchema)) dto: ConfirmDeliverableDto,
+    @Headers('authorization') authHeader?: string,
+    @Headers('x-ff-user-id') gatewayUserId?: string,
+    @Headers('x-ff-profile-id') gatewayProfileId?: string
+  ) {
+    const user = this.authenticateUser(authHeader, gatewayUserId, gatewayProfileId);
+    return this.deliverablesService.confirmDeliverable(
+      id,
+      user.userId,
+      user.role,
+      dto,
+      ...(user.profileId ? [user.profileId] : [])
+    );
+  }
+
+  @Get(':id/deliverables/:deliverableId/download-url')
+  async getPresignedDownloadUrl(
+    @Param('id') id: string,
+    @Param('deliverableId') deliverableId: string,
+    @Headers('authorization') authHeader?: string,
+    @Headers('x-ff-user-id') gatewayUserId?: string,
+    @Headers('x-ff-profile-id') gatewayProfileId?: string
+  ) {
+    const user = this.authenticateUser(authHeader, gatewayUserId, gatewayProfileId);
+    return this.deliverablesService.generatePresignedDownloadUrl(
+      id,
+      deliverableId,
+      user.userId,
+      user.role,
       ...(user.profileId ? [user.profileId] : [])
     );
   }

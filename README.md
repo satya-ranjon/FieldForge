@@ -584,6 +584,8 @@ pnpm dev
 > **`JWT_SECRET` Security Requirement:** `api-gateway` and `auth-service` share one HS256 key resolved through `requireJwtSecret()` ([`packages/common/src/config/jwt-secret.ts`](./packages/common/src/config/jwt-secret.ts)). There is deliberately no default fallback: a service with a missing, too-short (< 32 characters, per RFC 7518 §3.2), or previously published key exits immediately at startup. `pnpm setup` generates a cryptographically secure key for local development.
 >
 > **`INTERNAL_SERVICE_SECRET` Security Requirement:** Microservices communicating directly over internal HTTP mesh (`billing-service` → `work-order-service`) authenticate via `InternalServiceGuard` asserting `x-fieldforge-internal-secret` and `x-fieldforge-service-name`. In production (`NODE_ENV=production`), missing or blank secrets fail closed immediately at startup; edge gateway strips inbound headers and rejects `/internal/*` routes.
+>
+> **`AWS_REGION` & `S3_DELIVERABLES_BUCKET` Object Storage Requirement (ISSUE-003A):** `work-order-service` uses Amazon S3 as the canonical storage engine for deliverable photos and documentation. In non-test environments, missing values fail fast at startup; development defaults (`us-east-1` and `fieldforge-deliverables-storage-dev`) are pre-populated in `.env`.
 
 ### 3. Core Service Endpoints
 
@@ -607,12 +609,12 @@ pnpm dev
 
 The repository enforces strict test quality and continuous validation. Placeholder test suites (`--passWithNoTests`) and superficial assertions are prohibited.
 
-### Monorepo Test Inventory (798 Total Verified Tests)
+### Monorepo Test Inventory (808 Total Verified Tests)
 
 | Component / Workspace            | Type                  | Test Suites |  Tests  |    Status     |
 | :------------------------------- | :-------------------- | :---------: | :-----: | :-----------: |
-| `apps/work-order-service`        | Unit / Integration    |     15      |   247   |     PASS      |
-| `@fieldforge/contracts`          | Unit / Schema         |      3      |   91    |     PASS      |
+| `apps/work-order-service`        | Unit / Integration    |     16      |   268   |     PASS      |
+| `@fieldforge/contracts`          | Unit / Schema         |      3      |   95    |     PASS      |
 | `apps/billing-service`           | Unit / Integration    |      8      |   90    |     PASS      |
 | `@fieldforge/auth-service`       | Unit / Integration    |      7      |   82    |     PASS      |
 | `@fieldforge/common`             | Unit / Infrastructure |      8      |   80    |     PASS      |
@@ -622,7 +624,7 @@ The repository enforces strict test quality and continuous validation. Placehold
 | `apps/mobile-tech-app`           | Unit / Component      |      4      |   21    |     PASS      |
 | `apps/notification-service`      | Unit / Integration    |      1      |   14    |     PASS      |
 | **Playwright E2E Test Suite**    | End-to-End            |      6      |   48    |     PASS      |
-| **Monorepo Total**               |                       |   **68**    | **798** | **100% PASS** |
+| **Monorepo Total**               |                       |   **69**    | **808** | **100% PASS** |
 
 ### Standard Verification Commands
 

@@ -22,7 +22,7 @@ import { DeliverablesService } from './modules/deliverables/deliverables.service
 import { SlaEscalationService } from './modules/sla/sla-escalation.service';
 import { SlaAutoApprovalService } from './modules/sla/sla-auto-approval.service';
 import { MEDIA_STORAGE_PORT } from './modules/deliverables/media-storage.port';
-import { LocalDiskMediaStorageAdapter } from './modules/deliverables/local-disk-media-storage.adapter';
+import { S3MediaStorageAdapter } from './modules/deliverables/s3-media-storage.adapter';
 
 import { WorkOrderEventsConsumer } from './consumers/work-order-events.consumer';
 
@@ -51,8 +51,9 @@ import { WorkOrderEventsConsumer } from './consumers/work-order-events.consumer'
     },
     {
       provide: MEDIA_STORAGE_PORT,
-      useClass: LocalDiskMediaStorageAdapter
+      useClass: S3MediaStorageAdapter
     },
+    S3MediaStorageAdapter,
     WorkOrdersService,
     BidsService,
     WorkOrderFsmService,

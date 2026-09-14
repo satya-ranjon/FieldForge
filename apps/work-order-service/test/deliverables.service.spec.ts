@@ -1,11 +1,16 @@
 import { DeliverablesService } from '../src/modules/deliverables/deliverables.service';
 import { LocalDiskMediaStorageAdapter } from '../src/modules/deliverables/local-disk-media-storage.adapter';
-import { DeliverableType, WorkOrderStatus } from '@fieldforge/contracts';
+import {
+  DeliverableType,
+  WorkOrderStatus,
+  type GeneratePresignedUrlDto,
+  type ConfirmDeliverableDto
+} from '@fieldforge/contracts';
 import type { DrizzleClient } from '@fieldforge/common';
 import { NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 
-describe('DeliverablesService (FR-MOB-002, FR-MOB-003, L5)', () => {
+describe('DeliverablesService (ISSUE-003A, FR-MOB-002, FR-MOB-003, L5)', () => {
   let service: DeliverablesService;
   let storageAdapter: LocalDiskMediaStorageAdapter;
   let mockDb: Record<string, jest.Mock>;
@@ -47,9 +52,15 @@ describe('DeliverablesService (FR-MOB-002, FR-MOB-003, L5)', () => {
       .setLocalProfile('stranger-user', 'BUYER', 'unrelated-buyer-profile');
   });
 
-  describe('generatePresignedUploadUrl', () => {
-    it('generates an upload URL and media URL via MediaStoragePort and persists deliverable record', async () => {
-      // Mock technician profile lookup
+  describe('generatePresignedUploadUrl (ISSUE-003A)', () => {
+    const validDto: GeneratePresignedUrlDto = {
+      deliverableType: DeliverableType.PHOTO_BEFORE,
+      filename: 'terminal.jpg',
+      mimeType: 'image/jpeg',
+      sizeBytes: 1024 * 1024
+    };
+
+    it('generates an upload URL via MediaStoragePort and creates ZERO database rows', async () => {
       mockDb.limit.mockResolvedValueOnce([
         {
           id: WORK_ORDER_ID,
@@ -62,15 +73,17 @@ describe('DeliverablesService (FR-MOB-002, FR-MOB-003, L5)', () => {
         WORK_ORDER_ID,
         TECH_USER_ID,
         'TECHNICIAN',
-        DeliverableType.PHOTO_BEFORE,
-        'terminal.jpg'
+        validDto
       );
 
-      expect(result).toHaveProperty('id');
       expect(result.uploadUrl).toContain('token=local_upload_');
-      expect(result.mediaUrl).toContain(`work-orders/${WORK_ORDER_ID}/photo_before/`);
-      expect(result.mediaUrl).toMatch(/\.jpg$/);
-      expect(mockDb.insert).toHaveBeenCalled();
+      expect(result.objectKey).toContain(`work-orders/${WORK_ORDER_ID}/deliverables/PHOTO_BEFORE/`);
+      expect(result.objectKey).toMatch(/\.jpg$/);
+      expect(result.expiresInSeconds).toBe(900);
+      expect(result.requiredHeaders).toEqual({ 'Content-Type': 'image/jpeg' });
+
+      // Invariant: Presigning does NOT create any deliverable DB record prematurely
+      expect(mockDb.insert).not.toHaveBeenCalled();
     });
 
     it('rejects uploads if work order is in DRAFT state', async () => {
@@ -83,13 +96,7 @@ describe('DeliverablesService (FR-MOB-002, FR-MOB-003, L5)', () => {
       ]);
 
       await expect(
-        service.generatePresignedUploadUrl(
-          WORK_ORDER_ID,
-          TECH_USER_ID,
-          'TECHNICIAN',
-          DeliverableType.PHOTO_BEFORE,
-          'terminal.jpg'
-        )
+        service.generatePresignedUploadUrl(WORK_ORDER_ID, TECH_USER_ID, 'TECHNICIAN', validDto)
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -103,13 +110,7 @@ describe('DeliverablesService (FR-MOB-002, FR-MOB-003, L5)', () => {
       ]);
 
       await expect(
-        service.generatePresignedUploadUrl(
-          WORK_ORDER_ID,
-          'other-user',
-          'TECHNICIAN',
-          DeliverableType.PHOTO_BEFORE,
-          'terminal.jpg'
-        )
+        service.generatePresignedUploadUrl(WORK_ORDER_ID, 'other-user', 'TECHNICIAN', validDto)
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -117,12 +118,261 @@ describe('DeliverablesService (FR-MOB-002, FR-MOB-003, L5)', () => {
       mockDb.limit.mockResolvedValueOnce([]);
 
       await expect(
-        service.generatePresignedUploadUrl(
-          'non-existent-wo',
-          TECH_USER_ID,
-          'TECHNICIAN',
-          DeliverableType.PHOTO_AFTER,
-          'finish.jpg'
+        service.generatePresignedUploadUrl('non-existent-wo', TECH_USER_ID, 'TECHNICIAN', validDto)
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('confirmDeliverable (ISSUE-003A)', () => {
+    const validObjectKey = `work-orders/${WORK_ORDER_ID}/deliverables/PHOTO_BEFORE/11111111-2222-3333-4444-555555555555.jpg`;
+    const validDto: ConfirmDeliverableDto = {
+      objectKey: validObjectKey,
+      deliverableType: DeliverableType.PHOTO_BEFORE,
+      filename: 'site_check.jpg',
+      mimeType: 'image/jpeg',
+      sizeBytes: 2048
+    };
+
+    beforeEach(() => {
+      // Set valid simulated storage object in storage adapter
+      storageAdapter.setSimulatedObject(validObjectKey, {
+        contentLength: 2048,
+        contentType: 'image/jpeg'
+      });
+    });
+
+    it('confirms deliverable with HeadObject verification and persists DB row', async () => {
+      // Mock work order query
+      mockDb.limit
+        .mockResolvedValueOnce([
+          {
+            id: WORK_ORDER_ID,
+            status: WorkOrderStatus.ON_SITE,
+            assignedTechnicianId: TECH_PROFILE_ID
+          }
+        ])
+        // Mock existing check (no duplicate)
+        .mockResolvedValueOnce([]);
+
+      const result = await service.confirmDeliverable(
+        WORK_ORDER_ID,
+        TECH_USER_ID,
+        'TECHNICIAN',
+        validDto
+      );
+
+      expect(result.id).toBeDefined();
+      expect(result.workOrderId).toBe(WORK_ORDER_ID);
+      expect(result.deliverableType).toBe(DeliverableType.PHOTO_BEFORE);
+      expect(result.objectKey).toBe(validObjectKey);
+      expect(result.mediaUrl).toBe(`s3://local-disk-bucket/${validObjectKey}`);
+      expect(mockDb.insert).toHaveBeenCalledTimes(1);
+    });
+
+    it('is idempotent: returning existing record if already confirmed', async () => {
+      const existingRecord = {
+        id: 'existing-del-id',
+        workOrderId: WORK_ORDER_ID,
+        deliverableType: 'PHOTO_BEFORE',
+        s3Url: `s3://local-disk-bucket/${validObjectKey}`,
+        signatureHash: null,
+        clientName: null,
+        signedAt: null,
+        uploadedAt: new Date('2026-09-14T10:00:00.000Z')
+      };
+
+      // Mock work order query then existing check
+      mockDb.limit
+        .mockResolvedValueOnce([
+          {
+            id: WORK_ORDER_ID,
+            status: WorkOrderStatus.ON_SITE,
+            assignedTechnicianId: TECH_PROFILE_ID
+          }
+        ])
+        .mockResolvedValueOnce([existingRecord]);
+
+      const result = await service.confirmDeliverable(
+        WORK_ORDER_ID,
+        TECH_USER_ID,
+        'TECHNICIAN',
+        validDto
+      );
+
+      expect(result.id).toBe('existing-del-id');
+      expect(mockDb.insert).not.toHaveBeenCalled();
+    });
+
+    it('rejects confirmation if objectKey does not match workOrderId or type', async () => {
+      mockDb.limit.mockResolvedValueOnce([
+        {
+          id: WORK_ORDER_ID,
+          status: WorkOrderStatus.ON_SITE,
+          assignedTechnicianId: TECH_PROFILE_ID
+        }
+      ]);
+
+      const maliciousDto: ConfirmDeliverableDto = {
+        ...validDto,
+        objectKey: 'work-orders/other-wo-id/deliverables/PHOTO_BEFORE/file.jpg'
+      };
+
+      await expect(
+        service.confirmDeliverable(WORK_ORDER_ID, TECH_USER_ID, 'TECHNICIAN', maliciousDto)
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects confirmation if object does not exist in S3 (headObject returns null)', async () => {
+      mockDb.limit.mockResolvedValueOnce([
+        {
+          id: WORK_ORDER_ID,
+          status: WorkOrderStatus.ON_SITE,
+          assignedTechnicianId: TECH_PROFILE_ID
+        }
+      ]);
+
+      storageAdapter.setSimulatedObject(validObjectKey, null);
+
+      await expect(
+        service.confirmDeliverable(WORK_ORDER_ID, TECH_USER_ID, 'TECHNICIAN', validDto)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('rejects confirmation if Content-Type in S3 mismatches declared MIME type', async () => {
+      mockDb.limit.mockResolvedValueOnce([
+        {
+          id: WORK_ORDER_ID,
+          status: WorkOrderStatus.ON_SITE,
+          assignedTechnicianId: TECH_PROFILE_ID
+        }
+      ]);
+
+      storageAdapter.setSimulatedObject(validObjectKey, {
+        contentLength: 2048,
+        contentType: 'application/pdf'
+      });
+
+      await expect(
+        service.confirmDeliverable(WORK_ORDER_ID, TECH_USER_ID, 'TECHNICIAN', validDto)
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects confirmation if Content-Length in S3 mismatches declared sizeBytes', async () => {
+      mockDb.limit.mockResolvedValueOnce([
+        {
+          id: WORK_ORDER_ID,
+          status: WorkOrderStatus.ON_SITE,
+          assignedTechnicianId: TECH_PROFILE_ID
+        }
+      ]);
+
+      storageAdapter.setSimulatedObject(validObjectKey, {
+        contentLength: 99999, // Mismatched size
+        contentType: 'image/jpeg'
+      });
+
+      await expect(
+        service.confirmDeliverable(WORK_ORDER_ID, TECH_USER_ID, 'TECHNICIAN', validDto)
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('generatePresignedDownloadUrl (ISSUE-003A)', () => {
+    const DELIVERABLE_ID = 'del-12345';
+    const objectKey = `work-orders/${WORK_ORDER_ID}/deliverables/PHOTO_BEFORE/file.jpg`;
+    const s3Uri = `s3://local-disk-bucket/${objectKey}`;
+
+    it('generates download URL for owning buyer', async () => {
+      mockDb.limit
+        .mockResolvedValueOnce([
+          {
+            id: WORK_ORDER_ID,
+            buyerId: BUYER_PROFILE_ID,
+            assignedTechnicianId: TECH_PROFILE_ID
+          }
+        ])
+        .mockResolvedValueOnce([
+          {
+            id: DELIVERABLE_ID,
+            workOrderId: WORK_ORDER_ID,
+            s3Url: s3Uri
+          }
+        ]);
+
+      const result = await service.generatePresignedDownloadUrl(
+        WORK_ORDER_ID,
+        DELIVERABLE_ID,
+        BUYER_USER_ID,
+        'BUYER'
+      );
+
+      expect(result.downloadUrl).toContain(objectKey);
+      expect(result.expiresInSeconds).toBe(900);
+    });
+
+    it('generates download URL for assigned technician', async () => {
+      mockDb.limit
+        .mockResolvedValueOnce([
+          {
+            id: WORK_ORDER_ID,
+            buyerId: BUYER_PROFILE_ID,
+            assignedTechnicianId: TECH_PROFILE_ID
+          }
+        ])
+        .mockResolvedValueOnce([
+          {
+            id: DELIVERABLE_ID,
+            workOrderId: WORK_ORDER_ID,
+            s3Url: s3Uri
+          }
+        ]);
+
+      const result = await service.generatePresignedDownloadUrl(
+        WORK_ORDER_ID,
+        DELIVERABLE_ID,
+        TECH_USER_ID,
+        'TECHNICIAN'
+      );
+
+      expect(result.downloadUrl).toContain(objectKey);
+    });
+
+    it('rejects download if caller is an unrelated buyer or unassigned technician', async () => {
+      mockDb.limit.mockResolvedValueOnce([
+        {
+          id: WORK_ORDER_ID,
+          buyerId: BUYER_PROFILE_ID,
+          assignedTechnicianId: TECH_PROFILE_ID
+        }
+      ]);
+
+      await expect(
+        service.generatePresignedDownloadUrl(
+          WORK_ORDER_ID,
+          DELIVERABLE_ID,
+          'stranger-user',
+          'BUYER'
+        )
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('throws NotFoundException if deliverable does not exist', async () => {
+      mockDb.limit
+        .mockResolvedValueOnce([
+          {
+            id: WORK_ORDER_ID,
+            buyerId: BUYER_PROFILE_ID,
+            assignedTechnicianId: TECH_PROFILE_ID
+          }
+        ])
+        .mockResolvedValueOnce([]);
+
+      await expect(
+        service.generatePresignedDownloadUrl(
+          WORK_ORDER_ID,
+          'missing-del-id',
+          BUYER_USER_ID,
+          'BUYER'
         )
       ).rejects.toThrow(NotFoundException);
     });
@@ -253,7 +503,7 @@ describe('DeliverablesService (FR-MOB-002, FR-MOB-003, L5)', () => {
               id: 'del-1',
               workOrderId: WORK_ORDER_ID,
               deliverableType: 'PHOTO_BEFORE',
-              s3Url: 'http://localhost:8002/uploads/test.jpg',
+              s3Url: `s3://local-disk-bucket/work-orders/${WORK_ORDER_ID}/deliverables/PHOTO_BEFORE/test.jpg`,
               signatureHash: null,
               clientName: null,
               signedAt: null,
@@ -271,7 +521,10 @@ describe('DeliverablesService (FR-MOB-002, FR-MOB-003, L5)', () => {
       );
       expect(list).toHaveLength(1);
       expect(list[0].id).toBe('del-1');
-      expect(list[0].mediaUrl).toBe('http://localhost:8002/uploads/test.jpg');
+      expect(list[0].objectKey).toBe(
+        `work-orders/${WORK_ORDER_ID}/deliverables/PHOTO_BEFORE/test.jpg`
+      );
+      expect(list[0].mediaUrl).toContain('s3://');
     });
 
     it('rejects access if caller is an unrelated buyer', async () => {
