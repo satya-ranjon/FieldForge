@@ -1615,6 +1615,40 @@ Aligned frontend escrow release mutation in `apps/web-buyer-portal` with canonic
 
 ---
 
+## Phase 41 — Premature PAYOUT_FAILED Emission & Financial Consistency Remediation (ISSUE-011)
+
+**Size: XS · Dependencies: Phase 17, Phase 38, Phase 40.** Resolves **ISSUE-011** (Premature PAYOUT_FAILED Emission / Payout Failure Consistency Remediation).
+
+Decoupled payout infrastructure failure from customer approval status: eliminated premature `PAYOUT_FAILED` event publication from `BillingConsumer`, removed destructive compensating rollback `APPROVED → COMPLETED` from `work-order-service`, enforced broker-native bounded retries and DLQ parking, and preserved the invariant that `APPROVED` work orders remain approved until payout settlement.
+
+**Deliverables:**
+
+- **Eliminate Premature PAYOUT_FAILED in BillingConsumer (`apps/billing-service`).**
+  - Removed `PAYOUT_FAILED` event creation and publication from `BillingConsumer.handleWorkOrderApproved()`.
+  - Logged structured failure context (`workOrderId`, `technicianId`, `amountMinor`, `eventId`, `correlationId`, `errorName`, `errorMsg`) and re-threw the exception for broker-native retry handling (`IdempotentConsumer`).
+- **Remove Compensating Rollback in Work Orders Service (`apps/work-order-service`).**
+  - Removed `handlePayoutFailed()` method from `WorkOrdersService`.
+  - Removed `EventType.PAYOUT_FAILED` subscription and handler from `WorkOrderEventsConsumer`.
+- **Harden Work Order FSM (`apps/work-order-service`).**
+  - Removed `WorkOrderStatus.COMPLETED` from `validTransitions[WorkOrderStatus.APPROVED]` in `WorkOrderFsmService`, enforcing terminal forward progression `APPROVED → PAID`.
+- **Contract Deprecation (`@fieldforge/contracts`).**
+  - Annotated `EventType.PAYOUT_FAILED`, `PayoutFailedPayload`, and `PayoutFailedEvent` as `@deprecated` with zero runtime producer/consumer.
+- **Automated Tests & Invariants.**
+  - Added unit tests in `apps/billing-service/test/billing.consumer.spec.ts` asserting structured failure logging, re-throw, zero `PAYOUT_FAILED` publication, and transient-failure-then-success idempotency.
+  - Updated `apps/work-order-service/test/work-order-fsm.service.spec.ts` asserting `APPROVED → COMPLETED` throws `BadRequestException`.
+  - Updated `apps/work-order-service/test/work-order-events.consumer.spec.ts` asserting lifecycle queue subscription is strictly `[EventType.PAYOUT_DISBURSED]`.
+  - Updated `apps/work-order-service/test/work-orders.service.spec.ts` asserting `APPROVED` cannot transition to `COMPLETED`, `settlePaid()` is idempotent, and `COMPLETED → PAID` without approval is rejected.
+  - Updated `docs/MESSAGE_FLOW.md` and `README.md`.
+
+**Verification:**
+
+- `pnpm check && pnpm build` pass cleanly.
+- `pnpm test` passes across 15 packages with 750 automated unit/integration tests (zero `--passWithNoTests`).
+- `pnpm test:e2e` passes with 48 Playwright tests validated.
+- Total verified tests: 750 unit/integration tests + 48 E2E tests = 798 tests.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

@@ -65,17 +65,17 @@ The core messaging infrastructure is encapsulated within [`packages/messaging`](
 
 ### Routing Keys & Consumer Subscriptions
 
-| Routing Key                      | Event Type                       | Publisher Service    | Subscribed Queue(s)                                                          | Receiving Microservice(s)                                                                        |
-| :------------------------------- | :------------------------------- | :------------------- | :--------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------- |
-| `work_order.lifecycle.published` | `work_order.lifecycle.published` | `work-order-service` | `fieldforge.dispatch.work-orders`<br/>`fieldforge.notifications.work-orders` | `dispatch-matching-service`<br/>`notification-service`                                           |
-| `work_order.lifecycle.assigned`  | `work_order.lifecycle.assigned`  | `work-order-service` | `fieldforge.notifications.work-orders`                                       | `notification-service`<br/>_(Decoupled from billing-service; FF-ARCH-09)_                        |
-| `work_order.lifecycle.approved`  | `work_order.lifecycle.approved`  | `work-order-service` | `fieldforge.billing.work-orders`                                             | `billing-service`                                                                                |
-| `work_order.lifecycle.paid`      | `work_order.lifecycle.paid`      | `work-order-service` | `fieldforge.notifications.work-orders`                                       | `notification-service`                                                                           |
-| `tech.bidding.submitted`         | `tech.bidding.submitted`         | `work-order-service` | `fieldforge.notifications.work-orders`                                       | `notification-service`                                                                           |
-| `tech.bidding.accepted`          | `tech.bidding.accepted`          | `work-order-service` | _(Deprecated / Retired)_                                                     | _(Orphaned loop eliminated; assignment published via work_order.lifecycle.assigned; FF-ARCH-11)_ |
-| `billing.escrow.funded`          | `billing.escrow.funded`          | `billing-service`    | `fieldforge.work-orders.billing`                                             | `work-order-service`                                                                             |
-| `billing.payout.disbursed`       | `billing.payout.disbursed`       | `billing-service`    | `fieldforge.work-orders.lifecycle-events`                                    | `work-order-service`                                                                             |
-| `billing.payout.failed`          | `billing.payout.failed`          | `billing-service`    | `fieldforge.work-orders.lifecycle-events`                                    | `work-order-service` _(Compensating rollback to COMPLETED; FF-ARCH-10)_                          |
+| Routing Key                      | Event Type                       | Publisher Service    | Subscribed Queue(s)                                                          | Receiving Microservice(s)                                                                                                         |
+| :------------------------------- | :------------------------------- | :------------------- | :--------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------- |
+| `work_order.lifecycle.published` | `work_order.lifecycle.published` | `work-order-service` | `fieldforge.dispatch.work-orders`<br/>`fieldforge.notifications.work-orders` | `dispatch-matching-service`<br/>`notification-service`                                                                            |
+| `work_order.lifecycle.assigned`  | `work_order.lifecycle.assigned`  | `work-order-service` | `fieldforge.notifications.work-orders`                                       | `notification-service`<br/>_(Decoupled from billing-service; FF-ARCH-09)_                                                         |
+| `work_order.lifecycle.approved`  | `work_order.lifecycle.approved`  | `work-order-service` | `fieldforge.billing.work-orders`                                             | `billing-service`                                                                                                                 |
+| `work_order.lifecycle.paid`      | `work_order.lifecycle.paid`      | `work-order-service` | `fieldforge.notifications.work-orders`                                       | `notification-service`                                                                                                            |
+| `tech.bidding.submitted`         | `tech.bidding.submitted`         | `work-order-service` | `fieldforge.notifications.work-orders`                                       | `notification-service`                                                                                                            |
+| `tech.bidding.accepted`          | `tech.bidding.accepted`          | `work-order-service` | _(Deprecated / Retired)_                                                     | _(Orphaned loop eliminated; assignment published via work_order.lifecycle.assigned; FF-ARCH-11)_                                  |
+| `billing.escrow.funded`          | `billing.escrow.funded`          | `billing-service`    | `fieldforge.work-orders.billing`                                             | `work-order-service`                                                                                                              |
+| `billing.payout.disbursed`       | `billing.payout.disbursed`       | `billing-service`    | `fieldforge.work-orders.lifecycle-events`                                    | `work-order-service`                                                                                                              |
+| `billing.payout.failed`          | `billing.payout.failed`          | `billing-service`    | _(Deprecated / Retired)_                                                     | _(Eliminated premature failure emission; payout retries via broker delay queue or parks in DLQ without reversing buyer approval)_ |
 
 ---
 
@@ -238,16 +238,9 @@ sequenceDiagram
         WOSvc->>DB_WO: settlePaid(amountMinor: 35000) -> UPDATE work_orders SET status = 'PAID'
         WOSvc->>MQ: EventPublisher.publish(work_order.lifecycle.paid { payoutAmountMinor: 35000 })
     else Escrow Release Failed (Gateway / Account Failure)
-        Note over BillSvc: Catch error, publish failure compensation event
-        BillSvc->>MQ: EventPublisher.publish(billing.payout.failed)
-        BillSvc-->>MQ: Dead-letter or retry queue (x-retry-count)
-        MQ->>WOSvc: Deliver billing.payout.failed to fieldforge.work-orders.lifecycle-events
-        rect rgb(254, 242, 242)
-        Note over WOSvc, DB_WO: Compensating Rollback (FF-ARCH-10)
-        WOSvc->>DB_WO: SELECT ... FOR UPDATE FROM work_orders
-        WOSvc->>DB_WO: UPDATE work_orders SET status = 'COMPLETED' (FSM APPROVED -> COMPLETED)
-        WOSvc->>DB_WO: INSERT INTO work_order_status_history ('Payout disbursement failure: ...')
-        end
+        Note over BillSvc: Catch error, log structured context, rethrow
+        BillSvc-->>MQ: Retry delay queue (x-retry-count < 3) or DLQ (x-retry-count >= 3)
+        Note over WOSvc, DB_WO: Invariant: Work order remains APPROVED. Payout failures do NOT reverse buyer approval.
     end
     deactivate BillSvc
 ```

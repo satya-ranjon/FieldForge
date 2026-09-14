@@ -1128,7 +1128,7 @@ describe('WorkOrdersService (Persistent, Transactional Lifecycle)', () => {
       );
     });
 
-    it('handlePayoutFailed rolls back an APPROVED order to COMPLETED and logs status history', async () => {
+    it('prohibits transitioning an APPROVED order back to COMPLETED', async () => {
       const created = await service.create(BUYER_USER_ID, defaultDto);
       const woId = created.id;
       await service.publish(woId, BUYER_USER_ID, 'BUYER', CORRELATION_ID);
@@ -1168,27 +1168,21 @@ describe('WorkOrdersService (Persistent, Transactional Lifecycle)', () => {
         CORRELATION_ID
       );
 
-      const rolledBack = await service.handlePayoutFailed({
-        workOrderId: woId,
-        technicianId: TECH_PROFILE_ID,
-        amountMinor: 45000,
-        reason: 'Banking gateway timeout during disbursement'
-      });
+      // Invariant: Payout failures do not roll back APPROVED to COMPLETED
+      await expect(
+        service.transition(
+          woId,
+          BUYER_USER_ID,
+          'BUYER',
+          { nextStatus: WorkOrderStatus.COMPLETED },
+          CORRELATION_ID
+        )
+      ).rejects.toThrow(BadRequestException);
 
-      expect(rolledBack?.status).toBe(WorkOrderStatus.COMPLETED);
-      expect(mockDbInfo.store.workOrders.get(woId)?.status).toBe(WorkOrderStatus.COMPLETED);
-
-      const history = mockDbInfo.store.statusHistory.filter((h) => h.workOrderId === woId);
-      const lastHistory = history[history.length - 1];
-      expect(lastHistory).toMatchObject({
-        fromStatus: WorkOrderStatus.APPROVED,
-        toStatus: WorkOrderStatus.COMPLETED,
-        changedBy: 'billing-service',
-        reason: 'Payout disbursement failure: Banking gateway timeout during disbursement'
-      });
+      expect(mockDbInfo.store.workOrders.get(woId)?.status).toBe(WorkOrderStatus.APPROVED);
     });
 
-    it('handlePayoutFailed is idempotent when order is already PAID', async () => {
+    it('settles an APPROVED order to PAID idempotently and ignores duplicate disbursements', async () => {
       const created = await service.create(BUYER_USER_ID, defaultDto);
       const woId = created.id;
       await service.publish(woId, BUYER_USER_ID, 'BUYER', CORRELATION_ID);
@@ -1227,17 +1221,56 @@ describe('WorkOrdersService (Persistent, Transactional Lifecycle)', () => {
         { nextStatus: WorkOrderStatus.APPROVED },
         CORRELATION_ID
       );
-      await service.settlePaid(woId, CORRELATION_ID, 'billing-service');
 
-      const res = await service.handlePayoutFailed({
-        workOrderId: woId,
-        technicianId: TECH_PROFILE_ID,
-        amountMinor: 45000,
-        reason: 'Duplicate or late failure event'
-      });
-
-      expect(res?.status).toBe(WorkOrderStatus.PAID);
+      // First settlement: transitions to PAID
+      const paidOrder = await service.settlePaid(woId, CORRELATION_ID, 'billing-service', 45000);
+      expect(paidOrder.status).toBe(WorkOrderStatus.PAID);
       expect(mockDbInfo.store.workOrders.get(woId)?.status).toBe(WorkOrderStatus.PAID);
+
+      // Duplicate delivery: idempotent no-op
+      const duplicateRes = await service.settlePaid(woId, CORRELATION_ID, 'billing-service', 45000);
+      expect(duplicateRes.status).toBe(WorkOrderStatus.PAID);
+      expect(mockDbInfo.store.workOrders.get(woId)?.status).toBe(WorkOrderStatus.PAID);
+    });
+
+    it('rejects settling a COMPLETED order to PAID directly without approval', async () => {
+      const created = await service.create(BUYER_USER_ID, defaultDto);
+      const woId = created.id;
+      await service.publish(woId, BUYER_USER_ID, 'BUYER', CORRELATION_ID);
+      await service.transition(
+        woId,
+        BUYER_USER_ID,
+        'BUYER',
+        { nextStatus: WorkOrderStatus.ASSIGNED, assignedTechnicianId: TECH_PROFILE_ID },
+        CORRELATION_ID
+      );
+      await service.transition(
+        woId,
+        TECH_USER_ID,
+        'TECHNICIAN',
+        { nextStatus: WorkOrderStatus.EN_ROUTE },
+        CORRELATION_ID
+      );
+      await service.transition(
+        woId,
+        TECH_USER_ID,
+        'TECHNICIAN',
+        { nextStatus: WorkOrderStatus.ON_SITE, latitude: 37.7749, longitude: -122.4194 },
+        CORRELATION_ID
+      );
+      await service.transition(
+        woId,
+        TECH_USER_ID,
+        'TECHNICIAN',
+        { nextStatus: WorkOrderStatus.COMPLETED },
+        CORRELATION_ID
+      );
+
+      // Settle directly on COMPLETED must throw BadRequestException (requires APPROVED)
+      await expect(
+        service.settlePaid(woId, CORRELATION_ID, 'billing-service', 45000)
+      ).rejects.toThrow(BadRequestException);
+      expect(mockDbInfo.store.workOrders.get(woId)?.status).toBe(WorkOrderStatus.COMPLETED);
     });
 
     it('assignTechnicianFromBid transitions a PUBLISHED order to ASSIGNED and emits WORK_ORDER_ASSIGNED using technicianId', async () => {

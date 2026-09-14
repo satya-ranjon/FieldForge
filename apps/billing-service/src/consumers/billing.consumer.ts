@@ -2,10 +2,9 @@ import { Injectable, OnApplicationBootstrap, Optional } from '@nestjs/common';
 import type {
   WorkOrderApprovedEvent,
   WorkOrderAssignedEvent,
-  WorkOrderCancelledEvent,
-  PayoutFailedPayload
+  WorkOrderCancelledEvent
 } from '@fieldforge/contracts';
-import { EventType, createEvent } from '@fieldforge/contracts';
+import { EventType } from '@fieldforge/contracts';
 import { IdempotentConsumer, EventPublisher } from '@fieldforge/messaging';
 import { EscrowService } from '../modules/escrow/escrow.service';
 
@@ -64,30 +63,11 @@ export class BillingConsumer implements OnApplicationBootstrap {
       );
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : String(err);
+      const errorName = err instanceof Error ? err.name : 'UnknownError';
       if (logger?.error) {
         logger.error(
-          `[BillingConsumer] Escrow release failed for work order ${workOrderId}: ${errorMsg}`
+          `[BillingConsumer] Escrow release failed for work order ${workOrderId} (technician: ${technicianId}, amountMinor: ${payoutAmountMinor}, eventId: ${event.eventId}, correlationId: ${event.correlationId}, error: ${errorName} - ${errorMsg}). Delegating to RabbitMQ retry/DLQ policy.`
         );
-      }
-
-      if (this.producer) {
-        const failurePayload: PayoutFailedPayload = {
-          workOrderId,
-          technicianId,
-          amountMinor: payoutAmountMinor,
-          reason: errorMsg
-        };
-        const failureEvent = createEvent(
-          EventType.PAYOUT_FAILED,
-          failurePayload,
-          event.correlationId
-        );
-        await this.producer.publish(failureEvent).catch((pubErr: unknown) => {
-          const pubMsg = pubErr instanceof Error ? pubErr.message : String(pubErr);
-          if (logger?.error) {
-            logger.error(`[BillingConsumer] Failed to publish PAYOUT_FAILED event: ${pubMsg}`);
-          }
-        });
       }
 
       throw err;

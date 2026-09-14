@@ -84,7 +84,7 @@ describe('BillingConsumer', () => {
     );
   });
 
-  it('handles WorkOrderApproved failure by publishing PAYOUT_FAILED event and rethrowing', async () => {
+  it('handles WorkOrderApproved failure by logging structured error and rethrowing without publishing PAYOUT_FAILED', async () => {
     const error = new Error('Gateway timeout during payout disbursement');
     mockEscrowService.releaseFunds.mockRejectedValueOnce(error);
 
@@ -105,27 +105,28 @@ describe('BillingConsumer', () => {
       'Gateway timeout during payout disbursement'
     );
 
-    expect(mockProducer.publish).toHaveBeenCalledWith(
-      expect.objectContaining({
-        eventType: EventType.PAYOUT_FAILED,
-        correlationId: 'corr-bill-fail-1',
-        payload: {
-          workOrderId: 'wo-1',
-          technicianId: 'tech-1',
-          amountMinor: 45000,
-          reason: 'Gateway timeout during payout disbursement'
-        }
-      })
-    );
+    // Critical invariant: zero premature PAYOUT_FAILED events published to broker
+    expect(mockProducer.publish).not.toHaveBeenCalled();
 
     expect(mockLogger.error).toHaveBeenCalledWith(
       expect.stringContaining('Escrow release failed for work order wo-1')
     );
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      expect.stringContaining('Delegating to RabbitMQ retry/DLQ policy')
+    );
+    expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining('technician: tech-1'));
+    expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining('amountMinor: 45000'));
   });
 
-  it('logs error if publishing PAYOUT_FAILED fails when handling WorkOrderApproved failure', async () => {
-    mockEscrowService.releaseFunds.mockRejectedValueOnce(new Error('DB lock conflict'));
-    mockProducer.publish.mockRejectedValueOnce(new Error('RabbitMQ connection lost'));
+  it('supports transient failure on attempt 1 followed by success on attempt 2 without publishing PAYOUT_FAILED', async () => {
+    mockEscrowService.releaseFunds
+      .mockRejectedValueOnce(new Error('Transient DB deadlock'))
+      .mockResolvedValueOnce({
+        workOrderId: 'wo-1',
+        technicianId: 'tech-1',
+        disbursedAmountMinor: 45000,
+        status: EscrowStatus.RELEASED
+      });
 
     const event: WorkOrderApprovedEvent = createEvent(
       EventType.WORK_ORDER_APPROVED,
@@ -135,18 +136,21 @@ describe('BillingConsumer', () => {
         technicianId: 'tech-1',
         payoutAmountMinor: 45000
       },
-      'corr-bill-fail-2'
+      'corr-bill-retry-1'
     );
 
     const mockLogger = { info: jest.fn(), error: jest.fn() };
 
+    // Attempt 1 fails: logs and rethrows, no failure event published
     await expect(consumer.handleWorkOrderApproved(event, mockLogger)).rejects.toThrow(
-      'DB lock conflict'
+      'Transient DB deadlock'
     );
+    expect(mockProducer.publish).not.toHaveBeenCalled();
 
-    expect(mockLogger.error).toHaveBeenCalledWith(
-      expect.stringContaining('Failed to publish PAYOUT_FAILED event: RabbitMQ connection lost')
-    );
+    // Attempt 2 succeeds: completes cleanly, zero failure events
+    await expect(consumer.handleWorkOrderApproved(event, mockLogger)).resolves.toBeUndefined();
+    expect(mockEscrowService.releaseFunds).toHaveBeenCalledTimes(2);
+    expect(mockProducer.publish).not.toHaveBeenCalled();
   });
 
   it('handles WorkOrderAssigned event cleanly', async () => {

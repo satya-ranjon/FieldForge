@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
-**Last reviewed:** 2026-09-13  
-**Phase:** Phase 37 complete — Microservice Reliability Remediation: Transactional Outbox Pattern (Resolves ISSUE-005). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Last reviewed:** 2026-09-14  
+**Phase:** Phase 41 complete — Premature PAYOUT_FAILED Emission & Financial Consistency Remediation (Resolves ISSUE-011). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -80,6 +80,13 @@
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
 - **A test harness that can fail.** 750 automated unit/integration tests across 15 packages/apps (+ 48 Playwright E2E tests = 798 total verified tests).
+- **Premature PAYOUT_FAILED Emission & Financial Consistency Remediation (Phase 41, Resolves ISSUE-011).**
+  - Eliminated critical financial consistency bug where transient payout failures during `BillingConsumer.handleWorkOrderApproved()` prematurely published `PAYOUT_FAILED`, causing `work-order-service` to execute a destructive compensating rollback `APPROVED → COMPLETED`. Subsequent successful retries disbursed funds and set escrow `RELEASED`, but `settlePaid()` failed because `COMPLETED → PAID` was rejected, stranding work orders in `COMPLETED`.
+  - Removed `PAYOUT_FAILED` event creation and publication from `BillingConsumer.handleWorkOrderApproved()`. Structured failure context is logged and errors are re-thrown to engage RabbitMQ's broker-native delay retry queues (`<queue>.retry`) and DLQ (`fieldforge.billing.work-orders.dlq` on `fieldforge.dlx`) with zero status corruption.
+  - Removed compensating rollback handler `handlePayoutFailed()` from `WorkOrdersService` and unhooked `EventType.PAYOUT_FAILED` subscription from `WorkOrderEventsConsumer`.
+  - Hardened `WorkOrderFsmService` by removing `WorkOrderStatus.COMPLETED` from `validTransitions[WorkOrderStatus.APPROVED]`, enforcing strict terminal progression `APPROVED → PAID`. Customer approval cannot be reversed by payout infrastructure failures.
+  - Formally annotated `EventType.PAYOUT_FAILED`, `PayoutFailedPayload`, and `PayoutFailedEvent` in `@fieldforge/contracts` as `@deprecated` with zero runtime producer or consumer.
+  - Added regression test suites across `billing.consumer.spec.ts`, `work-order-fsm.service.spec.ts`, `work-order-events.consumer.spec.ts`, and `work-orders.service.spec.ts`. Verified 750 unit/integration tests and 48 E2E tests pass cleanly (798 total).
 - **Frontend Escrow Release Route Mismatch Alignment (Phase 40, Resolves ISSUE-010).**
   - Eliminated HTTP 404 Not Found errors on buyer manual escrow release requests caused by route mismatch (`POST /billing/escrow/:workOrderId/release` sent by UI vs `POST /billing/escrow/release` with `ReleaseEscrowDto` expected by `BillingController`).
   - Exported `EscrowReleaseResultDto` in `@fieldforge/contracts` and realigned RTK Query `releaseEscrow` mutation in `apps/web-buyer-portal/src/store/services/api.ts` with pure query builder `buildReleaseEscrowRequest`.

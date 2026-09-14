@@ -46,6 +46,10 @@ export enum EventType {
   TECH_BID_ACCEPTED = 'tech.bidding.accepted',
   ESCROW_FUNDED = 'billing.escrow.funded',
   PAYOUT_DISBURSED = 'billing.payout.disbursed',
+  /**
+   * @deprecated Payout failure is handled by broker-native retries and DLQ parking without reversing buyer approval.
+   * Retained for contract compatibility with zero runtime producer/consumer.
+   */
   PAYOUT_FAILED = 'billing.payout.failed'
 }
 

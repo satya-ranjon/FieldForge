@@ -15,9 +15,9 @@ export class WorkOrderFsmService {
     [WorkOrderStatus.ON_SITE]: [WorkOrderStatus.COMPLETED, WorkOrderStatus.DISPUTED],
     [WorkOrderStatus.COMPLETED]: [WorkOrderStatus.APPROVED, WorkOrderStatus.DISPUTED],
     // A successful escrow release moves an approved order to PAID (docs/SRS.md FR-BILL-002).
-    // If escrow disbursement fails, compensating rollback returns the order to COMPLETED
-    // for re-evaluation or manual resolution (FF-ARCH-10).
-    [WorkOrderStatus.APPROVED]: [WorkOrderStatus.PAID, WorkOrderStatus.COMPLETED],
+    // Payout infrastructure failure does not reverse buyer approval; the order remains APPROVED
+    // until payout succeeds or manual operator resolution.
+    [WorkOrderStatus.APPROVED]: [WorkOrderStatus.PAID],
     [WorkOrderStatus.PAID]: [],
     [WorkOrderStatus.CANCELLED]: [],
     [WorkOrderStatus.DISPUTED]: [WorkOrderStatus.APPROVED, WorkOrderStatus.CANCELLED]

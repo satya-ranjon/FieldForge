@@ -31,7 +31,7 @@
 FieldForge is an enterprise field service marketplace and autonomous dispatch platform connecting businesses with certified technicians. Engineered as a modular, event-driven distributed system on NestJS, Next.js, React Native Expo, MySQL 8.4 LTS, Redis 8.0, and RabbitMQ 4.1:
 
 - **⚡ Low-Latency Dispatch Matching:** Redis `GEOSEARCH` proximity matching on spatial sets (`tech:locations`) paired with multi-parameter contractor scoring (40% distance, 30% rating, 15% completed jobs, 15% verified certifications).
-- **📋 Deterministic Finite State Machine (FSM):** Strict, ACID-backed work order state progression with zero race conditions, modular transition guards, execution strategies, and compensating rollback on payout failure (`APPROVED → COMPLETED`).
+- **📋 Deterministic Finite State Machine (FSM):** Strict, ACID-backed work order state progression with zero race conditions, modular transition guards, execution strategies, and terminal progression to settlement (`APPROVED → PAID`). Payout infrastructure failures trigger broker-native retries and DLQ parking without reversing buyer approval.
 - **📍 GPS Geofence Check-In & Proof of Work:** Server-verified device GPS location requiring $\le 200\text{m}$ site proximity (SRS FR-MOB-001), before/after photo deliverables, milestone checklists, and SHA-256 client signature approvals.
 - **🛡️ Technician Compliance & Vetting Badges:** Database-backed credentials (Cisco CCNA, OSHA 10, CompTIA A+, Fiber Optic, Background Checks), administrative verification workflows, and visual badge discovery across portal and mobile app.
 - **📱 Phone OTP Verification:** Cryptographically randomized, rate-limited 6-digit OTP verification for secure contractor onboarding (FR-AUTH-001).
@@ -490,7 +490,6 @@ stateDiagram-v2
     COMPLETED --> DISPUTED : Deliverable Rejection / Disputed SOW
 
     APPROVED --> PAID : Escrow Released & Settled (billing.payout.disbursed)
-    APPROVED --> COMPLETED : Payout Failure Compensation (billing.payout.failed)
 
     DISPUTED --> APPROVED : Dispute Resolved in Tech's Favor
     DISPUTED --> CANCELLED : Dispute Nullified / Buyer Refunded
@@ -501,18 +500,18 @@ stateDiagram-v2
 
 ### 📋 State Transition Matrix & Lifecycle Invariants
 
-| From State      | Allowed Next State(s)               | Authorized Actor         | Transition Guard / Pre-condition                                  | Emitted Event (`fieldforge.events.topic`) |
-| :-------------- | :---------------------------------- | :----------------------- | :---------------------------------------------------------------- | :---------------------------------------- |
-| **`DRAFT`**     | `PUBLISHED`, `CANCELLED`            | Buyer                    | Stripe escrow pre-authorization locked                            | `work_order.lifecycle.published`          |
-| **`PUBLISHED`** | `ASSIGNED`, `CANCELLED`             | Buyer / Dispatch Engine  | Contractor bid accepted or auto-assigned                          | `work_order.lifecycle.assigned`           |
-| **`ASSIGNED`**  | `EN_ROUTE`, `DISPUTED`, `CANCELLED` | Technician / Buyer       | Technician confirms assignment and initiates transit              | `work_order.lifecycle.en_route`           |
-| **`EN_ROUTE`**  | `ON_SITE`, `DISPUTED`               | Technician               | Device GPS Haversine verification ($\le 200\text{m}$ of site)     | `work_order.lifecycle.on_site`            |
-| **`ON_SITE`**   | `COMPLETED`, `DISPUTED`             | Technician               | Before/after photos + milestone checklist + SHA-256 sign-off      | `work_order.lifecycle.completed`          |
-| **`COMPLETED`** | `APPROVED`, `DISPUTED`              | Buyer / SLA Sweep Worker | Buyer manual approval OR 72h SLA review inactivity timeout        | `work_order.lifecycle.approved`           |
-| **`APPROVED`**  | `PAID`, `COMPLETED`                 | `work-order-service`     | `PAID` via `payout.disbursed`; rollback to `COMPLETED` on failure | `work_order.lifecycle.paid` / comp. log   |
-| **`DISPUTED`**  | `APPROVED`, `CANCELLED`             | Admin / Arbiter          | Mediation resolved in tech favor or cancelled with buyer refund   | `work_order.dispute.resolved`             |
-| **`PAID`**      | _Terminal (`[*]`)_                  | —                        | Final settled state: Escrow disbursed, invoice issued             | —                                         |
-| **`CANCELLED`** | _Terminal (`[*]`)_                  | Buyer / Admin            | Final cancelled state: Escrow refunded to buyer payment method    | `work_order.lifecycle.cancelled`          |
+| From State      | Allowed Next State(s)               | Authorized Actor         | Transition Guard / Pre-condition                                | Emitted Event (`fieldforge.events.topic`) |
+| :-------------- | :---------------------------------- | :----------------------- | :-------------------------------------------------------------- | :---------------------------------------- |
+| **`DRAFT`**     | `PUBLISHED`, `CANCELLED`            | Buyer                    | Stripe escrow pre-authorization locked                          | `work_order.lifecycle.published`          |
+| **`PUBLISHED`** | `ASSIGNED`, `CANCELLED`             | Buyer / Dispatch Engine  | Contractor bid accepted or auto-assigned                        | `work_order.lifecycle.assigned`           |
+| **`ASSIGNED`**  | `EN_ROUTE`, `DISPUTED`, `CANCELLED` | Technician / Buyer       | Technician confirms assignment and initiates transit            | `work_order.lifecycle.en_route`           |
+| **`EN_ROUTE`**  | `ON_SITE`, `DISPUTED`               | Technician               | Device GPS Haversine verification ($\le 200\text{m}$ of site)   | `work_order.lifecycle.on_site`            |
+| **`ON_SITE`**   | `COMPLETED`, `DISPUTED`             | Technician               | Before/after photos + milestone checklist + SHA-256 sign-off    | `work_order.lifecycle.completed`          |
+| **`COMPLETED`** | `APPROVED`, `DISPUTED`              | Buyer / SLA Sweep Worker | Buyer manual approval OR 72h SLA review inactivity timeout      | `work_order.lifecycle.approved`           |
+| **`APPROVED`**  | `PAID`                              | `work-order-service`     | `PAID` via `payout.disbursed`; unreversed on payout retry/DLQ   | `work_order.lifecycle.paid`               |
+| **`DISPUTED`**  | `APPROVED`, `CANCELLED`             | Admin / Arbiter          | Mediation resolved in tech favor or cancelled with buyer refund | `work_order.dispute.resolved`             |
+| **`PAID`**      | _Terminal (`[*]`)_                  | —                        | Final settled state: Escrow disbursed, invoice issued           | —                                         |
+| **`CANCELLED`** | _Terminal (`[*]`)_                  | Buyer / Admin            | Final cancelled state: Escrow refunded to buyer payment method  | `work_order.lifecycle.cancelled`          |
 
 ---
 

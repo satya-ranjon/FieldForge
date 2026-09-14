@@ -13,7 +13,6 @@ import type {
   WorkOrderBillingContextDto,
   WorkOrderStatusHistoryDto,
   TechBidAcceptedPayload,
-  PayoutFailedPayload,
   WorkOrderPublishedEvent,
   WorkOrderPaidEvent,
   MinorUnits
@@ -524,71 +523,6 @@ export class WorkOrdersService {
     }
 
     return updatedOrder!;
-  }
-
-  /**
-   * Handles payout failure compensating rollback when billing service emits PAYOUT_FAILED.
-   * If work order is in APPROVED status, rolls back to COMPLETED and records failure in status history.
-   * If work order is already PAID (e.g. out-of-order event delivery), acts idempotently.
-   */
-  async handlePayoutFailed(payload: PayoutFailedPayload): Promise<WorkOrderResponseDto | null> {
-    const { workOrderId, reason } = payload;
-    let updatedOrder: WorkOrderResponseDto | null = null;
-
-    await this.db.transaction(async (tx) => {
-      const [wo] = await tx
-        .select()
-        .from(workOrders)
-        .where(eq(workOrders.id, workOrderId))
-        .for('update');
-
-      if (!wo) {
-        throw new NotFoundException(`Work order with ID ${workOrderId} not found`);
-      }
-
-      const currentStatus = wo.status as WorkOrderStatus;
-      if (currentStatus === WorkOrderStatus.PAID) {
-        // Payout succeeded earlier or concurrently; do not roll back an already paid order.
-        updatedOrder = this.mapToResponseDto(wo);
-        return;
-      }
-
-      if (currentStatus !== WorkOrderStatus.APPROVED) {
-        // If not in APPROVED status, no rollback is required (e.g. already COMPLETED or CANCELLED)
-        updatedOrder = this.mapToResponseDto(wo);
-        return;
-      }
-
-      this.fsmService.validateTransition(currentStatus, WorkOrderStatus.COMPLETED);
-
-      const now = new Date();
-      await tx
-        .update(workOrders)
-        .set({
-          status: WorkOrderStatus.COMPLETED,
-          updatedAt: now
-        })
-        .where(eq(workOrders.id, workOrderId));
-
-      await tx.insert(workOrderStatusHistory).values({
-        id: randomUUID(),
-        workOrderId,
-        fromStatus: currentStatus,
-        toStatus: WorkOrderStatus.COMPLETED,
-        changedBy: 'billing-service',
-        reason: `Payout disbursement failure: ${reason}`,
-        createdAt: now
-      });
-
-      const updatedRow = {
-        ...wo,
-        status: WorkOrderStatus.COMPLETED,
-        updatedAt: now
-      };
-      updatedOrder = this.mapToResponseDto(updatedRow as typeof workOrders.$inferSelect);
-    });
-
-    return updatedOrder;
   }
 
   /**

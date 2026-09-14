@@ -1355,6 +1355,20 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   6. Added automated unit tests in `packages/contracts/test/validators.spec.ts` for `releaseEscrowSchema`, in `apps/billing-service/test/billing.controller.spec.ts` for `releaseEscrow`, and in `apps/web-buyer-portal/e2e/transition.spec.ts` for `buildReleaseEscrowRequest`.
   7. Zero database migrations (`RULE-DB-02`).
 
+### ISSUE-011 · 🐛 Premature PAYOUT_FAILED Emission & Payout Failure Consistency Remediation
+
+- **Status: resolved.**
+- **Root Cause**: In `BillingConsumer.handleWorkOrderApproved()`, on the very first transient error (attempt 0), the catch block constructed a `PAYOUT_FAILED` event and published it directly to RabbitMQ before re-throwing for broker retry. In `work-order-service`, `WorkOrderEventsConsumer` and `WorkOrdersService.handlePayoutFailed()` immediately rolled the work order back from `APPROVED` to `COMPLETED`. When RabbitMQ's broker-native retry delay queue expired (1s/2s/4s) and the retry succeeded, funds were disbursed to the technician and escrow was marked `RELEASED`, but `settlePaid()` failed with `BadRequestException` because `WorkOrderFsmService` does not allow transitioning `COMPLETED → PAID`. This resulted in technician payout completing while the work order remained stranded in `COMPLETED` forever. Furthermore, rolling back customer business approval on payment infrastructure failure violated domain invariants and corrupted buyer UX.
+- **Fix**: Decoupled payout infrastructure failure from customer approval status:
+  1. Removed `PAYOUT_FAILED` publication from `BillingConsumer.handleWorkOrderApproved()` in `apps/billing-service/src/consumers/billing.consumer.ts`. On failure, structured error context is logged and the exception is re-thrown for `IdempotentConsumer` bounded retries (attempts 1..3 via delay queue) and final DLQ parking (`fieldforge.billing.work-orders.dlq`).
+  2. Removed `handlePayoutFailed()` from `WorkOrdersService` in `apps/work-order-service/src/modules/work-orders/work-orders.service.ts`. Work orders remain in `APPROVED` status on payout failures.
+  3. Removed `EventType.PAYOUT_FAILED` subscription and consumer handler from `WorkOrderEventsConsumer` in `apps/work-order-service/src/consumers/work-order-events.consumer.ts`.
+  4. Hardened `WorkOrderFsmService`: removed `COMPLETED` from `validTransitions[APPROVED]`, enforcing that `APPROVED` work orders can only transition forward to `PAID`.
+  5. Annotated `EventType.PAYOUT_FAILED`, `PayoutFailedPayload`, and `PayoutFailedEvent` in `@fieldforge/contracts` as `@deprecated` with zero runtime producers/consumers.
+  6. Updated unit and FSM tests across `billing-service` and `work-order-service` verifying zero failure event publication, approval immutability, and settlement idempotency.
+  7. Updated `docs/MESSAGE_FLOW.md` and `README.md` to reflect broker retry/DLQ error semantics.
+  8. Zero database migrations (`RULE-DB-02`).
+
 ---
 
 ## Suggested remediation order
