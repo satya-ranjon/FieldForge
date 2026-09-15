@@ -1721,6 +1721,38 @@ Connected the React Native technician mobile app (`apps/mobile-tech-app`) to the
 
 ---
 
+## Phase 44 — Remove Dispatch Direct Access to Auth-Owned Tables & Decouple Database (ISSUE-004A & ISSUE-004B)
+
+**Size: S · Dependencies: Phase 25, Phase 43.** Resolves **ISSUE-004A** (Remove Dispatch Direct Access to Auth-Owned Tables) and **ISSUE-004B** (GPS MySQL + Redis Dual-Write Defect).
+
+Re-established strict DDD bounded context data isolation in `apps/dispatch-matching-service`: removed foreign SQL writes (`UPDATE technician_profiles`) and fallback SQL reads (`technician_profiles`, `users`, `technician_certifications`), canonicalized Redis as the sole operational live GPS store, required verified `profileId` on GPS ingestion, removed `DrizzleModule` and `@fieldforge/database` from dispatch, and guarded against invalid routing when directory data is missing.
+
+**Deliverables:**
+
+- **Redis-Exclusive Live GPS Location Store (`apps/dispatch-matching-service`).**
+  - Updated `GeoSearchService.updateTechnicianLocation()` to write coordinates strictly to Redis via `GEOADD tech:locations`.
+  - Completely removed SQL `UPDATE technician_profiles` mutations and user-to-profile SQL fallback queries.
+- **Strict Identity Enforcement (`apps/dispatch-matching-service`).**
+  - Updated `DispatchController.updateLocation()` to require verified `profileId` from JWT/gateway header, throwing `ForbiddenException` if absent.
+- **Database Decoupling (`apps/dispatch-matching-service`).**
+  - Removed fallback SQL joins from `GeoSearchService.findNearbyTechnicians()`, relying exclusively on `TechnicianDirectoryService.getTechniciansBatch()` over REST.
+  - Hardened candidate scoring: unverified/missing directory records default to `isAvailable = false` and `certifications = []`.
+  - Removed `DrizzleModule.forRoot()` from `DispatchModule`.
+  - Removed `@fieldforge/database` and `drizzle-orm` dependencies from `apps/dispatch-matching-service/package.json`.
+- **Automated Tests & Boundary Guards.**
+  - Added `architecture-boundary.spec.ts` asserting zero foreign database imports in dispatch runtime.
+  - Added tests for Redis-only updates, Redis failure fast-fail, missing profileId rejection, and directory failure eligibility safety.
+
+**Verification:**
+
+- `pnpm check && pnpm build` pass cleanly.
+- `pnpm test` passes across 15 packages with 794 automated unit/integration tests (zero `--passWithNoTests`).
+- `pnpm test:e2e` passes with 48 Playwright tests validated.
+- `pnpm validate:clean-typecheck` passes cleanly.
+- Total verified tests: 794 unit/integration tests + 48 E2E tests = 842 tests.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

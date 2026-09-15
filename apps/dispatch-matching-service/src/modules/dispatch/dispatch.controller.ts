@@ -53,8 +53,15 @@ export class DispatchController {
       throw new ForbiddenException('Only technicians can update location');
     }
 
-    const technicianId = user.profileId || user.userId;
-    await this.geoSearchService.updateTechnicianLocation(technicianId, dto.latitude, dto.longitude);
+    if (!user.profileId) {
+      throw new ForbiddenException('Technician profile ID is required to update location');
+    }
+
+    await this.geoSearchService.updateTechnicianLocation(
+      user.profileId,
+      dto.latitude,
+      dto.longitude
+    );
 
     return {
       statusCode: 200,

@@ -1,15 +1,13 @@
-import { Injectable, Inject, Optional, OnApplicationShutdown } from '@nestjs/common';
-import Redis from 'ioredis';
 import {
-  loadEnv,
-  createLogger,
-  DRIZZLE,
-  type DrizzleClient,
-  ProfileDirectoryService
-} from '@fieldforge/common';
-import type { NearbyTechnicianDto } from '@fieldforge/contracts';
-import { technicianProfiles, technicianCertifications, users } from '@fieldforge/database';
-import { eq, inArray } from 'drizzle-orm';
+  Injectable,
+  Inject,
+  Optional,
+  OnApplicationShutdown,
+  BadRequestException
+} from '@nestjs/common';
+import Redis from 'ioredis';
+import { loadEnv, createLogger } from '@fieldforge/common';
+import type { NearbyTechnicianDto, TechnicianSummaryDto } from '@fieldforge/contracts';
 import { TechnicianDirectoryService } from './technician-directory.service';
 import {
   CANDIDATE_SCORER,
@@ -29,10 +27,8 @@ export class GeoSearchService implements OnApplicationShutdown {
 
   constructor(
     @Optional() @Inject(REDIS_CLIENT) redisClient?: Redis,
-    @Optional() @Inject(DRIZZLE) private readonly db?: DrizzleClient,
     @Optional() private readonly directoryService?: TechnicianDirectoryService,
-    @Optional() @Inject(CANDIDATE_SCORER) candidateScorer?: CandidateScorerPort,
-    @Optional() private readonly profileDirectory?: ProfileDirectoryService
+    @Optional() @Inject(CANDIDATE_SCORER) candidateScorer?: CandidateScorerPort
   ) {
     this.scorer = candidateScorer ?? new CandidateScoringService();
     if (redisClient) {
@@ -56,59 +52,28 @@ export class GeoSearchService implements OnApplicationShutdown {
     }
   }
 
+  /**
+   * Update live technician GPS coordinates in the Redis spatial index (ISSUE-004A).
+   * Live GPS is operational dispatch telemetry owned strictly by dispatch-matching-service in Redis.
+   * Zero SQL writes or foreign database mutations.
+   */
   async updateTechnicianLocation(
-    technicianId: string,
+    technicianProfileId: string,
     latitude: number,
     longitude: number
   ): Promise<void> {
-    let targetProfileId = technicianId;
-
-    if (this.db) {
-      const updateResult = await this.db
-        .update(technicianProfiles)
-        .set({
-          currentLatitude: latitude.toFixed(8),
-          currentLongitude: longitude.toFixed(8)
-        })
-        .where(eq(technicianProfiles.id, technicianId));
-
-      const resultHeader = Array.isArray(updateResult)
-        ? (updateResult[0] as { affectedRows?: number } | undefined)
-        : (updateResult as { affectedRows?: number } | undefined);
-      const affected = resultHeader?.affectedRows;
-      if (affected === 0) {
-        // Fallback: check if technicianId is actually a userId via ProfileDirectoryService
-        let fallbackProfileId: string | null = null;
-        if (this.profileDirectory) {
-          fallbackProfileId = await this.profileDirectory.resolveProfileId(
-            technicianId,
-            'TECHNICIAN'
-          );
-        } else {
-          const [profile] = await this.db
-            .select({ id: technicianProfiles.id })
-            .from(technicianProfiles)
-            .where(eq(technicianProfiles.userId, technicianId))
-            .limit(1);
-          fallbackProfileId = profile?.id ?? null;
-        }
-
-        if (fallbackProfileId) {
-          targetProfileId = fallbackProfileId;
-          await this.db
-            .update(technicianProfiles)
-            .set({
-              currentLatitude: latitude.toFixed(8),
-              currentLongitude: longitude.toFixed(8)
-            })
-            .where(eq(technicianProfiles.id, targetProfileId));
-        }
-      }
+    if (!technicianProfileId) {
+      throw new BadRequestException('Technician profile ID is required for location updates');
     }
 
-    await this.redis.geoadd(TECH_LOCATIONS_KEY, longitude, latitude, targetProfileId);
+    await this.redis.geoadd(TECH_LOCATIONS_KEY, longitude, latitude, technicianProfileId);
   }
 
+  /**
+   * Discover and rank certified technicians near a given coordinate using Redis GEOSEARCH.
+   * Hydrates candidate profile and certification attributes exclusively via TechnicianDirectoryService.
+   * Zero direct SQL access to auth-owned identity tables.
+   */
   async findNearbyTechnicians(
     latitude: number,
     longitude: number,
@@ -142,67 +107,14 @@ export class GeoSearchService implements OnApplicationShutdown {
 
     const technicianIds = rawResults.map(([technicianId]) => technicianId);
 
-    let dbTechs: {
-      id: string;
-      firstName: string;
-      lastName: string;
-      ratingAverage: string;
-      jobsCompleted: number;
-      hourlyRate: string;
-      userStatus?: string;
-    }[] = [];
-
-    const certMap = new Map<string, string[]>();
-
+    let directoryTechs: TechnicianSummaryDto[] = [];
     if (this.directoryService) {
-      const summaries = correlationId
+      directoryTechs = correlationId
         ? await this.directoryService.getTechniciansBatch(technicianIds, correlationId)
         : await this.directoryService.getTechniciansBatch(technicianIds);
-      dbTechs = summaries.map((s) => ({
-        id: s.id,
-        firstName: s.firstName,
-        lastName: s.lastName,
-        ratingAverage: s.ratingAverage,
-        jobsCompleted: s.jobsCompleted,
-        hourlyRate: s.hourlyRate,
-        userStatus: s.userStatus
-      }));
-      for (const s of summaries) {
-        certMap.set(s.id, s.certifications || []);
-      }
-    } else if (this.db) {
-      const profiles = await this.db
-        .select({
-          id: technicianProfiles.id,
-          firstName: technicianProfiles.firstName,
-          lastName: technicianProfiles.lastName,
-          ratingAverage: technicianProfiles.ratingAverage,
-          jobsCompleted: technicianProfiles.jobsCompleted,
-          hourlyRate: technicianProfiles.hourlyRate,
-          userStatus: users.status
-        })
-        .from(technicianProfiles)
-        .innerJoin(users, eq(technicianProfiles.userId, users.id))
-        .where(inArray(technicianProfiles.id, technicianIds));
-
-      dbTechs = profiles;
-
-      const certs = await this.db
-        .select({
-          technicianId: technicianCertifications.technicianId,
-          badgeName: technicianCertifications.name
-        })
-        .from(technicianCertifications)
-        .where(inArray(technicianCertifications.technicianId, technicianIds));
-
-      for (const c of certs) {
-        const existing = certMap.get(c.technicianId) || [];
-        existing.push(c.badgeName);
-        certMap.set(c.technicianId, existing);
-      }
     }
 
-    const dbMap = new Map(dbTechs.map((t) => [t.id, t]));
+    const directoryMap = new Map(directoryTechs.map((t) => [t.id, t]));
 
     interface CandidateEnrichment extends CandidateScoringInput {
       fullName: string;
@@ -217,14 +129,18 @@ export class GeoSearchService implements OnApplicationShutdown {
         const dist = parseFloat(distStr) || 0;
         const tLat = parseFloat(latStr) || latitude;
         const tLng = parseFloat(lngStr) || longitude;
-        const meta = dbMap.get(technicianId);
+        const meta = directoryMap.get(technicianId);
 
-        const rating = meta ? parseFloat(meta.ratingAverage) || 5.0 : 5.0;
+        // Distinguish display-only fields from eligibility/security-critical fields (ISSUE-004A §9 & §20)
+        // If meta cannot be resolved from directoryService:
+        // isAvailable MUST be false and certifications empty so unverified technicians are not routed
+        const rating = meta ? parseFloat(meta.ratingAverage) || 5.0 : 0;
         const jobs = meta?.jobsCompleted ?? 0;
         const fullName = meta
-          ? `${meta.firstName} ${meta.lastName}`
+          ? `${meta.firstName} ${meta.lastName}`.trim() || `Technician ${technicianId.slice(0, 8)}`
           : `Technician ${technicianId.slice(0, 8)}`;
-        const certs = certMap.get(technicianId) || [];
+        const certs = meta?.certifications || meta?.badges || [];
+        const isAvailable = meta ? meta.userStatus === 'ACTIVE' : false;
 
         return {
           technicianId,
@@ -237,7 +153,7 @@ export class GeoSearchService implements OnApplicationShutdown {
           fullName,
           latitude: tLat,
           longitude: tLng,
-          isAvailable: meta ? meta.userStatus === 'ACTIVE' : true
+          isAvailable
         };
       }
     );

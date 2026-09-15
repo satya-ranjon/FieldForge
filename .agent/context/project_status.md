@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
-**Last reviewed:** 2026-09-14  
-**Phase:** Phase 42 complete — Real Amazon S3 Deliverable Upload Flow Backend Implementation (Resolves ISSUE-003A). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Last reviewed:** 2026-09-15  
+**Phase:** Phase 44 complete — Pure Redis Live Location Architecture & Dispatch Database Decoupling (Resolves ISSUE-004A and ISSUE-004B). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -48,9 +48,9 @@
   `work_order.lifecycle.assigned`, `work_order.lifecycle.approved`, and `work_order.lifecycle.paid` (`tech.bidding.accepted` retired in Phase 18).
   Assignment business logic across `BidsService.acceptBid`, `WorkOrdersService.transition`, and `WorkOrdersService.assignTechnicianFromBid` is unified into `executeWorkOrderAssignment()` and `resolveAgreedRateMinor()` (`work-order-assignment.ts`, FF-CODE-02 / Phase 23). Transition engine decoupled into modular transition guards and execution strategies (`work-order-transition.ts`, FF-CODE-03 / Phase 24), satisfying SRP and OCP.
 - **Pure Geospatial Matching Engine (`apps/dispatch-matching-service`).**
-  - Redis `GEOADD` and `GEOSEARCH` on `tech:locations` with Haversine exact distance filtering.
+  - Redis `GEOADD` and `GEOSEARCH` on `tech:locations` with Haversine exact distance filtering. Pure Redis live geospatial source with zero relational database dependency (`@fieldforge/database` and `DrizzleModule` fully decoupled; zero direct SQL access to auth-owned tables).
   - Multi-parameter contractor scoring algorithm: 40% distance, 30% rating, 15% completed jobs, 15% verified certifications.
-  - Two-tier distributed caching in `TechnicianDirectoryService` (Redis distributed cache with 300s TTL + in-memory LRU fallback) with partial batch hit optimization: fetches strictly uncached technician IDs over HTTP from `auth-service`, with zero HTTP calls on full cache hits.
+  - Two-tier distributed caching in `TechnicianDirectoryService` (Redis distributed cache with 300s TTL + in-memory LRU fallback) with partial batch hit optimization: fetches strictly uncached technician IDs over HTTP from `auth-service`, with zero HTTP calls on full cache hits. Unresolved or suspended directory records fail safe to unavailable (`isAvailable = false`), preventing unverified contractors from being auto-routed.
   - Endpoints: `POST /dispatch/technicians/location`, `GET /dispatch/technicians/nearby`, and `POST /dispatch/auto-route`.
 - **Escrow & Money Safety (`apps/billing-service`).**
   - Fully resolves **C3**; `releaseFunds()` executes inside a locked `db.transaction()` with `FOR UPDATE` on `escrow_accounts`. Asserts `status === 'HELD'`, verifies buyer caller authority, transitions escrow to `RELEASED`, dispatches payout via `PaymentProviderPort` (`LedgerPaymentProvider`), logs double-entry `payout_ledger` credit, and emits `billing.payout.disbursed` (ADR 005). Consumes `work_order.lifecycle.approved` via `BillingConsumer`. Completely decoupled from `work_orders` table mutations (ADR 009).
@@ -79,7 +79,16 @@
   - Mandatory iOS/Android location, camera, and storage permissions strings and `PermissionsService` wrapper (resolving L7).
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
   - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
-- **A test harness that can fail.** 773 automated unit/integration tests across 15 packages/apps (+ 48 Playwright E2E tests = 821 total verified tests).
+- **A test harness that can fail.** 794 automated unit/integration tests across 15 packages/apps (+ 48 Playwright E2E tests = 842 total verified tests).
+- **Pure Redis Live Location Architecture & Dispatch Database Decoupling (Phase 44, Resolves ISSUE-004A & ISSUE-004B).**
+  - Completely decoupled `apps/dispatch-matching-service` from relational database access, removing `@fieldforge/database`, `drizzle-orm`, and `DrizzleModule.forRoot()`.
+  - Canonicalized Redis `tech:locations` as the sole operational store for technician live coordinates (`GEOADD`, `GEOSEARCH`), eliminating cross-service MySQL writes (`UPDATE technician_profiles SET current_latitude, current_longitude`) and direct SQL join fallbacks against auth-owned tables (`technician_profiles`, `users`, `technician_certifications`).
+  - Formally resolved the original dual-write concurrency hazard (`ISSUE-004B`) by eliminating the second write altogether.
+  - Hardened caller identity in `POST /dispatch/technicians/location`: requires a verified `profileId` on the authenticated user context (injected by gateway or decoded from JWT), returning `ForbiddenException` if absent and rejecting missing coordinate inputs with `BadRequestException`.
+  - Pure batch directory hydration: `GeoSearchService.findNearbyTechnicians()` resolves contractor metadata strictly through `TechnicianDirectoryService.getTechniciansBatch()` (HTTP `POST /technicians/batch` with two-tier Redis/in-memory cache).
+  - Candidate eligibility safety: unresolved directory records fail safe with `isAvailable = false`, `rating = 0`, and `certifications = []`, preventing unverified or suspended technicians from qualifying for automated routing.
+  - Zero schema migrations (`RULE-DB-02`): dormant columns on auth-owned `technician_profiles` are untouched in this phase for future schema deprecation.
+  - Added architectural boundary test suite (`test/architecture-boundary.spec.ts`) scanning all dispatch source files to ensure zero database imports, Drizzle modules, or references to auth-owned tables.
 - **Real Amazon S3 Deliverable Upload Mobile Client Integration (Phase 43, Resolves ISSUE-003A Mobile Client).**
   - Connected the React Native technician mobile app (`apps/mobile-tech-app`) to canonical Amazon S3 deliverable storage, completely eradicating fake `media.fieldforge.dev` URLs.
   - Mobile deliverable uploads use direct client-to-S3 presigned PUT with actual file bytes (`Blob`) via `DeliverableUploadService`.

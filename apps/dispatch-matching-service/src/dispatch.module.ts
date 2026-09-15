@@ -3,12 +3,10 @@ import { APP_FILTER } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import Redis from 'ioredis';
 import {
-  DrizzleModule,
   HealthController,
   GlobalHttpExceptionFilter,
   requireJwtSecret,
-  loadEnv,
-  ProfileDirectoryService
+  loadEnv
 } from '@fieldforge/common';
 import { MessagingModule } from '@fieldforge/messaging';
 import { CandidateScoringService, CANDIDATE_SCORER } from './modules/scoring';
@@ -41,7 +39,6 @@ const redisProvider = {
 
 @Module({
   imports: [
-    DrizzleModule.forRoot(),
     MessagingModule.forRoot({ serviceName: 'dispatch-service' }),
     JwtModule.registerAsync({
       useFactory: () => ({
@@ -63,7 +60,6 @@ const redisProvider = {
       useClass: CandidateScoringService
     },
     TechnicianDirectoryService,
-    ProfileDirectoryService,
     GeoSearchService,
     WorkOrderCreatedConsumer
   ],
@@ -72,7 +68,6 @@ const redisProvider = {
     CANDIDATE_SCORER,
     GeoSearchService,
     TechnicianDirectoryService,
-    ProfileDirectoryService,
     REDIS_CLIENT
   ]
 })

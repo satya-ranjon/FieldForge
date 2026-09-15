@@ -1392,6 +1392,27 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   16. Added comprehensive test coverage: 13 unit tests in `apps/mobile-tech-app/test/deliverableUpload.service.spec.ts`, updated `activeJob.spec.ts`, `contracts/test/validators.spec.ts`, `s3-media-storage.adapter.spec.ts`, `deliverables.service.spec.ts`, and `work-orders.controller.spec.ts`.
   17. Zero database migrations (`RULE-DB-02` - reused existing `s3Url` column).
 
+### ISSUE-004A · 🏛️ Remove Dispatch Direct Access to Auth-Owned Tables & Live GPS Location Ownership
+
+- **Status: resolved.**
+- **Root Cause**: `apps/dispatch-matching-service` violated DDD bounded context invariants by directly executing SQL queries and mutations against auth-owned tables in MySQL. On GPS location updates, `GeoSearchService.updateTechnicianLocation()` executed raw SQL `UPDATE technician_profiles` to set `current_latitude` and `current_longitude`. In `GeoSearchService.findNearbyTechnicians()`, it maintained fallback SQL joins querying `technician_profiles`, `users`, and `technician_certifications`. Furthermore, `DispatchModule` registered `DrizzleModule.forRoot()` and depended on `@fieldforge/database`, even though dispatch owns zero relational tables.
+- **Fix**: Re-established clean domain boundaries and decoupled dispatch from relational storage:
+  1. Established domain ownership matrix: `auth-service` owns identity, profiles, and vetting certifications in MySQL; `dispatch-matching-service` owns live GPS telemetry and spatial matching in Redis (`tech:locations`).
+  2. Removed MySQL `UPDATE technician_profiles` from `GeoSearchService.updateTechnicianLocation()`. Live GPS updates write exclusively to Redis via `GEOADD tech:locations`.
+  3. Tightened technician location identity in `DispatchController.updateLocation()`: requires a verified `profileId` from JWT/gateway header and rejects requests missing `profileId` with `ForbiddenException`. Removed all fallback queries (`SELECT id FROM technician_profiles WHERE user_id = ?`).
+  4. Removed fallback SQL joins in `GeoSearchService.findNearbyTechnicians()`. Candidate enrichment is handled exclusively in a single batch via `TechnicianDirectoryService.getTechniciansBatch()` calling `auth-service`'s `POST /technicians/batch`.
+  5. Enforced candidate eligibility safety: unverified or missing directory records are marked `isAvailable = false` and `certifications = []`, preventing unverified technicians from being auto-routed when directory data is unavailable.
+  6. Removed `DrizzleModule.forRoot()` from `DispatchModule`.
+  7. Removed `@fieldforge/database` and `drizzle-orm` dependencies from `apps/dispatch-matching-service/package.json`.
+  8. Added an architecture boundary guard test (`architecture-boundary.spec.ts`) asserting zero foreign database imports or references in dispatch runtime code.
+  9. Zero database migrations (`RULE-DB-02`).
+
+### ISSUE-004B · 🏛️ GPS MySQL + Redis Dual-Write Consistency Defect
+
+- **Status: resolved / obsolete due to Redis-only location architecture.**
+- **Root Cause**: Previously, GPS updates attempted non-atomic dual writes to both MySQL (`technician_profiles`) and Redis (`tech:locations`), risking split-brain consistency on partial write failures.
+- **Fix**: Fully resolved by the architectural transition to Redis-only live GPS ingestion in ISSUE-004A. Because `dispatch-matching-service` no longer writes to MySQL, the dual-write condition and its associated failure modes are completely eliminated. (Dormant `currentLatitude` and `currentLongitude` columns in `technician_profiles` remain in schema for now without active writers and will be dropped in a future schema cleanup phase).
+
 ---
 
 ## Suggested remediation order

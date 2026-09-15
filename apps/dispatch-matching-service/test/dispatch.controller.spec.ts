@@ -44,10 +44,11 @@ describe('DispatchController', () => {
   });
 
   describe('updateLocation', () => {
-    it('successfully updates location for a certified technician', async () => {
+    it('successfully updates location for a certified technician with profileId in token', async () => {
       mockJwtService.verify.mockReturnValue({
         sub: 'user-tech-1',
-        role: 'TECHNICIAN'
+        role: 'TECHNICIAN',
+        profileId: 'tp-tech-1'
       });
 
       const result = await controller.updateLocation(
@@ -58,10 +59,26 @@ describe('DispatchController', () => {
 
       expect(result.statusCode).toBe(200);
       expect(mockGeoSearchService.updateTechnicianLocation).toHaveBeenCalledWith(
-        'user-tech-1',
+        'tp-tech-1',
         37.7749,
         -122.4194
       );
+    });
+
+    it('rejects technician location update when profileId is missing from token and header', async () => {
+      mockJwtService.verify.mockReturnValue({
+        sub: 'user-tech-1',
+        role: 'TECHNICIAN'
+      });
+
+      await expect(
+        controller.updateLocation(
+          { latitude: 37.7749, longitude: -122.4194 },
+          'Bearer token',
+          'user-tech-1'
+        )
+      ).rejects.toThrow(ForbiddenException);
+      expect(mockGeoSearchService.updateTechnicianLocation).not.toHaveBeenCalled();
     });
 
     it('prefers technician profileId from token payload when present', async () => {
