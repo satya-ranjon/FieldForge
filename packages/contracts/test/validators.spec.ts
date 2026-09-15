@@ -17,7 +17,8 @@ import {
   createCertificationSchema,
   verifyCertificationSchema,
   sendPhoneOtpSchema,
-  verifyPhoneOtpSchema
+  verifyPhoneOtpSchema,
+  batchTechniciansSchema
 } from '../src/validators/auth.schema';
 import { BudgetType, DeliverableType, WorkOrderStatus } from '../src/enums';
 
@@ -489,5 +490,36 @@ describe('releaseEscrowSchema', () => {
     expect(parsed).not.toHaveProperty('buyerId');
     expect(parsed).not.toHaveProperty('userId');
     expect(parsed).not.toHaveProperty('role');
+  });
+});
+
+describe('batchTechniciansSchema (ISSUE-007)', () => {
+  it('accepts 1 valid technician ID', () => {
+    const result = batchTechniciansSchema.parse({ ids: ['tech-profile-1'] });
+    expect(result.ids).toEqual(['tech-profile-1']);
+  });
+
+  it('accepts 100 valid-format IDs', () => {
+    const ids = Array.from({ length: 100 }, (_, i) => `tech-profile-${i + 1}`);
+    const result = batchTechniciansSchema.parse({ ids });
+    expect(result.ids.length).toBe(100);
+  });
+
+  it('rejects an empty IDs array (0 IDs)', () => {
+    expect(() => batchTechniciansSchema.parse({ ids: [] })).toThrow();
+  });
+
+  it('rejects an oversized IDs array (101 IDs)', () => {
+    const ids = Array.from({ length: 101 }, (_, i) => `tech-profile-${i + 1}`);
+    expect(() => batchTechniciansSchema.parse({ ids })).toThrow();
+  });
+
+  it('rejects an empty string individual ID', () => {
+    expect(() => batchTechniciansSchema.parse({ ids: [''] })).toThrow();
+  });
+
+  it('rejects an oversized individual ID string (> 64 characters)', () => {
+    const longId = 'a'.repeat(65);
+    expect(() => batchTechniciansSchema.parse({ ids: [longId] })).toThrow();
   });
 });

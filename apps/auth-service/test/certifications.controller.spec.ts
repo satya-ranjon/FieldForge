@@ -1,8 +1,18 @@
-import { UnauthorizedException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  UnauthorizedException,
+  ForbiddenException,
+  BadRequestException,
+  type ExecutionContext
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { CertificationsController } from '../src/modules/vetting/certifications.controller';
 import { CertificationsService } from '../src/modules/vetting/certifications.service';
-import { ZodValidationPipe } from '@fieldforge/common';
+import {
+  ZodValidationPipe,
+  InternalServiceGuard,
+  INTERNAL_SECRET_HEADER,
+  SERVICE_NAME_HEADER
+} from '@fieldforge/common';
 import { createCertificationSchema, batchTechniciansSchema, UserRole } from '@fieldforge/contracts';
 
 describe('CertificationsController', () => {
@@ -241,7 +251,22 @@ describe('CertificationsController', () => {
     });
   });
 
-  describe('POST /technicians/batch', () => {
+  describe('POST /technicians/batch (ISSUE-007)', () => {
+    const TEST_SECRET = 'test-internal-service-secret-12345';
+
+    const createMockExecutionContext = (
+      headers: Record<string, string | undefined>
+    ): ExecutionContext =>
+      ({
+        switchToHttp: () => ({
+          getRequest: () => ({
+            headers
+          })
+        }),
+        getHandler: () => controller.getBatchTechnicians,
+        getClass: () => CertificationsController
+      }) as unknown as ExecutionContext;
+
     it('returns batch technician summaries for valid IDs', async () => {
       const res = await controller.getBatchTechnicians({ ids: [TECH_USER_ID] });
       expect(res.length).toBe(1);
@@ -258,6 +283,82 @@ describe('CertificationsController', () => {
       expect(() =>
         pipe.transform({ ids: 'invalid' }, { type: 'body', metatype: Object, data: '' })
       ).toThrow(BadRequestException);
+      expect(() =>
+        pipe.transform({ ids: [] }, { type: 'body', metatype: Object, data: '' })
+      ).toThrow(BadRequestException);
+      expect(() =>
+        pipe.transform(
+          { ids: Array.from({ length: 101 }, (_, i) => `tech-${i}`) },
+          { type: 'body', metatype: Object, data: '' }
+        )
+      ).toThrow(BadRequestException);
+    });
+
+    it('allows valid internal request from dispatch-matching-service with correct secret', () => {
+      const guard = new InternalServiceGuard(['dispatch-matching-service'], TEST_SECRET);
+      const context = createMockExecutionContext({
+        [SERVICE_NAME_HEADER]: 'dispatch-matching-service',
+        [INTERNAL_SECRET_HEADER]: TEST_SECRET
+      });
+
+      expect(guard.canActivate(context)).toBe(true);
+    });
+
+    it('rejects internal request when internal secret is missing', () => {
+      const guard = new InternalServiceGuard(['dispatch-matching-service'], TEST_SECRET);
+      const context = createMockExecutionContext({
+        [SERVICE_NAME_HEADER]: 'dispatch-matching-service'
+      });
+
+      expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+    });
+
+    it('rejects internal request when internal secret is invalid', () => {
+      const guard = new InternalServiceGuard(['dispatch-matching-service'], TEST_SECRET);
+      const context = createMockExecutionContext({
+        [SERVICE_NAME_HEADER]: 'dispatch-matching-service',
+        [INTERNAL_SECRET_HEADER]: 'wrong-secret'
+      });
+
+      expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+    });
+
+    it('rejects internal request when service name header is missing', () => {
+      const guard = new InternalServiceGuard(['dispatch-matching-service'], TEST_SECRET);
+      const context = createMockExecutionContext({
+        [INTERNAL_SECRET_HEADER]: TEST_SECRET
+      });
+
+      expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+    });
+
+    it('forbids request from unauthorized internal service (e.g. billing-service)', () => {
+      const guard = new InternalServiceGuard(['dispatch-matching-service'], TEST_SECRET);
+      const context = createMockExecutionContext({
+        [SERVICE_NAME_HEADER]: 'billing-service',
+        [INTERNAL_SECRET_HEADER]: TEST_SECRET
+      });
+
+      expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
+    });
+
+    it('rejects external user request with valid JWT but missing internal service headers', () => {
+      const guard = new InternalServiceGuard(['dispatch-matching-service'], TEST_SECRET);
+      const context = createMockExecutionContext({
+        authorization: 'Bearer valid.buyer.jwt',
+        'x-ff-user-id': BUYER_USER_ID,
+        'x-ff-user-role': UserRole.BUYER
+      });
+
+      expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+    });
+
+    it('verifies InternalServiceGuard metadata is applied to getBatchTechnicians method', () => {
+      const guards = Reflect.getMetadata('__guards__', controller.getBatchTechnicians);
+      expect(guards).toBeDefined();
+      expect(Array.isArray(guards)).toBe(true);
+      const internalGuard = guards.find((g: unknown) => g instanceof InternalServiceGuard);
+      expect(internalGuard).toBeDefined();
     });
   });
 });

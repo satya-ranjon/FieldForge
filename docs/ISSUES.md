@@ -284,6 +284,14 @@
 > database transactions in `EscrowService` to prevent holding InnoDB row locks across network boundaries. Enforced API gateway
 > anti-spoofing stripping internal credentials and blocking `/internal/*`. Total verified tests: 736 unit/integration + 28 E2E = 764 tests.
 
+> **Remediation update — 2026-09-15:** Service Boundary Hardening
+> secured the batch technician directory endpoint against unauthenticated external exposure (Resolves **ISSUE-007**).
+> Protected `POST /technicians/batch` with `InternalServiceGuard(['dispatch-matching-service'])` asserting
+> `x-fieldforge-service-name` and `x-fieldforge-internal-secret`. Removed `/api/v1/technicians/batch` from gateway
+> `PUBLIC_PREFIXES`, bounded request batch schema to 1..100 IDs (`@fieldforge/contracts`), implemented batch chunking
+> in `TechnicianDirectoryService` (`apps/dispatch-matching-service`), and preserved zero direct SQL fallback from dispatch.
+> Zero database migrations (`RULE-DB-02`). Total verified tests: 811 unit/integration + 48 E2E = 859 tests.
+
 ---
 
 ## How to read this report
@@ -1412,6 +1420,22 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
 - **Status: resolved / obsolete due to Redis-only location architecture.**
 - **Root Cause**: Previously, GPS updates attempted non-atomic dual writes to both MySQL (`technician_profiles`) and Redis (`tech:locations`), risking split-brain consistency on partial write failures.
 - **Fix**: Fully resolved by the architectural transition to Redis-only live GPS ingestion in ISSUE-004A. Because `dispatch-matching-service` no longer writes to MySQL, the dual-write condition and its associated failure modes are completely eliminated. (Dormant `currentLatitude` and `currentLongitude` columns in `technician_profiles` remain in schema for now without active writers and will be dropped in a future schema cleanup phase).
+
+### ISSUE-007 · 🔒 Secure Technician Batch Endpoint
+
+- **Status: resolved.**
+- **Severity**: Medium
+- **Root Cause**: `POST /technicians/batch` was publicly reachable through the API Gateway, explicitly whitelisted in `PUBLIC_PREFIXES`, protected by no authentication guard in `auth-service`, callable by unauthenticated external clients, and accepted an unbounded `ids: string[]` payload. The endpoint is strictly an internal service-to-service dependency used solely by `dispatch-matching-service` for directory metadata hydration.
+- **Fix**: Hardened service-to-service boundary, request validation, and gateway perimeter:
+  1. Applied `@UseGuards(new InternalServiceGuard(['dispatch-matching-service']))` to `POST /technicians/batch` (`getBatchTechnicians`) in `apps/auth-service/src/modules/vetting/certifications.controller.ts`. Requests require valid `x-fieldforge-service-name` and `x-fieldforge-internal-secret` headers matching `INTERNAL_SERVICE_SECRET`.
+  2. Removed `'/api/v1/technicians/batch'` and `'/technicians/batch'` from `PUBLIC_PREFIXES` in `apps/api-gateway/src/guards/jwt-auth.guard.ts`. External anonymous requests through the edge are rejected with HTTP 401 Unauthorized.
+  3. API Gateway header anti-spoofing (`proxyReqOptDecorator` in `proxy.controller.ts`) strips `x-fieldforge-service-name` and `x-fieldforge-internal-secret` (`GATEWAY_STRIPPED_HEADERS`), preventing external attackers from spoofing internal service credentials.
+  4. Bounded `batchTechniciansSchema` in `@fieldforge/contracts` to `ids: z.array(z.string().min(1).max(64)).min(1).max(100)`, preventing Denial-of-Service / resource exhaustion via oversized payloads.
+  5. Implemented bounded batch chunking loop ($\le 100$ IDs per HTTP request) in `TechnicianDirectoryService` (`apps/dispatch-matching-service`), merging responses across chunks.
+  6. Injected `INTERNAL_SERVICE_SECRET` into `TechnicianDirectoryService` and attached `x-fieldforge-service-name: dispatch-matching-service`, `x-fieldforge-internal-secret`, and propagated `x-correlation-id` to outbound HTTP calls.
+  7. Retained minimal response exposure: returns strictly `id`, `name`, `phone`, `rating`, `completedJobs`, `certifications`, and `isAvailable`, with zero sensitive data (emails, hashes, bank details, tax IDs).
+  8. Zero direct database access from dispatch: preserves DDD boundary with directory lookups flowing through auth REST API and cached in Redis / LRU.
+  9. Added automated unit tests across `@fieldforge/contracts` (batch array limits), `apps/api-gateway` (public prefix removal), `apps/auth-service` (internal guard authorization), and `apps/dispatch-matching-service` (header transmission and chunking). Zero database migrations (`RULE-DB-02`).
 
 ---
 

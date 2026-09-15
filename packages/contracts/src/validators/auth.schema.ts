@@ -44,5 +44,5 @@ export const verifyPhoneOtpSchema = z.object({
 });
 
 export const batchTechniciansSchema = z.object({
-  ids: z.array(z.string().min(1).max(64))
+  ids: z.array(z.string().min(1).max(64)).min(1).max(100)
 });

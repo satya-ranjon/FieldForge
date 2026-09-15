@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-15  
-**Phase:** Phase 44 complete — Pure Redis Live Location Architecture & Dispatch Database Decoupling (Resolves ISSUE-004A and ISSUE-004B). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 45 complete — Secure Technician Batch Endpoint (Resolves ISSUE-007). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -78,8 +78,14 @@
   - Strict FIFO mutation replay with `x-idempotency-key: mob-offline-<uuid>` and exponential retry backoff.
   - Mandatory iOS/Android location, camera, and storage permissions strings and `PermissionsService` wrapper (resolving L7).
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
-  - Proof of work deliverables: interactive task checklists, hardware serial number capture, timestamped before/after photo capture with presigned URLs, and on-screen client signature capture with SHA-256 cryptographic hash (FR-MOB-002, FR-MOB-003, FR-MOB-004).
-- **A test harness that can fail.** 794 automated unit/integration tests across 15 packages/apps (+ 48 Playwright E2E tests = 842 total verified tests).
+- **A test harness that can fail.** 811 automated unit/integration tests across 15 packages/apps (+ 48 Playwright E2E tests = 859 total verified tests).
+- **Secure Technician Batch Endpoint (Phase 45, Resolves ISSUE-007).**
+  - Secured `POST /technicians/batch` in `apps/auth-service` as an internal-only endpoint via `InternalServiceGuard(['dispatch-matching-service'])`, requiring valid `x-fieldforge-service-name` and `x-fieldforge-internal-secret` headers.
+  - Removed `'/api/v1/technicians/batch'` and `'/technicians/batch'` from `PUBLIC_PREFIXES` in API Gateway `jwt-auth.guard.ts`. Requests through gateway require authentication, and edge proxy strips client-supplied internal service headers (`GATEWAY_STRIPPED_HEADERS`).
+  - Bounded `batchTechniciansSchema` in `@fieldforge/contracts` to `ids: z.array(z.string().min(1).max(64)).min(1).max(100)` preventing payload exhaustion / DoS attacks.
+  - Implemented bounded batch chunking loop ($\le 100$ IDs per request) in `TechnicianDirectoryService` (`apps/dispatch-matching-service`), passing canonical internal service credentials and propagating `x-correlation-id`.
+  - Maintained zero direct SQL access from dispatch, two-tier Redis/LRU caching, minimal summary response exposure, and bounded 2-query batch lookups in auth. Zero database migrations (`RULE-DB-02`).
+  - Added automated unit tests across contracts, gateway, auth-service, and dispatch-matching-service.
 - **Pure Redis Live Location Architecture & Dispatch Database Decoupling (Phase 44, Resolves ISSUE-004A & ISSUE-004B).**
   - Completely decoupled `apps/dispatch-matching-service` from relational database access, removing `@fieldforge/database`, `drizzle-orm`, and `DrizzleModule.forRoot()`.
   - Canonicalized Redis `tech:locations` as the sole operational store for technician live coordinates (`GEOADD`, `GEOSEARCH`), eliminating cross-service MySQL writes (`UPDATE technician_profiles SET current_latitude, current_longitude`) and direct SQL join fallbacks against auth-owned tables (`technician_profiles`, `users`, `technician_certifications`).

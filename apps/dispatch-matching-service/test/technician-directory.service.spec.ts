@@ -3,6 +3,7 @@ import {
   DIRECTORY_CACHE_PREFIX,
   DIRECTORY_CACHE_TTL_SECONDS
 } from '../src/modules/geo-search/technician-directory.service';
+import { INTERNAL_SECRET_HEADER, SERVICE_NAME_HEADER } from '@fieldforge/common';
 import type { TechnicianSummaryDto } from '@fieldforge/contracts';
 import type Redis from 'ioredis';
 
@@ -120,6 +121,70 @@ describe('TechnicianDirectoryService', () => {
           })
         })
       );
+    });
+
+    it('sends internal service authentication headers (ISSUE-007)', async () => {
+      const customSecret = 'custom-test-secret-dispatch-123';
+      const authenticatedService = new TechnicianDirectoryService(undefined, customSecret);
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue([mockTech1])
+      });
+
+      await authenticatedService.getTechniciansBatch(['tech-1']);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8001/technicians/batch',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+            [SERVICE_NAME_HEADER]: 'dispatch-matching-service',
+            [INTERNAL_SECRET_HEADER]: customSecret
+          })
+        })
+      );
+    });
+
+    it('chunks outbound requests to <= 100 IDs when missing count exceeds 100 (ISSUE-007)', async () => {
+      const ids = Array.from({ length: 150 }, (_, i) => `batch-tech-${i + 1}`);
+      const chunk1Techs: TechnicianSummaryDto[] = ids.slice(0, 100).map((id) => ({
+        ...mockTech1,
+        id
+      }));
+      const chunk2Techs: TechnicianSummaryDto[] = ids.slice(100).map((id) => ({
+        ...mockTech1,
+        id
+      }));
+
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: jest.fn().mockResolvedValue(chunk1Techs)
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: jest.fn().mockResolvedValue(chunk2Techs)
+        });
+
+      const result = await service.getTechniciansBatch(ids);
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockFetch).toHaveBeenNthCalledWith(
+        1,
+        'http://localhost:8001/technicians/batch',
+        expect.objectContaining({
+          body: JSON.stringify({ ids: ids.slice(0, 100) })
+        })
+      );
+      expect(mockFetch).toHaveBeenNthCalledWith(
+        2,
+        'http://localhost:8001/technicians/batch',
+        expect.objectContaining({
+          body: JSON.stringify({ ids: ids.slice(100) })
+        })
+      );
+      expect(result.length).toBe(150);
     });
 
     it('returns cached results gracefully if HTTP call fails', async () => {

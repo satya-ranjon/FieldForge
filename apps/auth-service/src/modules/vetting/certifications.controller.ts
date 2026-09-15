@@ -9,7 +9,8 @@ import {
   ForbiddenException,
   Optional,
   HttpCode,
-  HttpStatus
+  HttpStatus,
+  UseGuards
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { CertificationsService } from './certifications.service';
@@ -24,7 +25,12 @@ import {
   type TechnicianSummaryDto,
   UserRole
 } from '@fieldforge/contracts';
-import { verifyGatewayUser, ZodValidationPipe, type AuthenticatedUser } from '@fieldforge/common';
+import {
+  verifyGatewayUser,
+  ZodValidationPipe,
+  InternalServiceGuard,
+  type AuthenticatedUser
+} from '@fieldforge/common';
 
 @Controller('technicians')
 export class CertificationsController {
@@ -124,9 +130,11 @@ export class CertificationsController {
   }
 
   /**
-   * Batch resolves technician directory details for dispatch matching.
+   * Batch resolves technician directory details for dispatch matching (ISSUE-007).
+   * Restricted to internal requests from dispatch-matching-service via InternalServiceGuard.
    */
   @Post('batch')
+  @UseGuards(new InternalServiceGuard(['dispatch-matching-service']))
   @HttpCode(HttpStatus.OK)
   async getBatchTechnicians(
     @Body(new ZodValidationPipe(batchTechniciansSchema)) dto: { ids: string[] }

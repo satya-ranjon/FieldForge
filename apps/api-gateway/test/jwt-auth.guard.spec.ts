@@ -70,6 +70,20 @@ describe('JwtAuthGuard', () => {
     await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
   });
 
+  it('rejects anonymous requests to /api/v1/technicians/batch (ISSUE-007)', async () => {
+    reflector.getAllAndOverride.mockReturnValue(false);
+    const context = createMockContext('/api/v1/technicians/batch');
+
+    await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+  });
+
+  it('rejects anonymous requests to /technicians/batch (ISSUE-007)', async () => {
+    reflector.getAllAndOverride.mockReturnValue(false);
+    const context = createMockContext('/technicians/batch');
+
+    await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+  });
+
   it('throws UnauthorizedException on protected endpoint with invalid token', async () => {
     reflector.getAllAndOverride.mockReturnValue(false);
     jwtService.verifyAsync.mockRejectedValue(new Error('Invalid signature'));

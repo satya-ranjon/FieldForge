@@ -1753,6 +1753,42 @@ Re-established strict DDD bounded context data isolation in `apps/dispatch-match
 
 ---
 
+## Phase 45 — Secure Technician Batch Endpoint (ISSUE-007)
+
+**Size: XS · Dependencies: Phase 25, Phase 44.** Resolves **ISSUE-007** (Secure Technician Batch Endpoint).
+
+Hardened the internal service boundary for batch technician directory lookups (`POST /technicians/batch`): restricted endpoint access strictly to authorized internal services (`dispatch-matching-service`) via `InternalServiceGuard`, removed the route from public gateway bypass lists, bounded request array size to 1..100 IDs to prevent payload exhaustion DoS, added client-side chunking in `TechnicianDirectoryService`, and preserved zero direct SQL fallback from dispatch.
+
+**Deliverables:**
+
+- **Internal Service Authentication Guard (`apps/auth-service`).**
+  - Decorated `POST /technicians/batch` (`getBatchTechnicians`) in `CertificationsController` with `@UseGuards(new InternalServiceGuard(['dispatch-matching-service']))`.
+  - Enforced constant-time validation of `x-fieldforge-internal-secret` and required `x-fieldforge-service-name: dispatch-matching-service`.
+- **Perimeter Hardening & Header Stripping (`apps/api-gateway`).**
+  - Removed `'/api/v1/technicians/batch'` and `'/technicians/batch'` from `PUBLIC_PREFIXES` in `jwt-auth.guard.ts`.
+  - Ensured edge proxy automatically strips `x-fieldforge-service-name` and `x-fieldforge-internal-secret` (`GATEWAY_STRIPPED_HEADERS`), preventing credential spoofing from external clients.
+- **Contract Array Bound Enforcement (`packages/contracts`).**
+  - Constrained `batchTechniciansSchema` to `ids: z.array(z.string().min(1).max(64)).min(1).max(100)`.
+- **Bounded Batch Caller & Chunking (`apps/dispatch-matching-service`).**
+  - Configured `TechnicianDirectoryService` with `INTERNAL_SERVICE_SECRET` and attached canonical internal service headers to outbound requests.
+  - Implemented automatic batch chunking loop ($\le 100$ IDs per request) to transparently handle bulk directory lookups exceeding the single-request limit.
+  - Maintained zero direct SQL access and two-tier Redis/in-memory caching.
+- **Automated Tests.**
+  - Added unit test coverage for batch size limits (empty, 100, 101, invalid strings) in `@fieldforge/contracts`.
+  - Added unit tests for public prefix exclusion in `apps/api-gateway`.
+  - Added unit tests for internal authentication, header validation, and service name authorization in `apps/auth-service`.
+  - Added unit tests for header attachment and request chunking in `apps/dispatch-matching-service`.
+
+**Verification:**
+
+- `pnpm check && pnpm build` pass cleanly.
+- `pnpm test` passes across 15 packages with 811 automated unit/integration tests (zero `--passWithNoTests`).
+- `pnpm test:e2e` passes with 48 Playwright tests validated.
+- `pnpm validate:clean-typecheck` passes cleanly.
+- Total verified tests: 811 unit/integration tests + 48 E2E tests = 859 tests.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

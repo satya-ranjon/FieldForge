@@ -1,6 +1,11 @@
 import { Injectable, Logger, Optional, Inject } from '@nestjs/common';
 import type { Redis } from 'ioredis';
 import type { TechnicianSummaryDto } from '@fieldforge/contracts';
+import {
+  INTERNAL_SECRET_HEADER,
+  SERVICE_NAME_HEADER,
+  getInternalServiceSecret
+} from '@fieldforge/common';
 import { REDIS_CLIENT } from './geo-search.service';
 
 export const DIRECTORY_CACHE_PREFIX = 'tech:directory:';
@@ -15,19 +20,25 @@ interface MemoryCacheEntry {
 export class TechnicianDirectoryService {
   private readonly logger = new Logger(TechnicianDirectoryService.name);
   private readonly authServiceUrl: string;
+  private readonly internalSecret?: string;
   private readonly memoryCache = new Map<string, MemoryCacheEntry>();
 
-  constructor(@Optional() @Inject(REDIS_CLIENT) private readonly redis?: Redis) {
+  constructor(
+    @Optional() @Inject(REDIS_CLIENT) private readonly redis?: Redis,
+    internalSecret?: string
+  ) {
     this.authServiceUrl = process.env.AUTH_SERVICE_URL || 'http://localhost:8001';
+    this.internalSecret = internalSecret;
   }
 
   /**
    * Retrieves technician profile summaries for a batch of technician IDs.
    * Leverages multi-tier caching (Redis + in-memory fallback):
    * 1. Resolves all cached technicians first (zero network calls for cache hits).
-   * 2. Issues HTTP POST to auth-service ONLY for missing/uncached IDs.
-   * 3. Populates cache with newly fetched summaries (300s TTL).
-   * 4. Merges cached and freshly fetched records.
+   * 2. Issues authenticated HTTP POST to auth-service ONLY for missing/uncached IDs.
+   * 3. Bounds outbound request batches to <= 100 IDs per chunk (ISSUE-007).
+   * 4. Populates cache with newly fetched summaries (300s TTL).
+   * 5. Merges cached and freshly fetched records.
    */
   async getTechniciansBatch(
     ids: string[],
@@ -53,29 +64,40 @@ export class TechnicianDirectoryService {
 
     try {
       const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        [SERVICE_NAME_HEADER]: 'dispatch-matching-service'
       };
+      const secret =
+        this.internalSecret ?? (process.env.INTERNAL_SERVICE_SECRET || getInternalServiceSecret());
+      if (secret) {
+        headers[INTERNAL_SECRET_HEADER] = secret;
+      }
       if (correlationId) {
         headers['x-correlation-id'] = correlationId;
       }
 
-      const response = await fetch(`${this.authServiceUrl}/technicians/batch`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ ids: missing }),
-        signal: AbortSignal.timeout(3000)
-      });
+      // Bound batches to at most 100 IDs per chunk (ISSUE-007)
+      const CHUNK_SIZE = 100;
+      for (let i = 0; i < missing.length; i += CHUNK_SIZE) {
+        const chunk = missing.slice(i, i + CHUNK_SIZE);
+        const response = await fetch(`${this.authServiceUrl}/technicians/batch`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ ids: chunk }),
+          signal: AbortSignal.timeout(3000)
+        });
 
-      if (!response.ok) {
-        this.logger.warn(`Technician directory batch lookup failed with HTTP ${response.status}`);
-        return Array.from(cached.values());
-      }
+        if (!response.ok) {
+          this.logger.warn(`Technician directory batch lookup failed with HTTP ${response.status}`);
+          continue;
+        }
 
-      const data = (await response.json()) as TechnicianSummaryDto[];
-      if (Array.isArray(data)) {
-        await this.saveToCache(data);
-        for (const tech of data) {
-          cached.set(tech.id, tech);
+        const data = (await response.json()) as TechnicianSummaryDto[];
+        if (Array.isArray(data)) {
+          await this.saveToCache(data);
+          for (const tech of data) {
+            cached.set(tech.id, tech);
+          }
         }
       }
 

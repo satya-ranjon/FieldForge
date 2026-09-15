@@ -39,7 +39,7 @@ FieldForge is an enterprise field service marketplace and autonomous dispatch pl
 - **📄 Hexagonal PDF Invoicing:** Decoupled PDF generation using Ports & Adapters (`InvoicePdfRendererPort` + `PdfKitInvoicePdfRenderer`), isolating imperative layout math and SHA-256 content hashes from domain services.
 - **🔔 Autonomous Headless Worker:** Event-driven notification daemon consuming AMQP topics to dispatch push (FCM) and SMS alerts (Twilio/SES) with zero public HTTP exposure (ADR 010).
 - **📊 99.9% SLI/SLO Reliability:** Production Prometheus metrics (`/metrics`), live Grafana dashboard (`http://localhost:3009`), Pino structured logging with PII redaction, distributed `x-correlation-id` propagation, and k6 load validation.
-- **🧪 734 Verified Tests:** 706 automated unit/integration tests across 15 packages/apps and 28 Playwright E2E tests (100% real assertions, zero `--passWithNoTests`).
+- **🧪 859 Verified Tests:** 811 automated unit/integration tests across 15 packages/apps and 48 Playwright E2E tests (100% real assertions, zero `--passWithNoTests`).
 
 ---
 
@@ -609,22 +609,22 @@ pnpm dev
 
 The repository enforces strict test quality and continuous validation. Placeholder test suites (`--passWithNoTests`) and superficial assertions are prohibited.
 
-### Monorepo Test Inventory (842 Total Verified Tests)
+### Monorepo Test Inventory (859 Total Verified Tests)
 
 | Component / Workspace            | Type                  | Test Suites |  Tests  |    Status     |
 | :------------------------------- | :-------------------- | :---------: | :-----: | :-----------: |
 | `apps/work-order-service`        | Unit / Integration    |     16      |   268   |     PASS      |
-| `@fieldforge/contracts`          | Unit / Schema         |      3      |   95    |     PASS      |
+| `@fieldforge/contracts`          | Unit / Schema         |      3      |   101   |     PASS      |
 | `apps/billing-service`           | Unit / Integration    |      8      |   90    |     PASS      |
-| `@fieldforge/auth-service`       | Unit / Integration    |      7      |   82    |     PASS      |
+| `@fieldforge/auth-service`       | Unit / Integration    |      7      |   89    |     PASS      |
 | `@fieldforge/common`             | Unit / Infrastructure |      8      |   80    |     PASS      |
-| `apps/dispatch-matching-service` | Unit / Integration    |      6      |   64    |     PASS      |
-| `apps/api-gateway`               | Unit / Integration    |      6      |   46    |     PASS      |
+| `apps/dispatch-matching-service` | Unit / Integration    |      6      |   66    |     PASS      |
+| `apps/api-gateway`               | Unit / Integration    |      6      |   48    |     PASS      |
 | `apps/mobile-tech-app`           | Unit / Component      |      5      |   34    |     PASS      |
 | `@fieldforge/messaging`          | Unit / Integration    |      5      |   21    |     PASS      |
 | `apps/notification-service`      | Unit / Integration    |      1      |   14    |     PASS      |
 | **Playwright E2E Test Suite**    | End-to-End            |      6      |   48    |     PASS      |
-| **Monorepo Total**               |                       |   **71**    | **842** | **100% PASS** |
+| **Monorepo Total**               |                       |   **71**    | **859** | **100% PASS** |
 
 ### Standard Verification Commands
 
@@ -656,8 +656,8 @@ This script executes:
 2. `pnpm format:check` (Asserts zero formatting deviations)
 3. `pnpm lint` (ESLint 10 zero-warning enforcement)
 4. `pnpm typecheck` (Turborepo strict TypeScript validation)
-5. `pnpm test` (628 unit/integration tests with real assertions)
-6. `pnpm test:e2e` (28 Playwright E2E lifecycle tests)
+5. `pnpm test` (811 unit/integration tests with real assertions)
+6. `pnpm test:e2e` (48 Playwright E2E lifecycle tests)
 7. `pnpm validate:clean-typecheck` (Hermetic build artifact validation)
 8. `pnpm build` (Production compilation of all apps & packages)
 9. `pnpm check` (Full-stack workspace integrity check)
