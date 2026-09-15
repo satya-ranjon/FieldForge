@@ -18,3 +18,4 @@ export * from './pipes/zod-validation.pipe';
 export * from './outbox/outbox.types';
 export * from './outbox/outbox.service';
 export * from './outbox/outbox-relay';
+export * from './cache/bounded-lru-cache';

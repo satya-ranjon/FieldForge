@@ -1789,6 +1789,47 @@ Hardened the internal service boundary for batch technician directory lookups (`
 
 ---
 
+## Phase 46 — Bounded In-Memory Caches & State Growth Remediation (ISSUE-008)
+
+**Size: XS · Dependencies: Phase 25, Phase 44, Phase 45.** Resolves **ISSUE-008** (Unbounded In-Memory Map Growth).
+
+Eliminated potential memory leaks and worker OOM crashes caused by unbounded, long-lived in-process `Map` collections. Implemented a zero-dependency `BoundedLruCache<K, V>` utility in `@fieldforge/common`, migrated `TechnicianDirectoryService` (`apps/dispatch-matching-service`) and `ProfileDirectoryService` (`packages/common`) to bounded LRU caches with strict capacities and TTLs, hardened `PhoneOtpService` (`apps/auth-service`) with opportunistic expired pruning and fail-closed anti-abuse limits without evicting active rate-limit state, and catalogued all remaining repository `Map` instances.
+
+**Deliverables:**
+
+- **Zero-Dependency Bounded LRU Cache (`@fieldforge/common`).**
+  - Created `packages/common/src/cache/bounded-lru-cache.ts` providing `BoundedLruCache<K, V>`.
+  - Built upon native JavaScript `Map` insertion-order guarantees for $O(1)$ operations with true LRU recency updates on `get()`.
+  - Configurable `maxEntries` (default 1,000) and `ttlMs` (default 300,000ms / 5 minutes).
+  - Actively evicts expired records before evicting least-recently-used items when capacity is reached.
+  - Exported from `@fieldforge/common` root index.
+- **Technician Directory Service Migration (`apps/dispatch-matching-service`).**
+  - Migrated `TechnicianDirectoryService.memoryCache` to `BoundedLruCache<string, TechnicianSummaryDto>` with capacity 1,000 and 300s TTL.
+  - Preserved existing multi-tier cache hierarchy (Redis MGET -> local bounded LRU -> authenticated auth-service HTTP batch lookup) and internal service headers (`ISSUE-007`).
+- **Profile Directory Service Migration (`packages/common`).**
+  - Migrated `ProfileDirectoryService.memoryCache` to `BoundedLruCache<string, UserProfileResponseDto>` with capacity 1,000 and 300s TTL.
+- **Phone OTP Service Hardening (`apps/auth-service`).**
+  - Added `pruneExpired(now)` method to `PhoneOtpService` that removes expired OTP records and purges stale rate-limit timestamps older than `RATE_LIMIT_WINDOW_MS` (10 minutes), deleting empty phone keys from `rateLimitStore`.
+  - Added opportunistic pruning during `sendOtp()` and `verifyOtp()` triggered near capacity or after 60-second intervals.
+  - Enforced fail-closed capacity limit (`DEFAULT_MAX_OTP_ENTRIES = 10,000`) throwing `BadRequestException` when stores are at capacity, strictly preventing the eviction of active rate-limit records under capacity pressure (preserving anti-brute-force throttling invariant).
+- **Map Auditing & Classification.**
+  - Audited and classified all process-level Map instances across the monorepo: `LedgerPaymentProvider` (`apps/billing-service`) verified as double-entry ledger simulation for dev/CI; `LocalDiskMediaStorageAdapter` (`apps/work-order-service`) verified as test double (canonical runtime storage is S3).
+- **Automated Tests.**
+  - Added 16 unit tests for `BoundedLruCache` covering capacity limits, LRU eviction order, TTL expiration, remaining TTL, mutation, deletion, and iteration.
+  - Added 2 unit tests for `ProfileDirectoryService` verifying capacity enforcement and LRU eviction.
+  - Added 2 unit tests for `TechnicianDirectoryService` verifying LRU eviction and memory cache clearing.
+  - Added 4 unit tests for `PhoneOtpService` verifying expired OTP pruning, stale rate-limit timestamp pruning and key deletion, fail-closed capacity limits, and rate limit non-eviction.
+
+**Verification:**
+
+- `pnpm check && pnpm build` pass cleanly.
+- `pnpm test` passes across 15 packages with 835 automated unit/integration tests (+24 new tests, zero `--passWithNoTests`).
+- `pnpm test:e2e` passes with 48 Playwright tests validated.
+- `pnpm validate:clean-typecheck` passes cleanly.
+- Total verified tests: 835 unit/integration tests + 48 E2E tests = 883 tests.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

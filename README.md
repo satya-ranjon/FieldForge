@@ -39,7 +39,7 @@ FieldForge is an enterprise field service marketplace and autonomous dispatch pl
 - **📄 Hexagonal PDF Invoicing:** Decoupled PDF generation using Ports & Adapters (`InvoicePdfRendererPort` + `PdfKitInvoicePdfRenderer`), isolating imperative layout math and SHA-256 content hashes from domain services.
 - **🔔 Autonomous Headless Worker:** Event-driven notification daemon consuming AMQP topics to dispatch push (FCM) and SMS alerts (Twilio/SES) with zero public HTTP exposure (ADR 010).
 - **📊 99.9% SLI/SLO Reliability:** Production Prometheus metrics (`/metrics`), live Grafana dashboard (`http://localhost:3009`), Pino structured logging with PII redaction, distributed `x-correlation-id` propagation, and k6 load validation.
-- **🧪 859 Verified Tests:** 811 automated unit/integration tests across 15 packages/apps and 48 Playwright E2E tests (100% real assertions, zero `--passWithNoTests`).
+- **🧪 883 Verified Tests:** 835 automated unit/integration tests across 15 packages/apps and 48 Playwright E2E tests (100% real assertions, zero `--passWithNoTests`).
 
 ---
 
@@ -656,7 +656,7 @@ This script executes:
 2. `pnpm format:check` (Asserts zero formatting deviations)
 3. `pnpm lint` (ESLint 10 zero-warning enforcement)
 4. `pnpm typecheck` (Turborepo strict TypeScript validation)
-5. `pnpm test` (811 unit/integration tests with real assertions)
+5. `pnpm test` (835 unit/integration tests with real assertions)
 6. `pnpm test:e2e` (48 Playwright E2E lifecycle tests)
 7. `pnpm validate:clean-typecheck` (Hermetic build artifact validation)
 8. `pnpm build` (Production compilation of all apps & packages)

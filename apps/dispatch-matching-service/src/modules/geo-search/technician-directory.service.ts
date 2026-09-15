@@ -4,31 +4,33 @@ import type { TechnicianSummaryDto } from '@fieldforge/contracts';
 import {
   INTERNAL_SECRET_HEADER,
   SERVICE_NAME_HEADER,
-  getInternalServiceSecret
+  getInternalServiceSecret,
+  BoundedLruCache
 } from '@fieldforge/common';
 import { REDIS_CLIENT } from './geo-search.service';
 
 export const DIRECTORY_CACHE_PREFIX = 'tech:directory:';
 export const DIRECTORY_CACHE_TTL_SECONDS = 300; // 5 minutes
-
-interface MemoryCacheEntry {
-  data: TechnicianSummaryDto;
-  expiresAt: number;
-}
+export const DIRECTORY_MEMORY_CACHE_MAX_ENTRIES = 1000;
 
 @Injectable()
 export class TechnicianDirectoryService {
   private readonly logger = new Logger(TechnicianDirectoryService.name);
   private readonly authServiceUrl: string;
   private readonly internalSecret?: string;
-  private readonly memoryCache = new Map<string, MemoryCacheEntry>();
+  private readonly memoryCache: BoundedLruCache<string, TechnicianSummaryDto>;
 
   constructor(
     @Optional() @Inject(REDIS_CLIENT) private readonly redis?: Redis,
-    internalSecret?: string
+    internalSecret?: string,
+    maxEntries = DIRECTORY_MEMORY_CACHE_MAX_ENTRIES
   ) {
     this.authServiceUrl = process.env.AUTH_SERVICE_URL || 'http://localhost:8001';
     this.internalSecret = internalSecret;
+    this.memoryCache = new BoundedLruCache<string, TechnicianSummaryDto>({
+      maxEntries,
+      ttlMs: DIRECTORY_CACHE_TTL_SECONDS * 1000
+    });
   }
 
   /**
@@ -169,15 +171,7 @@ export class TechnicianDirectoryService {
   }
 
   private getFromMemoryCache(id: string): TechnicianSummaryDto | null {
-    const entry = this.memoryCache.get(id);
-    if (!entry) {
-      return null;
-    }
-    if (Date.now() > entry.expiresAt) {
-      this.memoryCache.delete(id);
-      return null;
-    }
-    return entry.data;
+    return this.memoryCache.get(id) ?? null;
   }
 
   /**
@@ -188,11 +182,9 @@ export class TechnicianDirectoryService {
       return;
     }
 
-    const expiresAt = Date.now() + DIRECTORY_CACHE_TTL_SECONDS * 1000;
-
-    // In-memory cache
+    // In-memory cache (bounded LRU with TTL)
     for (const tech of technicians) {
-      this.memoryCache.set(tech.id, { data: tech, expiresAt });
+      this.memoryCache.set(tech.id, tech);
     }
 
     // Redis cache pipeline
@@ -233,5 +225,12 @@ export class TechnicianDirectoryService {
    */
   clearMemoryCache(): void {
     this.memoryCache.clear();
+  }
+
+  /**
+   * Introspection method for tests.
+   */
+  getMemoryCacheSize(): number {
+    return this.memoryCache.size;
   }
 }

@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-15  
-**Phase:** Phase 45 complete — Secure Technician Batch Endpoint (Resolves ISSUE-007). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 46 complete — Bounded In-Memory Caches & State Growth Remediation (Resolves ISSUE-008). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -78,7 +78,14 @@
   - Strict FIFO mutation replay with `x-idempotency-key: mob-offline-<uuid>` and exponential retry backoff.
   - Mandatory iOS/Android location, camera, and storage permissions strings and `PermissionsService` wrapper (resolving L7).
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
-- **A test harness that can fail.** 811 automated unit/integration tests across 15 packages/apps (+ 48 Playwright E2E tests = 859 total verified tests).
+- **A test harness that can fail.** 835 automated unit/integration tests across 15 packages/apps (+ 48 Playwright E2E tests = 883 total verified tests).
+- **Bounded In-Memory Caches & State Growth Remediation (Phase 46, Resolves ISSUE-008).**
+  - Implemented zero-dependency `BoundedLruCache<K, V>` in `@fieldforge/common` with true $O(1)$ LRU eviction and TTL support.
+  - Migrated `TechnicianDirectoryService.memoryCache` in `apps/dispatch-matching-service` to `BoundedLruCache` (1,000 max entries, 300s TTL).
+  - Migrated `ProfileDirectoryService.memoryCache` in `packages/common` to `BoundedLruCache` (1,000 max entries, 300s TTL).
+  - Hardened `PhoneOtpService` in `apps/auth-service`: active opportunistic pruning of expired OTPs and stale rate limits, fail-closed capacity limits (`DEFAULT_MAX_OTP_ENTRIES = 10,000`), and strict non-eviction of active rate limits under capacity pressure (preserving anti-brute-force throttling invariant).
+  - Audited and documented remaining Map instances (`LedgerPaymentProvider` for dev/CI simulation; `LocalDiskMediaStorageAdapter` as test double).
+  - Added 24 automated unit tests across common, auth-service, and dispatch-matching-service.
 - **Secure Technician Batch Endpoint (Phase 45, Resolves ISSUE-007).**
   - Secured `POST /technicians/batch` in `apps/auth-service` as an internal-only endpoint via `InternalServiceGuard(['dispatch-matching-service'])`, requiring valid `x-fieldforge-service-name` and `x-fieldforge-internal-secret` headers.
   - Removed `'/api/v1/technicians/batch'` and `'/technicians/batch'` from `PUBLIC_PREFIXES` in API Gateway `jwt-auth.guard.ts`. Requests through gateway require authentication, and edge proxy strips client-supplied internal service headers (`GATEWAY_STRIPPED_HEADERS`).

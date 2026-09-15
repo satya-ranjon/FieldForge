@@ -335,4 +335,66 @@ describe('TechnicianDirectoryService', () => {
       expect(mockRedis.del).toHaveBeenCalledWith(`${DIRECTORY_CACHE_PREFIX}tech-1`);
     });
   });
+
+  describe('Bounded LRU Capacity & Eviction', () => {
+    it('enforces maximum memory cache capacity and evicts LRU entries', async () => {
+      // Create service with maxEntries = 2
+      const boundedService = new TechnicianDirectoryService(undefined, undefined, 2);
+
+      const tech1 = { ...mockTech1, id: 'tech-1' };
+      const tech2 = { ...mockTech2, id: 'tech-2' };
+      const tech3 = { ...mockTech1, id: 'tech-3', firstName: 'Charlie' };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue([tech1, tech2])
+      });
+
+      await boundedService.getTechniciansBatch(['tech-1', 'tech-2']);
+      expect(boundedService.getMemoryCacheSize()).toBe(2);
+
+      // Access tech-1 so tech-2 becomes LRU
+      await boundedService.getTechniciansBatch(['tech-1']);
+      expect(mockFetch).toHaveBeenCalledTimes(1); // cache hit
+
+      // Now add tech-3 -> should evict tech-2 (LRU)
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue([tech3])
+      });
+      await boundedService.getTechniciansBatch(['tech-3']);
+      expect(boundedService.getMemoryCacheSize()).toBe(2);
+
+      // Request tech-1 -> should still be cached
+      await boundedService.getTechniciansBatch(['tech-1']);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+
+      // Request tech-2 -> should miss cache and fetch again because it was evicted
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue([tech2])
+      });
+      await boundedService.getTechniciansBatch(['tech-2']);
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+      expect(mockFetch).toHaveBeenLastCalledWith(
+        'http://localhost:8001/technicians/batch',
+        expect.objectContaining({
+          body: JSON.stringify({ ids: ['tech-2'] })
+        })
+      );
+    });
+
+    it('clears memory cache completely on clearMemoryCache()', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue([mockTech1])
+      });
+
+      await service.getTechniciansBatch(['tech-1']);
+      expect(service.getMemoryCacheSize()).toBe(1);
+
+      service.clearMemoryCache();
+      expect(service.getMemoryCacheSize()).toBe(0);
+    });
+  });
 });

@@ -292,4 +292,71 @@ describe('ProfileDirectoryService', () => {
       ).rejects.toThrow('Custom not found message');
     });
   });
+
+  describe('Bounded in-memory cache behavior (ISSUE-008)', () => {
+    it('strictly bounds memory cache size and evicts LRU entry upon overflow', async () => {
+      // Create service with small capacity of 2
+      const boundedService = new ProfileDirectoryService(2);
+
+      const makeProfile = (id: string): UserProfileResponseDto => ({
+        id,
+        email: `${id}@example.com`,
+        role: UserRole.BUYER,
+        phoneNumber: '+15555555555',
+        status: UserStatus.ACTIVE,
+        createdAt: new Date().toISOString()
+      });
+
+      const fetchSpy = jest.fn().mockImplementation((url: string) => {
+        const userId = url.split('/').pop();
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(makeProfile(userId!))
+        });
+      });
+      global.fetch = fetchSpy;
+
+      // 1. Fetch user-1 -> size 1
+      await boundedService.getUserProfile('user-1');
+      expect(boundedService.getMemoryCacheSize()).toBe(1);
+
+      // 2. Fetch user-2 -> size 2
+      await boundedService.getUserProfile('user-2');
+      expect(boundedService.getMemoryCacheSize()).toBe(2);
+
+      // Access user-1 again -> cache hit, moves user-1 to most recent
+      await boundedService.getUserProfile('user-1');
+      expect(fetchSpy).toHaveBeenCalledTimes(2); // user-1 and user-2 once each
+
+      // 3. Fetch user-3 -> exceeds capacity 2, should evict user-2 (least recently used)
+      await boundedService.getUserProfile('user-3');
+      expect(boundedService.getMemoryCacheSize()).toBe(2);
+      expect(fetchSpy).toHaveBeenCalledTimes(3);
+
+      // 4. Fetching user-1 should be a cache hit (still resident)
+      await boundedService.getUserProfile('user-1');
+      expect(fetchSpy).toHaveBeenCalledTimes(3); // No new network call!
+
+      // 5. Fetching user-2 should be a cache miss (was evicted)
+      await boundedService.getUserProfile('user-2');
+      expect(fetchSpy).toHaveBeenCalledTimes(4); // New network call!
+      expect(boundedService.getMemoryCacheSize()).toBe(2);
+    });
+
+    it('clears memory cache when clearCache() is invoked', async () => {
+      const boundedService = new ProfileDirectoryService(10);
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockUserProfile)
+      });
+
+      await boundedService.getUserProfile('usr-123');
+      expect(boundedService.getMemoryCacheSize()).toBe(1);
+
+      boundedService.clearCache();
+      expect(boundedService.getMemoryCacheSize()).toBe(0);
+    });
+  });
 });

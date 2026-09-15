@@ -1,25 +1,26 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { UserProfileResponseDto } from '@fieldforge/contracts';
+import { BoundedLruCache } from '../cache/bounded-lru-cache';
 
 export const PROFILE_DIRECTORY_CACHE_TTL_SECONDS = 300; // 5 minutes
-
-interface MemoryCacheEntry {
-  data: UserProfileResponseDto;
-  expiresAt: number;
-}
+export const PROFILE_DIRECTORY_CACHE_MAX_ENTRIES = 1000;
 
 @Injectable()
 export class ProfileDirectoryService {
   private readonly logger = new Logger(ProfileDirectoryService.name);
   private readonly authServiceUrl: string;
-  private readonly memoryCache = new Map<string, MemoryCacheEntry>();
+  private readonly memoryCache: BoundedLruCache<string, UserProfileResponseDto>;
   private readonly localProfiles = new Map<
     string,
     { buyerProfileId?: string; technicianProfileId?: string }
   >();
 
-  constructor() {
+  constructor(maxEntries = PROFILE_DIRECTORY_CACHE_MAX_ENTRIES) {
     this.authServiceUrl = process.env.AUTH_SERVICE_URL || 'http://localhost:8001';
+    this.memoryCache = new BoundedLruCache<string, UserProfileResponseDto>({
+      maxEntries,
+      ttlMs: PROFILE_DIRECTORY_CACHE_TTL_SECONDS * 1000
+    });
   }
 
   /**
@@ -207,19 +208,17 @@ export class ProfileDirectoryService {
   }
 
   private getFromMemoryCache(userId: string): UserProfileResponseDto | null {
-    const entry = this.memoryCache.get(userId);
-    if (!entry) {
-      return null;
-    }
-    if (Date.now() > entry.expiresAt) {
-      this.memoryCache.delete(userId);
-      return null;
-    }
-    return entry.data;
+    return this.memoryCache.get(userId) ?? null;
   }
 
   private saveToMemoryCache(userId: string, data: UserProfileResponseDto): void {
-    const expiresAt = Date.now() + PROFILE_DIRECTORY_CACHE_TTL_SECONDS * 1000;
-    this.memoryCache.set(userId, { data, expiresAt });
+    this.memoryCache.set(userId, data);
+  }
+
+  /**
+   * Introspection method for tests.
+   */
+  getMemoryCacheSize(): number {
+    return this.memoryCache.size;
   }
 }
