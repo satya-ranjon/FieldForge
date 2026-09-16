@@ -1,7 +1,6 @@
-import { ConflictException } from '@nestjs/common';
 import { LedgerPaymentProvider } from '../src/modules/payments/ledger-payment.provider';
 
-describe('LedgerPaymentProvider', () => {
+describe('LedgerPaymentProvider (Stateless Simulation)', () => {
   let provider: LedgerPaymentProvider;
 
   beforeEach(() => {
@@ -9,7 +8,7 @@ describe('LedgerPaymentProvider', () => {
   });
 
   describe('captureEscrow', () => {
-    it('successfully captures escrow and returns transaction details', async () => {
+    it('successfully captures escrow and returns simulated transaction details', async () => {
       const result = await provider.captureEscrow({
         workOrderId: 'wo-1',
         buyerId: 'buyer-1',
@@ -22,9 +21,10 @@ describe('LedgerPaymentProvider', () => {
       expect(result.transactionId).toMatch(/^tx_escrow_/);
       expect(result.rawResponse?.method).toBe('LEDGER');
       expect(result.rawResponse?.paymentMethodId).toBe('pm_card_visa');
+      expect(result.rawResponse?.capturedAt).toBeDefined();
     });
 
-    it('returns identical PaymentResult when called with identical idempotencyKey and parameters', async () => {
+    it('is stateless and generates distinct transaction IDs across repeated calls with same key', async () => {
       const first = await provider.captureEscrow({
         workOrderId: 'wo-1',
         buyerId: 'buyer-1',
@@ -41,113 +41,14 @@ describe('LedgerPaymentProvider', () => {
         idempotencyKey: 'escrow-capture:wo-1'
       });
 
-      expect(second).toBe(first);
-      expect(second.transactionId).toBe(first.transactionId);
-    });
-
-    it('generates distinct transactions for distinct idempotency keys', async () => {
-      const first = await provider.captureEscrow({
-        workOrderId: 'wo-1',
-        buyerId: 'buyer-1',
-        amountMinor: 50000,
-        paymentMethodId: 'pm_card_visa',
-        idempotencyKey: 'escrow-capture:wo-1'
-      });
-
-      const second = await provider.captureEscrow({
-        workOrderId: 'wo-1',
-        buyerId: 'buyer-1',
-        amountMinor: 50000,
-        paymentMethodId: 'pm_card_visa',
-        idempotencyKey: 'escrow-capture:wo-2'
-      });
-
+      expect(first.success).toBe(true);
+      expect(second.success).toBe(true);
       expect(second.transactionId).not.toBe(first.transactionId);
-    });
-
-    it('throws ConflictException when idempotencyKey is reused with different amountMinor', async () => {
-      await provider.captureEscrow({
-        workOrderId: 'wo-1',
-        buyerId: 'buyer-1',
-        amountMinor: 50000,
-        paymentMethodId: 'pm_card_visa',
-        idempotencyKey: 'escrow-capture:conflict-amt'
-      });
-
-      await expect(
-        provider.captureEscrow({
-          workOrderId: 'wo-1',
-          buyerId: 'buyer-1',
-          amountMinor: 60000,
-          paymentMethodId: 'pm_card_visa',
-          idempotencyKey: 'escrow-capture:conflict-amt'
-        })
-      ).rejects.toThrow(ConflictException);
-    });
-
-    it('throws ConflictException when idempotencyKey is reused with different workOrderId', async () => {
-      await provider.captureEscrow({
-        workOrderId: 'wo-1',
-        buyerId: 'buyer-1',
-        amountMinor: 50000,
-        paymentMethodId: 'pm_card_visa',
-        idempotencyKey: 'escrow-capture:conflict-wo'
-      });
-
-      await expect(
-        provider.captureEscrow({
-          workOrderId: 'wo-2',
-          buyerId: 'buyer-1',
-          amountMinor: 50000,
-          paymentMethodId: 'pm_card_visa',
-          idempotencyKey: 'escrow-capture:conflict-wo'
-        })
-      ).rejects.toThrow(ConflictException);
-    });
-
-    it('throws ConflictException when idempotencyKey is reused with different buyerId', async () => {
-      await provider.captureEscrow({
-        workOrderId: 'wo-1',
-        buyerId: 'buyer-1',
-        amountMinor: 50000,
-        paymentMethodId: 'pm_card_visa',
-        idempotencyKey: 'escrow-capture:conflict-buyer'
-      });
-
-      await expect(
-        provider.captureEscrow({
-          workOrderId: 'wo-1',
-          buyerId: 'buyer-2',
-          amountMinor: 50000,
-          paymentMethodId: 'pm_card_visa',
-          idempotencyKey: 'escrow-capture:conflict-buyer'
-        })
-      ).rejects.toThrow(ConflictException);
-    });
-
-    it('throws ConflictException when idempotencyKey is reused with different paymentMethodId', async () => {
-      await provider.captureEscrow({
-        workOrderId: 'wo-1',
-        buyerId: 'buyer-1',
-        amountMinor: 50000,
-        paymentMethodId: 'pm_card_visa',
-        idempotencyKey: 'escrow-capture:conflict-pm'
-      });
-
-      await expect(
-        provider.captureEscrow({
-          workOrderId: 'wo-1',
-          buyerId: 'buyer-1',
-          amountMinor: 50000,
-          paymentMethodId: 'pm_card_mastercard',
-          idempotencyKey: 'escrow-capture:conflict-pm'
-        })
-      ).rejects.toThrow(ConflictException);
     });
   });
 
   describe('disbursePayout', () => {
-    it('successfully disburses payout to technician and returns transaction details', async () => {
+    it('successfully disburses payout to technician and returns simulated transaction details', async () => {
       const result = await provider.disbursePayout({
         workOrderId: 'wo-1',
         technicianId: 'tech-1',
@@ -158,9 +59,10 @@ describe('LedgerPaymentProvider', () => {
       expect(result.success).toBe(true);
       expect(result.transactionId).toMatch(/^tx_payout_/);
       expect(result.rawResponse?.method).toBe('LEDGER');
+      expect(result.rawResponse?.disbursedAt).toBeDefined();
     });
 
-    it('returns identical PaymentResult when called with identical idempotencyKey and parameters', async () => {
+    it('is stateless and generates distinct transaction IDs across repeated calls with same key', async () => {
       const first = await provider.disbursePayout({
         workOrderId: 'wo-1',
         technicianId: 'tech-1',
@@ -175,85 +77,14 @@ describe('LedgerPaymentProvider', () => {
         idempotencyKey: 'escrow-payout:evt-wo-1'
       });
 
-      expect(second).toBe(first);
-      expect(second.transactionId).toBe(first.transactionId);
-    });
-
-    it('generates distinct transactions for distinct idempotency keys', async () => {
-      const first = await provider.disbursePayout({
-        workOrderId: 'wo-1',
-        technicianId: 'tech-1',
-        amountMinor: 45000,
-        idempotencyKey: 'escrow-payout:evt-wo-1'
-      });
-
-      const second = await provider.disbursePayout({
-        workOrderId: 'wo-1',
-        technicianId: 'tech-1',
-        amountMinor: 45000,
-        idempotencyKey: 'escrow-payout:evt-wo-2'
-      });
-
+      expect(first.success).toBe(true);
+      expect(second.success).toBe(true);
       expect(second.transactionId).not.toBe(first.transactionId);
-    });
-
-    it('throws ConflictException when idempotencyKey is reused with different amountMinor', async () => {
-      await provider.disbursePayout({
-        workOrderId: 'wo-1',
-        technicianId: 'tech-1',
-        amountMinor: 45000,
-        idempotencyKey: 'escrow-payout:conflict-amt'
-      });
-
-      await expect(
-        provider.disbursePayout({
-          workOrderId: 'wo-1',
-          technicianId: 'tech-1',
-          amountMinor: 35000,
-          idempotencyKey: 'escrow-payout:conflict-amt'
-        })
-      ).rejects.toThrow(ConflictException);
-    });
-
-    it('throws ConflictException when idempotencyKey is reused with different workOrderId', async () => {
-      await provider.disbursePayout({
-        workOrderId: 'wo-1',
-        technicianId: 'tech-1',
-        amountMinor: 45000,
-        idempotencyKey: 'escrow-payout:conflict-wo'
-      });
-
-      await expect(
-        provider.disbursePayout({
-          workOrderId: 'wo-2',
-          technicianId: 'tech-1',
-          amountMinor: 45000,
-          idempotencyKey: 'escrow-payout:conflict-wo'
-        })
-      ).rejects.toThrow(ConflictException);
-    });
-
-    it('throws ConflictException when idempotencyKey is reused with different technicianId', async () => {
-      await provider.disbursePayout({
-        workOrderId: 'wo-1',
-        technicianId: 'tech-1',
-        amountMinor: 45000,
-        idempotencyKey: 'escrow-payout:conflict-tech'
-      });
-
-      await expect(
-        provider.disbursePayout({
-          workOrderId: 'wo-1',
-          technicianId: 'tech-2',
-          amountMinor: 45000,
-          idempotencyKey: 'escrow-payout:conflict-tech'
-        })
-      ).rejects.toThrow(ConflictException);
     });
   });
 
   describe('refundEscrow', () => {
-    it('executes a refund and stores result under idempotencyKey', async () => {
+    it('executes a refund and returns simulated transaction details', async () => {
       const result = await provider.refundEscrow({
         workOrderId: 'wo-1',
         buyerId: 'buyer-1',
@@ -265,9 +96,10 @@ describe('LedgerPaymentProvider', () => {
       expect(result.success).toBe(true);
       expect(result.transactionId).toMatch(/^tx_refund_/);
       expect(result.rawResponse?.method).toBe('LEDGER');
+      expect(result.rawResponse?.refundedAt).toBeDefined();
     });
 
-    it('returns identical PaymentResult when called with identical idempotencyKey and parameters', async () => {
+    it('is stateless and generates distinct transaction IDs across repeated calls with same key', async () => {
       const first = await provider.refundEscrow({
         workOrderId: 'wo-1',
         buyerId: 'buyer-1',
@@ -284,80 +116,44 @@ describe('LedgerPaymentProvider', () => {
         idempotencyKey: 'escrow-refund:evt-1'
       });
 
-      expect(second).toBe(first);
-      expect(second.transactionId).toBe(first.transactionId);
-    });
-
-    it('generates distinct transactions for distinct idempotency keys', async () => {
-      const first = await provider.refundEscrow({
-        workOrderId: 'wo-1',
-        buyerId: 'buyer-1',
-        amountMinor: 25000,
-        idempotencyKey: 'escrow-refund:evt-1'
-      });
-
-      const second = await provider.refundEscrow({
-        workOrderId: 'wo-1',
-        buyerId: 'buyer-1',
-        amountMinor: 25000,
-        idempotencyKey: 'escrow-refund:evt-2'
-      });
-
+      expect(first.success).toBe(true);
+      expect(second.success).toBe(true);
       expect(second.transactionId).not.toBe(first.transactionId);
     });
+  });
 
-    it('throws ConflictException when idempotencyKey is reused with different amountMinor', async () => {
-      await provider.refundEscrow({
-        workOrderId: 'wo-1',
-        buyerId: 'buyer-1',
-        amountMinor: 50000,
-        idempotencyKey: 'escrow-refund:evt-conflict'
-      });
+  describe('Zero Retained State & Memory Safety (ISSUE-013 Verification)', () => {
+    it('contains zero in-memory idempotency maps on the provider instance', () => {
+      const untyped = provider as unknown as Record<string, unknown>;
+      expect(untyped.captureIdempotencyMap).toBeUndefined();
+      expect(untyped.payoutIdempotencyMap).toBeUndefined();
+      expect(untyped.refundIdempotencyMap).toBeUndefined();
 
-      await expect(
-        provider.refundEscrow({
-          workOrderId: 'wo-1',
-          buyerId: 'buyer-1',
-          amountMinor: 30000,
-          idempotencyKey: 'escrow-refund:evt-conflict'
-        })
-      ).rejects.toThrow(ConflictException);
+      // Check all own properties on the instance
+      const ownProps = Object.getOwnPropertyNames(provider);
+      expect(ownProps).toHaveLength(0);
     });
 
-    it('throws ConflictException when idempotencyKey is reused with different workOrderId', async () => {
-      await provider.refundEscrow({
-        workOrderId: 'wo-1',
-        buyerId: 'buyer-1',
-        amountMinor: 50000,
-        idempotencyKey: 'escrow-refund:evt-conflict-wo'
-      });
+    it('does not leak or retain state over 1,000 consecutive operations', async () => {
+      for (let i = 0; i < 500; i++) {
+        await provider.captureEscrow({
+          workOrderId: `wo-${i}`,
+          buyerId: `buyer-${i}`,
+          amountMinor: 10000,
+          paymentMethodId: 'pm_default',
+          idempotencyKey: `key-${i}`
+        });
+        await provider.disbursePayout({
+          workOrderId: `wo-${i}`,
+          technicianId: `tech-${i}`,
+          amountMinor: 9000,
+          idempotencyKey: `payout-key-${i}`
+        });
+      }
 
-      await expect(
-        provider.refundEscrow({
-          workOrderId: 'wo-2',
-          buyerId: 'buyer-1',
-          amountMinor: 50000,
-          idempotencyKey: 'escrow-refund:evt-conflict-wo'
-        })
-      ).rejects.toThrow(ConflictException);
-    });
-
-    it('throws ConflictException when idempotencyKey is reused with different buyerId', async () => {
-      await provider.refundEscrow({
-        workOrderId: 'wo-1',
-        buyerId: 'buyer-1',
-        amountMinor: 50000,
-        idempotencyKey: 'escrow-refund:evt-conflict-buyer'
-      });
-
-      await expect(
-        provider.refundEscrow({
-          workOrderId: 'wo-1',
-          buyerId: 'buyer-2',
-          amountMinor: 50000,
-          idempotencyKey: 'escrow-refund:evt-conflict-buyer'
-        })
-      ).rejects.toThrow(ConflictException);
+      // Verify no properties or hidden caches were attached
+      const ownProps = Object.getOwnPropertyNames(provider);
+      expect(ownProps).toHaveLength(0);
     });
   });
 });

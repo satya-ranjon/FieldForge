@@ -10,8 +10,15 @@ import { EscrowStatus, EventType, WorkOrderStatus } from '@fieldforge/contracts'
 import type { DrizzleClient, DrizzleTransaction } from '@fieldforge/common';
 import { EscrowService } from '../src/modules/escrow/escrow.service';
 import type { PaymentProviderPort } from '../src/modules/payments/payment-provider.port';
+import { LedgerPaymentProvider } from '../src/modules/payments/ledger-payment.provider';
+import {
+  buildCaptureFingerprint,
+  buildPayoutFingerprint,
+  buildRefundFingerprint
+} from '../src/modules/escrow/idempotency-fingerprint';
 import type { InvoicesService } from '../src/modules/invoices/invoices.service';
 import type { EventPublisher } from '@fieldforge/messaging';
+import { idempotencySchema } from '@fieldforge/database';
 
 const WORK_ORDER_ID = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
 const BUYER_ID = 'b0000000-0000-4000-8000-000000000001';
@@ -242,6 +249,138 @@ describe('EscrowService', () => {
         )
       ).rejects.toThrow(ConflictException);
     });
+
+    it('throws ConflictException when preauth idempotencyKey is reused with different amountMinor', async () => {
+      const originalFingerprint = buildCaptureFingerprint({
+        workOrderId: WORK_ORDER_ID,
+        buyerId: BUYER_ID,
+        amountMinor: 45000,
+        paymentMethodId: 'pm_card_default'
+      });
+
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            limit: () =>
+              Promise.resolve([
+                {
+                  key: 'preauth-conflict-key',
+                  status: 'COMPLETED',
+                  responsePayload: {
+                    requestFingerprint: originalFingerprint,
+                    response: {
+                      escrowId: 'escrow-1',
+                      workOrderId: WORK_ORDER_ID,
+                      amountLockedMinor: 45000,
+                      status: EscrowStatus.HELD
+                    }
+                  }
+                }
+              ])
+          })
+        })
+      });
+
+      await expect(
+        escrow.lockFunds(
+          WORK_ORDER_ID,
+          BUYER_ID,
+          55000, // Different amount
+          CORRELATION_ID,
+          'pm_card_default',
+          'preauth-conflict-key'
+        )
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('throws ConflictException when preauth idempotencyKey is reused with different buyerId', async () => {
+      const originalFingerprint = buildCaptureFingerprint({
+        workOrderId: WORK_ORDER_ID,
+        buyerId: BUYER_ID,
+        amountMinor: 45000,
+        paymentMethodId: 'pm_card_default'
+      });
+
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            limit: () =>
+              Promise.resolve([
+                {
+                  key: 'preauth-conflict-buyer',
+                  status: 'COMPLETED',
+                  responsePayload: {
+                    requestFingerprint: originalFingerprint,
+                    response: {
+                      escrowId: 'escrow-1',
+                      workOrderId: WORK_ORDER_ID,
+                      amountLockedMinor: 45000,
+                      status: EscrowStatus.HELD
+                    }
+                  }
+                }
+              ])
+          })
+        })
+      });
+
+      await expect(
+        escrow.lockFunds(
+          WORK_ORDER_ID,
+          'b0000000-0000-4000-8000-999999999999', // Different buyer
+          45000,
+          CORRELATION_ID,
+          'pm_card_default',
+          'preauth-conflict-buyer'
+        )
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('returns unwrapped cached result when stored with requestFingerprint envelope', async () => {
+      const originalFingerprint = buildCaptureFingerprint({
+        workOrderId: WORK_ORDER_ID,
+        buyerId: BUYER_ID,
+        amountMinor: 45000,
+        paymentMethodId: 'pm_card_default'
+      });
+
+      const cached = {
+        escrowId: 'escrow-envelope-1',
+        workOrderId: WORK_ORDER_ID,
+        amountLockedMinor: 45000,
+        status: EscrowStatus.HELD
+      };
+
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            limit: () =>
+              Promise.resolve([
+                {
+                  key: 'preauth-enveloped-key',
+                  status: 'COMPLETED',
+                  responsePayload: {
+                    requestFingerprint: originalFingerprint,
+                    response: cached
+                  }
+                }
+              ])
+          })
+        })
+      });
+
+      const res = await escrow.lockFunds(
+        WORK_ORDER_ID,
+        BUYER_ID,
+        45000,
+        CORRELATION_ID,
+        'pm_card_default',
+        'preauth-enveloped-key'
+      );
+
+      expect(res).toEqual(cached);
+      expect(mockPaymentProvider.captureEscrow).not.toHaveBeenCalled();
+    });
   });
 
   describe('releaseFunds (C3 resolution and transactional safety)', () => {
@@ -313,6 +452,137 @@ describe('EscrowService', () => {
           idempotencyKey: 'idempotent-key-1'
         })
       ).rejects.toThrow(ConflictException);
+    });
+
+    it('throws ConflictException when release idempotencyKey is reused with different amountMinor', async () => {
+      const originalFingerprint = buildPayoutFingerprint({
+        workOrderId: WORK_ORDER_ID,
+        technicianId: TECH_ID,
+        amountMinor: 45000
+      });
+
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            limit: () =>
+              Promise.resolve([
+                {
+                  key: 'release-conflict-amt',
+                  status: 'COMPLETED',
+                  responsePayload: {
+                    requestFingerprint: originalFingerprint,
+                    response: {
+                      workOrderId: WORK_ORDER_ID,
+                      technicianId: TECH_ID,
+                      disbursedAmountMinor: 45000,
+                      status: EscrowStatus.RELEASED,
+                      invoiceId: 'inv-1'
+                    }
+                  }
+                }
+              ])
+          })
+        })
+      });
+
+      await expect(
+        escrow.releaseFunds({
+          workOrderId: WORK_ORDER_ID,
+          callerUserId: BUYER_ID,
+          callerRole: 'BUYER',
+          amountMinor: 35000, // Different amount
+          idempotencyKey: 'release-conflict-amt'
+        })
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('throws ConflictException when release idempotencyKey is reused with different technicianId', async () => {
+      const originalFingerprint = buildPayoutFingerprint({
+        workOrderId: WORK_ORDER_ID,
+        technicianId: TECH_ID,
+        amountMinor: 45000
+      });
+
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            limit: () =>
+              Promise.resolve([
+                {
+                  key: 'release-conflict-tech',
+                  status: 'COMPLETED',
+                  responsePayload: {
+                    requestFingerprint: originalFingerprint,
+                    response: {
+                      workOrderId: WORK_ORDER_ID,
+                      technicianId: TECH_ID,
+                      disbursedAmountMinor: 45000,
+                      status: EscrowStatus.RELEASED,
+                      invoiceId: 'inv-1'
+                    }
+                  }
+                }
+              ])
+          })
+        })
+      });
+
+      await expect(
+        escrow.releaseFunds({
+          workOrderId: WORK_ORDER_ID,
+          technicianId: 't0000000-0000-4000-8000-999999999999', // Different technician
+          buyerId: BUYER_ID,
+          callerUserId: 'system-user',
+          callerRole: 'SYSTEM',
+          amountMinor: 45000,
+          idempotencyKey: 'release-conflict-tech'
+        })
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('returns unwrapped cached result when stored with requestFingerprint envelope', async () => {
+      const originalFingerprint = buildPayoutFingerprint({
+        workOrderId: WORK_ORDER_ID,
+        technicianId: TECH_ID,
+        amountMinor: 45000
+      });
+
+      const cachedResult = {
+        workOrderId: WORK_ORDER_ID,
+        technicianId: TECH_ID,
+        disbursedAmountMinor: 45000,
+        status: EscrowStatus.RELEASED,
+        invoiceId: 'inv-cached-envelope'
+      };
+
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            limit: () =>
+              Promise.resolve([
+                {
+                  key: 'release-enveloped-key',
+                  status: 'COMPLETED',
+                  responsePayload: {
+                    requestFingerprint: originalFingerprint,
+                    response: cachedResult
+                  }
+                }
+              ])
+          })
+        })
+      });
+
+      const result = await escrow.releaseFunds({
+        workOrderId: WORK_ORDER_ID,
+        callerUserId: BUYER_ID,
+        callerRole: 'BUYER',
+        amountMinor: 45000,
+        idempotencyKey: 'release-enveloped-key'
+      });
+
+      expect(result).toEqual(cachedResult);
+      expect(mockPaymentProvider.disbursePayout).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundException if escrow account does not exist', async () => {
@@ -1140,6 +1410,123 @@ describe('EscrowService', () => {
       ).rejects.toThrow(ConflictException);
     });
 
+    it('throws ConflictException when refund idempotencyKey is reused with different buyerId', async () => {
+      const originalFingerprint = buildRefundFingerprint({
+        workOrderId: WORK_ORDER_ID,
+        buyerId: BUYER_ID
+      });
+
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            limit: () =>
+              Promise.resolve([
+                {
+                  key: 'refund-conflict-buyer',
+                  status: 'COMPLETED',
+                  responsePayload: {
+                    requestFingerprint: originalFingerprint,
+                    response: {
+                      escrowId: 'escrow-1',
+                      workOrderId: WORK_ORDER_ID,
+                      refundedAmountMinor: 45000,
+                      status: EscrowStatus.REFUNDED
+                    }
+                  }
+                }
+              ])
+          })
+        })
+      });
+
+      await expect(
+        escrow.refundEscrow({
+          workOrderId: WORK_ORDER_ID,
+          buyerId: 'b0000000-0000-4000-8000-999999999999', // Different buyer
+          idempotencyKey: 'refund-conflict-buyer'
+        })
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('throws ConflictException when refund idempotencyKey is reused with different workOrderId', async () => {
+      const originalFingerprint = buildRefundFingerprint({
+        workOrderId: WORK_ORDER_ID,
+        buyerId: BUYER_ID
+      });
+
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            limit: () =>
+              Promise.resolve([
+                {
+                  key: 'refund-conflict-wo',
+                  status: 'COMPLETED',
+                  responsePayload: {
+                    requestFingerprint: originalFingerprint,
+                    response: {
+                      escrowId: 'escrow-1',
+                      workOrderId: WORK_ORDER_ID,
+                      refundedAmountMinor: 45000,
+                      status: EscrowStatus.REFUNDED
+                    }
+                  }
+                }
+              ])
+          })
+        })
+      });
+
+      await expect(
+        escrow.refundEscrow({
+          workOrderId: 'bbbbbbbb-bbbb-4ccc-8ddd-eeeeeeeeeeee', // Different workOrderId
+          buyerId: BUYER_ID,
+          idempotencyKey: 'refund-conflict-wo'
+        })
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('returns unwrapped cached result when stored with requestFingerprint envelope', async () => {
+      const originalFingerprint = buildRefundFingerprint({
+        workOrderId: WORK_ORDER_ID,
+        buyerId: BUYER_ID
+      });
+
+      const cachedResult = {
+        escrowId: 'escrow-refund-envelope-1',
+        workOrderId: WORK_ORDER_ID,
+        refundedAmountMinor: 45000,
+        status: EscrowStatus.REFUNDED
+      };
+
+      mockTx.select.mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            limit: () =>
+              Promise.resolve([
+                {
+                  key: 'refund-enveloped-key',
+                  status: 'COMPLETED',
+                  responsePayload: {
+                    requestFingerprint: originalFingerprint,
+                    response: cachedResult
+                  }
+                }
+              ])
+          })
+        })
+      });
+
+      const result = await escrow.refundEscrow({
+        workOrderId: WORK_ORDER_ID,
+        buyerId: BUYER_ID,
+        idempotencyKey: 'refund-enveloped-key'
+      });
+
+      expect(result).toEqual(cachedResult);
+      expect(mockPaymentProvider.refundEscrow).not.toHaveBeenCalled();
+    });
+
     it('rethrows and records failure metric when payment provider refund fails', async () => {
       mockTx.select.mockReturnValueOnce({
         from: () => ({
@@ -1210,6 +1597,198 @@ describe('EscrowService', () => {
           idempotencyKey: customKey
         })
       );
+    });
+  });
+
+  describe('ISSUE-013: Stateless Provider, Restart Safety & Multi-Replica Idempotency', () => {
+    it('proves restart safety: provider recreation does not bypass durable DB idempotency (PART 17)', async () => {
+      // 1. First execution on Pod A with Provider A
+      const providerA = new LedgerPaymentProvider();
+      const captureSpyA = jest.spyOn(providerA, 'captureEscrow');
+      const invoiceServiceMock = {} as InvoicesService;
+
+      const sharedDbRows = new Map<
+        string,
+        { key: string; status: string; responsePayload: unknown }
+      >();
+
+      const mockDbA: DrizzleClient = {
+        transaction: jest.fn(async (cb: (tx: DrizzleTransaction) => Promise<unknown>) => {
+          const txMock: DrizzleTransaction = {
+            select: jest.fn(() => ({
+              from: (table: unknown) => ({
+                where: () => ({
+                  limit: () => {
+                    if (table === idempotencySchema.idempotencyKeys) {
+                      const row = sharedDbRows.get('restart-test-key');
+                      return Promise.resolve(row ? [row] : []);
+                    }
+                    return Promise.resolve([]);
+                  }
+                })
+              })
+            })),
+            insert: jest.fn(() => ({
+              values: (val: { key: string; status: string; responsePayload: unknown }) => {
+                if (val.key) {
+                  sharedDbRows.set(val.key, { ...val });
+                }
+                return Promise.resolve();
+              }
+            })),
+            update: jest.fn(() => ({
+              set: (setVal: { status: string; responsePayload: unknown }) => ({
+                where: () => {
+                  const existing = sharedDbRows.get('restart-test-key');
+                  if (existing) {
+                    sharedDbRows.set('restart-test-key', { ...existing, ...setVal });
+                  }
+                  return Promise.resolve();
+                }
+              })
+            }))
+          } as unknown as DrizzleTransaction;
+          return cb(txMock);
+        })
+      } as unknown as DrizzleClient;
+
+      const serviceA = new EscrowService(mockDbA, providerA, invoiceServiceMock);
+
+      const firstResult = await serviceA.lockFunds(
+        WORK_ORDER_ID,
+        BUYER_ID,
+        45000,
+        CORRELATION_ID,
+        'pm_card_default',
+        'restart-test-key'
+      );
+
+      expect(firstResult.status).toBe(EscrowStatus.HELD);
+      expect(captureSpyA).toHaveBeenCalledTimes(1);
+
+      // 2. Simulate Pod crash / restart: Provider A destroyed, Provider B instantiated
+      const providerB = new LedgerPaymentProvider();
+      const captureSpyB = jest.spyOn(providerB, 'captureEscrow');
+
+      const mockDbB: DrizzleClient = {
+        transaction: jest.fn(async (cb: (tx: DrizzleTransaction) => Promise<unknown>) => {
+          const txMock: DrizzleTransaction = {
+            select: jest.fn(() => ({
+              from: (table: unknown) => ({
+                where: () => ({
+                  limit: () => {
+                    if (table === idempotencySchema.idempotencyKeys) {
+                      const row = sharedDbRows.get('restart-test-key');
+                      return Promise.resolve(row ? [row] : []);
+                    }
+                    return Promise.resolve([]);
+                  }
+                })
+              })
+            }))
+          } as unknown as DrizzleTransaction;
+          return cb(txMock);
+        })
+      } as unknown as DrizzleClient;
+
+      const serviceB = new EscrowService(mockDbB, providerB, invoiceServiceMock);
+
+      // 3. Retry same request on restarted service instance
+      const retryResult = await serviceB.lockFunds(
+        WORK_ORDER_ID,
+        BUYER_ID,
+        45000,
+        CORRELATION_ID,
+        'pm_card_default',
+        'restart-test-key'
+      );
+
+      expect(retryResult).toEqual(firstResult);
+      // Crucial invariant: Provider B was NEVER called because durable DB idempotency was authoritative
+      expect(captureSpyB).not.toHaveBeenCalled();
+    });
+
+    it('proves multi-replica safety: distinct pods sharing DB execute payment provider exactly once (PART 18)', async () => {
+      const providerPodA = new LedgerPaymentProvider();
+      const providerPodB = new LedgerPaymentProvider();
+      const spyPodA = jest.spyOn(providerPodA, 'captureEscrow');
+      const spyPodB = jest.spyOn(providerPodB, 'captureEscrow');
+      const invoiceServiceMock = {} as InvoicesService;
+
+      const sharedDbMap = new Map<
+        string,
+        { key: string; status: string; responsePayload: unknown }
+      >();
+
+      const createMockDb = (): DrizzleClient =>
+        ({
+          transaction: jest.fn(async (cb: (tx: DrizzleTransaction) => Promise<unknown>) => {
+            const txMock: DrizzleTransaction = {
+              select: jest.fn(() => ({
+                from: (table: unknown) => ({
+                  where: () => ({
+                    limit: () => {
+                      if (table === idempotencySchema.idempotencyKeys) {
+                        const row = sharedDbMap.get('multi-replica-key');
+                        return Promise.resolve(row ? [row] : []);
+                      }
+                      return Promise.resolve([]);
+                    }
+                  })
+                })
+              })),
+              insert: jest.fn(() => ({
+                values: (val: { key: string; status: string; responsePayload: unknown }) => {
+                  if (val.key) {
+                    sharedDbMap.set(val.key, { ...val });
+                  }
+                  return Promise.resolve();
+                }
+              })),
+              update: jest.fn(() => ({
+                set: (setVal: { status: string; responsePayload: unknown }) => ({
+                  where: () => {
+                    const existing = sharedDbMap.get('multi-replica-key');
+                    if (existing) {
+                      sharedDbMap.set('multi-replica-key', { ...existing, ...setVal });
+                    }
+                    return Promise.resolve();
+                  }
+                })
+              }))
+            } as unknown as DrizzleTransaction;
+            return cb(txMock);
+          })
+        }) as unknown as DrizzleClient;
+
+      const podAService = new EscrowService(createMockDb(), providerPodA, invoiceServiceMock);
+      const podBService = new EscrowService(createMockDb(), providerPodB, invoiceServiceMock);
+
+      // Request 1 hits Pod A
+      const resA = await podAService.lockFunds(
+        WORK_ORDER_ID,
+        BUYER_ID,
+        50000,
+        CORRELATION_ID,
+        'pm_card_default',
+        'multi-replica-key'
+      );
+      expect(resA.status).toBe(EscrowStatus.HELD);
+      expect(spyPodA).toHaveBeenCalledTimes(1);
+
+      // Request 2 (retry or failover) hits Pod B with the same idempotencyKey
+      const resB = await podBService.lockFunds(
+        WORK_ORDER_ID,
+        BUYER_ID,
+        50000,
+        CORRELATION_ID,
+        'pm_card_default',
+        'multi-replica-key'
+      );
+
+      expect(resB).toEqual(resA);
+      // Pod B's payment provider was NOT called!
+      expect(spyPodB).not.toHaveBeenCalled();
     });
   });
 });

@@ -1479,6 +1479,30 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   8. **Kubernetes Configuration Wiring**: Added Redis environment variable mappings (`REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`) to `infra/k8s/services/auth-service.yaml` referencing `fieldforge-global-config` and `fieldforge-secrets`, and added `REDIS_PASSWORD` placeholder to `infra/k8s/base/secrets.example.yaml`.
   9. **Automated Multi-Instance Tests**: Added comprehensive test suites in `apps/auth-service/test/phone-otp.service.spec.ts` validating single-pod flows, predictable OTP elimination, cross-pod verification, concurrent one-time-use atomicity, distributed rate-limit enforcement across pods, shared wrong-attempt counting, TTL expiration, fail-closed Redis error handling, and zero process-local Maps (100 passing tests in `auth-service`). Zero database migrations (`RULE-DB-02`).
 
+### ISSUE-013 · 🏛️ LedgerPaymentProvider Process-Local Idempotency State & Durable Conflict Detection
+
+- **Status: resolved.**
+- **Severity**: Medium
+- **Root Cause**: `LedgerPaymentProvider` (`apps/billing-service`) maintained three unbounded process-local in-memory `Map`s (`captureIdempotencyMap`, `payoutIdempotencyMap`, `refundIdempotencyMap`) for idempotency and conflict detection. In multi-replica Kubernetes environments (`replicas: 2`), this architecture had four critical flaws:
+  1. **Unbounded Memory Leak**: Every capture, payout, and refund permanently retained full parameter payloads and response receipts in process memory without TTL, capacity limit, or eviction.
+  2. **Zero Cross-Pod Visibility**: Pod B had no visibility into Pod A's in-memory state; a retry or conflicting reuse of an idempotency key on Pod B could not detect parameter conflicts registered on Pod A.
+  3. **Process Volatility**: Pod crashes, node drains, or rolling restarts wiped all memory maps, destroying provider-level idempotency history.
+  4. **Dual Source-of-Truth Divergence**: Recording state in-memory during open database transactions created divergence if database transactions subsequently rolled back (e.g. invoice generation or commit failures).
+- **Fix**: Replaced process-local provider maps with stateless simulation and promoted idempotency & conflict detection to the durable database layer:
+  1. **Stateless Ledger Simulation**: Completely removed `captureIdempotencyMap`, `payoutIdempotencyMap`, and `refundIdempotencyMap` (and their `Cached*Entry` interfaces) from `LedgerPaymentProvider`. The provider now deterministically simulates transaction execution without retaining any internal heap state ($O(1)$ memory footprint).
+  2. **Preserved Provider Port Contract**: Retained `idempotencyKey: string` across all methods in `PaymentProviderPort` and `LedgerPaymentProvider` for forward-compatibility with future external gateways (e.g. Stripe, Adyen).
+  3. **Authoritative Durable DB Idempotency**: Promoted `EscrowService` and the persistent MySQL `idempotency_keys` table to be the single, authoritative boundary for all request idempotency and parameter conflict detection.
+  4. **Canonical Request Fingerprinting**: Created `apps/billing-service/src/modules/escrow/idempotency-fingerprint.ts` providing deterministic canonical serialization and SHA-256 hashing for material operation parameters:
+     - `CAPTURE`: `workOrderId`, `buyerId`, `amountMinor`, `paymentMethodId`
+     - `PAYOUT`: `workOrderId`, `technicianId`, `amountMinor`
+     - `REFUND`: `workOrderId`, `buyerId`, `amountMinor`
+       Volatile runtime attributes (timestamps, correlation IDs, UUIDs) are strictly excluded from fingerprints to guarantee stable retries.
+  5. **Durable Conflicting Parameter Detection**: Stored `{ requestFingerprint, response }` envelopes in `idempotency_keys.response_payload` (with transparent unwrap fallback for backward compatibility with legacy rows). On request retries, `EscrowService` compares the canonical fingerprint: matching parameters return the cached response without invoking the payment provider, while conflicting parameters throw a durable `ConflictException` across pods and across restarts.
+  6. **Pessimistic Locking & State Invariants Preserved**: Maintained strict `SELECT ... FOR UPDATE` row locking on `escrow_accounts`, ensuring state transitions (`HELD` -> `RELEASED` / `REFUNDED`), remainder refunds, and full cancellation refunds cannot be executed more than once even under concurrent race conditions.
+  7. **Zero Database Schema Migrations**: Reused the existing MySQL JSON column (`idempotency_keys.response_payload`), requiring zero database schema changes or migrations (`RULE-DB-02`).
+  8. **No Redis or LRU Cache Added**: Preserved architectural simplicity without introducing Redis or lossy LRU caches to `billing-service`.
+  9. **Automated Verification Coverage**: Rewrote `apps/billing-service/test/ledger-payment.provider.spec.ts` for stateless simulation and memory verification (zero retained properties across 1,000 operations). Added comprehensive tests in `apps/billing-service/test/escrow.service.spec.ts` covering conflicting parameter detection (capture, payout, refund), restart safety (provider recreation with authoritative DB return), and multi-replica safety (two pods sharing database executing provider exactly once). 90 passed tests in `billing-service`.
+
 ---
 
 ## Suggested remediation order

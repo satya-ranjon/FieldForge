@@ -38,6 +38,12 @@ import { BillingOutboxRelay } from '../../events/billing-outbox.relay';
 import { InvoicesService } from '../invoices/invoices.service';
 import { PAYMENT_PROVIDER, type PaymentProviderPort } from '../payments/payment-provider.port';
 import { WorkOrderDirectoryService } from '../work-orders/work-order-directory.service';
+import {
+  buildCaptureFingerprint,
+  buildPayoutFingerprint,
+  buildRefundFingerprint,
+  unwrapIdempotencyPayload
+} from './idempotency-fingerprint';
 
 export interface ReleaseEscrowParams {
   workOrderId: string;
@@ -124,6 +130,13 @@ export class EscrowService {
         : `escrow-capture:${idempotencyKey}`
       : `escrow-capture:${workOrderId}`;
 
+    const currentFingerprint = buildCaptureFingerprint({
+      workOrderId,
+      buyerId,
+      amountMinor,
+      paymentMethodId
+    });
+
     let fundedEvent: EventEnvelope<unknown> | undefined;
     const result = await this.db.transaction(async (tx) => {
       // 1. Idempotency Check if key provided
@@ -135,13 +148,32 @@ export class EscrowService {
           .limit(1);
 
         if (existingKey) {
-          if (existingKey.status === 'COMPLETED' && existingKey.responsePayload) {
-            return existingKey.responsePayload as {
+          const { requestFingerprint: storedFingerprint, response: cachedResponse } =
+            unwrapIdempotencyPayload<{
               escrowId: string;
               workOrderId: string;
               amountLockedMinor: MinorUnits;
               status: EscrowStatus;
-            };
+            }>(existingKey.responsePayload);
+
+          if (storedFingerprint && storedFingerprint !== currentFingerprint) {
+            throw new ConflictException(
+              `Idempotency key '${idempotencyKey}' reused with conflicting capture parameters`
+            );
+          }
+          if (
+            !storedFingerprint &&
+            cachedResponse &&
+            (cachedResponse.workOrderId !== workOrderId ||
+              cachedResponse.amountLockedMinor !== amountMinor)
+          ) {
+            throw new ConflictException(
+              `Idempotency key '${idempotencyKey}' reused with conflicting capture parameters`
+            );
+          }
+
+          if (existingKey.status === 'COMPLETED' && cachedResponse) {
+            return cachedResponse;
           }
           if (existingKey.status === 'IN_PROGRESS') {
             throw new ConflictException(
@@ -153,7 +185,8 @@ export class EscrowService {
             key: idempotencyKey,
             scope: 'ESCROW_CAPTURE',
             resourceId: workOrderId,
-            status: 'IN_PROGRESS'
+            status: 'IN_PROGRESS',
+            responsePayload: { requestFingerprint: currentFingerprint }
           });
         }
       }
@@ -207,7 +240,10 @@ export class EscrowService {
           .update(idempotencySchema.idempotencyKeys)
           .set({
             status: 'COMPLETED',
-            responsePayload: result
+            responsePayload: {
+              requestFingerprint: currentFingerprint,
+              response: result
+            }
           })
           .where(eq(idempotencySchema.idempotencyKeys.key, idempotencyKey));
       }
@@ -331,6 +367,12 @@ export class EscrowService {
     try {
       const result = await this.db.transaction(async (tx) => {
         // 1. Idempotency Check
+        const currentFingerprint = buildPayoutFingerprint({
+          workOrderId,
+          technicianId: woTechnicianId,
+          amountMinor: requestedAmountMinor
+        });
+
         if (idempotencyKey) {
           const [existingKey] = await tx
             .select()
@@ -339,8 +381,29 @@ export class EscrowService {
             .limit(1);
 
           if (existingKey) {
-            if (existingKey.status === 'COMPLETED' && existingKey.responsePayload) {
-              return existingKey.responsePayload as EscrowReleaseResult;
+            const { requestFingerprint: storedFingerprint, response: cachedResponse } =
+              unwrapIdempotencyPayload<EscrowReleaseResult>(existingKey.responsePayload);
+
+            if (storedFingerprint && storedFingerprint !== currentFingerprint) {
+              throw new ConflictException(
+                `Idempotency key '${idempotencyKey}' reused with conflicting payout parameters`
+              );
+            }
+            if (
+              !storedFingerprint &&
+              cachedResponse &&
+              (cachedResponse.workOrderId !== workOrderId ||
+                (woTechnicianId && cachedResponse.technicianId !== woTechnicianId) ||
+                (requestedAmountMinor !== undefined &&
+                  cachedResponse.disbursedAmountMinor !== requestedAmountMinor))
+            ) {
+              throw new ConflictException(
+                `Idempotency key '${idempotencyKey}' reused with conflicting payout parameters`
+              );
+            }
+
+            if (existingKey.status === 'COMPLETED' && cachedResponse) {
+              return cachedResponse;
             }
             if (existingKey.status === 'IN_PROGRESS') {
               throw new ConflictException(
@@ -352,7 +415,8 @@ export class EscrowService {
               key: idempotencyKey,
               scope: 'ESCROW_RELEASE',
               resourceId: workOrderId,
-              status: 'IN_PROGRESS'
+              status: 'IN_PROGRESS',
+              responsePayload: { requestFingerprint: currentFingerprint }
             });
           }
         }
@@ -470,7 +534,10 @@ export class EscrowService {
             .update(idempotencySchema.idempotencyKeys)
             .set({
               status: 'COMPLETED',
-              responsePayload: result
+              responsePayload: {
+                requestFingerprint: currentFingerprint,
+                response: result
+              }
             })
             .where(eq(idempotencySchema.idempotencyKeys.key, idempotencyKey));
         }
@@ -550,6 +617,11 @@ export class EscrowService {
     try {
       return await this.db.transaction(async (tx) => {
         // 1. Idempotency Check
+        const currentFingerprint = buildRefundFingerprint({
+          workOrderId,
+          buyerId
+        });
+
         if (idempotencyKey) {
           const [existingKey] = await tx
             .select()
@@ -558,8 +630,26 @@ export class EscrowService {
             .limit(1);
 
           if (existingKey) {
+            const { requestFingerprint: storedFingerprint, response: cachedResponse } =
+              unwrapIdempotencyPayload<EscrowRefundResult | null>(existingKey.responsePayload);
+
+            if (storedFingerprint && storedFingerprint !== currentFingerprint) {
+              throw new ConflictException(
+                `Idempotency key '${idempotencyKey}' reused with conflicting refund parameters`
+              );
+            }
+            if (
+              !storedFingerprint &&
+              cachedResponse &&
+              cachedResponse.workOrderId !== workOrderId
+            ) {
+              throw new ConflictException(
+                `Idempotency key '${idempotencyKey}' reused with conflicting refund parameters`
+              );
+            }
+
             if (existingKey.status === 'COMPLETED') {
-              return existingKey.responsePayload as EscrowRefundResult | null;
+              return cachedResponse;
             }
             if (existingKey.status === 'IN_PROGRESS') {
               throw new ConflictException(
@@ -571,7 +661,8 @@ export class EscrowService {
               key: idempotencyKey,
               scope: 'ESCROW_REFUND',
               resourceId: workOrderId,
-              status: 'IN_PROGRESS'
+              status: 'IN_PROGRESS',
+              responsePayload: { requestFingerprint: currentFingerprint }
             });
           }
         }
@@ -591,7 +682,13 @@ export class EscrowService {
           if (idempotencyKey) {
             await tx
               .update(idempotencySchema.idempotencyKeys)
-              .set({ status: 'COMPLETED', responsePayload: null })
+              .set({
+                status: 'COMPLETED',
+                responsePayload: {
+                  requestFingerprint: currentFingerprint,
+                  response: null
+                }
+              })
               .where(eq(idempotencySchema.idempotencyKeys.key, idempotencyKey));
           }
           return null;
@@ -611,7 +708,13 @@ export class EscrowService {
           if (idempotencyKey) {
             await tx
               .update(idempotencySchema.idempotencyKeys)
-              .set({ status: 'COMPLETED', responsePayload: result })
+              .set({
+                status: 'COMPLETED',
+                responsePayload: {
+                  requestFingerprint: currentFingerprint,
+                  response: result
+                }
+              })
               .where(eq(idempotencySchema.idempotencyKeys.key, idempotencyKey));
           }
           return result;
@@ -625,7 +728,13 @@ export class EscrowService {
           if (idempotencyKey) {
             await tx
               .update(idempotencySchema.idempotencyKeys)
-              .set({ status: 'COMPLETED', responsePayload: null })
+              .set({
+                status: 'COMPLETED',
+                responsePayload: {
+                  requestFingerprint: currentFingerprint,
+                  response: null
+                }
+              })
               .where(eq(idempotencySchema.idempotencyKeys.key, idempotencyKey));
           }
           return null;
@@ -639,7 +748,13 @@ export class EscrowService {
           if (idempotencyKey) {
             await tx
               .update(idempotencySchema.idempotencyKeys)
-              .set({ status: 'COMPLETED', responsePayload: null })
+              .set({
+                status: 'COMPLETED',
+                responsePayload: {
+                  requestFingerprint: currentFingerprint,
+                  response: null
+                }
+              })
               .where(eq(idempotencySchema.idempotencyKeys.key, idempotencyKey));
           }
           return null;
@@ -680,7 +795,10 @@ export class EscrowService {
             .update(idempotencySchema.idempotencyKeys)
             .set({
               status: 'COMPLETED',
-              responsePayload: result
+              responsePayload: {
+                requestFingerprint: currentFingerprint,
+                response: result
+              }
             })
             .where(eq(idempotencySchema.idempotencyKeys.key, idempotencyKey));
         }

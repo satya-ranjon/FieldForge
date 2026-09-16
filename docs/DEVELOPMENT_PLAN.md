@@ -1913,6 +1913,42 @@ Migrated `PhoneOtpService` in `apps/auth-service` from process-local in-memory `
 
 ---
 
+## Phase 49 — LedgerPaymentProvider Process-Local Idempotency State & Durable Conflict Detection (ISSUE-013)
+
+**Size: S · Dependencies: Phase 4, Phase 20.** Resolves **ISSUE-013** (LedgerPaymentProvider Process-Local Idempotency State).
+
+Eliminated unbounded process-local in-memory Maps (`captureIdempotencyMap`, `payoutIdempotencyMap`, `refundIdempotencyMap`) from `LedgerPaymentProvider` in `apps/billing-service`. Converted `LedgerPaymentProvider` into a purely stateless simulation service ($O(1)$ process memory, zero retained heap state across operations), while keeping `idempotencyKey: string` across all method contracts in `PaymentProviderPort` for forward-compatibility with future external gateways (Stripe, Adyen). Promoted all request idempotency and parameter conflict detection to the durable database layer in `EscrowService` using the persistent MySQL `idempotency_keys` table. Implemented canonical request fingerprinting (`CAPTURE`, `PAYOUT`, `REFUND`) with Node.js built-in SHA-256 hashing in `apps/billing-service/src/modules/escrow/idempotency-fingerprint.ts`, persisting `{ requestFingerprint, response }` envelopes with transparent backward-compatibility unwrapping for legacy payloads. When an idempotency key is reused, `EscrowService` compares canonical fingerprints: matching requests return cached responses without invoking the payment provider, while conflicting parameters throw a durable `ConflictException` across pods and across restarts. Preserved strict row locking (`SELECT ... FOR UPDATE`) on `escrow_accounts` to guarantee single-execution state transitions (`HELD` -> `RELEASED` / `REFUNDED`), remainder refunds, and cancellation refunds. Zero database schema migrations; zero Redis or LRU caches added to billing.
+
+**Deliverables:**
+
+- **Stateless Simulation Provider (`apps/billing-service`).**
+  - Removed `captureIdempotencyMap`, `payoutIdempotencyMap`, and `refundIdempotencyMap` from `LedgerPaymentProvider`.
+  - Removed `CachedCaptureEntry`, `CachedPayoutEntry`, and `CachedRefundEntry` interfaces.
+  - Retained `idempotencyKey` in `captureEscrow`, `disbursePayout`, and `refundEscrow` method signatures.
+- **Canonical Idempotency Fingerprinting (`apps/billing-service`).**
+  - Created `apps/billing-service/src/modules/escrow/idempotency-fingerprint.ts` providing `buildCaptureFingerprint`, `buildPayoutFingerprint`, `buildRefundFingerprint`, and `unwrapIdempotencyPayload`.
+  - Stable serialization excludes volatile timestamps, correlation IDs, and UUIDs.
+- **Durable Application Idempotency & Conflict Detection (`apps/billing-service`).**
+  - Updated `EscrowService.lockFunds()`, `releaseFunds()`, and `refundEscrow()` to authoritatively enforce idempotency and detect conflicting parameter reuse via `idempotency_keys` table.
+  - Stored request fingerprints in `response_payload` JSON column; throws durable `ConflictException` on parameter mismatch.
+  - Preserved `SELECT ... FOR UPDATE` row locking and state machine guards.
+- **Automated Tests.**
+  - Rewrote `apps/billing-service/test/ledger-payment.provider.spec.ts` testing stateless simulation and zero retained properties across 1,000 operations.
+  - Added durable conflict detection tests to `apps/billing-service/test/escrow.service.spec.ts` for capture, payout, and refund.
+  - Added restart safety test (recreating provider instance while DB idempotency returns cached result).
+  - Added multi-replica safety test (two service instances sharing database executing provider exactly once).
+  - 90 passing tests in `apps/billing-service`.
+
+**Verification:**
+
+- `pnpm check && pnpm build` pass cleanly.
+- `pnpm test` passes across 15 packages with 842 automated unit/integration tests (zero `--passWithNoTests`).
+- `pnpm test:e2e` passes with 48 Playwright tests validated.
+- `pnpm validate:clean-typecheck` passes cleanly.
+- Total verified tests: 842 unit/integration tests + 48 E2E tests = 890 tests.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

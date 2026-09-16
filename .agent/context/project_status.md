@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
-**Last reviewed:** 2026-09-15  
-**Phase:** Phase 48 complete — Multi-Replica Distributed Phone OTP & Rate-Limit Storage (Resolves ISSUE-012). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Last reviewed:** 2026-09-16  
+**Phase:** Phase 49 complete — LedgerPaymentProvider Process-Local Idempotency State & Durable Conflict Detection (Resolves ISSUE-013). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -55,6 +55,7 @@
 - **Escrow & Money Safety (`apps/billing-service`).**
   - Fully resolves **C3**; `releaseFunds()` executes inside a locked `db.transaction()` with `FOR UPDATE` on `escrow_accounts`. Asserts `status === 'HELD'`, verifies buyer caller authority, transitions escrow to `RELEASED`, dispatches payout via `PaymentProviderPort` (`LedgerPaymentProvider`), logs double-entry `payout_ledger` credit, and emits `billing.payout.disbursed` (ADR 005). Consumes `work_order.lifecycle.approved` via `BillingConsumer`. Completely decoupled from `work_orders` table mutations (ADR 009).
   - Fully resolves **ISSUE-001**: `refundEscrow()` executes inside a locked `db.transaction()` with `FOR UPDATE` on `escrow_accounts`. Consumes `work_order.lifecycle.cancelled` via `BillingConsumer`. Transitions HELD escrow to `REFUNDED` and dispatches refund to the buyer via `PaymentProviderPort.refundEscrow()`. Handles nonexistent escrow (e.g. cancelled in DRAFT) and already REFUNDED escrow as idempotent no-ops, and safely protects already RELEASED funds with warnings. Backed by `idempotency_keys` table.
+  - Fully resolves **ISSUE-013**: `LedgerPaymentProvider` converted to a completely stateless simulation service with zero process-local in-memory Maps ($O(1)$ memory footprint). Request idempotency and parameter conflict detection are authoritatively governed by `EscrowService` and the persistent MySQL `idempotency_keys` table using canonical SHA-256 request fingerprints (`CAPTURE`, `PAYOUT`, `REFUND`), throwing durable `ConflictException` on parameter mismatch across pods and restarts without schema migrations or Redis additions.
   - Enforces request deduplication and replay via `idempotency_keys` table.
   - Deterministic SHA-256 content-hashed invoice generation (`InvoicesService`) and cryptographically verified PDF invoice generation via `pdfkit` (FR-BILL-003).
   - Technician earnings ledger query (`GET /billing/technicians/:id/payouts`).
