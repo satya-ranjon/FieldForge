@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-15  
-**Phase:** Phase 46 complete — Bounded In-Memory Caches & State Growth Remediation (Resolves ISSUE-008). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 47 complete — Multi-Pod SLA Auto-Approval Scheduler Race Handling (Resolves ISSUE-006). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -78,7 +78,15 @@
   - Strict FIFO mutation replay with `x-idempotency-key: mob-offline-<uuid>` and exponential retry backoff.
   - Mandatory iOS/Android location, camera, and storage permissions strings and `PermissionsService` wrapper (resolving L7).
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
-- **A test harness that can fail.** 835 automated unit/integration tests across 15 packages/apps (+ 48 Playwright E2E tests = 883 total verified tests).
+- **A test harness that can fail.** 841 automated unit/integration tests across 15 packages/apps (+ 48 Playwright E2E tests = 889 total verified tests).
+- **Multi-Pod SLA Auto-Approval Scheduler Race Handling (Phase 47, Resolves ISSUE-006).**
+  - Re-verified that existing `SELECT ... FOR UPDATE` row locks, `WorkOrderFsmService` state transition validation, and transactional outbox event creation already guarantee exactly-once state transitions and exactly-one committed `WORK_ORDER_APPROVED` outbox record across multi-pod deployments (`replicas: 3`), with at-least-once broker delivery and consumer idempotency per ADR 011 / ISSUE-005.
+  - Added structured state re-read verification in `SlaAutoApprovalService.runAutoApprovalSweep()` upon transition failure: queries `WorkOrdersService.findById()` to inspect current work order status.
+  - Demoted stale concurrent candidates (status no longer `COMPLETED`, e.g. transitioned to `APPROVED` by a competing pod or progressed to `PAID`) to clean `DEBUG` logging with `workOrderId`, current status, and `correlationId`, eliminating false positive `ERROR` logs.
+  - Added `WARN` logging for candidates that no longer exist (`NotFoundException`) without treating them as successful approvals.
+  - Strictly preserved `ERROR` logging with full stack traces for real failures (work order remains `COMPLETED`, or database errors during recheck).
+  - Verified `SlaEscalationService.sweepSlaBreaches()` as harmless redundant work (telemetry/logging only, zero state mutations).
+  - Added 6 automated unit tests in `apps/work-order-service/test/sla-auto-approval.service.spec.ts`.
 - **Bounded In-Memory Caches & State Growth Remediation (Phase 46, Resolves ISSUE-008).**
   - Implemented zero-dependency `BoundedLruCache<K, V>` in `@fieldforge/common` with true $O(1)$ LRU eviction and TTL support.
   - Migrated `TechnicianDirectoryService.memoryCache` in `apps/dispatch-matching-service` to `BoundedLruCache` (1,000 max entries, 300s TTL).

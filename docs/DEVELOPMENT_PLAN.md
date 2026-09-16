@@ -1830,6 +1830,41 @@ Eliminated potential memory leaks and worker OOM crashes caused by unbounded, lo
 
 ---
 
+## Phase 47 — Multi-Pod SLA Auto-Approval Scheduler Race Handling (ISSUE-006)
+
+**Size: XS · Dependencies: Phase 2, Phase 18, Phase 25, Phase 46.** Resolves **ISSUE-006** (Multi-Pod SLA Auto-Approval Scheduler Redundant Execution).
+
+Addressed multi-pod scheduler competition across scaled `work-order-service` replicas (`replicas: 3`). Re-verified that existing database-level row locking (`SELECT ... FOR UPDATE`), `WorkOrderFsmService` state transition validation, and transactional outbox event creation already prevent duplicate business state transitions, duplicate outbox rows, and duplicate escrow release triggers (at-least-once broker delivery paired with downstream consumer idempotency). Hardened `SlaAutoApprovalService` error handling with structured state verification (re-reading current work-order status via `findById`) upon transition failures to distinguish concurrent multi-pod races from genuine system defects. When a candidate was already advanced to `APPROVED` or beyond (e.g. `PAID`), it is cleanly logged as `DEBUG` and skipped without generating false `ERROR` alerts. If a transition fails while the work order is still `COMPLETED`, or encounters unexpected database errors, `ERROR` logging is strictly retained. Verified `SlaEscalationService` as read-only observability requiring no code change.
+
+**Deliverables:**
+
+- **Structured State Verification in SLA Auto-Approval (`apps/work-order-service`).**
+  - Updated `SlaAutoApprovalService.runAutoApprovalSweep()` to catch transition failures and re-read the work order using `WorkOrdersService.findById()`.
+  - Stale concurrent candidates (status no longer `COMPLETED`) are logged at `DEBUG` with `workOrderId`, `status`, and `correlationId`.
+  - Missing/deleted candidate work orders (`NotFoundException`) are logged at `WARN` and skipped.
+  - Real failures (work order remains `COMPLETED`, or database/network crashes during recheck) continue to log at `ERROR` with full stack traces.
+  - Preserved transactional outbox event creation (`WORK_ORDER_APPROVED`) and billing release flow with zero changes to financial contracts or database schemas.
+- **SLA Escalation Service Classification.**
+  - Verified `SlaEscalationService.sweepSlaBreaches()` as read-only telemetry/logging (no mutations or event emissions); classified as harmless redundant work requiring no distributed locking.
+- **Automated Tests.**
+  - Added unit test suite in `apps/work-order-service/test/sla-auto-approval.service.spec.ts` covering:
+    - Multi-pod concurrent race with advance to `APPROVED` logged as `DEBUG` without `ERROR`.
+    - Multi-pod concurrent race with advance beyond `APPROVED` (e.g. `PAID`) logged as `DEBUG` without `ERROR`.
+    - Retention of `ERROR` logging when transition fails while work order remains `COMPLETED`.
+    - `WARN` logging and graceful continuation when work order is deleted/missing during recheck.
+    - `ERROR` logging retention on database failure during state re-read.
+    - Mixed batch execution (simultaneous success, concurrent advance, and genuine failure).
+
+**Verification:**
+
+- `pnpm check && pnpm build` pass cleanly.
+- `pnpm test` passes across 15 packages with 841 automated unit/integration tests (+6 new tests, zero `--passWithNoTests`).
+- `pnpm test:e2e` passes with 48 Playwright tests validated.
+- `pnpm validate:clean-typecheck` passes cleanly.
+- Total verified tests: 841 unit/integration tests + 48 E2E tests = 889 tests.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

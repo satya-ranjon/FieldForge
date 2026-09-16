@@ -1,4 +1,4 @@
-import { Injectable, Inject, Logger } from '@nestjs/common';
+import { Injectable, Inject, Logger, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { and, eq, lte } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleClient } from '@fieldforge/common';
@@ -53,6 +53,7 @@ export class SlaAutoApprovalService {
     let processedCount = 0;
 
     for (const wo of overdueWorkOrders) {
+      const correlationId = `sla-auto-approval-${wo.id}`;
       try {
         await this.workOrdersService.transition(
           wo.id,
@@ -62,12 +63,31 @@ export class SlaAutoApprovalService {
             nextStatus: WorkOrderStatus.APPROVED,
             reason: '72-hour buyer review SLA timeout auto-approval'
           },
-          `sla-auto-approval-${wo.id}`
+          correlationId
         );
 
         processedCount++;
         this.logger.log(`Auto-approved completed work order ${wo.id} via 72h SLA review timeout`);
       } catch (err: unknown) {
+        // Re-read current work-order state to distinguish concurrent multi-pod races
+        // from real system failures using structured state verification (ISSUE-006).
+        try {
+          const current = await this.workOrdersService.findById(wo.id);
+          if (current.status !== WorkOrderStatus.COMPLETED) {
+            this.logger.debug(
+              `SLA auto-approval skipped for work order ${wo.id} because it was already advanced to status ${current.status} by another actor (correlation: ${correlationId})`
+            );
+            continue;
+          }
+        } catch (recheckErr: unknown) {
+          if (recheckErr instanceof NotFoundException) {
+            this.logger.warn(
+              `SLA auto-approval skipped for work order ${wo.id} because work order no longer exists (correlation: ${correlationId})`
+            );
+            continue;
+          }
+        }
+
         const msg = err instanceof Error ? err.message : String(err);
         const stack = err instanceof Error ? err.stack : undefined;
         this.logger.error(`Failed to auto-approve work order ${wo.id}: ${msg}`, stack);
