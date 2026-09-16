@@ -11,15 +11,35 @@
 - **`feature/<name>`**: Feature branches branched from `develop`.
 - **`fix/<name>`**: Bug fixes branched from `develop` (or hotfixes from `main`).
 
-### 2. Commit Message Standards
+### 2. Commit Message & Description Standards (MANDATORY)
 
-Follow Conventional Commits format:
+Every Git commit must follow Conventional Commits format with a **mandatory, comprehensive structured body**. Single-line commits lacking context or technical details are strictly prohibited.
 
-- `feat(...)`: New features or capabilities.
-- `fix(...)`: Bug fixes or defect resolutions.
-- `refactor(...)`: Code adjustments without behavior changes.
-- `chore(...)`: Dependency updates, tooling, configuration.
-- `docs(...)`: Documentation and markdown changes.
+#### 2.1 Commit Header Format
+
+```text
+<type>(<scope>): <concise summary in imperative mood>
+```
+
+- `<type>`: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`, `perf`.
+- `<scope>`: Target package or service name (e.g. `billing`, `auth`, `work-orders`, `common`, `dispatch`, `gateway`).
+- Length: Under 72 characters, lowercase type and scope, no trailing period.
+
+#### 2.2 Mandatory Commit Body Structure
+
+Every commit must include the following sections separated by blank lines:
+
+1. **Problem & Root Cause**:
+   - Detailed explanation of the architectural or implementation defect, failure mode, and conditions under which it occurred.
+   - Exact components, multi-replica hazards, memory leaks, or contract mismatches involved.
+2. **What Changed & How It Fixes It**:
+   - Explicit architectural and code modifications made across files/components to resolve the issue.
+   - Technical mechanisms introduced (e.g. atomic Redis Lua scripts, canonical SHA-256 fingerprinting, row locking, error classification).
+3. **Invariants & Safety Guarantees**:
+   - Core invariants preserved (e.g. idempotency, memory bounds, concurrency safety, zero migrations if applicable).
+   - Backward compatibility handling (e.g. legacy payload unwrapping).
+4. **Verification**:
+   - Automated test suites executed, test counts (unit, integration, E2E), and verification gates passed.
 
 ### 3. Pre-Push Verification Protocol (MANDATORY)
 

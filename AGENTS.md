@@ -141,6 +141,16 @@ from `.env.example`.
 - Operational or security assumptions are visible rather than embedded as
   unexplained constants.
 
+## Commit message and description standards
+
+Never create single-line or vague commit messages. Every commit must follow Conventional Commits and provide a detailed, structured description explaining what changed, why it changed, and how it was verified (see `RULE-GIT-06` in `.agent/rules/06_git_workflow_rules.md`):
+
+1. **Header**: `<type>(<scope>): <concise summary>` (under 72 characters, imperative mood).
+2. **Problem & Root Cause**: Detailed explanation of the defect, architectural flaw, or requirement being addressed.
+3. **What Changed & How It Fixes It**: The specific modifications and technical mechanisms implemented.
+4. **Invariants & Safety Guarantees**: Concurrency, idempotency, memory bounds, or compatibility guarantees.
+5. **Verification**: Exact test suites run, verified test counts (unit, integration, E2E), and gate results.
+
 ## Git push guardrail (Pre-push verification gate)
 
 Whenever the user instructs to `git push` (or before pushing to remote):
