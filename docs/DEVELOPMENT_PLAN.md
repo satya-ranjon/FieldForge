@@ -1865,6 +1865,54 @@ Addressed multi-pod scheduler competition across scaled `work-order-service` rep
 
 ---
 
+## Phase 48 — Multi-Replica Distributed Phone OTP & Rate-Limit Storage (ISSUE-012)
+
+**Size: S · Dependencies: Phase 2, Phase 46.** Resolves **ISSUE-012** (Multi-Replica Distributed Phone OTP & Rate-Limit Storage).
+
+Migrated `PhoneOtpService` in `apps/auth-service` from process-local in-memory `Map`s (`otpStore` and `rateLimitStore`) to distributed, atomic Redis-backed storage (`auth:otp:<phone>` and `auth:ratelimit:<phone>`). In multi-replica Kubernetes environments (`replicas: 2`), successive send and verify requests routed across distinct pods now read and write to the same shared Redis state. Rate limiting is enforced atomically across replicas using a Redis Sorted Set (ZSET) with a Lua script executing `ZREMRANGEBYSCORE` + `ZCARD` + `ZADD` + `EXPIRE 600`, preventing anti-flooding bypass. OTP verification and one-time consumption are executed atomically using a Lua script that compares the code, tracks failed attempts with remaining millisecond TTL preservation (`PTTL` / `SET ... PX <pttl>`), deletes on 3 failed attempts, and atomically deletes the key on match, guaranteeing that concurrent cross-pod requests cannot both verify the same OTP. Removed the predictable `cleanPhone.endsWith('0000') ? '123456' : ...` backdoor from runtime builds, standardizing on CSPRNG random 6-digit codes (`crypto.randomInt(100000, 1000000)`). Enforced fail-closed behavior on Redis outages (`ServiceUnavailableException` HTTP 503) without runtime local Map fallbacks. Wired Redis environment variables into Kubernetes manifests.
+
+**Deliverables:**
+
+- **Redis Integration & Provider (`apps/auth-service`).**
+  - Added `ioredis: ^6.0.0` dependency to `apps/auth-service/package.json`.
+  - Created `redisProvider` with token `REDIS_CLIENT` in `IamModule` connecting to `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` with `lazyConnect: true` and `OnApplicationShutdown` lifecycle handling.
+- **Atomic Redis Phone OTP Service (`apps/auth-service`).**
+  - Replaced process-local `otpStore` and `rateLimitStore` `Map` instances in `PhoneOtpService` with Redis-backed state.
+  - Implemented atomic Lua script `RATE_LIMIT_LUA_SCRIPT` for 10-minute sliding window rate limiting (3 requests max).
+  - Implemented atomic Lua script `VERIFY_OTP_LUA_SCRIPT` for atomic comparison, remaining TTL preservation on wrong attempts, 3-attempt terminal deletion, and atomic single-use consumption on match.
+  - Eliminated manual opportunistic pruning and capacity handlers from memory; state is natively expired by Redis (`EX 300` and `EXPIRE 600`).
+  - Completely removed predictable `endsWith('0000') ? '123456'` shortcut from runtime; added `defaultSecureOtpGenerator` using `crypto.randomInt(100000, 1000000)`.
+  - Implemented fail-closed error handling mapping Redis connection failures to HTTP 503 `ServiceUnavailableException`.
+  - Enforced sensitive data protection (no OTP codes or Redis secrets logged; phone numbers masked to trailing 4 digits).
+- **Kubernetes Configuration Wiring (`infra/k8s`).**
+  - Added `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` env mappings to `infra/k8s/services/auth-service.yaml`.
+  - Added `REDIS_PASSWORD` placeholder to `infra/k8s/base/secrets.example.yaml`.
+- **Automated Tests.**
+  - Added multi-instance, distributed test suite in `apps/auth-service/test/phone-otp.service.spec.ts` covering:
+    - Core send with 300s TTL and atomic verification consumption.
+    - Non-terminal wrong attempts with attempt counting and remaining TTL preservation.
+    - 3-attempt terminal exhaustion and permanent deletion.
+    - Sliding-window rate-limiting and window advancement.
+    - Predictable test OTP backdoor elimination in normal runtime builds.
+    - Cross-pod verification (Pod A sends, Pod B verifies).
+    - Concurrent one-time-use atomicity (Pod A and Pod B simultaneously verify same code -> exactly one succeeds).
+    - Distributed send rate-limit enforcement across pods.
+    - Shared wrong attempt tracking across pods.
+    - Resend semantics across pods.
+    - TTL expiration across pods.
+    - Fail-closed Redis outage behavior (HTTP 503) without local Map fallback.
+    - Assertion of zero process-local Maps in `PhoneOtpService` runtime.
+
+**Verification:**
+
+- `pnpm check && pnpm build` pass cleanly.
+- `pnpm test` passes across 15 packages with 842 automated unit/integration tests (+7 new tests, zero `--passWithNoTests`).
+- `pnpm test:e2e` passes with 48 Playwright tests validated.
+- `pnpm validate:clean-typecheck` passes cleanly.
+- Total verified tests: 842 unit/integration tests + 48 E2E tests = 890 tests.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

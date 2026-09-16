@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-15  
-**Phase:** Phase 47 complete — Multi-Pod SLA Auto-Approval Scheduler Race Handling (Resolves ISSUE-006). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 48 complete — Multi-Replica Distributed Phone OTP & Rate-Limit Storage (Resolves ISSUE-012). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -17,7 +17,7 @@
 - **Shared Drizzle module.** `packages/common/src/database/drizzle.module.ts` provides
   the centralized `DRIZZLE` injection token using `createDbClient` and loads local `.env`.
 - **Identity & Auth service (`apps/auth-service`).** Decoupled into three encapsulated domain modules:
-  - `IamModule`: Low-level IAM security primitives (`POST /auth/register`, `POST /auth/login`, `POST /auth/refresh` with rotating tokens in `refresh_tokens`, `POST /auth/phone/send-otp`, `POST /auth/phone/verify-otp`).
+  - `IamModule`: Low-level IAM security primitives (`POST /auth/register`, `POST /auth/login`, `POST /auth/refresh` with rotating tokens in `refresh_tokens`, `POST /auth/phone/send-otp`, `POST /auth/phone/verify-otp` backed by shared Redis with atomic Lua sliding-window rate limiting, compare-and-consume one-time verification, and zero process-local Maps).
   - `ProfilesModule`: Domain profiles (`buyerProfiles`, `technicianProfiles`), self-profile lookup (`GET /users/me`), and profile provisioning port (`provisionProfile`, `resolveProfileId`, `getUserProfile`).
   - `ContractorVettingModule`: Contractor credentials, compliance badges, and directory querying (`GET /technicians/:id/badges`, `POST /technicians/certifications`, `PATCH /technicians/certifications/:id/verify`, `GET /technicians/certifications/pending`, `POST /technicians/batch`).
 - **Real trust boundary at API Gateway.** `apps/api-gateway` enforces `JwtAuthGuard`,
@@ -333,7 +333,7 @@
 - **Work Order Aggregate Boundary Reconciliation & Event-Driven Settlement (Phase 9, Resolves Finding 1, ADR 005).**
   - Added shared contracts (`TechnicianBadgeDto`, `CreateCertificationDto`, `VerifyCertificationDto`, `SendPhoneOtpDto`, `VerifyPhoneOtpDto`) and Zod schemas in `@fieldforge/contracts`.
   - Created `CertificationsController` in `apps/auth-service` with `GET /technicians/:id/badges`, `POST /technicians/certifications`, `PATCH /technicians/certifications/:id/verify`, and `GET /technicians/certifications/pending`.
-  - Implemented rate-limited in-memory `PhoneOtpService` in `apps/auth-service` with `POST /auth/phone/send-otp` and `POST /auth/phone/verify-otp` (FR-AUTH-001).
+  - Implemented distributed Redis-backed `PhoneOtpService` in `apps/auth-service` with atomic Lua rate limiting and single-use verification for `POST /auth/phone/send-otp` and `POST /auth/phone/verify-otp` (FR-AUTH-001, Resolves ISSUE-012).
   - Routed `technicians` reverse proxying to `auth-service` in `apps/api-gateway` and whitelisted phone OTP endpoints as public.
   - Enhanced Enterprise Buyer Portal (`TechnicianMatchingRadar.tsx`) with real-time verified badge chips (`ShieldCheck`, `CheckCircle2`) and RTK Query hooks.
   - Enhanced Mobile Technician App (`JobListScreen.tsx`) with compliance badge indicator.

@@ -1,179 +1,243 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  Optional,
+  BadRequestException,
+  ServiceUnavailableException,
+  Logger,
+  type OnApplicationShutdown
+} from '@nestjs/common';
+import type Redis from 'ioredis';
+import * as crypto from 'node:crypto';
 import type { PhoneOtpResponseDto } from '@fieldforge/contracts';
 
-interface OtpRecord {
-  code: string;
-  expiresAt: number;
-  attempts: number;
-}
+export const REDIS_CLIENT = Symbol('REDIS_CLIENT');
+export const OTP_GENERATOR = Symbol('OTP_GENERATOR');
 
-export const DEFAULT_MAX_OTP_ENTRIES = 10_000;
-export const DEFAULT_PRUNE_INTERVAL_MS = 60_000; // 1 minute
+export const OTP_REDIS_PREFIX = 'auth:otp:';
+export const RATE_LIMIT_REDIS_PREFIX = 'auth:ratelimit:';
+
+export const OTP_TTL_SECONDS = 300; // 5 minutes
+export const RATE_LIMIT_WINDOW_SECONDS = 600; // 10 minutes
+export const RATE_LIMIT_WINDOW_MS = RATE_LIMIT_WINDOW_SECONDS * 1000;
+export const MAX_ATTEMPTS = 3;
+export const MAX_REQUESTS_PER_WINDOW = 3;
+
+export type OtpGenerator = (phoneNumber?: string) => string;
+
+export const defaultSecureOtpGenerator: OtpGenerator = () => {
+  return crypto.randomInt(100000, 1000000).toString();
+};
+
+/**
+ * Atomic Lua script for sliding-window rate limiting on OTP generation.
+ * KEYS[1]: Rate limit ZSET key (auth:ratelimit:<phone>)
+ * ARGV[1]: Current timestamp in ms
+ * ARGV[2]: Window size in ms (600,000)
+ * ARGV[3]: Max requests per window (3)
+ * ARGV[4]: Unique member identifier (<timestamp>:<nonce>)
+ */
+export const RATE_LIMIT_LUA_SCRIPT = `
+local key = KEYS[1]
+local now = tonumber(ARGV[1])
+local windowMs = tonumber(ARGV[2])
+local maxRequests = tonumber(ARGV[3])
+local member = ARGV[4]
+local clearBefore = now - windowMs
+
+-- 1. Evict timestamps older than sliding window
+redis.call('ZREMRANGEBYSCORE', key, 0, clearBefore)
+
+-- 2. Count active timestamps in window
+local currentCount = redis.call('ZCARD', key)
+
+if currentCount >= maxRequests then
+  return 0 -- Rate limit exceeded
+end
+
+-- 3. Record new attempt with unique member
+redis.call('ZADD', key, now, member)
+
+-- 4. Refresh TTL so idle keys expire naturally
+redis.call('EXPIRE', key, math.ceil(windowMs / 1000))
+
+return 1 -- Allowed
+`;
+
+/**
+ * Atomic Lua script for one-time OTP verification.
+ * KEYS[1]: OTP key (auth:otp:<phone>)
+ * ARGV[1]: Submitted verification code
+ * ARGV[2]: Max failed attempts allowed (3)
+ */
+export const VERIFY_OTP_LUA_SCRIPT = `
+local key = KEYS[1]
+local submittedCode = ARGV[1]
+local maxAttempts = tonumber(ARGV[2])
+
+local record = redis.call('GET', key)
+if not record then
+  return 'NOT_FOUND'
+end
+
+local data = cjson.decode(record)
+if data.attempts >= maxAttempts then
+  redis.call('DEL', key)
+  return 'TOO_MANY_ATTEMPTS'
+end
+
+if data.code ~= submittedCode then
+  data.attempts = data.attempts + 1
+  if data.attempts >= maxAttempts then
+    redis.call('DEL', key)
+    return 'TOO_MANY_ATTEMPTS'
+  else
+    local pttl = redis.call('PTTL', key)
+    if pttl > 0 then
+      redis.call('SET', key, cjson.encode(data), 'PX', pttl)
+    else
+      redis.call('DEL', key)
+      return 'NOT_FOUND'
+    end
+    return 'INVALID_CODE'
+  end
+end
+
+-- Code matches! Atomically consume (delete) the OTP
+redis.call('DEL', key)
+return 'SUCCESS'
+`;
 
 @Injectable()
-export class PhoneOtpService {
-  private readonly otpStore = new Map<string, OtpRecord>();
-  private readonly rateLimitStore = new Map<string, number[]>();
+export class PhoneOtpService implements OnApplicationShutdown {
+  private readonly logger = new Logger(PhoneOtpService.name);
 
-  private readonly OTP_TTL_MS = 5 * 60 * 1000; // 5 minutes
-  private readonly MAX_ATTEMPTS = 3;
-  private readonly RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
-  private readonly MAX_REQUESTS_PER_WINDOW = 3;
-
-  private readonly maxEntries: number;
-  private readonly pruneIntervalMs: number;
-  private lastPrunedAt = 0;
-
-  constructor(maxEntries = DEFAULT_MAX_OTP_ENTRIES, pruneIntervalMs = DEFAULT_PRUNE_INTERVAL_MS) {
-    this.maxEntries = maxEntries;
-    this.pruneIntervalMs = pruneIntervalMs;
-  }
+  constructor(
+    @Inject(REDIS_CLIENT) private readonly redis: Redis,
+    @Optional()
+    @Inject(OTP_GENERATOR)
+    private readonly otpGenerator: OtpGenerator = defaultSecureOtpGenerator
+  ) {}
 
   /**
-   * Generates and stores a 6-digit verification code for the phone number.
+   * Generates and stores a 6-digit verification code for the phone number in Redis.
    */
   async sendOtp(phoneNumber: string): Promise<PhoneOtpResponseDto> {
     const cleanPhone = phoneNumber.trim();
     const now = Date.now();
+    const rateLimitKey = `${RATE_LIMIT_REDIS_PREFIX}${cleanPhone}`;
+    const otpKey = `${OTP_REDIS_PREFIX}${cleanPhone}`;
+    const member = `${now}:${crypto.randomUUID()}`;
 
-    // Opportunistic cleanup of expired OTPs and stale rate-limit records
-    this.opportunisticPrune(now);
+    try {
+      // 1. Atomic sliding-window rate limit check via Lua script
+      const rateLimitResult = await this.redis.eval(
+        RATE_LIMIT_LUA_SCRIPT,
+        1,
+        rateLimitKey,
+        String(now),
+        String(RATE_LIMIT_WINDOW_MS),
+        String(MAX_REQUESTS_PER_WINDOW),
+        member
+      );
 
-    // Fail-closed capacity check: never evict active rate limits under capacity pressure (anti-brute-force invariant)
-    if (
-      (!this.rateLimitStore.has(cleanPhone) && this.rateLimitStore.size >= this.maxEntries) ||
-      (!this.otpStore.has(cleanPhone) && this.otpStore.size >= this.maxEntries)
-    ) {
-      throw new BadRequestException(
-        'OTP verification service is temporarily busy. Please try again later.'
+      if (Number(rateLimitResult) === 0) {
+        throw new BadRequestException('Too many OTP requests. Please try again later.');
+      }
+
+      // 2. Generate non-predictable 6-digit code
+      const code = this.otpGenerator(cleanPhone);
+
+      // 3. Atomically store OTP in Redis with 5-minute TTL (replaces any existing code)
+      const payload = JSON.stringify({
+        code,
+        attempts: 0
+      });
+
+      await this.redis.set(otpKey, payload, 'EX', OTP_TTL_SECONDS);
+
+      this.logger.log(
+        `Verification code dispatched for phone ending in ****${cleanPhone.slice(-4)}`
+      );
+
+      return {
+        success: true,
+        message: `Verification code sent to ${cleanPhone}`,
+        expiresInSeconds: OTP_TTL_SECONDS
+      };
+    } catch (err: unknown) {
+      if (err instanceof BadRequestException) {
+        throw err;
+      }
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Redis failure during sendOtp for ****${cleanPhone.slice(-4)}: ${msg}`);
+      throw new ServiceUnavailableException(
+        'Authentication service is temporarily unavailable. Please try again later.'
       );
     }
-
-    // Check rate limit
-    const timestamps = this.rateLimitStore.get(cleanPhone) ?? [];
-    const recentTimestamps = timestamps.filter((t) => now - t < this.RATE_LIMIT_WINDOW_MS);
-
-    if (recentTimestamps.length >= this.MAX_REQUESTS_PER_WINDOW) {
-      throw new BadRequestException('Too many OTP requests. Please try again later.');
-    }
-
-    recentTimestamps.push(now);
-    this.rateLimitStore.set(cleanPhone, recentTimestamps);
-
-    // Deterministic mock OTP for test environments, or random 6-digit code
-    const code = cleanPhone.endsWith('0000')
-      ? '123456'
-      : Math.floor(100000 + Math.random() * 900000).toString();
-
-    this.otpStore.set(cleanPhone, {
-      code,
-      expiresAt: now + this.OTP_TTL_MS,
-      attempts: 0
-    });
-
-    return {
-      success: true,
-      message: `Verification code sent to ${cleanPhone}`,
-      expiresInSeconds: Math.floor(this.OTP_TTL_MS / 1000)
-    };
   }
 
   /**
-   * Verifies the supplied code for the phone number.
+   * Atomically verifies the supplied code for the phone number in Redis.
    */
   async verifyOtp(phoneNumber: string, code: string): Promise<PhoneOtpResponseDto> {
     const cleanPhone = phoneNumber.trim();
-    const now = Date.now();
+    const cleanCode = code.trim();
+    const otpKey = `${OTP_REDIS_PREFIX}${cleanPhone}`;
 
-    // Opportunistic cleanup
-    this.opportunisticPrune(now);
+    try {
+      const result = await this.redis.eval(
+        VERIFY_OTP_LUA_SCRIPT,
+        1,
+        otpKey,
+        cleanCode,
+        String(MAX_ATTEMPTS)
+      );
 
-    const record = this.otpStore.get(cleanPhone);
+      const status = String(result);
 
-    if (!record) {
-      throw new BadRequestException('No verification code requested for this phone number');
-    }
+      if (status === 'NOT_FOUND') {
+        throw new BadRequestException('No verification code requested for this phone number');
+      }
 
-    if (now > record.expiresAt) {
-      this.otpStore.delete(cleanPhone);
-      throw new BadRequestException('Verification code has expired. Please request a new one.');
-    }
+      if (status === 'TOO_MANY_ATTEMPTS') {
+        throw new BadRequestException(
+          'Too many failed verification attempts. Please request a new code.'
+        );
+      }
 
-    if (record.attempts >= this.MAX_ATTEMPTS) {
-      this.otpStore.delete(cleanPhone);
-      throw new BadRequestException(
-        'Too many failed verification attempts. Please request a new code.'
+      if (status === 'INVALID_CODE') {
+        throw new BadRequestException('Invalid verification code');
+      }
+
+      if (status === 'SUCCESS') {
+        this.logger.log(`Phone number verified successfully: ****${cleanPhone.slice(-4)}`);
+        return {
+          success: true,
+          message: 'Phone number verified successfully'
+        };
+      }
+
+      throw new BadRequestException('Invalid verification code');
+    } catch (err: unknown) {
+      if (err instanceof BadRequestException) {
+        throw err;
+      }
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Redis failure during verifyOtp for ****${cleanPhone.slice(-4)}: ${msg}`);
+      throw new ServiceUnavailableException(
+        'Authentication service is temporarily unavailable. Please try again later.'
       );
     }
-
-    if (record.code !== code.trim()) {
-      record.attempts += 1;
-      throw new BadRequestException('Invalid verification code');
-    }
-
-    // Successfully verified, clean up store
-    this.otpStore.delete(cleanPhone);
-
-    return {
-      success: true,
-      message: 'Phone number verified successfully'
-    };
   }
 
-  /**
-   * Prunes expired OTP records and stale rate-limit timestamps.
-   * Completely removes phone numbers from rateLimitStore if all their timestamps are outside the window.
-   */
-  pruneExpired(now: number = Date.now()): void {
-    for (const [phone, record] of this.otpStore.entries()) {
-      if (now > record.expiresAt) {
-        this.otpStore.delete(phone);
+  async onApplicationShutdown(): Promise<void> {
+    try {
+      if (typeof this.redis?.disconnect === 'function') {
+        this.redis.disconnect();
       }
+    } catch {
+      // Ignored during shutdown
     }
-
-    for (const [phone, timestamps] of this.rateLimitStore.entries()) {
-      const active = timestamps.filter((t) => now - t < this.RATE_LIMIT_WINDOW_MS);
-      if (active.length === 0) {
-        this.rateLimitStore.delete(phone);
-      } else if (active.length < timestamps.length) {
-        this.rateLimitStore.set(phone, active);
-      }
-    }
-
-    this.lastPrunedAt = now;
-  }
-
-  private opportunisticPrune(now: number): void {
-    const isNearCapacity =
-      this.otpStore.size >= this.maxEntries * 0.9 ||
-      this.rateLimitStore.size >= this.maxEntries * 0.9;
-    const isIntervalElapsed = now - this.lastPrunedAt >= this.pruneIntervalMs;
-
-    if (isNearCapacity || isIntervalElapsed) {
-      this.pruneExpired(now);
-    }
-  }
-
-  /**
-   * Introspection method for tests/monitoring.
-   */
-  getOtpStoreSize(): number {
-    return this.otpStore.size;
-  }
-
-  /**
-   * Introspection method for tests/monitoring.
-   */
-  getRateLimitStoreSize(): number {
-    return this.rateLimitStore.size;
-  }
-
-  /**
-   * Clears in-memory state (useful for test teardown).
-   */
-  clear(): void {
-    this.otpStore.clear();
-    this.rateLimitStore.clear();
-    this.lastPrunedAt = 0;
   }
 }

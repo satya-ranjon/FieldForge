@@ -20,6 +20,21 @@ spec:
           image: fieldforge/auth-service:latest
           ports:
             - containerPort: 8001
+          env:
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: fieldforge-global-config
+                  key: REDIS_HOST
+                  optional: true
+            - name: REDIS_PORT
+              value: '6379'
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: fieldforge-secrets
+                  key: REDIS_PASSWORD
+                  optional: true
           livenessProbe:
             httpGet:
               path: /healthz
