@@ -8,6 +8,7 @@ export class MetricsRegistry {
   public readonly httpRequestDurationSeconds: Histogram<string>;
   public readonly dispatchFanoutLatencySeconds: Histogram<string>;
   public readonly billingReconciliationFailuresTotal: Counter<string>;
+  public readonly outboxDeadEventsTotal: Counter<string>;
 
   private constructor() {
     this.register = new Registry();
@@ -39,6 +40,13 @@ export class MetricsRegistry {
       name: 'billing_reconciliation_failures_total',
       help: 'Total number of financial ledger or escrow reconciliation failures',
       labelNames: ['type', 'reason'],
+      registers: [this.register]
+    });
+
+    this.outboxDeadEventsTotal = new Counter({
+      name: 'fieldforge_outbox_dead_events_total',
+      help: 'Total number of outbox events transitioned to DEAD status due to structural poison',
+      labelNames: ['service', 'outbox', 'reason'],
       registers: [this.register]
     });
 
@@ -77,12 +85,20 @@ export class MetricsRegistry {
     this.billingReconciliationFailuresTotal.inc({ type, reason });
   }
 
+  public incrementOutboxDeadEvent(service: string, outbox: string, reason: string): void {
+    this.outboxDeadEventsTotal.inc({ service, outbox, reason });
+  }
+
   public async getMetrics(): Promise<string> {
     return this.register.metrics();
   }
 
   public getContentType(): string {
     return this.register.contentType;
+  }
+
+  public resetMetrics(): void {
+    this.register.resetMetrics();
   }
 
   public clear(): void {

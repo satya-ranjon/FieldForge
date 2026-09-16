@@ -1,10 +1,16 @@
 import { randomUUID } from 'node:crypto';
 import os from 'node:os';
 import { Logger, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common';
-import { and, or, eq, inArray, lte, asc, sql } from '@fieldforge/database';
+import { and, or, eq, inArray, lte, asc, sql, getTableName } from '@fieldforge/database';
 import type { DrizzleClient } from '../database/drizzle.module';
 import type { EventEnvelope } from '@fieldforge/contracts';
-import type { OutboxTable, EventPublisherPort, OutboxRelayConfig } from './outbox.types';
+import { metricsRegistry } from '../apm/metrics.registry';
+import type {
+  OutboxTable,
+  EventPublisherPort,
+  OutboxRelayConfig,
+  OutboxStatus
+} from './outbox.types';
 
 /**
  * Publishes an event envelope with a bounded confirmation timeout.
@@ -260,7 +266,17 @@ export abstract class BaseOutboxRelay implements OnApplicationBootstrap, OnAppli
               );
 
             const affectedRows = (res && res[0] && res[0].affectedRows) ?? 1;
-            if (affectedRows === 0) {
+            if (affectedRows > 0) {
+              const tableName = this.getTableName();
+              metricsRegistry.incrementOutboxDeadEvent(
+                this.serviceName,
+                tableName,
+                'structural_poison'
+              );
+              this.logger.error(
+                `[OutboxRelay:${this.serviceName}] Outbox event ${row.eventId} (id: ${row.id}, aggregate: ${row.aggregateType}#${row.aggregateId}, attempts: ${row.attemptCount}) transitioned to DEAD on table ${tableName}: ${errorMsg}`
+              );
+            } else {
               this.logger.warn(
                 `[OutboxRelay:${this.serviceName}] Claim lost before marking DEAD for event ${row.eventId}`
               );
@@ -300,5 +316,140 @@ export abstract class BaseOutboxRelay implements OnApplicationBootstrap, OnAppli
     );
 
     return claimedRows.length;
+  }
+
+  /**
+   * Safe helper to extract table name from Drizzle table or mock representation.
+   */
+  protected getTableName(): string {
+    try {
+      if (typeof getTableName === 'function') {
+        const name = getTableName(this.table);
+        if (name) return name;
+      }
+    } catch {
+      // Fallback if table is mock or uninspectable
+    }
+    const candidate = this.table as { _?: { name?: string }; tableName?: string };
+    return candidate?._?.name ?? candidate?.tableName ?? 'unknown_outbox';
+  }
+
+  /**
+   * Lists DEAD outbox events for operator inspection with safe metadata.
+   * Excludes raw event payload to prevent PII exposure in operator logs.
+   */
+  async listDeadEvents(limit = 50): Promise<
+    Array<{
+      id: number;
+      eventId: string;
+      eventType: string;
+      aggregateType: string;
+      aggregateId: string;
+      status: OutboxStatus;
+      attemptCount: number;
+      createdAt: Date;
+      updatedAt: Date;
+      lastError: string | null;
+    }>
+  > {
+    const rows = await this.db
+      .select({
+        id: this.table.id,
+        eventId: this.table.eventId,
+        eventType: this.table.eventType,
+        aggregateType: this.table.aggregateType,
+        aggregateId: this.table.aggregateId,
+        status: this.table.status,
+        attemptCount: this.table.attemptCount,
+        createdAt: this.table.createdAt,
+        updatedAt: this.table.updatedAt,
+        lastError: this.table.lastError
+      })
+      .from(this.table)
+      .where(eq(this.table.status, 'DEAD'))
+      .orderBy(asc(this.table.id))
+      .limit(limit);
+
+    return rows as Array<{
+      id: number;
+      eventId: string;
+      eventType: string;
+      aggregateType: string;
+      aggregateId: string;
+      status: OutboxStatus;
+      attemptCount: number;
+      createdAt: Date;
+      updatedAt: Date;
+      lastError: string | null;
+    }>;
+  }
+
+  /**
+   * Safely replays a DEAD outbox event by atomically resetting its status to PENDING.
+   *
+   * Preconditions:
+   * - Row status MUST be 'DEAD'.
+   *
+   * Safety invariants:
+   * - Sets status = 'PENDING'
+   * - Resets attemptCount = 0
+   * - Sets nextAttemptAt = NOW()
+   * - Clears claimedBy, claimToken, leaseExpiresAt
+   * - Sets lastError = 'REPLAY_QUEUED_BY_OPERATOR'
+   * - Preserves immutable eventId, payload, aggregateType, aggregateId.
+   */
+  async replayDeadEvent(id: number): Promise<'REQUEUED' | 'NOT_DEAD' | 'NOT_FOUND'> {
+    const updateClient = this.db as unknown as {
+      update: (table: unknown) => {
+        set: (values: Record<string, unknown>) => {
+          where: (clause: unknown) => Promise<Array<{ affectedRows?: number }>>;
+        };
+      };
+    };
+
+    const now = new Date();
+    const res = await updateClient
+      .update(this.table)
+      .set({
+        status: 'PENDING',
+        attemptCount: 0,
+        nextAttemptAt: now,
+        claimedBy: null,
+        claimToken: null,
+        leaseExpiresAt: null,
+        lastError: 'REPLAY_QUEUED_BY_OPERATOR',
+        updatedAt: now
+      })
+      .where(and(eq(this.table.id, id), eq(this.table.status, 'DEAD')));
+
+    const affectedRows =
+      res && res[0] && typeof res[0].affectedRows === 'number'
+        ? res[0].affectedRows
+        : res && res[0]
+          ? 1
+          : 0;
+
+    if (affectedRows > 0) {
+      this.logger.log(
+        `[OutboxRelay:${this.serviceName}] Requeued DEAD event ${id} for replay (table: ${this.getTableName()})`
+      );
+      this.trigger();
+      return 'REQUEUED';
+    }
+
+    const existing = await this.db
+      .select({
+        id: this.table.id,
+        status: this.table.status
+      })
+      .from(this.table)
+      .where(eq(this.table.id, id))
+      .limit(1);
+
+    if (!existing || existing.length === 0) {
+      return 'NOT_FOUND';
+    }
+
+    return 'NOT_DEAD';
   }
 }

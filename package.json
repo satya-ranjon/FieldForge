@@ -19,6 +19,7 @@
     "db:generate": "pnpm --filter @fieldforge/database db:generate",
     "db:migrate": "pnpm --filter @fieldforge/database db:migrate",
     "db:seed": "pnpm --filter @fieldforge/database db:seed",
+    "outbox:admin": "node --no-warnings --experimental-strip-types scripts/outbox-admin.ts",
     "infra:config": "docker compose --env-file .env.example -f infra/docker/docker-compose.yml -f infra/docker/docker-compose.observability.yml config --quiet",
     "docker:up": "./scripts/docker-up.sh",
     "docker:down": "docker compose --env-file .env -f infra/docker/docker-compose.yml -f infra/docker/docker-compose.observability.yml down",

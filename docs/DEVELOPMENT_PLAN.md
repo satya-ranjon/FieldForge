@@ -1949,6 +1949,49 @@ Eliminated unbounded process-local in-memory Maps (`captureIdempotencyMap`, `pay
 
 ---
 
+## Phase 50 — DEAD Outbox Observability & Safe Operator Recovery (ISSUE-014)
+
+**Size: S · Dependencies: Phase 20, Phase 25.** Resolves **ISSUE-014** (Outbox DEAD Event Causal Blocking & Dead-Letter Operations).
+
+Preserved intentional per-aggregate FIFO causal ordering (`prior.status IN ('PENDING', 'PROCESSING', 'FAILED', 'DEAD')`) in `BaseOutboxRelay` to protect downstream domain integrity from out-of-order execution, while completing operational observability, Prometheus alerting, and safe atomic operator replay tooling. Added Prometheus APM counter `fieldforge_outbox_dead_events_total` with low-cardinality labels (`service`, `outbox`, `reason`), incremented strictly once per poison event transition upon successful Compare-And-Set. Configured `FieldForgeOutboxDeadEventDetected` alert rule in `infra/docker/rules.yml`. Implemented `listDeadEvents()` and `replayDeadEvent()` methods on `BaseOutboxRelay`, resetting dead events atomically to `PENDING` with immediate schedule and cleared error/attempts while preserving immutable `eventId` and payloads. Built `scripts/outbox-admin.ts` CLI (exposed via `pnpm outbox:admin`) with strict payload modification guardrails, and authored the comprehensive operator runbook `docs/runbooks/outbox-dead-letter-recovery.md`. Zero database migrations (`RULE-DB-02`).
+
+**Deliverables:**
+
+- **Preserved Causal Ordering Invariants (`packages/common`).**
+  - Maintained `prior.status IN ('PENDING', 'PROCESSING', 'FAILED', 'DEAD')` in `BaseOutboxRelay` causal blocker query.
+  - Guaranteed strict per-aggregate monotonic FIFO ordering without unsafe auto-skipping or fake `PUBLISHED` transitions.
+  - Allowed distinct aggregates to proceed concurrently without contention.
+- **Prometheus APM Counter & Structured Logging (`packages/common`).**
+  - Added `fieldforge_outbox_dead_events_total` counter in `MetricsRegistry` with labels `['service', 'outbox', 'reason']`.
+  - Added `incrementOutboxDeadEvent(service, outbox, reason)` method and `resetMetrics()`.
+  - Wired atomic increment upon successful CAS transition to `DEAD` in `BaseOutboxRelay`.
+  - Added structured error logs capturing event ID, aggregate ID, table name, and sanitized error summary.
+- **Prometheus Alerting (`infra/docker`).**
+  - Added `FieldForgeOutboxDeadEventDetected` alert rule in `infra/docker/rules.yml` firing on `increase(fieldforge_outbox_dead_events_total[5m]) > 0`.
+  - Annotated with severity `critical` and link to operator runbook.
+- **BaseOutboxRelay Operator Methods (`packages/common`).**
+  - Added `listDeadEvents(limit)` returning sanitized metadata (excluding raw payloads).
+  - Added `replayDeadEvent(id)` executing atomic CAS update resetting `status = 'PENDING'`, `attemptCount = 0`, `nextAttemptAt = NOW()`, `lastError = 'REPLAY_QUEUED_BY_OPERATOR'`, and triggering the relay.
+  - Returns `'REQUEUED'`, `'NOT_DEAD'`, or `'NOT_FOUND'`.
+- **Operator Administrative CLI & Runbook (`scripts/`, `docs/runbooks`).**
+  - Created `scripts/outbox-admin.ts` and `scripts/outbox-admin.sh` exposed via `pnpm outbox:admin`.
+  - Supports `list <work-order|billing>`, `inspect <work-order|billing> <id>`, and `replay <work-order|billing> <id>`.
+  - Enforced strict safety guardrail rejecting any `--payload` modification flags.
+  - Created `docs/runbooks/outbox-dead-letter-recovery.md` detailing alert triage, inspection, root-cause diagnosis, and safe replay workflows.
+- **Automated Tests.**
+  - Added 6 unit tests in `packages/common/test/outbox-relay.spec.ts` covering poison detection, metric increments, FAILED non-increments, CAS collision non-increments, `listDeadEvents`, `replayDeadEvent` state resets, and causal blocker invariant verification.
+  - 105 passing tests in `packages/common`.
+
+**Verification:**
+
+- `pnpm check && pnpm build` pass cleanly.
+- `pnpm test` passes across 15 packages with 855 automated unit/integration tests (+6 new tests, zero `--passWithNoTests`).
+- `pnpm test:e2e` passes with 48 Playwright tests validated.
+- `pnpm validate:clean-typecheck` passes cleanly.
+- Total verified tests: 855 unit/integration tests + 48 E2E tests = 903 tests.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

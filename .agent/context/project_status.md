@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-16  
-**Phase:** Phase 49 complete — LedgerPaymentProvider Process-Local Idempotency State & Durable Conflict Detection (Resolves ISSUE-013). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 50 complete — DEAD Outbox Observability & Safe Operator Recovery (Resolves ISSUE-014). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -79,7 +79,15 @@
   - Strict FIFO mutation replay with `x-idempotency-key: mob-offline-<uuid>` and exponential retry backoff.
   - Mandatory iOS/Android location, camera, and storage permissions strings and `PermissionsService` wrapper (resolving L7).
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
-- **A test harness that can fail.** 841 automated unit/integration tests across 15 packages/apps (+ 48 Playwright E2E tests = 889 total verified tests).
+- **A test harness that can fail.** 855 automated unit/integration tests across 15 packages/apps (+ 48 Playwright E2E tests = 903 total verified tests).
+- **DEAD Outbox Observability & Safe Operator Recovery (Phase 50, Resolves ISSUE-014).**
+  - Preserved intentional per-aggregate FIFO causal ordering (`prior.status IN ('PENDING', 'PROCESSING', 'FAILED', 'DEAD')`) in `BaseOutboxRelay` to prevent downstream state corruption from out-of-order execution, while allowing distinct aggregates to proceed concurrently.
+  - Added Prometheus APM counter `fieldforge_outbox_dead_events_total` with low-cardinality labels `['service', 'outbox', 'reason']`, incremented strictly once per poison event transition on successful Compare-And-Set.
+  - Added Prometheus alert `FieldForgeOutboxDeadEventDetected` in `infra/docker/rules.yml` linked to the operator runbook.
+  - Added `listDeadEvents()` and `replayDeadEvent()` methods to `BaseOutboxRelay`, performing atomic Compare-And-Set reset to `PENDING` with cleared error and attempts, preserving immutable `eventId` and payloads.
+  - Created operator administrative CLI `scripts/outbox-admin.ts` / `scripts/outbox-admin.sh` (`pnpm outbox:admin`) with strict payload tampering guardrails.
+  - Created operator runbook `docs/runbooks/outbox-dead-letter-recovery.md` documenting alert triage, inspection, diagnosis, and replay workflows.
+  - Added 6 automated unit tests in `packages/common/test/outbox-relay.spec.ts` (105 passing tests in `packages/common`). Zero database migrations (`RULE-DB-02`).
 - **Multi-Pod SLA Auto-Approval Scheduler Race Handling (Phase 47, Resolves ISSUE-006).**
   - Re-verified that existing `SELECT ... FOR UPDATE` row locks, `WorkOrderFsmService` state transition validation, and transactional outbox event creation already guarantee exactly-once state transitions and exactly-one committed `WORK_ORDER_APPROVED` outbox record across multi-pod deployments (`replicas: 3`), with at-least-once broker delivery and consumer idempotency per ADR 011 / ISSUE-005.
   - Added structured state re-read verification in `SlaAutoApprovalService.runAutoApprovalSweep()` upon transition failure: queries `WorkOrdersService.findById()` to inspect current work order status.

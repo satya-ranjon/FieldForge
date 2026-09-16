@@ -1503,6 +1503,30 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   8. **No Redis or LRU Cache Added**: Preserved architectural simplicity without introducing Redis or lossy LRU caches to `billing-service`.
   9. **Automated Verification Coverage**: Rewrote `apps/billing-service/test/ledger-payment.provider.spec.ts` for stateless simulation and memory verification (zero retained properties across 1,000 operations). Added comprehensive tests in `apps/billing-service/test/escrow.service.spec.ts` covering conflicting parameter detection (capture, payout, refund), restart safety (provider recreation with authoritative DB return), and multi-replica safety (two pods sharing database executing provider exactly once). 90 passed tests in `billing-service`.
 
+### ISSUE-014 · 📡 DEAD Outbox Observability & Safe Operator Recovery
+
+- **Status: resolved.**
+- **Severity**: Medium
+- **Root Cause**: In `BaseOutboxRelay` (`packages/common/src/outbox/outbox-relay.ts`), the transactional outbox engine correctly halts processing of subsequent events for the same aggregate (`aggregateType` + `aggregateId`) whenever an earlier event is in `DEAD` status:
+  ```sql
+  AND prior.status IN ('PENDING', 'PROCESSING', 'FAILED', 'DEAD')
+  ```
+  Step 21A investigation confirmed that causal blocking on `DEAD` is **intentional fail-stop causal ordering** to prevent downstream domain corruption (e.g., publishing `WORK_ORDER_APPROVED` or `PAYOUT_DISBURSED` when an earlier assignment or escrow funding event failed due to structural poison). However, it was **operationally incomplete**:
+  1. Transitioning to `DEAD` produced zero APM metrics (`fieldforge_outbox_dead_events_total` did not exist in `MetricsRegistry`).
+  2. Zero Prometheus alerts existed to notify on-call SREs when an aggregate stream was blocked.
+  3. Zero operator inspection or safe atomic replay tooling existed.
+  4. An unmonitored dead event permanently halted an aggregate stream without operator visibility or remediation path.
+- **Fix**: Preserved intentional per-aggregate FIFO causal ordering while implementing complete observability, Prometheus alerting, and safe atomic operator replay tooling:
+  1. **Preserved Strict Causal Ordering**: Kept `prior.status IN ('PENDING', 'PROCESSING', 'FAILED', 'DEAD')` unchanged in `BaseOutboxRelay`. Monotonic per-aggregate FIFO ordering is preserved without auto-skipping or fake `PUBLISHED` transitions. Distinct aggregates continue publishing concurrently.
+  2. **Prometheus APM Counter**: Added `fieldforge_outbox_dead_events_total` counter in `MetricsRegistry` (`packages/common/src/apm/metrics.registry.ts`) with low-cardinality labels `['service', 'outbox', 'reason']`. Increments atomically exactly once upon successful transition to `DEAD` (guarded by Compare-And-Set `affectedRows > 0`). Stale worker CAS collisions and transient retries (`FAILED`) do not increment the counter.
+  3. **Structured Poison Logging**: Emits structured error logs on poison event transition recording event ID, aggregate type/ID, attempt count, table name, and sanitized error summary.
+  4. **Prometheus Alerting**: Added `FieldForgeOutboxDeadEventDetected` alert rule in `infra/docker/rules.yml` (`expr: increase(fieldforge_outbox_dead_events_total[5m]) > 0`, `severity: critical`) with runbook link.
+  5. **BaseOutboxRelay Operator Methods**: Extended `BaseOutboxRelay` with `listDeadEvents(limit)` (excluding raw payloads for log safety) and `replayDeadEvent(id)` implementing atomic CAS resetting `status = 'PENDING'`, `attempt_count = 0`, `next_attempt_at = NOW()`, `last_error = 'REPLAY_QUEUED_BY_OPERATOR'`, triggering the relay immediately. Rejects non-DEAD or non-existent rows. Preserves immutable `eventId` and payload.
+  6. **Operator Administrative CLI**: Built `scripts/outbox-admin.ts` and `scripts/outbox-admin.sh` (exposed via `pnpm outbox:admin`) supporting `list`, `inspect`, and `replay` across `work-order` and `billing` outbox tables. Added strict safety guardrail rejecting any `--payload` modification attempts.
+  7. **Operator Runbook**: Authored `docs/runbooks/outbox-dead-letter-recovery.md` documenting alert triage, root cause diagnosis, remediation workflows, delivery semantics (at-least-once broker delivery + idempotent consumers), and operational invariants.
+  8. **Automated Test Coverage**: Added comprehensive test cases in `packages/common/test/outbox-relay.spec.ts` covering poison detection, metric increments on transition, zero increments on transient failure, zero increments on CAS collision, `listDeadEvents` filtering, `replayDeadEvent` atomic reset, `NOT_FOUND` / `NOT_DEAD` status validation, self-healing loop for persistent poison, and causal blocker invariant verification (105 passing tests in `packages/common`).
+  9. **Zero Database Migrations**: Reused existing database enum statuses (`'PENDING'`, `'PROCESSING'`, `'PUBLISHED'`, `'FAILED'`, `'DEAD'`) in accordance with `RULE-DB-02`.
+
 ---
 
 ## Suggested remediation order

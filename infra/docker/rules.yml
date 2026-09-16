@@ -32,3 +32,15 @@ groups:
       - record: fieldforge:billing_reconciliation_failures:rate_1h
         expr: >-
           sum(rate(billing_reconciliation_failures_total[1h])) or 0
+
+  - name: fieldforge-alerts
+    rules:
+      - alert: FieldForgeOutboxDeadEventDetected
+        expr: increase(fieldforge_outbox_dead_events_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Transactional outbox DEAD poison event detected in {{ $labels.service }}'
+          description: 'Outbox table {{ $labels.outbox }} in service {{ $labels.service }} encountered a DEAD poison event (reason: {{ $labels.reason }}). Causal ordering is intentionally blocking subsequent events for affected aggregates until operator remediation.'
+          runbook_url: 'docs/runbooks/outbox-dead-letter-recovery.md'
