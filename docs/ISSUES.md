@@ -1527,6 +1527,22 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   8. **Automated Test Coverage**: Added comprehensive test cases in `packages/common/test/outbox-relay.spec.ts` covering poison detection, metric increments on transition, zero increments on transient failure, zero increments on CAS collision, `listDeadEvents` filtering, `replayDeadEvent` atomic reset, `NOT_FOUND` / `NOT_DEAD` status validation, self-healing loop for persistent poison, and causal blocker invariant verification (105 passing tests in `packages/common`).
   9. **Zero Database Migrations**: Reused existing database enum statuses (`'PENDING'`, `'PROCESSING'`, `'PUBLISHED'`, `'FAILED'`, `'DEAD'`) in accordance with `RULE-DB-02`.
 
+### ISSUE-015 · 🗄️ Transactional Outbox Published-Event Retention
+
+- **Status: resolved.**
+- **Severity**: Medium
+- **Root Cause**: In `work_order_outbox_events` and `billing_outbox_events`, events successfully published to RabbitMQ transitioned permanently to `status = 'PUBLISHED'` but were retained in MySQL indefinitely without retention bounds. The transactional outbox is a **transient delivery store** (ADR 011), not the canonical business audit log (which resides in `work_order_status_history` and `payout_ledger`). Retaining millions of historical published events causes continuous payload JSON disk bloat, dilutes InnoDB buffer pool efficiency, and increases backup snapshot windows.
+- **Fix**: Implemented bounded, safe, scheduled retention purging of published outbox events in `@fieldforge/common`:
+  1. **Strict Retention Invariants**: Only rows with `status = 'PUBLISHED'` and `published_at < cutoff` are eligible for cleanup. The worker NEVER deletes or modifies `PENDING`, `PROCESSING`, `FAILED`, or `DEAD` rows. `DEAD` causal barriers remain intact for operator triage under ISSUE-014.
+  2. **Configurable Retention Horizon & Validation**: Added `parseRetentionDays()` reading `OUTBOX_PUBLISHED_RETENTION_DAYS` (default 30 days). Added strict positive integer validation rejecting 0, negative values, floats, and NaN.
+  3. **Bounded Two-Stage Batch Purging**: Implemented `OutboxRetentionWorker.purgeBatch()` using a safe two-stage pattern (SELECT candidate IDs ordered by `id ASC` with `LIMIT batchSize`, then `DELETE WHERE id IN (...) AND status = 'PUBLISHED' AND published_at < cutoff`). Repeats safety predicates in the DELETE statement. Bounded to `OUTBOX_CLEANUP_BATCH_SIZE` (default 1,000) and capped at 5 batches per run.
+  4. **Multi-Replica Safe**: Competing retention workers resolving the same candidate rows result safely in `affectedRows = 0` without lock escalation or exceptions.
+  5. **Decoupled Lifecycle & Relay Isolation**: Retention workers execute independently on an hourly interval (`OUTBOX_CLEANUP_INTERVAL_MS`, default 3,600,000ms) with non-blocking startup sweep. Retention failures never crash the service or block the outbox relay publisher. Timer handles are cleanly unref'd and cleared in `onApplicationShutdown()`.
+  6. **APM Metrics & Structured Logging**: Added Prometheus counters `fieldforge_outbox_cleanup_deleted_total` and `fieldforge_outbox_cleanup_failures_total` with low-cardinality labels `['service', 'outbox']`.
+  7. **Service Integration**: Wired `WorkOrderOutboxRetentionService` in `apps/work-order-service` and `BillingOutboxRetentionService` in `apps/billing-service` under strict bounded context data ownership.
+  8. **Zero Database Schema Migrations**: Existing columns (`status`, `published_at`, `id`) and composite indexes (`idx_wo_outbox_poller`, `idx_bill_outbox_poller`) natively support filtering published rows without schema migrations (`RULE-DB-02`).
+  9. **Automated Verification**: Added 17 unit tests in `packages/common/test/outbox-retention.worker.spec.ts` covering retention deletion, recent event preservation, non-published row preservation (DEAD/PENDING/PROCESSING/FAILED), null timestamp safety, batch draining caps, multi-worker concurrency, failure catching, timer lifecycles, and configuration validation.
+
 ---
 
 ## Suggested remediation order

@@ -19,6 +19,7 @@ import { LedgerPaymentProvider } from './modules/payments/ledger-payment.provide
 import { BillingController } from './controllers/billing.controller';
 import { WorkOrderDirectoryService } from './modules/work-orders/work-order-directory.service';
 import { BillingOutboxRelay } from './events/billing-outbox.relay';
+import { BillingOutboxRetentionService } from './events/billing-outbox-retention.service';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { BillingOutboxRelay } from './events/billing-outbox.relay';
     PdfKitInvoicePdfRenderer,
     BillingConsumer,
     BillingOutboxRelay,
+    BillingOutboxRetentionService,
     ProfileDirectoryService,
     WorkOrderDirectoryService
   ],
@@ -60,6 +62,7 @@ import { BillingOutboxRelay } from './events/billing-outbox.relay';
     PdfKitInvoicePdfRenderer,
     BillingConsumer,
     BillingOutboxRelay,
+    BillingOutboxRetentionService,
     ProfileDirectoryService,
     WorkOrderDirectoryService
   ]

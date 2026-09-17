@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
-**Last reviewed:** 2026-09-16  
-**Phase:** Phase 50 complete — DEAD Outbox Observability & Safe Operator Recovery (Resolves ISSUE-014). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Last reviewed:** 2026-09-17  
+**Phase:** Phase 51 complete — Transactional Outbox Published-Event Retention (Resolves ISSUE-015). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -79,7 +79,17 @@
   - Strict FIFO mutation replay with `x-idempotency-key: mob-offline-<uuid>` and exponential retry backoff.
   - Mandatory iOS/Android location, camera, and storage permissions strings and `PermissionsService` wrapper (resolving L7).
   - Geofenced on-site check-in enforcing standardized 200m tolerance via `@fieldforge/contracts` geo helpers (FR-MOB-001).
-- **A test harness that can fail.** 855 automated unit/integration tests across 15 packages/apps (+ 48 Playwright E2E tests = 903 total verified tests).
+- **A test harness that can fail.** 872 automated unit/integration tests across 15 packages/apps (+ 48 Playwright E2E tests = 920 total verified tests).
+- **Transactional Outbox Published-Event Retention (Phase 51, Resolves ISSUE-015).**
+  - Outbox tables are transient delivery stores (ADR 011), not canonical business audit logs (which reside immutably in `work_order_status_history` and `payout_ledger`).
+  - Implemented `OutboxRetentionWorker` in `@fieldforge/common` with configurable retention horizon (`OUTBOX_PUBLISHED_RETENTION_DAYS`, default 30 days) and batch size (`OUTBOX_CLEANUP_BATCH_SIZE`, default 1,000).
+  - Enforced strict retention invariants: purges ONLY events with `status = 'PUBLISHED'` and `published_at < cutoff`. Predecessor causal barriers (`DEAD`, `FAILED`, `PROCESSING`, `PENDING`) are never automatically deleted, preserving ISSUE-014 operator triage.
+  - Implemented safe two-stage batch deletion repeating safety predicates on DELETE. Capped at 5 batches per run.
+  - Added Prometheus APM counters `fieldforge_outbox_cleanup_deleted_total` and `fieldforge_outbox_cleanup_failures_total` with low-cardinality labels `['service', 'outbox']`.
+  - Multi-replica safe: competing worker deletions resolve to `affectedRows = 0` without lock escalation or errors.
+  - Relay isolation: retention worker runs independently on an hourly interval; DB errors are caught and metered without impacting outbox publishing.
+  - Wired `WorkOrderOutboxRetentionService` and `BillingOutboxRetentionService` in respective microservices.
+  - Added 17 automated unit tests in `packages/common/test/outbox-retention.worker.spec.ts` (122 passing tests in `packages/common`). Zero database migrations (`RULE-DB-02`).
 - **DEAD Outbox Observability & Safe Operator Recovery (Phase 50, Resolves ISSUE-014).**
   - Preserved intentional per-aggregate FIFO causal ordering (`prior.status IN ('PENDING', 'PROCESSING', 'FAILED', 'DEAD')`) in `BaseOutboxRelay` to prevent downstream state corruption from out-of-order execution, while allowing distinct aggregates to proceed concurrently.
   - Added Prometheus APM counter `fieldforge_outbox_dead_events_total` with low-cardinality labels `['service', 'outbox', 'reason']`, incremented strictly once per poison event transition on successful Compare-And-Set.

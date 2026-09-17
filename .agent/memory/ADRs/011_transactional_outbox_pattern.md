@@ -106,4 +106,4 @@ flowchart TD
 ### Negative / Trade-Offs
 
 - **Eventual Consistency:** Downstream consumers receive events asynchronously post-commit (typically < 10ms via event-loop trigger, up to 5s on polling fallback).
-- **Storage Growth:** Outbox tables accumulate records; scheduled archival/pruning of `PUBLISHED` rows will be required in production operations.
+- **Storage Growth & Bounded Retention (`ISSUE-015`):** Outbox tables are transient delivery stores, not canonical business audit stores. Domain history is preserved immutably in `work_order_status_history` and `payout_ledger`. Under ISSUE-015, `OutboxRetentionWorker` runs bounded hourly sweeps purging only `PUBLISHED` events older than `OUTBOX_PUBLISHED_RETENTION_DAYS` (default 30 days). Predecessor causal barriers (`DEAD`, `FAILED`, `PROCESSING`, `PENDING`) are never automatically deleted.

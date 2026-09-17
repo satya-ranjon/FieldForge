@@ -9,6 +9,8 @@ export class MetricsRegistry {
   public readonly dispatchFanoutLatencySeconds: Histogram<string>;
   public readonly billingReconciliationFailuresTotal: Counter<string>;
   public readonly outboxDeadEventsTotal: Counter<string>;
+  public readonly outboxCleanupDeletedTotal: Counter<string>;
+  public readonly outboxCleanupFailuresTotal: Counter<string>;
 
   private constructor() {
     this.register = new Registry();
@@ -50,6 +52,20 @@ export class MetricsRegistry {
       registers: [this.register]
     });
 
+    this.outboxCleanupDeletedTotal = new Counter({
+      name: 'fieldforge_outbox_cleanup_deleted_total',
+      help: 'Total number of published outbox events purged by the retention cleanup worker',
+      labelNames: ['service', 'outbox'],
+      registers: [this.register]
+    });
+
+    this.outboxCleanupFailuresTotal = new Counter({
+      name: 'fieldforge_outbox_cleanup_failures_total',
+      help: 'Total number of failures encountered by the retention cleanup worker',
+      labelNames: ['service', 'outbox'],
+      registers: [this.register]
+    });
+
     collectDefaultMetrics({ register: this.register });
   }
 
@@ -87,6 +103,14 @@ export class MetricsRegistry {
 
   public incrementOutboxDeadEvent(service: string, outbox: string, reason: string): void {
     this.outboxDeadEventsTotal.inc({ service, outbox, reason });
+  }
+
+  public incrementOutboxCleanupDeleted(service: string, outbox: string, count = 1): void {
+    this.outboxCleanupDeletedTotal.inc({ service, outbox }, count);
+  }
+
+  public incrementOutboxCleanupFailure(service: string, outbox: string): void {
+    this.outboxCleanupFailuresTotal.inc({ service, outbox });
   }
 
   public async getMetrics(): Promise<string> {

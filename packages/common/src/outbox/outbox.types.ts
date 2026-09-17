@@ -22,3 +22,12 @@ export interface OutboxRelayConfig {
   publishTimeoutMs?: number;
   pollIntervalMs?: number;
 }
+
+export interface OutboxRetentionConfig {
+  serviceName: string;
+  outboxName?: string;
+  retentionDays?: number;
+  batchSize?: number;
+  cleanupIntervalMs?: number;
+  maxBatchesPerRun?: number;
+}

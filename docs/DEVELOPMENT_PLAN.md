@@ -1992,6 +1992,45 @@ Preserved intentional per-aggregate FIFO causal ordering (`prior.status IN ('PEN
 
 ---
 
+## Phase 51 — Transactional Outbox Published-Event Retention (ISSUE-015)
+
+**Size: S · Dependencies: Phase 20, Phase 50.** Resolves **ISSUE-015** (Transactional Outbox Published-Event Retention).
+
+Bounded retention for `work_order_outbox_events` and `billing_outbox_events`, which previously retained `PUBLISHED` events indefinitely. The transactional outbox is a transient delivery store (ADR 011), not the canonical audit store (`work_order_status_history` and `payout_ledger`). Implemented `OutboxRetentionWorker` in `@fieldforge/common` with configurable retention horizon (`OUTBOX_PUBLISHED_RETENTION_DAYS`, default 30 days) and batch size (`OUTBOX_CLEANUP_BATCH_SIZE`, default 1,000). Purges ONLY events where `status = 'PUBLISHED'` and `published_at < cutoff`, strictly preserving causal barriers (`DEAD`, `FAILED`, `PROCESSING`, `PENDING`). Wired service-specific retention workers in `work-order-service` and `billing-service` without cross-service database access. Added APM metrics `fieldforge_outbox_cleanup_deleted_total` and `fieldforge_outbox_cleanup_failures_total`. Zero database migrations (`RULE-DB-02`).
+
+**Deliverables:**
+
+- **Outbox Retention Worker Engine (`packages/common`).**
+  - Implemented `OutboxRetentionWorker` implementing `OnApplicationBootstrap` and `OnApplicationShutdown`.
+  - Added strict configuration parsers `parseRetentionDays`, `parseCleanupBatchSize`, `parseCleanupIntervalMs` validating positive integers and rejecting 0, negative values, and NaN.
+  - Implemented two-stage batch purging: `SELECT candidate IDs ORDER BY id ASC LIMIT batchSize`, followed by `DELETE WHERE id IN (...) AND status = 'PUBLISHED' AND published_at < cutoff` with redundant safety predicates.
+  - Enforced bounded batch draining capped at 5 batches per run.
+  - Implemented non-blocking startup sweep and hourly scheduled interval.
+  - Multi-replica safe: competing worker deletions resolve to `affectedRows = 0` without error.
+  - Relay isolation: retention failure is caught, logged, and metered without impacting outbox event publishing.
+- **Prometheus APM Counters (`packages/common`).**
+  - Registered `fieldforge_outbox_cleanup_deleted_total` and `fieldforge_outbox_cleanup_failures_total` with labels `['service', 'outbox']`.
+  - Added helper methods in `MetricsRegistry`.
+- **Microservice Integration (`work-order-service`, `billing-service`).**
+  - Created `WorkOrderOutboxRetentionService` in `apps/work-order-service` managing `work_order_outbox_events`.
+  - Created `BillingOutboxRetentionService` in `apps/billing-service` managing `billing_outbox_events`.
+  - Registered providers in `WorkOrderModule` and `BillingModule`.
+- **Database Schema Re-exports (`packages/database`).**
+  - Re-exported `isNotNull` from `drizzle-orm` in `@fieldforge/database`.
+- **Automated Tests.**
+  - Added 17 unit tests in `packages/common/test/outbox-retention.worker.spec.ts` covering retention purging, recent row preservation, non-published row preservation, batch draining limits, competing replica safety, failure catching, timer lifecycle, and config validation.
+  - 122 passing tests in `packages/common`.
+
+**Verification:**
+
+- `pnpm check && pnpm build` pass cleanly.
+- `pnpm test` passes across 15 packages with 872 automated unit/integration tests (+17 new tests, zero `--passWithNoTests`).
+- `pnpm test:e2e` passes with 48 Playwright tests validated.
+- `pnpm validate:clean-typecheck` passes cleanly.
+- Total verified tests: 872 unit/integration tests + 48 E2E tests = 920 tests.
+
+---
+
 ## Explicitly out of scope
 
 These stay open by decision, not oversight. Keep them listed in `docs/ISSUES.md` so no one reads

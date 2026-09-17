@@ -41,7 +41,8 @@ export {
   desc,
   notExists,
   aliasedTable,
-  getTableName
+  getTableName,
+  isNotNull
 } from 'drizzle-orm';
 
 export const iamSchema = {
