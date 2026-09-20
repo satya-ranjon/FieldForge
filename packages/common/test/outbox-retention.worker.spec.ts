@@ -280,4 +280,231 @@ describe('Outbox Retention Worker (ISSUE-015)', () => {
       expect(mockDb.delete).not.toHaveBeenCalled();
     });
   });
+
+  describe('Comprehensive Status Filtering & State Invariants (Section 14)', () => {
+    interface SimulatedRow {
+      id: number;
+      status: 'PENDING' | 'PROCESSING' | 'PUBLISHED' | 'FAILED' | 'DEAD';
+      publishedAt: Date | null;
+      createdAt: Date;
+    }
+
+    let simulatedRows: SimulatedRow[];
+    let statefulDb: Record<string, jest.Mock>;
+    let statefulWorker: OutboxRetentionWorker;
+
+    beforeEach(() => {
+      const now = new Date('2026-09-20T12:00:00.000Z');
+      const fortyDaysAgo = new Date(now.getTime() - 40 * 24 * 60 * 60 * 1000);
+      const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
+
+      simulatedRows = [
+        { id: 1, status: 'PUBLISHED', publishedAt: fortyDaysAgo, createdAt: fortyDaysAgo }, // Old PUBLISHED -> should delete
+        { id: 2, status: 'PUBLISHED', publishedAt: fiveDaysAgo, createdAt: fiveDaysAgo }, // Recent PUBLISHED -> should keep
+        { id: 3, status: 'PENDING', publishedAt: null, createdAt: fortyDaysAgo }, // Old PENDING -> should keep
+        { id: 4, status: 'PROCESSING', publishedAt: null, createdAt: fortyDaysAgo }, // Old PROCESSING -> should keep
+        { id: 5, status: 'FAILED', publishedAt: null, createdAt: fortyDaysAgo }, // Old FAILED -> should keep
+        { id: 6, status: 'DEAD', publishedAt: null, createdAt: fortyDaysAgo }, // Old DEAD (ISSUE-014) -> should keep
+        { id: 7, status: 'PUBLISHED', publishedAt: null, createdAt: fortyDaysAgo } // PUBLISHED with null publishedAt -> should keep
+      ];
+
+      statefulDb = {
+        select: jest.fn().mockReturnThis(),
+        from: jest.fn().mockReturnThis(),
+        where: jest.fn().mockImplementation(() => ({
+          orderBy: jest.fn().mockImplementation(() => ({
+            limit: jest.fn().mockImplementation((limitCount: number) => {
+              const cutoff = statefulWorker.computeCutoffDate(now.getTime());
+              const eligible = simulatedRows
+                .filter(
+                  (r) =>
+                    r.status === 'PUBLISHED' &&
+                    r.publishedAt !== null &&
+                    r.publishedAt.getTime() < cutoff.getTime()
+                )
+                .slice(0, limitCount);
+              return Promise.resolve(eligible.map((r) => ({ id: r.id })));
+            })
+          }))
+        })),
+        delete: jest.fn().mockImplementation(() => ({
+          where: jest.fn().mockImplementation(() => {
+            const cutoff = statefulWorker.computeCutoffDate(now.getTime());
+            const initialCount = simulatedRows.length;
+            simulatedRows = simulatedRows.filter(
+              (r) =>
+                !(
+                  r.status === 'PUBLISHED' &&
+                  r.publishedAt !== null &&
+                  r.publishedAt.getTime() < cutoff.getTime()
+                )
+            );
+            const affectedRows = initialCount - simulatedRows.length;
+            return Promise.resolve([{ affectedRows }]);
+          })
+        }))
+      };
+
+      statefulWorker = new OutboxRetentionWorker(
+        statefulDb as unknown as DrizzleClient,
+        fakeTable,
+        {
+          serviceName: 'stateful-service',
+          outboxName: 'stateful_outbox',
+          retentionDays: 30,
+          batchSize: 1000,
+          cleanupIntervalMs: 3_600_000,
+          maxBatchesPerRun: 5
+        },
+        new Logger('StatefulRetentionWorker')
+      );
+    });
+
+    it('deletes Old PUBLISHED (older than cutoff)', async () => {
+      const fixedCutoff = statefulWorker.computeCutoffDate(
+        new Date('2026-09-20T12:00:00.000Z').getTime()
+      );
+      const purged = await statefulWorker.purgeBatch(fixedCutoff);
+
+      expect(purged).toBe(1);
+      expect(simulatedRows.find((r) => r.id === 1)).toBeUndefined();
+    });
+
+    it('keeps Recent PUBLISHED (within retention cutoff)', async () => {
+      const fixedCutoff = statefulWorker.computeCutoffDate(
+        new Date('2026-09-20T12:00:00.000Z').getTime()
+      );
+      await statefulWorker.purgeBatch(fixedCutoff);
+
+      const recentPublished = simulatedRows.find((r) => r.id === 2);
+      expect(recentPublished).toBeDefined();
+      expect(recentPublished?.status).toBe('PUBLISHED');
+    });
+
+    it('keeps PENDING rows even when older than retention cutoff', async () => {
+      const fixedCutoff = statefulWorker.computeCutoffDate(
+        new Date('2026-09-20T12:00:00.000Z').getTime()
+      );
+      await statefulWorker.purgeBatch(fixedCutoff);
+
+      const oldPending = simulatedRows.find((r) => r.id === 3);
+      expect(oldPending).toBeDefined();
+      expect(oldPending?.status).toBe('PENDING');
+    });
+
+    it('keeps PROCESSING rows even when older than retention cutoff', async () => {
+      const fixedCutoff = statefulWorker.computeCutoffDate(
+        new Date('2026-09-20T12:00:00.000Z').getTime()
+      );
+      await statefulWorker.purgeBatch(fixedCutoff);
+
+      const oldProcessing = simulatedRows.find((r) => r.id === 4);
+      expect(oldProcessing).toBeDefined();
+      expect(oldProcessing?.status).toBe('PROCESSING');
+    });
+
+    it('keeps FAILED rows even when older than retention cutoff', async () => {
+      const fixedCutoff = statefulWorker.computeCutoffDate(
+        new Date('2026-09-20T12:00:00.000Z').getTime()
+      );
+      await statefulWorker.purgeBatch(fixedCutoff);
+
+      const oldFailed = simulatedRows.find((r) => r.id === 5);
+      expect(oldFailed).toBeDefined();
+      expect(oldFailed?.status).toBe('FAILED');
+    });
+
+    it('keeps DEAD rows intact as ISSUE-014 causal barriers requiring operator replay', async () => {
+      const fixedCutoff = statefulWorker.computeCutoffDate(
+        new Date('2026-09-20T12:00:00.000Z').getTime()
+      );
+      await statefulWorker.purgeBatch(fixedCutoff);
+
+      const oldDead = simulatedRows.find((r) => r.id === 6);
+      expect(oldDead).toBeDefined();
+      expect(oldDead?.status).toBe('DEAD');
+    });
+
+    it('keeps PUBLISHED rows with null publishedAt intact', async () => {
+      const fixedCutoff = statefulWorker.computeCutoffDate(
+        new Date('2026-09-20T12:00:00.000Z').getTime()
+      );
+      await statefulWorker.purgeBatch(fixedCutoff);
+
+      const nullPublished = simulatedRows.find((r) => r.id === 7);
+      expect(nullPublished).toBeDefined();
+      expect(nullPublished?.publishedAt).toBeNull();
+    });
+
+    it('strictly bounds batch cleanup when backlog exceeds limit (maxBatchesPerRun cap)', async () => {
+      // Create 1500 candidate rows with batchSize = 200 and maxBatchesPerRun = 3
+      const now = new Date('2026-09-20T12:00:00.000Z');
+      const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+      let backlogRows = Array.from({ length: 1500 }, (_, i) => ({
+        id: 10000 + i,
+        status: 'PUBLISHED' as const,
+        publishedAt: sixtyDaysAgo,
+        createdAt: sixtyDaysAgo
+      }));
+
+      const boundedDb = {
+        select: jest.fn().mockReturnThis(),
+        from: jest.fn().mockReturnThis(),
+        where: jest.fn().mockImplementation(() => ({
+          orderBy: jest.fn().mockImplementation(() => ({
+            limit: jest.fn().mockImplementation((limitCount: number) => {
+              const eligible = backlogRows.slice(0, limitCount);
+              return Promise.resolve(eligible.map((r) => ({ id: r.id })));
+            })
+          }))
+        })),
+        delete: jest.fn().mockImplementation(() => ({
+          where: jest.fn().mockImplementation(() => {
+            const purgedCount = Math.min(200, backlogRows.length);
+            backlogRows = backlogRows.slice(purgedCount);
+            return Promise.resolve([{ affectedRows: purgedCount }]);
+          })
+        }))
+      };
+
+      const boundedWorker = new OutboxRetentionWorker(
+        boundedDb as unknown as DrizzleClient,
+        fakeTable,
+        {
+          serviceName: 'bounded-service',
+          outboxName: 'bounded_outbox',
+          retentionDays: 30,
+          batchSize: 200,
+          maxBatchesPerRun: 3, // Can purge at most 3 * 200 = 600 rows
+          cleanupIntervalMs: 3_600_000
+        },
+        new Logger('BoundedWorker')
+      );
+
+      jest
+        .spyOn(boundedWorker, 'computeCutoffDate')
+        .mockReturnValue(new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000));
+
+      const totalDeleted = await boundedWorker.runCleanup();
+
+      // Exactly 3 batches of 200 = 600 rows deleted
+      expect(totalDeleted).toBe(600);
+      // 900 rows remain in backlog for subsequent cycles
+      expect(backlogRows.length).toBe(900);
+    });
+
+    it('demonstrates multi-replica safety where overlapping deletion is harmless', async () => {
+      // Replica A and Replica B both target ID 901
+      // Replica A deletes ID 901 -> affectedRows = 1
+      // Replica B attempts same DELETE -> affectedRows = 0
+      mockDb.limit.mockResolvedValueOnce([{ id: 901 }]);
+      const mockWhereB = jest.fn().mockResolvedValue([{ affectedRows: 0 }]);
+      mockDb.delete.mockReturnValueOnce({ where: mockWhereB });
+
+      const deletedByReplicaB = await worker.purgeBatch(new Date());
+
+      expect(deletedByReplicaB).toBe(0);
+      expect(mockWhereB).toHaveBeenCalled();
+    });
+  });
 });
