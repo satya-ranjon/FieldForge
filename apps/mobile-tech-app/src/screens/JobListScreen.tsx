@@ -128,7 +128,7 @@ function getStatusStyle(status: string) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#0f172a'
+    backgroundColor: '#0d1517'
   },
   header: {
     flexDirection: 'row',
@@ -138,10 +138,10 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#1e293b'
+    borderBottomColor: '#22383c'
   },
   headerTitle: {
-    color: '#38bdf8',
+    color: '#84e539',
     fontSize: 20,
     fontWeight: 'bold'
   },
@@ -188,15 +188,15 @@ const styles = StyleSheet.create({
     padding: 20
   },
   accreditationsContainer: {
-    backgroundColor: '#0c1527',
+    backgroundColor: '#142427',
     borderRadius: 10,
     padding: 12,
     marginBottom: 18,
     borderWidth: 1,
-    borderColor: '#1e3a8a'
+    borderColor: '#22383c'
   },
   accreditationsTitle: {
-    color: '#38bdf8',
+    color: '#84e539',
     fontSize: 12,
     fontWeight: 'bold',
     marginBottom: 8
@@ -207,15 +207,15 @@ const styles = StyleSheet.create({
     gap: 6
   },
   complianceBadge: {
-    backgroundColor: '#064e3b',
+    backgroundColor: '#0d1517',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#059669'
+    borderColor: '#22383c'
   },
   complianceBadgeText: {
-    color: '#a7f3d0',
+    color: '#84e539',
     fontSize: 10,
     fontWeight: '600'
   },
@@ -226,12 +226,12 @@ const styles = StyleSheet.create({
     marginBottom: 14
   },
   card: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#142427',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#334155'
+    borderColor: '#22383c'
   },
   cardHeader: {
     flexDirection: 'row',
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
     marginBottom: 8
   },
   jobCategory: {
-    color: '#38bdf8',
+    color: '#84e539',
     fontSize: 11,
     fontWeight: 'bold',
     textTransform: 'uppercase'
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#334155'
+    borderTopColor: '#22383c'
   },
   footerLabel: {
     color: '#64748b',
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase'
   },
   payoutText: {
-    color: '#34d399',
+    color: '#84e539',
     fontSize: 16,
     fontWeight: 'bold',
     marginTop: 2
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   actionPromptText: {
-    color: '#60a5fa',
+    color: '#84e539',
     fontSize: 12,
     fontWeight: '600'
   }

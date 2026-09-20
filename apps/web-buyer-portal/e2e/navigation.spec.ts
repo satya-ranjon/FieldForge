@@ -27,6 +27,8 @@ test.describe('Buyer Portal Navigation Flow', () => {
 
     // Return to Operations
     await page.getByRole('button', { name: /Live Operations/i }).click({ force: true });
-    await expect(page.getByRole('button', { name: /Live Operations/i })).toHaveClass(/bg-blue-600/);
+    await expect(page.getByRole('button', { name: /Live Operations/i })).toHaveClass(
+      /bg-\[#(A8F22D|a8f22d)\]/
+    );
   });
 });

@@ -21,11 +21,11 @@ export const GpsRadar: React.FC<GpsRadarProps> = ({ distanceMeters, isVerified }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#142427',
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#22383c',
     marginVertical: 10
   },
   label: {
@@ -39,7 +39,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold'
   },
   verified: {
-    color: '#34d399'
+    color: '#84e539'
   },
   unverified: {
     color: '#fbbf24'

@@ -724,7 +724,7 @@ function getPhotoButtonStatusStyle(status: string | null | undefined) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#0f172a'
+    backgroundColor: '#0d1517'
   },
   topBar: {
     flexDirection: 'row',
@@ -733,16 +733,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#1e293b'
+    borderBottomColor: '#22383c'
   },
   backButton: {
     paddingVertical: 6,
     paddingHorizontal: 10,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#142427',
     borderRadius: 6
   },
   backButtonText: {
-    color: '#38bdf8',
+    color: '#84e539',
     fontSize: 14,
     fontWeight: 'bold'
   },
@@ -791,7 +791,7 @@ const styles = StyleSheet.create({
     borderRadius: 6
   },
   syncNowButtonText: {
-    color: '#0f172a',
+    color: '#0f1a1c',
     fontSize: 11,
     fontWeight: 'bold'
   },
@@ -802,12 +802,12 @@ const styles = StyleSheet.create({
     padding: 16
   },
   card: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#142427',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#334155'
+    borderColor: '#22383c'
   },
   cardHeader: {
     flexDirection: 'row',
@@ -816,7 +816,7 @@ const styles = StyleSheet.create({
     marginBottom: 8
   },
   jobCategory: {
-    color: '#38bdf8',
+    color: '#84e539',
     fontSize: 11,
     fontWeight: 'bold',
     textTransform: 'uppercase'
@@ -853,12 +853,12 @@ const styles = StyleSheet.create({
     fontSize: 12
   },
   sectionCard: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#142427',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#334155'
+    borderColor: '#22383c'
   },
   sectionTitle: {
     color: '#f8fafc',
@@ -877,10 +877,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#334155'
+    borderBottomColor: '#22383c'
   },
   checkbox: {
-    color: '#38bdf8',
+    color: '#84e539',
     fontSize: 20,
     marginRight: 10
   },
@@ -900,9 +900,9 @@ const styles = StyleSheet.create({
   },
   serialInput: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#0d1517',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#22383c',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -910,18 +910,18 @@ const styles = StyleSheet.create({
     fontSize: 14
   },
   saveSmallButton: {
-    backgroundColor: '#2563eb',
+    backgroundColor: '#92ec3d',
     borderRadius: 8,
     justifyContent: 'center',
     paddingHorizontal: 16
   },
   saveSmallButtonText: {
-    color: '#ffffff',
+    color: '#0f1a1c',
     fontWeight: 'bold',
     fontSize: 13
   },
   serialConfirmed: {
-    color: '#34d399',
+    color: '#84e539',
     fontSize: 12,
     fontWeight: '600'
   },
@@ -931,20 +931,20 @@ const styles = StyleSheet.create({
   },
   photoButton: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#0d1517',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#22383c',
     borderRadius: 8,
     padding: 14,
     alignItems: 'center'
   },
   photoButtonAttached: {
-    borderColor: '#10b981',
-    backgroundColor: '#064e3b'
+    borderColor: '#84e539',
+    backgroundColor: '#052e16'
   },
   photoButtonUploading: {
-    borderColor: '#38bdf8',
-    backgroundColor: '#0c4a6e'
+    borderColor: '#84e539',
+    backgroundColor: '#142427'
   },
   photoButtonPending: {
     borderColor: '#f59e0b',
@@ -960,14 +960,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold'
   },
   signatureBox: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#0d1517',
     borderRadius: 8,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#10b981'
+    borderColor: '#84e539'
   },
   signatureText: {
-    color: '#34d399',
+    color: '#84e539',
     fontWeight: 'bold',
     fontSize: 14
   },
@@ -981,10 +981,10 @@ const styles = StyleSheet.create({
   },
   simulatedSignaturePad: {
     height: 100,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#0d1517',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#475569',
+    borderColor: '#22383c',
     borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center'
@@ -999,7 +999,7 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     flex: 1,
-    backgroundColor: '#334155',
+    backgroundColor: '#142427',
     padding: 12,
     borderRadius: 8,
     alignItems: 'center'
@@ -1010,47 +1010,47 @@ const styles = StyleSheet.create({
     fontSize: 13
   },
   actionButtonPrimary: {
-    backgroundColor: '#2563eb',
+    backgroundColor: '#92ec3d',
     padding: 14,
     borderRadius: 8,
     alignItems: 'center'
   },
   actionButtonSecondary: {
-    backgroundColor: '#334155',
+    backgroundColor: '#142427',
     padding: 14,
     borderRadius: 8,
     alignItems: 'center'
   },
   actionButtonComplete: {
-    backgroundColor: '#16a34a',
+    backgroundColor: '#92ec3d',
     padding: 16,
     borderRadius: 8,
     alignItems: 'center'
   },
   actionButtonDisabled: {
-    backgroundColor: '#334155',
+    backgroundColor: '#142427',
     opacity: 0.6
   },
   buttonText: {
-    color: '#ffffff',
+    color: '#0f1a1c',
     fontWeight: 'bold',
     fontSize: 15
   },
   buttonSecondaryText: {
-    color: '#38bdf8',
+    color: '#84e539',
     fontWeight: 'bold',
     fontSize: 14
   },
   completedCard: {
-    backgroundColor: '#064e3b',
+    backgroundColor: '#142427',
     borderRadius: 12,
     padding: 20,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#059669'
+    borderColor: '#84e539'
   },
   completedTitle: {
-    color: '#34d399',
+    color: '#84e539',
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 8
@@ -1068,7 +1068,7 @@ const styles = StyleSheet.create({
     padding: 20
   },
   button: {
-    backgroundColor: '#2563eb',
+    backgroundColor: '#92ec3d',
     padding: 12,
     borderRadius: 8,
     marginTop: 16

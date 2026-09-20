@@ -1,13 +1,20 @@
 # FieldForge Implementation Status
 
 **Last reviewed:** 2026-09-20  
-**Phase:** Phase 52 complete — NestJS Dependency Injection Startup Failure Remediation (Resolves ISSUE-016). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Phase:** Phase 53 complete — Brand Visual System Redesign & Dual-Surface Architecture. Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
 - A pnpm/Turborepo monorepo with NestJS service shells, a Next.js App Router buyer
   portal (migrated off Vite; still served on port 5173), an Expo technician app, and
   shared contracts, database, common, messaging, and UI packages.
+- **Brand Design System v3.0.0 & Dual-Surface Architecture (`DESIGN.md`).**
+  - **Marketing Canvas (`#f5fbf5`):** Mint-tinted light canvas with crisp white cards (`#ffffff`), soft mint borders (`#e2ece5`), dark forest headings (`#0f172a`), and WCAG AA green text accent (`#5a9332`).
+  - **Command Center Canvas (`#0d1517`):** Slate-forest dark operational theme with elevated cards (`#142427`), subtle borders (`#22383c`), and radial ambient glow.
+  - **Brand Green Identity:** High-energy spring-lime (`#84e539`), high-contrast dark-labeled CTA buttons (`#92ec3d` / text `#0f1a1c`).
+  - **Unified Component Library (`@fieldforge/ui`):** Reusable `Button`, `Card`, `StatusBadge`, `Input`, `Modal`, `Badge`, and `Tabs`.
+  - **Public Marketing Website:** Dedicated routes for `/marketing`, `/platform`, `/solutions`, `/industries`, `/resources`, and `/pricing` with floating pill navbar, live radar matching preview, and responsive enterprise layouts.
+  - **Mobile Tech App Brand Alignment (`apps/mobile-tech-app`):** Slate-forest canvas, elevated job cards, verified green badges (`#84e539`), and tactical GPS radar widget.
 - **NestJS Runtime Dependency Injection Invariants (ISSUE-016).**
   - `ProfileDirectoryService` constructor in `@fieldforge/common` uses `@Optional() @Inject(PROFILE_DIRECTORY_MAX_ENTRIES) maxEntries?: number` with a safe numeric fallback to `PROFILE_DIRECTORY_CACHE_MAX_ENTRIES`.
   - `TechnicianDirectoryService` constructor in `apps/dispatch-matching-service` uses `@Optional() @Inject(TECHNICIAN_DIRECTORY_INTERNAL_SECRET)` and `@Optional() @Inject(TECHNICIAN_DIRECTORY_MAX_ENTRIES)`.

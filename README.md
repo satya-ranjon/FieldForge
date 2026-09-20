@@ -517,6 +517,28 @@ stateDiagram-v2
 
 ## 💻 Client Applications
 
+### 🎨 Design System v3.0.0 & Unified Brand Identity (`DESIGN.md`)
+
+- **Dual-Surface Architecture:**
+  - **Marketing & Public Trust Canvas (`#f5fbf5`):** Clean mint-tinted light background with card white surfaces (`#ffffff`), soft mint borders (`#e2ece5`), and high-readability forest green typography (`#0f172a` / `#166534`).
+  - **Command Center & Mission Control Canvas (`#0d1517`):** Dense slate-forest dark theme for high-frequency operations, card surfaces (`#142427`), subtle borders (`#22383c`), and ambient green glow indicators.
+- **Brand Green Identity:**
+  - Primary Brand Green: `#84e539` (radiant spring-lime)
+  - CTA Button Fill: `#92ec3d` with dark high-contrast label (`#0f1a1c`)
+  - Headline Accent / Dark Green: `#5a9332` (WCAG AA compliant contrast on light surfaces)
+- **Design Tokens in `@fieldforge/ui`:** Standardized `Button`, `Card`, `StatusBadge`, `Input`, `Modal`, `Badge`, and `Tabs` with strict variant inheritance across apps.
+
+### 🌐 Public Marketing Website (`apps/web-buyer-portal`)
+
+- **Dedicated Marketing & Discovery Routes:**
+  - `/marketing`: Approved product hero, live technician matching radar widget preview, automated 3-step workflow, customer validation, and FAQ accordion.
+  - `/platform`: Enterprise architecture, real-time dispatch matching engine, and tamper-evident proof of work.
+  - `/solutions`: Telecom, enterprise networking, IoT, and critical infrastructure deployment solutions.
+  - `/industries`: Vertical workflows for enterprise IT, data centers, managed service providers, and renewable energy.
+  - `/resources`: Technical whitepapers, API reference guides, security architecture specifications, and customer case studies.
+  - `/pricing`: Transparent volume tiers, escrow settlement schedules, and enterprise SLA contracts.
+- **Navigation & Brand Experience:** Floating pill navigation bar, approved green "F" brand logo, one-click access to command center operations.
+
 ### 🏢 Enterprise Buyer Portal (`apps/web-buyer-portal`)
 
 - **Next.js 16 App Router & React 19:** High-performance responsive dashboard served on port `5173`.
@@ -534,6 +556,7 @@ stateDiagram-v2
 - **Durable Offline Sync Queue:** Atomic `OfflineSyncService` backed by persistent storage; mutations executed offline replay via FIFO queue with `x-idempotency-key` and exponential backoff upon reconnect.
 - **Geofenced On-Site Check-In:** Device GPS checks against work order coordinates enforcing the strict $\le 200\text{m}$ radius threshold.
 - **Proof of Work Deliverables:** Milestone checklist verification, hardware serial number scanner, camera integration with presigned uploads, and client finger-signature capture.
+- **Brand Aligned Dark Surface:** Slate-forest canvas (`#0d1517`), elevated job cards (`#142427`), verified green telemetry (`#84e539`), and tactical GPS radar widget.
 
 ---
 

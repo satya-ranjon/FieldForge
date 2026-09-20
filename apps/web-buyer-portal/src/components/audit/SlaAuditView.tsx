@@ -79,28 +79,28 @@ export const SlaAuditView: React.FC = () => {
   return (
     <div className="space-y-5 sm:space-y-6">
       {/* SLA Metrics Header */}
-      <Card variant="glass" className="p-4 sm:p-5">
+      <Card variant="default" className="p-4 sm:p-5 border-[#E3E8E1] bg-[#FFFFFF] shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center space-x-2.5">
-              <Clock className="w-4 h-4 text-blue-400" />
-              <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
+              <Clock className="w-4 h-4 text-[#22B947]" />
+              <h2 className="text-base sm:text-lg font-bold text-[#090E11] tracking-tight">
                 SLA Compliance & Observability Telemetry
               </h2>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-950/80 text-blue-300 border border-blue-800/80 font-semibold">
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#EAF8E9] text-[#18852E] border border-[#C3EBC2] font-semibold">
                 FR-OBS-001 / 002
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-[#59636E] mt-1">
               Real-time service-level indicator (SLI) telemetry and distributed trace audit trail
               across bounded contexts
             </p>
           </div>
 
-          <div className="flex items-center space-x-2 bg-[#090d16]/90 px-3 py-1.5 rounded-xl border border-slate-800 self-start sm:self-auto font-mono text-xs">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-slate-300">Cluster Status:</span>
-            <span className="text-emerald-400 font-bold">HEALTHY</span>
+          <div className="flex items-center space-x-2 bg-[#F8FAF7] px-3 py-1.5 rounded-xl border border-[#EBEFE9] self-start sm:self-auto font-mono text-xs">
+            <span className="w-2 h-2 rounded-full bg-[#22B947] animate-pulse" />
+            <span className="text-[#59636E]">Cluster Status:</span>
+            <span className="text-[#18852E] font-bold">HEALTHY</span>
           </div>
         </div>
       </Card>
@@ -112,24 +112,24 @@ export const SlaAuditView: React.FC = () => {
           return (
             <Card
               key={m.label}
-              variant="glass"
-              className="p-4 sm:p-5 group hover:border-slate-700/80 transition"
+              variant="default"
+              className="p-4 sm:p-5 border-[#E3E8E1] bg-[#FFFFFF] shadow-xs group hover:border-[#DDE4DA] transition"
             >
-              <div className="flex items-center justify-between text-xs text-slate-400">
+              <div className="flex items-center justify-between text-xs text-[#59636E]">
                 <span className="font-medium truncate max-w-[170px]">{m.label}</span>
-                <span className="text-[10px] font-mono text-slate-500 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">
+                <span className="text-[10px] font-mono text-[#59636E] bg-[#F0F2F3] px-1.5 py-0.5 rounded border border-[#E3E8E1]">
                   {m.spec}
                 </span>
               </div>
               <div className="mt-2.5 flex items-baseline justify-between">
-                <span className="text-2xl sm:text-3xl font-bold font-mono text-emerald-400">
+                <span className="text-2xl sm:text-3xl font-bold font-mono text-[#090E11]">
                   {m.value}
                 </span>
-                <Icon className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition" />
+                <Icon className="w-4 h-4 text-[#7D8791] group-hover:text-[#090E11] transition" />
               </div>
-              <div className="mt-3 pt-2.5 border-t border-slate-800/70 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+              <div className="mt-3 pt-2.5 border-t border-[#EBEFE9] flex items-center justify-between text-[11px] text-[#59636E] font-mono">
                 <span>Target: {m.target}</span>
-                <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                <span className="text-[#18852E] font-semibold flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" />
                   PASS
                 </span>
@@ -140,16 +140,16 @@ export const SlaAuditView: React.FC = () => {
       </div>
 
       {/* Distributed Audit Log & Correlation ID Trail */}
-      <Card variant="elevated" className="border-slate-700/80">
-        <CardHeader className="bg-[#090d16]/50">
+      <Card variant="default" className="border-[#E3E8E1] bg-[#FFFFFF] shadow-xs">
+        <CardHeader className="bg-[#F8FAF7] border-b border-[#EBEFE9]">
           <div>
             <div className="flex items-center space-x-2">
-              <Terminal className="w-4 h-4 text-blue-400" />
-              <CardTitle className="text-sm sm:text-base">
+              <Terminal className="w-4 h-4 text-[#22B947]" />
+              <CardTitle className="text-sm sm:text-base text-[#090E11]">
                 Microservices Event Trail & Correlation Logs
               </CardTitle>
             </div>
-            <CardDescription>
+            <CardDescription className="text-[#59636E]">
               Structured JSON event propagation across AMQP and HTTP boundaries (FR-OBS-001)
             </CardDescription>
           </div>
@@ -157,8 +157,8 @@ export const SlaAuditView: React.FC = () => {
 
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-[#090d16]/80 text-slate-400 uppercase text-[10px] font-mono border-b border-slate-800">
+            <table className="w-full text-left text-xs text-[#090E11]">
+              <thead className="bg-[#F8FAF7] text-[#59636E] uppercase text-[10px] font-mono border-b border-[#EBEFE9]">
                 <tr>
                   <th className="px-5 py-3">Timestamp</th>
                   <th className="px-5 py-3">Correlation ID</th>
@@ -167,24 +167,24 @@ export const SlaAuditView: React.FC = () => {
                   <th className="px-5 py-3">Telemetry Payload Description</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/80">
+              <tbody className="divide-y divide-[#EBEFE9]">
                 {auditEvents.map((evt) => (
-                  <tr key={evt.id} className="hover:bg-[#090d16]/50 transition">
-                    <td className="px-5 py-3.5 text-slate-400 font-mono whitespace-nowrap">
+                  <tr key={evt.id} className="hover:bg-[#F8FAF7] transition">
+                    <td className="px-5 py-3.5 text-[#7D8791] font-mono whitespace-nowrap">
                       {evt.time}
                     </td>
-                    <td className="px-5 py-3.5 font-mono text-blue-400 font-bold whitespace-nowrap">
+                    <td className="px-5 py-3.5 font-mono text-[#18852E] font-bold whitespace-nowrap">
                       {evt.correlationId}
                     </td>
                     <td className="px-5 py-3.5 whitespace-nowrap">
-                      <span className="px-2 py-0.5 rounded-md bg-[#090d16] text-slate-300 border border-slate-700 font-mono text-[10px]">
+                      <span className="px-2 py-0.5 rounded-md bg-[#F0F2F3] text-[#59636E] border border-[#E3E8E1] font-mono text-[10px]">
                         {evt.service}
                       </span>
                     </td>
-                    <td className="px-5 py-3.5 font-mono text-emerald-400 font-semibold whitespace-nowrap">
+                    <td className="px-5 py-3.5 font-mono text-[#090E11] font-semibold whitespace-nowrap">
                       {evt.event}
                     </td>
-                    <td className="px-5 py-3.5 text-slate-300 leading-relaxed">{evt.details}</td>
+                    <td className="px-5 py-3.5 text-[#59636E] leading-relaxed">{evt.details}</td>
                   </tr>
                 ))}
               </tbody>

@@ -292,6 +292,15 @@
 > in `TechnicianDirectoryService` (`apps/dispatch-matching-service`), and preserved zero direct SQL fallback from dispatch.
 > Zero database migrations (`RULE-DB-02`). Total verified tests: 811 unit/integration + 48 E2E = 859 tests.
 
+> **Design System update — 2026-09-20:** Brand Visual System Redesign & Dual-Surface Architecture.
+> Successfully aligned the entire platform (marketing site, enterprise command center, mobile tech app, and auth modal)
+> with the approved design system specifications (`DESIGN.md v3.0.0`) and reference layouts (`1442.png` and `01 Refined navbar and product hero.png`).
+> Established dual-surface styling: mint-tinted light canvas (`#f5fbf5`) for marketing trust and slate-forest dark canvas (`#0d1517` / `#142427`)
+> for command center operations, unified with radiant spring-lime `#84e539` and high-contrast CTA button `#92ec3d` (`#0f1a1c` text).
+> Rebuilt `@fieldforge/ui` component primitives, deployed Next.js App Router public marketing routes (`/marketing`, `/platform`, `/solutions`, `/industries`, `/resources`, `/pricing`),
+> and configured Next.js `--webpack` production builds for robust static prerendering.
+> Total verified tests: 872 unit/integration + 48 E2E = 920 tests.
+
 ---
 
 ## How to read this report

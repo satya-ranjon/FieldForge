@@ -2,7 +2,7 @@ import React from 'react';
 import { cn } from '../index';
 
 export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
-  variant?: 'default' | 'elevated' | 'glass' | 'highlight' | 'subtle';
+  variant?: 'default' | 'metric' | 'soft-green' | 'dark' | 'floating' | 'interactive';
   interactive?: boolean;
 }
 
@@ -14,21 +14,21 @@ export const Card: React.FC<CardProps> = ({
   ...props
 }) => {
   const variants = {
-    default: 'bg-[#0f172a]/90 border-slate-800/80 shadow-sm backdrop-blur-sm',
-    elevated: 'bg-[#0f172a] border-slate-700/90 shadow-xl shadow-black/50',
-    glass: 'bg-[#0f172a]/75 border-slate-800/80 backdrop-blur-xl shadow-lg shadow-black/30',
-    highlight: 'bg-[#0f172a]/95 border-blue-500/50 shadow-lg shadow-blue-950/30',
-    subtle: 'bg-[#090d16]/80 border-slate-800/60 shadow-none'
+    default: 'bg-[#FFFFFF] border-[#E3E8E1] text-[#0B1114] shadow-xs',
+    metric: 'bg-[#FFFFFF] border-[#E3E8E1] text-[#0B1114] p-4 sm:p-5',
+    'soft-green': 'bg-[#F0F8E7] border-[#DFECD5] text-[#0B1114]',
+    dark: 'bg-[#081A15] border-white/10 text-white shadow-xs',
+    floating: 'bg-white/95 backdrop-blur-md border-[#E3E8E1] text-[#0B1114] shadow-floating',
+    interactive: 'bg-[#FFFFFF] border-[#E3E8E1] text-[#0B1114] hover:border-[#D1D9CE] hover:shadow-sm cursor-pointer'
   };
 
   return (
     <div
       className={cn(
-        'relative rounded-xl border transition-all duration-200 text-slate-100',
-        'before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/[0.08] before:to-transparent before:pointer-events-none',
+        'relative rounded-[14px] border transition-all duration-150',
         variants[variant],
-        interactive &&
-          'hover:border-slate-700 hover:shadow-md hover:translate-y-[-1px] cursor-pointer',
+        (interactive || variant === 'interactive') &&
+          'hover:border-[#D1D9CE] hover:shadow-sm hover:-translate-y-0.5 cursor-pointer',
         className || ''
       )}
       {...props}
@@ -45,7 +45,7 @@ export const CardHeader: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
 }) => (
   <div
     className={cn(
-      'p-4 sm:p-5 border-b border-slate-800/70 flex items-center justify-between gap-3',
+      'p-4 sm:p-5 border-b border-[#EBEFE9] flex items-center justify-between gap-3',
       className || ''
     )}
     {...props}
@@ -60,7 +60,7 @@ export const CardTitle: React.FC<React.HTMLAttributes<HTMLHeadingElement>> = ({
   ...props
 }) => (
   <h3
-    className={cn('text-sm sm:text-base font-semibold text-white tracking-tight', className || '')}
+    className={cn('text-sm sm:text-base font-semibold tracking-tight text-[#090E11]', className || '')}
     {...props}
   >
     {children}
@@ -72,7 +72,7 @@ export const CardDescription: React.FC<React.HTMLAttributes<HTMLParagraphElement
   className,
   ...props
 }) => (
-  <p className={cn('text-xs text-slate-400 mt-0.5 leading-relaxed', className || '')} {...props}>
+  <p className={cn('text-xs text-[#59636E] mt-0.5 leading-relaxed', className || '')} {...props}>
     {children}
   </p>
 );
@@ -94,7 +94,7 @@ export const CardFooter: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
 }) => (
   <div
     className={cn(
-      'p-3.5 sm:p-4 px-4 sm:px-5 border-t border-slate-800/70 bg-[#090d16]/40 flex items-center justify-between rounded-b-xl gap-2',
+      'p-3.5 sm:p-4 px-4 sm:px-5 border-t border-[#EBEFE9] bg-[#F8FAF7] flex items-center justify-between rounded-b-[14px] gap-2',
       className || ''
     )}
     {...props}

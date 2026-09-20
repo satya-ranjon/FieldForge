@@ -2027,6 +2027,39 @@ Bounded retention for `work_order_outbox_events` and `billing_outbox_events`, wh
 - `pnpm test` passes across 15 packages with 872 automated unit/integration tests (+17 new tests, zero `--passWithNoTests`).
 - `pnpm test:e2e` passes with 48 Playwright tests validated.
 - `pnpm validate:clean-typecheck` passes cleanly.
+
+---
+
+## Phase 53 — Complete Brand Visual System Redesign & Dual-Surface Architecture
+
+**Size: L · Resolves Visual Identity & Brand System Alignment (Approved Design References)**
+
+Migrated the complete FieldForge visual system across marketing, command center dashboards, mobile tech app, and auth to the approved new brand identity shown in reference designs (`design-files/01 Refined navbar and product hero.png` and `design-files/Homepage Redesign Desktop/1442.png`), while strictly preserving all existing functionality, routes, product structure, content, and information architecture.
+
+**Deliverables:**
+
+- **Brand Design System Specification (`DESIGN.md v3.0.0`).**
+  - Defined dual-surface canvas model: Mint-tinted light canvas (`#f5fbf5`) for marketing and public trust vs dense slate-forest dark canvas (`#0d1517` / `#142427`) for mission-critical command center operations.
+  - Standardized brand green palette: Primary `#84e539`, CTA button `#92ec3d` (with dark text `#0f1a1c` and hover `#84e539`), and dark headline accent `#5a9332` for WCAG AA compliant contrast on light backgrounds.
+- **Foundational Component Package (`@fieldforge/ui`).**
+  - Updated `Button`, `Card`, `StatusBadge`, `Input`, `Modal`, `Badge`, and `Tabs` with green `#92ec3d` variants, slate-forest `#142427` surfaces, and slate-teal `#22383c` borders.
+- **Enterprise Buyer Portal Command Center (`apps/web-buyer-portal`).**
+  - Migrated `globals.css` with Tailwind v4 `@theme` tokens, layout canvas `#0d1517`, and `BuyerPortalShell.tsx` ambient glow.
+  - Aligned `Header.tsx` with approved green 'F' brand mark, active `#92ec3d` tab pills, and seamless navigation to public marketing routes.
+  - Re-themed `TelemetryBar.tsx`, `LiveDispatchBoard.tsx`, `TechnicianMatchingRadar.tsx` (circular radar visualizer with green sweep beam `#84e539`), `SowBuilder.tsx`, `EscrowManager.tsx`, `SlaAuditView.tsx`, and `AuthModal.tsx`.
+  - Configured Next.js build with `--webpack` flag in `package.json` for reliable, container-ready static prerendering of all 14 routes.
+- **Marketing Website Experience (`apps/web-buyer-portal`).**
+  - Created reusable marketing components (`MarketingNavbar.tsx`, `MarketingHero.tsx`, `MarketingSections.tsx`, `MarketingFooter.tsx`) accurately rendering the approved hero layout, announcement pill, trust badges, live product preview card with Alex Morgan candidate card and circular radar sweep, 3-step automation workflow, enterprise invariants, and FAQ.
+  - Implemented public marketing routes: `/marketing`, `/platform`, `/solutions`, `/industries`, `/resources`, and `/pricing`.
+- **Technician Mobile Application (`apps/mobile-tech-app`).**
+  - Re-themed `JobListScreen.tsx`, `ActiveJobScreen.tsx`, and `GpsRadar.tsx` with slate-forest canvas (`#0d1517`), elevated job cards (`#142427`), verified green telemetry (`#84e539`), and primary action buttons (`#92ec3d`).
+
+**Verification:**
+
+- `pnpm check && pnpm build` pass cleanly across all 16 packages.
+- `pnpm test` passes with 872 automated unit/integration tests across 15 packages.
+- `pnpm test:e2e` discovers and validates all 48 Playwright E2E tests across Chrome, Firefox, Webkit, and Mobile Chrome.
+- `pnpm validate:clean-typecheck` passes cleanly from a cold, dist-free tree.
 - Total verified tests: 872 unit/integration tests + 48 E2E tests = 920 tests.
 
 ---

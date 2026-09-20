@@ -117,14 +117,14 @@ export const TechnicianMatchingRadar: React.FC = () => {
     <div className="space-y-5 sm:space-y-6">
       {/* Toast Notification */}
       {successToast && (
-        <div className="bg-emerald-950/90 border border-emerald-600/80 text-emerald-300 px-4 py-3 rounded-xl flex items-center justify-between text-xs animate-in fade-in shadow-lg shadow-emerald-950/40">
+        <div className="bg-[#EAF8E9] border border-[#C3EBC2] text-[#18852E] px-4 py-3 rounded-xl flex items-center justify-between text-xs animate-in fade-in shadow-xs">
           <div className="flex items-center space-x-2.5">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <CheckCircle2 className="w-4 h-4 text-[#18852E] shrink-0" />
             <span className="font-semibold">{successToast}</span>
           </div>
           <button
             onClick={() => setSuccessToast(null)}
-            className="text-emerald-400 hover:text-emerald-200 p-1 cursor-pointer"
+            className="text-[#18852E] hover:text-[#0f591e] p-1 cursor-pointer"
             aria-label="Dismiss toast"
           >
             <X className="w-4 h-4" />
@@ -133,28 +133,28 @@ export const TechnicianMatchingRadar: React.FC = () => {
       )}
 
       {/* Radar Control & Live Telemetry Banner */}
-      <Card variant="glass" className="p-4 sm:p-5">
+      <Card variant="default" className="p-4 sm:p-5 border-[#E3E8E1] bg-[#FFFFFF]">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <div className="flex items-center space-x-2.5">
-              <Radio className="w-4 h-4 text-cyan-400 animate-pulse" />
-              <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
+              <Radio className="w-4 h-4 text-[#22B947] animate-pulse" />
+              <h2 className="text-base sm:text-lg font-bold text-[#090E11] tracking-tight">
                 Geospatial Technician Radar & Bids Matrix
               </h2>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-950/80 text-cyan-400 border border-cyan-800/80 font-semibold">
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#EAF8E9] text-[#18852E] border border-[#C3EBC2] font-semibold">
                 Redis GEOSEARCH
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-[#59636E] mt-1">
               Real-time geospatial radar matching certified field engineers within active
               operational perimeter
             </p>
           </div>
 
           {/* Radar Radius Controls */}
-          <div className="flex items-center space-x-3 bg-[#090d16]/90 px-3.5 py-2 rounded-xl border border-slate-800/90">
-            <Sliders className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="text-xs text-slate-300 font-medium">Perimeter:</span>
+          <div className="flex items-center space-x-3 bg-[#F8FAF7] px-3.5 py-2 rounded-xl border border-[#EBEFE9]">
+            <Sliders className="w-3.5 h-3.5 text-[#22B947]" />
+            <span className="text-xs text-[#59636E] font-medium">Perimeter:</span>
             <div className="flex items-center space-x-1.5">
               {[5, 10, 25, 50].map((miles) => (
                 <button
@@ -162,8 +162,8 @@ export const TechnicianMatchingRadar: React.FC = () => {
                   onClick={() => dispatch(setRadarRadius(miles))}
                   className={`px-2.5 py-1 text-xs font-mono rounded-lg transition cursor-pointer ${
                     radarRadius === miles
-                      ? 'bg-cyan-600 text-white font-bold shadow-sm shadow-cyan-600/30'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                      ? 'bg-[#A8F22D] text-[#08120D] font-bold shadow-xs border border-[#94DC20]'
+                      : 'text-[#59636E] hover:text-[#090E11] hover:bg-white'
                   }`}
                 >
                   {miles}mi
@@ -175,30 +175,33 @@ export const TechnicianMatchingRadar: React.FC = () => {
       </Card>
 
       {/* Tactical Circular Radar Visualizer Banner */}
-      <Card variant="default" className="p-4 sm:p-5 bg-gradient-to-b from-[#0f172a] to-[#090d16]">
+      <Card
+        variant="default"
+        className="p-4 sm:p-5 bg-[#FFFFFF] border border-[#E3E8E1] shadow-xs"
+      >
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
-          {/* Animated Circular Radar Scope (Uber / Defense Telemetry style) */}
+          {/* Animated Circular Radar Scope */}
           <div className="md:col-span-5 flex justify-center py-2">
-            <div className="relative w-48 h-48 sm:w-56 sm:h-56 rounded-full bg-slate-950 border-2 border-cyan-900/60 shadow-[0_0_30px_rgba(6,182,212,0.15)] flex items-center justify-center overflow-hidden">
+            <div className="relative w-48 h-48 sm:w-56 sm:h-56 rounded-full bg-[#081A15] border-2 border-[#1C352D] shadow-sm flex items-center justify-center overflow-hidden">
               {/* Concentric distance rings */}
-              <div className="absolute w-40 h-40 rounded-full border border-cyan-900/30" />
-              <div className="absolute w-28 h-28 rounded-full border border-cyan-900/40" />
-              <div className="absolute w-14 h-14 rounded-full border border-cyan-900/60" />
+              <div className="absolute w-40 h-40 rounded-full border border-[#1C352D]" />
+              <div className="absolute w-28 h-28 rounded-full border border-[#1C352D]/80" />
+              <div className="absolute w-14 h-14 rounded-full border border-[#A8F22D]/30" />
 
               {/* Crosshair grid lines */}
-              <div className="absolute inset-x-0 h-px bg-cyan-950/60" />
-              <div className="absolute inset-y-0 w-px bg-cyan-950/60" />
+              <div className="absolute inset-x-0 h-px bg-[#1C352D]" />
+              <div className="absolute inset-y-0 w-px bg-[#1C352D]" />
 
               {/* Rotating Sweep Beam */}
               <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
                 <div
-                  className="w-28 h-0.5 bg-gradient-to-r from-transparent via-cyan-500/40 to-cyan-400 animate-radar-sweep"
+                  className="w-28 h-0.5 bg-gradient-to-r from-transparent via-[#A8F22D]/30 to-[#A8F22D] animate-radar-sweep"
                   style={{ transformOrigin: '0% 50%' }}
                 />
               </div>
 
               {/* Center Dispatch Node */}
-              <div className="relative z-10 w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.9)] ring-4 ring-blue-500/20" />
+              <div className="relative z-10 w-3 h-3 rounded-full bg-[#A8F22D] shadow-[0_0_12px_rgba(168,242,45,0.9)] ring-4 ring-[#A8F22D]/20" />
 
               {/* Technician blips on radar */}
               {effectiveTechnicians.slice(0, 6).map((t, idx) => {
@@ -216,10 +219,10 @@ export const TechnicianMatchingRadar: React.FC = () => {
                     }}
                   >
                     <span className="relative flex h-2.5 w-2.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#A8F22D] opacity-75" />
                       <span
                         className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
-                          t.isAvailable ? 'bg-emerald-400' : 'bg-amber-400'
+                          t.isAvailable ? 'bg-[#A8F22D]' : 'bg-[#B76B00]'
                         }`}
                       />
                     </span>
@@ -232,32 +235,32 @@ export const TechnicianMatchingRadar: React.FC = () => {
           {/* Radar Telemetry Summary */}
           <div className="md:col-span-7 space-y-3">
             <div className="flex items-center space-x-2">
-              <Navigation className="w-4 h-4 text-cyan-400" />
-              <h3 className="text-sm font-bold text-white tracking-tight uppercase">
+              <Navigation className="w-4 h-4 text-[#22B947]" />
+              <h3 className="text-sm font-bold text-[#090E11] tracking-tight uppercase">
                 Active Perimeter Telemetry
               </h3>
             </div>
-            <p className="text-xs text-slate-300 leading-relaxed">
+            <p className="text-xs text-[#59636E] leading-relaxed">
               Monitoring{' '}
-              <span className="text-cyan-400 font-mono font-bold">
+              <span className="text-[#18852E] font-mono font-bold">
                 {effectiveTechnicians.length} certified technicians
               </span>{' '}
               in the San Francisco Bay Area within your active {radarRadius}-mile perimeter.
             </p>
             <div className="grid grid-cols-3 gap-2.5 pt-1 text-center font-mono">
-              <div className="bg-[#090d16]/80 p-2.5 rounded-xl border border-slate-800">
-                <span className="text-[10px] text-slate-400 block uppercase">Ready</span>
-                <span className="text-emerald-400 font-bold text-base">
+              <div className="bg-[#F8FAF7] p-2.5 rounded-xl border border-[#EBEFE9]">
+                <span className="text-[10px] text-[#59636E] block uppercase">Ready</span>
+                <span className="text-[#18852E] font-bold text-base">
                   {effectiveTechnicians.filter((t) => t.isAvailable).length}
                 </span>
               </div>
-              <div className="bg-[#090d16]/80 p-2.5 rounded-xl border border-slate-800">
-                <span className="text-[10px] text-slate-400 block uppercase">Active Bids</span>
-                <span className="text-amber-400 font-bold text-base">{pendingBids.length}</span>
+              <div className="bg-[#F8FAF7] p-2.5 rounded-xl border border-[#EBEFE9]">
+                <span className="text-[10px] text-[#59636E] block uppercase">Active Bids</span>
+                <span className="text-[#B76B00] font-bold text-base">{pendingBids.length}</span>
               </div>
-              <div className="bg-[#090d16]/80 p-2.5 rounded-xl border border-slate-800">
-                <span className="text-[10px] text-slate-400 block uppercase">Avg Rating</span>
-                <span className="text-white font-bold text-base">★ 4.91</span>
+              <div className="bg-[#F8FAF7] p-2.5 rounded-xl border border-[#EBEFE9]">
+                <span className="text-[10px] text-[#59636E] block uppercase">Avg Rating</span>
+                <span className="text-[#090E11] font-bold text-base">★ 4.91</span>
               </div>
             </div>
           </div>
@@ -268,31 +271,31 @@ export const TechnicianMatchingRadar: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Left: Incoming Technician Bids Matrix (7 cols) */}
         <div className="lg:col-span-7 space-y-4">
-          <Card variant="elevated" className="border-slate-700/80">
-            <CardHeader className="bg-[#090d16]/50">
+          <Card variant="default" className="border-[#E3E8E1] bg-[#FFFFFF] shadow-xs">
+            <CardHeader className="bg-[#F8FAF7] border-b border-[#EBEFE9]">
               <div>
                 <div className="flex items-center space-x-2">
-                  <CardTitle className="text-sm sm:text-base">
+                  <CardTitle className="text-sm sm:text-base text-[#090E11]">
                     Incoming Technician Bids ({pendingBids.length})
                   </CardTitle>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-950/80 text-amber-300 border border-amber-800/70 font-mono font-bold">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FFF5DF] text-[#B76B00] border border-[#FFE6B0] font-mono font-bold">
                     Action Required
                   </span>
                 </div>
-                <CardDescription>
+                <CardDescription className="text-[#59636E]">
                   Evaluate proposed rates, estimated arrival times, and specialized tooling notes
                 </CardDescription>
               </div>
             </CardHeader>
 
-            <CardContent className="p-0 divide-y divide-slate-800/80">
+            <CardContent className="p-0 divide-y divide-[#EBEFE9]">
               {pendingBids.length === 0 ? (
-                <div className="p-8 text-center text-slate-400">
-                  <CheckCircle2 className="w-8 h-8 mx-auto text-emerald-400 mb-2" />
-                  <p className="font-semibold text-sm text-slate-200">
+                <div className="p-8 text-center text-[#7D8791]">
+                  <CheckCircle2 className="w-8 h-8 mx-auto text-[#22B947] mb-2" />
+                  <p className="font-semibold text-sm text-[#090E11]">
                     All pending bids processed!
                   </p>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="text-xs text-[#59636E] mt-1">
                     New technician proposals will appear here in real-time as they are broadcasted.
                   </p>
                 </div>
@@ -303,25 +306,25 @@ export const TechnicianMatchingRadar: React.FC = () => {
                   return (
                     <div
                       key={bid.id}
-                      className="p-4 sm:p-5 hover:bg-[#090d16]/60 transition space-y-3"
+                      className="p-4 sm:p-5 hover:bg-[#F8FAF7] transition space-y-3"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="space-y-1 min-w-0">
                           <div className="flex items-center space-x-2">
-                            <span className="font-bold text-white text-sm">
+                            <span className="font-bold text-[#090E11] text-sm">
                               {bid.technicianName}
                             </span>
-                            <span className="flex items-center text-[11px] text-amber-400 font-semibold font-mono">
+                            <span className="flex items-center text-[11px] text-[#B76B00] font-semibold font-mono">
                               <Star className="w-3 h-3 fill-current mr-0.5" />
                               {bid.technicianRating}
                             </span>
-                            <span className="text-xs text-slate-500 font-mono hidden sm:inline">
+                            <span className="text-xs text-[#7D8791] font-mono hidden sm:inline">
                               ({bid.technicianJobsCount} jobs completed)
                             </span>
                           </div>
 
-                          <div className="text-xs text-slate-400 flex items-center gap-2">
-                            <span className="text-blue-400 font-mono font-semibold">
+                          <div className="text-xs text-[#59636E] flex items-center gap-2">
+                            <span className="text-[#18852E] font-mono font-semibold">
                               {bid.workOrderId}
                             </span>
                             <span>•</span>
@@ -330,11 +333,11 @@ export const TechnicianMatchingRadar: React.FC = () => {
                         </div>
 
                         <div className="text-right shrink-0">
-                          <div className="text-base sm:text-lg font-bold font-mono text-emerald-400">
+                          <div className="text-base sm:text-lg font-bold font-mono text-[#090E11]">
                             {formatMinor(bid.bidAmountMinor)}
                           </div>
-                          <div className="text-xs text-slate-400 flex items-center justify-end gap-1 font-mono mt-0.5">
-                            <Clock className="w-3 h-3 text-cyan-400" />
+                          <div className="text-xs text-[#59636E] flex items-center justify-end gap-1 font-mono mt-0.5">
+                            <Clock className="w-3 h-3 text-[#22B947]" />
                             <span>ETA: {bid.estimatedArrivalMinutes} mins</span>
                           </div>
                         </div>
@@ -342,8 +345,8 @@ export const TechnicianMatchingRadar: React.FC = () => {
 
                       {/* Technician Counter Note */}
                       {bid.counterNote && (
-                        <div className="bg-[#090d16] p-2.5 rounded-xl border border-slate-800 text-xs text-slate-300 leading-relaxed">
-                          <span className="text-slate-400 font-semibold">Technician Note: </span>"
+                        <div className="bg-[#F8FAF7] p-2.5 rounded-xl border border-[#EBEFE9] text-xs text-[#090E11] leading-relaxed">
+                          <span className="text-[#59636E] font-semibold">Technician Note: </span>"
                           {bid.counterNote}"
                         </div>
                       )}
@@ -354,7 +357,7 @@ export const TechnicianMatchingRadar: React.FC = () => {
                           {bid.technicianCertifications.map((cert) => (
                             <span
                               key={cert}
-                              className="text-[10px] px-2 py-0.5 rounded-md bg-[#090d16] text-slate-300 border border-slate-800 font-mono"
+                              className="text-[10px] px-2 py-0.5 rounded-md bg-[#EAF8E9] text-[#18852E] border border-[#C3EBC2] font-mono"
                             >
                               ✓ {cert}
                             </span>
@@ -366,12 +369,12 @@ export const TechnicianMatchingRadar: React.FC = () => {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleRejectBid(bid)}
-                            className="text-red-400 hover:text-red-300 hover:bg-red-950/40"
+                            className="text-[#C92C2C] hover:text-[#991B1B] hover:bg-[#FDEAEA]"
                           >
                             Decline
                           </Button>
                           <Button
-                            variant="success"
+                            variant="primary"
                             size="sm"
                             onClick={() => handleAcceptBid(bid)}
                             leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
@@ -390,36 +393,36 @@ export const TechnicianMatchingRadar: React.FC = () => {
 
         {/* Right: Nearby Certified Technicians (5 cols) */}
         <div className="lg:col-span-5 space-y-4">
-          <Card variant="elevated" className="border-slate-700/80">
-            <CardHeader className="bg-[#090d16]/50">
+          <Card variant="default" className="border-[#E3E8E1] bg-[#FFFFFF] shadow-xs">
+            <CardHeader className="bg-[#F8FAF7] border-b border-[#EBEFE9]">
               <div>
-                <CardTitle className="text-sm sm:text-base">
+                <CardTitle className="text-sm sm:text-base text-[#090E11]">
                   Vetted Technicians on Radar ({effectiveTechnicians.length})
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-[#59636E]">
                   Instant dispatch to highest-rated verified freelance contractors
                 </CardDescription>
               </div>
             </CardHeader>
 
-            <CardContent className="p-0 divide-y divide-slate-800/80 max-h-[600px] overflow-y-auto">
+            <CardContent className="p-0 divide-y divide-[#EBEFE9] max-h-[600px] overflow-y-auto">
               {effectiveTechnicians.map((tech) => (
                 <div
                   key={tech.technicianId}
-                  className="p-4 hover:bg-[#090d16]/60 transition space-y-2.5"
+                  className="p-4 hover:bg-[#F8FAF7] transition space-y-2.5"
                 >
                   <div className="flex items-start justify-between">
                     <div>
                       <div className="flex items-center space-x-2">
-                        <span className="font-bold text-white text-xs sm:text-sm">
+                        <span className="font-bold text-[#090E11] text-xs sm:text-sm">
                           {tech.fullName}
                         </span>
-                        <span className="flex items-center text-[11px] text-amber-400 font-semibold font-mono">
+                        <span className="flex items-center text-[11px] text-[#B76B00] font-semibold font-mono">
                           <Star className="w-3 h-3 fill-current mr-0.5" />
                           {tech.rating}
                         </span>
                       </div>
-                      <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                      <div className="text-[11px] text-[#59636E] font-mono mt-0.5">
                         {tech.distanceMiles} miles away • {tech.completedJobsCount} jobs completed
                       </div>
                     </div>
@@ -428,8 +431,8 @@ export const TechnicianMatchingRadar: React.FC = () => {
                       <span
                         className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full inline-block ${
                           tech.isAvailable
-                            ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800/60'
-                            : 'bg-slate-800 text-slate-400'
+                            ? 'bg-[#EAF8E9] text-[#18852E] border border-[#C3EBC2]'
+                            : 'bg-[#F0F2F3] text-[#59636E] border border-[#E3E8E1]'
                         }`}
                       >
                         {tech.isAvailable ? 'Available Now' : 'Busy'}
@@ -438,24 +441,24 @@ export const TechnicianMatchingRadar: React.FC = () => {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                    <span className="text-[10px] text-emerald-400 font-mono flex items-center gap-1 font-semibold">
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-[10px] text-[#18852E] font-mono flex items-center gap-1 font-semibold">
+                      <ShieldCheck className="w-3.5 h-3.5 text-[#18852E]" />
                       Vetted:
                     </span>
                     {tech.certifications.map((c) => (
                       <span
                         key={c}
-                        className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-950/60 text-emerald-300 border border-emerald-800/60 font-mono font-medium inline-flex items-center gap-1"
+                        className="text-[9px] px-2 py-0.5 rounded-full bg-[#F8FAF7] text-[#090E11] border border-[#EBEFE9] font-mono font-medium inline-flex items-center gap-1"
                       >
-                        <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" />
+                        <CheckCircle2 className="w-2.5 h-2.5 text-[#18852E]" />
                         {c}
                       </span>
                     ))}
                   </div>
 
                   <div className="pt-1 flex items-center justify-between">
-                    <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
-                      <MapPin className="w-3 h-3 text-cyan-400" />
+                    <span className="text-[10px] text-[#59636E] font-mono flex items-center gap-1">
+                      <MapPin className="w-3 h-3 text-[#22B947]" />
                       GPS Beacon Verified
                     </span>
 

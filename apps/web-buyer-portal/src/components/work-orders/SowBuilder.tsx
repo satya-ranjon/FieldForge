@@ -308,14 +308,14 @@ export const SowBuilder: React.FC = () => {
     <div className="space-y-5 sm:space-y-6">
       {/* Toast */}
       {publishedSuccess && (
-        <div className="bg-emerald-950/90 border border-emerald-600/80 text-emerald-300 px-4 py-3 rounded-xl flex items-center justify-between text-xs animate-in fade-in shadow-lg shadow-emerald-950/40">
+        <div className="bg-[#EAF8E9] border border-[#C3EBC2] text-[#18852E] px-4 py-3 rounded-xl flex items-center justify-between text-xs animate-in fade-in shadow-xs">
           <div className="flex items-center space-x-2.5">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <CheckCircle2 className="w-4 h-4 text-[#18852E] shrink-0" />
             <span className="font-semibold">{publishedSuccess}</span>
           </div>
           <button
             onClick={() => setPublishedSuccess(null)}
-            className="text-emerald-400 hover:text-emerald-200 p-1 cursor-pointer"
+            className="text-[#18852E] hover:text-[#0f591e] p-1 cursor-pointer"
             aria-label="Dismiss toast"
           >
             <X className="w-4 h-4" />
@@ -324,16 +324,16 @@ export const SowBuilder: React.FC = () => {
       )}
 
       {/* Preset Banner Cards */}
-      <Card variant="glass" className="p-4 sm:p-5">
+      <Card variant="default" className="p-4 sm:p-5 border-[#E3E8E1] bg-[#FFFFFF] shadow-xs">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 mb-3">
           <div>
             <div className="flex items-center space-x-2">
-              <Sparkles className="w-4 h-4 text-blue-400" />
-              <h3 className="text-sm font-bold text-white tracking-tight">
+              <Sparkles className="w-4 h-4 text-[#22B947]" />
+              <h3 className="text-sm font-bold text-[#090E11] tracking-tight">
                 Enterprise SOW Template Presets
               </h3>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-[#59636E] mt-0.5">
               Click a verified blueprint to pre-populate industry-standard scope, certifications,
               and escrow terms
             </p>
@@ -349,25 +349,25 @@ export const SowBuilder: React.FC = () => {
                 onClick={() => applyPreset(preset)}
                 className={`p-3.5 rounded-xl border transition-all duration-150 cursor-pointer relative ${
                   isMatch
-                    ? 'bg-blue-950/40 border-blue-500 shadow-md shadow-blue-950/40 ring-1 ring-blue-500/30'
-                    : 'bg-[#090d16]/80 border-slate-800/80 hover:bg-[#090d16] hover:border-slate-700'
+                    ? 'bg-[#FFFFFF] border-[#22B947] shadow-sm ring-1 ring-[#22B947]/30'
+                    : 'bg-[#F8FAF7] border-[#EBEFE9] hover:bg-[#FFFFFF] hover:border-[#DDE4DA]'
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] uppercase font-mono font-semibold px-1.5 py-0.2 rounded bg-slate-900 text-slate-400 border border-slate-800">
+                  <span className="text-[10px] uppercase font-mono font-semibold px-1.5 py-0.2 rounded bg-[#FFFFFF] text-[#59636E] border border-[#E3E8E1]">
                     {preset.category}
                   </span>
-                  <span className="text-xs font-mono font-bold text-emerald-400">
+                  <span className="text-xs font-mono font-bold text-[#18852E]">
                     ${preset.budgetDollars}
                   </span>
                 </div>
-                <h4 className="text-xs font-bold text-white mt-2 leading-snug">{preset.name}</h4>
-                <p className="text-[11px] text-slate-400 line-clamp-2 mt-1 leading-relaxed">
+                <h4 className="text-xs font-bold text-[#090E11] mt-2 leading-snug">{preset.name}</h4>
+                <p className="text-[11px] text-[#59636E] line-clamp-2 mt-1 leading-relaxed">
                   {preset.description}
                 </p>
-                <div className="mt-2.5 pt-2 border-t border-slate-800/60 flex items-center justify-between text-[10px] text-slate-400">
+                <div className="mt-2.5 pt-2 border-t border-[#EBEFE9] flex items-center justify-between text-[10px] text-[#7D8791]">
                   <span>{preset.scopeSteps.length} Steps</span>
-                  <span className="text-blue-400 font-medium">Click to Load →</span>
+                  <span className="text-[#18852E] font-medium">Click to Load →</span>
                 </div>
               </div>
             );
@@ -379,9 +379,9 @@ export const SowBuilder: React.FC = () => {
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
         {/* Left Wizard Column */}
         <div className="xl:col-span-7 space-y-4">
-          <Card variant="elevated" className="border-slate-700/80">
+          <Card variant="default" className="border-[#E3E8E1] bg-[#FFFFFF] shadow-xs">
             {/* Step Navigation Bar */}
-            <div className="p-3 sm:p-4 border-b border-slate-800/80 bg-[#090d16]/60 flex items-center justify-between overflow-x-auto gap-2 no-scrollbar">
+            <div className="p-3 sm:p-4 border-b border-[#EBEFE9] bg-[#F8FAF7] flex items-center justify-between overflow-x-auto gap-2 no-scrollbar">
               {[
                 { num: 1, label: 'Scope & Category' },
                 { num: 2, label: 'Geo & Location' },
@@ -397,19 +397,19 @@ export const SowBuilder: React.FC = () => {
                     onClick={() => setStep(s.num)}
                     className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer shrink-0 ${
                       isCurrent
-                        ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/30'
+                        ? 'bg-[#A8F22D] text-[#08120D] font-bold shadow-xs border border-[#94DC20]'
                         : isPassed
-                          ? 'text-emerald-400 hover:text-white bg-slate-900/60 border border-emerald-800/40'
-                          : 'text-slate-400 hover:text-slate-200'
+                          ? 'text-[#18852E] hover:text-[#090E11] bg-[#EAF8E9] border border-[#C3EBC2]'
+                          : 'text-[#7D8791] hover:text-[#090E11]'
                     }`}
                   >
                     <span
                       className={`w-5 h-5 rounded-full flex items-center justify-center font-mono text-[10px] font-bold ${
                         isCurrent
-                          ? 'bg-white text-blue-700'
+                          ? 'bg-[#08120D] text-[#A8F22D]'
                           : isPassed
-                            ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
-                            : 'bg-slate-800 text-slate-400'
+                            ? 'bg-[#EAF8E9] text-[#18852E] border border-[#C3EBC2]'
+                            : 'bg-[#EBEFE9] text-[#7D8791]'
                       }`}
                     >
                       {isPassed ? <Check className="w-3 h-3" /> : s.num}
@@ -466,25 +466,25 @@ export const SowBuilder: React.FC = () => {
                 />
 
                 {/* Scope Steps Builder */}
-                <div className="space-y-2 pt-2 border-t border-slate-800/80">
-                  <label className="block text-xs font-medium text-slate-300">
+                <div className="space-y-2 pt-2 border-t border-[#EBEFE9]">
+                  <label className="block text-xs font-medium text-[#090E11]">
                     Step-by-Step SOP Checklist ({scopeSteps.length})
                   </label>
                   <div className="space-y-1.5 max-h-48 overflow-y-auto">
                     {scopeSteps.map((s, idx) => (
                       <div
                         key={idx}
-                        className="flex items-center justify-between p-2 rounded-lg bg-[#090d16] border border-slate-800 text-xs"
+                        className="flex items-center justify-between p-2 rounded-lg bg-[#F8FAF7] border border-[#EBEFE9] text-xs"
                       >
                         <div className="flex items-center space-x-2 min-w-0 pr-2">
-                          <span className="font-mono text-blue-400 font-bold shrink-0">
+                          <span className="font-mono text-[#18852E] font-bold shrink-0">
                             {idx + 1}.
                           </span>
-                          <span className="text-slate-200 truncate">{s}</span>
+                          <span className="text-[#090E11] truncate">{s}</span>
                         </div>
                         <button
                           onClick={() => removeScopeStep(idx)}
-                          className="text-slate-500 hover:text-red-400 p-1 cursor-pointer shrink-0"
+                          className="text-[#7D8791] hover:text-[#C92C2C] p-1 cursor-pointer shrink-0"
                           aria-label="Remove step"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -500,7 +500,7 @@ export const SowBuilder: React.FC = () => {
                       value={newStepText}
                       onChange={(e) => setNewStepText(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && addScopeStep()}
-                      className="flex-1 bg-[#090d16] border border-slate-700/80 rounded-lg px-3 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 bg-[#FFFFFF] border border-[#DDE4DA] rounded-lg px-3 py-1.5 text-xs text-[#090E11] placeholder-[#7D8791] focus:outline-none focus:ring-2 focus:ring-[#A8F22D]/40 focus:border-[#A8F22D]"
                     />
                     <Button
                       variant="secondary"
@@ -543,10 +543,10 @@ export const SowBuilder: React.FC = () => {
                   />
                 </div>
 
-                <div className="space-y-2 pt-2 border-t border-slate-800/80">
+                <div className="space-y-2 pt-2 border-t border-[#EBEFE9]">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-medium text-slate-300">Geofence Radius Tolerance</span>
-                    <span className="font-mono text-cyan-400 font-bold">
+                    <span className="font-medium text-[#090E11]">Geofence Radius Tolerance</span>
+                    <span className="font-mono text-[#18852E] font-bold">
                       {geofenceRadius} meters
                     </span>
                   </div>
@@ -557,9 +557,9 @@ export const SowBuilder: React.FC = () => {
                     step="25"
                     value={geofenceRadius}
                     onChange={(e) => setGeofenceRadius(parseInt(e.target.value, 10))}
-                    className="w-full accent-cyan-500 bg-slate-800 h-1.5 rounded-lg cursor-pointer"
+                    className="w-full accent-[#22B947] bg-[#EBEFE9] h-1.5 rounded-lg cursor-pointer"
                   />
-                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                  <p className="text-[11px] text-[#59636E] leading-relaxed">
                     Technician mobile check-in will strictly require GPS coordinates within this
                     boundary before unlocking on-site milestone status.
                   </p>
@@ -593,7 +593,7 @@ export const SowBuilder: React.FC = () => {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-medium text-slate-300">
+                  <label className="block text-xs font-medium text-[#090E11]">
                     SLA Response & Resolution Window
                   </label>
                   <div className="grid grid-cols-4 gap-2">
@@ -608,8 +608,8 @@ export const SowBuilder: React.FC = () => {
                         onClick={() => setSlaHours(sla.hours)}
                         className={`p-2 rounded-lg border text-xs font-medium font-mono text-center cursor-pointer transition ${
                           slaHours === sla.hours
-                            ? 'bg-blue-600/30 border-blue-500 text-blue-300 ring-1 ring-blue-500/40'
-                            : 'bg-[#090d16] border-slate-800 text-slate-400 hover:border-slate-700'
+                            ? 'bg-[#FFFFFF] border-[#22B947] text-[#18852E] ring-1 ring-[#22B947]/30 shadow-xs'
+                            : 'bg-[#F8FAF7] border-[#EBEFE9] text-[#59636E] hover:border-[#DDE4DA]'
                         }`}
                       >
                         {sla.label}
@@ -619,8 +619,8 @@ export const SowBuilder: React.FC = () => {
                 </div>
 
                 {/* Required Certifications */}
-                <div className="space-y-2 pt-2 border-t border-slate-800/80">
-                  <label className="block text-xs font-medium text-slate-300">
+                <div className="space-y-2 pt-2 border-t border-[#EBEFE9]">
+                  <label className="block text-xs font-medium text-[#090E11]">
                     Required Technician Vetting & Badges
                   </label>
                   <div className="flex flex-wrap gap-2">
@@ -632,8 +632,8 @@ export const SowBuilder: React.FC = () => {
                           onClick={() => toggleCert(cert)}
                           className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition cursor-pointer flex items-center space-x-1.5 ${
                             isSelected
-                              ? 'bg-blue-950/80 text-blue-300 border-blue-700 shadow-sm'
-                              : 'bg-[#090d16] text-slate-400 border-slate-800 hover:border-slate-700'
+                              ? 'bg-[#EAF8E9] text-[#18852E] border-[#C3EBC2] shadow-xs'
+                              : 'bg-[#F8FAF7] text-[#59636E] border-[#EBEFE9] hover:border-[#DDE4DA]'
                           }`}
                         >
                           {isSelected && <Check className="w-3 h-3" />}
@@ -650,27 +650,27 @@ export const SowBuilder: React.FC = () => {
             {step === 4 && (
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-medium text-slate-300">
+                  <span className="font-medium text-[#090E11]">
                     Mandatory Proof-of-Work Deliverables ({deliverables.length})
                   </span>
-                  <span className="text-slate-500 font-mono text-[10px]">FR-MOB-002</span>
+                  <span className="text-[#7D8791] font-mono text-[10px]">FR-MOB-002</span>
                 </div>
 
                 <div className="space-y-2 max-h-60 overflow-y-auto">
                   {deliverables.map((del, idx) => (
                     <div
                       key={idx}
-                      className="p-3 rounded-xl bg-[#090d16] border border-slate-800 flex items-center justify-between gap-3 text-xs"
+                      className="p-3 rounded-xl bg-[#F8FAF7] border border-[#EBEFE9] flex items-center justify-between gap-3 text-xs"
                     >
                       <div className="flex items-center space-x-2.5 min-w-0">
-                        <span className="text-[10px] px-2 py-0.5 rounded font-mono font-bold bg-slate-900 border border-slate-800 text-cyan-400 shrink-0">
+                        <span className="text-[10px] px-2 py-0.5 rounded font-mono font-bold bg-[#FFFFFF] border border-[#E3E8E1] text-[#18852E] shrink-0">
                           {del.type}
                         </span>
-                        <span className="text-slate-200 font-medium truncate">{del.title}</span>
+                        <span className="text-[#090E11] font-medium truncate">{del.title}</span>
                       </div>
                       <button
                         onClick={() => setDeliverables(deliverables.filter((_, i) => i !== idx))}
-                        className="text-slate-500 hover:text-red-400 p-1 cursor-pointer shrink-0"
+                        className="text-[#7D8791] hover:text-[#C92C2C] p-1 cursor-pointer shrink-0"
                         aria-label="Delete deliverable"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -679,8 +679,8 @@ export const SowBuilder: React.FC = () => {
                   ))}
                 </div>
 
-                <div className="p-3 rounded-xl bg-blue-950/30 border border-blue-900/50 flex items-start space-x-2.5 text-xs text-blue-300">
-                  <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                <div className="p-3 rounded-xl bg-[#EAF8E9] border border-[#C3EBC2] flex items-start space-x-2.5 text-xs text-[#18852E]">
+                  <ShieldCheck className="w-4 h-4 text-[#18852E] shrink-0 mt-0.5" />
                   <p className="leading-relaxed">
                     Escrow funds are safeguarded in the Smart Vault and are only released upon buyer
                     verification of all {deliverables.length} deliverables or dispute clearance.
@@ -690,7 +690,7 @@ export const SowBuilder: React.FC = () => {
             )}
 
             {/* Step Navigation Actions */}
-            <CardFooter className="justify-between">
+            <CardFooter className="justify-between border-t border-[#EBEFE9] bg-[#F8FAF7]">
               <Button
                 variant="secondary"
                 size="sm"
@@ -712,7 +712,7 @@ export const SowBuilder: React.FC = () => {
                 </Button>
               ) : (
                 <Button
-                  variant="success"
+                  variant="primary"
                   size="sm"
                   onClick={handlePublish}
                   leftIcon={<Sparkles className="w-3.5 h-3.5" />}
@@ -726,13 +726,13 @@ export const SowBuilder: React.FC = () => {
 
         {/* Right Live Preview Column */}
         <div className="xl:col-span-5 space-y-4">
-          <Card variant="elevated" className="border-slate-700/80 sticky top-24">
-            <CardHeader className="bg-[#090d16]/50">
+          <Card variant="default" className="border-[#E3E8E1] bg-[#FFFFFF] shadow-xs sticky top-24">
+            <CardHeader className="bg-[#F8FAF7] border-b border-[#EBEFE9]">
               <div>
-                <span className="text-[10px] font-mono text-cyan-400 font-bold uppercase tracking-wider">
+                <span className="text-[10px] font-mono text-[#18852E] font-bold uppercase tracking-wider">
                   Live Dispatch Preview
                 </span>
-                <CardTitle className="mt-1 text-sm sm:text-base">
+                <CardTitle className="mt-1 text-sm sm:text-base text-[#090E11]">
                   {title || 'Untitled Ticket'}
                 </CardTitle>
               </div>
@@ -741,73 +741,73 @@ export const SowBuilder: React.FC = () => {
 
             <CardContent className="space-y-4 text-xs">
               <div className="flex flex-wrap items-center gap-2 text-[11px]">
-                <span className="px-2 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-800">
+                <span className="px-2 py-0.5 rounded bg-[#F0F2F3] text-[#59636E] border border-[#E3E8E1]">
                   {category}
                 </span>
                 <StatusBadge status={priority} />
-                <span className="text-slate-400 font-mono flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
+                <span className="text-[#59636E] font-mono flex items-center gap-1">
+                  <Clock className="w-3 h-3 text-[#22B947]" />
                   {slaHours}h Target
                 </span>
               </div>
 
-              <p className="text-slate-300 leading-relaxed text-xs">
+              <p className="text-[#59636E] leading-relaxed text-xs">
                 {description || 'No description provided.'}
               </p>
 
               {/* Site location snippet */}
-              <div className="bg-[#090d16] p-3 rounded-xl border border-slate-800 space-y-1">
-                <div className="flex items-center space-x-1.5 text-slate-300 font-semibold text-[11px]">
-                  <MapPin className="w-3.5 h-3.5 text-blue-400" />
+              <div className="bg-[#F8FAF7] p-3 rounded-xl border border-[#EBEFE9] space-y-1">
+                <div className="flex items-center space-x-1.5 text-[#090E11] font-semibold text-[11px]">
+                  <MapPin className="w-3.5 h-3.5 text-[#22B947]" />
                   <span>Site Address:</span>
                 </div>
-                <div className="text-slate-200 pl-5">{addressLine}</div>
-                <div className="text-[10px] font-mono text-slate-500 pl-5">
+                <div className="text-[#090E11] pl-5">{addressLine}</div>
+                <div className="text-[10px] font-mono text-[#7D8791] pl-5">
                   Lat: {latitude.toFixed(4)}, Lng: {longitude.toFixed(4)} • {geofenceRadius}m
                   geofence
                 </div>
               </div>
 
               {/* Transparent Escrow Vault Breakdown (Stripe-inspired) */}
-              <div className="bg-[#090d16] p-3.5 rounded-xl border border-slate-800 space-y-2">
-                <div className="flex items-center justify-between text-slate-300 text-[11px] font-semibold">
+              <div className="bg-[#F8FAF7] p-3.5 rounded-xl border border-[#EBEFE9] space-y-2">
+                <div className="flex items-center justify-between text-[#090E11] text-[11px] font-semibold">
                   <span className="flex items-center gap-1.5">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#22B947]" />
                     Escrow Vault Pre-Authorization
                   </span>
-                  <span className="font-mono text-slate-500">AES-256</span>
+                  <span className="font-mono text-[#7D8791]">AES-256</span>
                 </div>
 
-                <div className="space-y-1.5 pt-1 border-t border-slate-800/80 text-[11px]">
-                  <div className="flex items-center justify-between text-slate-400">
+                <div className="space-y-1.5 pt-1 border-t border-[#EBEFE9] text-[11px]">
+                  <div className="flex items-center justify-between text-[#59636E]">
                     <span>Base Technician Payout ({budgetType}):</span>
-                    <span className="font-mono text-slate-200 font-semibold">
+                    <span className="font-mono text-[#090E11] font-semibold">
                       ${budgetDollars}.00
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-slate-400">
+                  <div className="flex items-center justify-between text-[#59636E]">
                     <span>FieldForge Platform Service Fee (8%):</span>
-                    <span className="font-mono text-slate-200 font-semibold">
+                    <span className="font-mono text-[#090E11] font-semibold">
                       ${platformFee}.00
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-white font-bold pt-1.5 border-t border-slate-800 font-mono text-sm">
+                  <div className="flex items-center justify-between text-[#090E11] font-bold pt-1.5 border-t border-[#EBEFE9] font-mono text-sm">
                     <span>Total Escrow Vault Pre-Auth:</span>
-                    <span className="text-emerald-400">${totalEscrowDollars}.00</span>
+                    <span className="text-[#18852E]">${totalEscrowDollars}.00</span>
                   </div>
                 </div>
               </div>
 
               {/* Required Badges Preview */}
               <div>
-                <span className="text-[11px] font-semibold text-slate-400 block mb-1.5">
+                <span className="text-[11px] font-semibold text-[#59636E] block mb-1.5">
                   Required Vetting ({selectedCerts.length}):
                 </span>
                 <div className="flex flex-wrap gap-1.5">
                   {selectedCerts.map((c) => (
                     <span
                       key={c}
-                      className="px-2 py-0.5 rounded bg-blue-950/60 text-blue-300 border border-blue-900/50 text-[10px] font-semibold font-mono"
+                      className="px-2 py-0.5 rounded bg-[#EAF8E9] text-[#18852E] border border-[#C3EBC2] text-[10px] font-semibold font-mono"
                     >
                       ✓ {c}
                     </span>
@@ -817,9 +817,9 @@ export const SowBuilder: React.FC = () => {
 
               <div className="pt-2">
                 <Button
-                  variant="success"
+                  variant="primary"
                   size="md"
-                  className="w-full shadow-lg shadow-emerald-950/50"
+                  className="w-full shadow-xs"
                   onClick={handlePublish}
                   leftIcon={<Sparkles className="w-4 h-4" />}
                 >
