@@ -2,151 +2,125 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { ArrowRight, Menu, X } from 'lucide-react';
-import { Button } from '@fieldforge/ui';
+import { ArrowRight, Menu, Search, X } from 'lucide-react';
 import { AuthModal } from '../auth/AuthModal';
 
+const navLinks = [
+  { href: '/platform', label: 'Platform' },
+  { href: '/solutions', label: 'Solutions' },
+  { href: '/industries', label: 'Industries' },
+  { href: '/resources', label: 'Resources' },
+  { href: '/pricing', label: 'Pricing' }
+];
+
 export const MarketingNavbar: React.FC = () => {
-  const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
-  const navLinks = [
-    { href: '/platform', label: 'Platform' },
-    { href: '/solutions', label: 'Solutions' },
-    { href: '/industries', label: 'Industries' },
-    { href: '/resources', label: 'Resources' },
-    { href: '/pricing', label: 'Pricing' }
-  ];
-
   return (
     <>
-      <header className="sticky top-0 z-40 w-full bg-[#f5fbf5]/90 backdrop-blur-md border-b border-[#e2ece5] transition-all">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          {/* Logo & Brand Mark */}
-          <Link href="/marketing" className="flex items-center space-x-3 group">
-            <div className="w-10 h-10 rounded-xl bg-[#A8F22D] flex items-center justify-center shadow-sm shadow-[#A8F22D]/30 group-hover:bg-[#9CE228] transition">
-              <span className="font-mono font-black text-xl text-[#0f1a1c] tracking-tighter">
+      <header className="relative z-50 w-full bg-[#fbfcf8]">
+        <div className="mx-auto flex h-[104px] max-w-[1260px] items-center justify-between px-6 sm:px-8 xl:px-0">
+          <Link
+            href="/marketing"
+            className="group flex items-center gap-4"
+            aria-label="FieldForge home"
+          >
+            <span className="relative flex h-[43px] w-[43px] items-center justify-center rounded-xl bg-[#85eb32] shadow-[0_14px_34px_rgba(117,222,38,0.28)] transition group-hover:bg-[#78dc29]">
+              <span className="text-[26px] font-black leading-none tracking-[-0.16em] text-white">
                 F
               </span>
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center space-x-1.5">
-                <span className="font-extrabold text-xl tracking-tight text-[#111827]">
-                  Field<span className="text-[#5a9332]">Forge</span>
-                </span>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#eaf5ec] text-[#5a9332] font-bold border border-[#d2e8d6]">
-                  ENTERPRISE
-                </span>
-              </div>
-              <span className="text-[11px] text-[#64748b] tracking-wider uppercase font-medium">
-                Autonomous Dispatch & SOW
-              </span>
-            </div>
+              <span className="absolute left-4 top-4 h-1 w-4 rounded-full bg-white" />
+            </span>
+            <span className="text-[29px] font-extrabold tracking-[-0.04em] text-[#07121b]">
+              FieldForge
+            </span>
           </Link>
 
-          {/* Desktop Navigation Links */}
-          <nav className="hidden md:flex items-center space-x-8">
-            {navLinks.map((link) => {
-              const isActive = pathname === link.href;
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`text-sm font-medium transition cursor-pointer ${
-                    isActive
-                      ? 'text-[#5a9332] font-semibold'
-                      : 'text-[#475569] hover:text-[#111827]'
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              );
-            })}
+          <nav className="hidden items-center gap-11 lg:flex" aria-label="Primary navigation">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="text-[16px] font-semibold tracking-[-0.01em] text-[#17212b] transition hover:text-[#5ea824] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a8f22d]"
+              >
+                {link.label}
+              </Link>
+            ))}
           </nav>
 
-          {/* Desktop CTA Controls */}
-          <div className="hidden md:flex items-center space-x-3.5">
-            <Link
-              href="/"
-              className="text-xs font-semibold text-[#475569] hover:text-[#111827] px-3 py-2 rounded-xl transition"
-            >
-              Command Center
-            </Link>
-
+          <div className="hidden items-center gap-4 lg:flex">
             <button
-              onClick={() => setAuthModalOpen(true)}
-              className="text-xs font-semibold text-[#111827] bg-white border border-[#e2ece5] hover:bg-[#f8faf8] px-4 py-2.5 rounded-full transition shadow-xs cursor-pointer"
+              type="button"
+              className="flex h-12 w-12 items-center justify-center rounded-full text-[#07121b] transition hover:bg-[#eef6ed] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a8f22d]"
+              aria-label="Search"
             >
-              Sign In
+              <Search className="h-7 w-7 stroke-[3]" />
             </button>
-
-            <Link href="/pricing">
-              <Button
-                variant="primary"
-                size="md"
-                className="rounded-full shadow-sm shadow-[#A8F22D]/30"
-                rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
-              >
-                Book a Demo
-              </Button>
+            <button
+              type="button"
+              onClick={() => setAuthModalOpen(true)}
+              className="h-16 rounded-[22px] border border-[#dfe9dd] bg-[#fbfcf8] px-7 text-[17px] font-bold text-[#081018] shadow-[0_8px_24px_rgba(10,20,15,0.04)] transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a8f22d]"
+            >
+              Log in
+            </button>
+            <Link
+              href="/technicians"
+              className="inline-flex h-16 items-center gap-4 rounded-[22px] bg-[#111c22] px-7 text-[17px] font-bold text-white shadow-[0_18px_36px_rgba(7,18,27,0.18)] transition hover:bg-[#1b2b31] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a8f22d]"
+            >
+              <span>
+                <span className="text-[#80e439]">Join</span> as Technician
+              </span>
+              <ArrowRight className="h-6 w-6 text-[#80e439]" />
             </Link>
           </div>
 
-          {/* Mobile Hamburger Toggle */}
           <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 rounded-xl text-[#475569] hover:bg-[#eaf5ec] transition cursor-pointer"
+            type="button"
+            onClick={() => setMobileMenuOpen((open) => !open)}
+            className="flex h-12 w-12 items-center justify-center rounded-xl text-[#07121b] transition hover:bg-[#eef6ed] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a8f22d] lg:hidden"
+            aria-expanded={mobileMenuOpen}
             aria-label="Toggle navigation menu"
           >
-            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
         </div>
 
-        {/* Mobile Flyout Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-[#f5fbf5] border-b border-[#e2ece5] px-4 pt-3 pb-6 space-y-3 animate-in slide-in-from-top-2">
-            <div className="space-y-1">
+          <div className="border-t border-[#e2ece5] bg-[#fbfcf8] px-6 py-5 lg:hidden">
+            <div className="mx-auto flex max-w-[1260px] flex-col gap-2">
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`block px-3 py-2 rounded-lg text-base font-medium ${
-                    pathname === link.href
-                      ? 'bg-[#eaf5ec] text-[#5a9332] font-semibold'
-                      : 'text-[#475569] hover:bg-[#eaf5ec]'
-                  }`}
+                  className="rounded-xl px-3 py-3 text-base font-semibold text-[#17212b] hover:bg-[#eef6ed]"
                 >
                   {link.label}
                 </Link>
               ))}
-            </div>
-
-            <div className="pt-3 border-t border-[#e2ece5] space-y-2">
-              <Link
-                href="/"
-                onClick={() => setMobileMenuOpen(false)}
-                className="block text-center text-sm font-semibold text-[#111827] bg-white border border-[#e2ece5] py-2.5 rounded-xl shadow-xs"
-              >
-                Launch Command Center
-              </Link>
               <button
+                type="button"
                 onClick={() => {
                   setMobileMenuOpen(false);
                   setAuthModalOpen(true);
                 }}
-                className="w-full text-center text-sm font-semibold text-[#08120D] bg-[#A8F22D] py-2.5 rounded-xl shadow-sm cursor-pointer"
+                className="mt-3 rounded-xl border border-[#dfe9dd] bg-white px-4 py-3 text-base font-bold text-[#081018]"
               >
-                Sign In / Book a Demo
+                Log in
               </button>
+              <Link
+                href="/technicians"
+                onClick={() => setMobileMenuOpen(false)}
+                className="rounded-xl bg-[#111c22] px-4 py-3 text-center text-base font-bold text-white"
+              >
+                Join as Technician
+              </Link>
             </div>
           </div>
         )}
       </header>
 
-      {/* Auth Modal for Sign In */}
       <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
     </>
   );

@@ -5,10 +5,7 @@ import { Providers } from './providers';
 export const metadata: Metadata = {
   title: 'FieldForge Enterprise | Autonomous Dispatch & SOW Studio',
   description:
-    'Real-time technician matching, cryptographic SLA enforcement, and automated escrow settlement.',
-  icons: {
-    icon: '/favicon.ico'
-  }
+    'Real-time technician matching, cryptographic SLA enforcement, and automated escrow settlement.'
 };
 
 export default function RootLayout({

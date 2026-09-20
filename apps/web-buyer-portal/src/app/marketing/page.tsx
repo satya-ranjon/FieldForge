@@ -8,7 +8,7 @@ import { MarketingFooter } from '../../components/marketing/MarketingFooter';
 
 export default function MarketingHomePage(): React.JSX.Element {
   return (
-    <div className="min-h-screen flex flex-col bg-[#f5fbf5] text-[#111827]">
+    <div className="flex min-h-screen flex-col bg-[#fbfcf8] text-[#111827]">
       <MarketingNavbar />
       <main className="flex-1">
         <MarketingHero />
