@@ -7,11 +7,13 @@ import {
   getInternalServiceSecret,
   BoundedLruCache
 } from '@fieldforge/common';
-import { REDIS_CLIENT } from './geo-search.service';
+import { REDIS_CLIENT } from './geo-search.constants';
 
 export const DIRECTORY_CACHE_PREFIX = 'tech:directory:';
 export const DIRECTORY_CACHE_TTL_SECONDS = 300; // 5 minutes
 export const DIRECTORY_MEMORY_CACHE_MAX_ENTRIES = 1000;
+export const TECHNICIAN_DIRECTORY_INTERNAL_SECRET = 'TECHNICIAN_DIRECTORY_INTERNAL_SECRET';
+export const TECHNICIAN_DIRECTORY_MAX_ENTRIES = 'TECHNICIAN_DIRECTORY_MAX_ENTRIES';
 
 @Injectable()
 export class TechnicianDirectoryService {
@@ -22,13 +24,17 @@ export class TechnicianDirectoryService {
 
   constructor(
     @Optional() @Inject(REDIS_CLIENT) private readonly redis?: Redis,
-    internalSecret?: string,
-    maxEntries = DIRECTORY_MEMORY_CACHE_MAX_ENTRIES
+    @Optional() @Inject(TECHNICIAN_DIRECTORY_INTERNAL_SECRET) internalSecret?: string,
+    @Optional() @Inject(TECHNICIAN_DIRECTORY_MAX_ENTRIES) maxEntries?: number
   ) {
+    const limit =
+      typeof maxEntries === 'number' && Number.isFinite(maxEntries) && maxEntries > 0
+        ? maxEntries
+        : DIRECTORY_MEMORY_CACHE_MAX_ENTRIES;
     this.authServiceUrl = process.env.AUTH_SERVICE_URL || 'http://localhost:8001';
     this.internalSecret = internalSecret;
     this.memoryCache = new BoundedLruCache<string, TechnicianSummaryDto>({
-      maxEntries,
+      maxEntries: limit,
       ttlMs: DIRECTORY_CACHE_TTL_SECONDS * 1000
     });
   }

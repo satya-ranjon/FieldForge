@@ -16,8 +16,8 @@ import {
   type CandidateScoringInput
 } from '../scoring';
 
-export const REDIS_CLIENT = 'DISPATCH_REDIS_CLIENT';
-export const TECH_LOCATIONS_KEY = 'tech:locations';
+import { REDIS_CLIENT, TECH_LOCATIONS_KEY } from './geo-search.constants';
+export { REDIS_CLIENT, TECH_LOCATIONS_KEY } from './geo-search.constants';
 
 @Injectable()
 export class GeoSearchService implements OnApplicationShutdown {

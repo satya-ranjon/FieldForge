@@ -1,9 +1,10 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import type { UserProfileResponseDto } from '@fieldforge/contracts';
 import { BoundedLruCache } from '../cache/bounded-lru-cache';
 
 export const PROFILE_DIRECTORY_CACHE_TTL_SECONDS = 300; // 5 minutes
 export const PROFILE_DIRECTORY_CACHE_MAX_ENTRIES = 1000;
+export const PROFILE_DIRECTORY_MAX_ENTRIES = 'PROFILE_DIRECTORY_MAX_ENTRIES';
 
 @Injectable()
 export class ProfileDirectoryService {
@@ -15,10 +16,18 @@ export class ProfileDirectoryService {
     { buyerProfileId?: string; technicianProfileId?: string }
   >();
 
-  constructor(maxEntries = PROFILE_DIRECTORY_CACHE_MAX_ENTRIES) {
+  constructor(
+    @Optional()
+    @Inject(PROFILE_DIRECTORY_MAX_ENTRIES)
+    maxEntries?: number
+  ) {
+    const limit =
+      typeof maxEntries === 'number' && Number.isFinite(maxEntries) && maxEntries > 0
+        ? maxEntries
+        : PROFILE_DIRECTORY_CACHE_MAX_ENTRIES;
     this.authServiceUrl = process.env.AUTH_SERVICE_URL || 'http://localhost:8001';
     this.memoryCache = new BoundedLruCache<string, UserProfileResponseDto>({
-      maxEntries,
+      maxEntries: limit,
       ttlMs: PROFILE_DIRECTORY_CACHE_TTL_SECONDS * 1000
     });
   }

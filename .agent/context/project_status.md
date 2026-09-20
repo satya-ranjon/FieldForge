@@ -1,13 +1,19 @@
 # FieldForge Implementation Status
 
-**Last reviewed:** 2026-09-17  
-**Phase:** Phase 51 complete — Transactional Outbox Published-Event Retention (Resolves ISSUE-015). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Last reviewed:** 2026-09-20  
+**Phase:** Phase 52 complete — NestJS Dependency Injection Startup Failure Remediation (Resolves ISSUE-016). Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
 - A pnpm/Turborepo monorepo with NestJS service shells, a Next.js App Router buyer
   portal (migrated off Vite; still served on port 5173), an Expo technician app, and
   shared contracts, database, common, messaging, and UI packages.
+- **NestJS Runtime Dependency Injection Invariants (ISSUE-016).**
+  - `ProfileDirectoryService` constructor in `@fieldforge/common` uses `@Optional() @Inject(PROFILE_DIRECTORY_MAX_ENTRIES) maxEntries?: number` with a safe numeric fallback to `PROFILE_DIRECTORY_CACHE_MAX_ENTRIES`.
+  - `TechnicianDirectoryService` constructor in `apps/dispatch-matching-service` uses `@Optional() @Inject(TECHNICIAN_DIRECTORY_INTERNAL_SECRET)` and `@Optional() @Inject(TECHNICIAN_DIRECTORY_MAX_ENTRIES)`.
+  - Circular import between `geo-search.service.ts` and `technician-directory.service.ts` eliminated by extracting `REDIS_CLIENT` and `TECH_LOCATIONS_KEY` into `geo-search.constants.ts`.
+  - `WorkOrderDirectoryService` constructor in `apps/billing-service` uses `@Optional() @Inject(WORK_ORDER_DIRECTORY_INTERNAL_SECRET)`.
+  - Automated module bootstrap integration tests added in `billing-service`, `work-order-service`, and `dispatch-matching-service` verifying clean IoC container instantiation and provider resolution in CI.
 - Drizzle schemas and migrations for users, work orders, status history, bids,
   deliverables, escrow, refresh tokens, technician certifications, idempotency keys,
   invoices, payout ledger, and outbox tables (`0000`, `0001`, `0002_auth.sql`, `0003_wo_history.sql`, `0004_long_marvel_boy.sql`, `0005_chubby_iron_lad.sql`, `0006_green_wild_pack.sql`, `0007_blue_malice.sql`).

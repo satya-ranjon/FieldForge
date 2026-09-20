@@ -1543,6 +1543,21 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   8. **Zero Database Schema Migrations**: Existing columns (`status`, `published_at`, `id`) and composite indexes (`idx_wo_outbox_poller`, `idx_bill_outbox_poller`) natively support filtering published rows without schema migrations (`RULE-DB-02`).
   9. **Automated Verification**: Added 17 unit tests in `packages/common/test/outbox-retention.worker.spec.ts` covering retention deletion, recent event preservation, non-published row preservation (DEAD/PENDING/PROCESSING/FAILED), null timestamp safety, batch draining caps, multi-worker concurrency, failure catching, timer lifecycles, and configuration validation.
 
+### ISSUE-016 · 🧩 NestJS Runtime Dependency Injection Startup Failures
+
+- **Status: resolved.**
+- **Severity**: High
+- **Root Cause**: When bootstrapping `billing-service`, `work-order-service`, and `dispatch-matching-service` via `pnpm dev` or `nest start`, services crashed with `UnknownDependenciesException`:
+  1. `ProfileDirectoryService` in `@fieldforge/common` had `constructor(maxEntries = PROFILE_DIRECTORY_CACHE_MAX_ENTRIES)`. Because `emitDecoratorMetadata` is enabled, TypeScript emitted `"design:paramtypes": [Number]`. Registered in `BillingModule` and `WorkOrderModule`, NestJS’s `InstanceLoader` sought a provider for `Number` at index `[0]` and crashed because none was registered and the parameter lacked `@Optional()`.
+  2. `TechnicianDirectoryService` in `dispatch-matching-service` had undecorated parameters `internalSecret?: string` and `maxEntries = ...` at indices `[1]` and `[2]`, compiling to `[Object, String, Number]`. NestJS failed on index `[1]` looking for a provider for `String`. Additionally, a circular dependency existed between `geo-search.service.ts` and `technician-directory.service.ts` importing `REDIS_CLIENT`.
+  3. `WorkOrderDirectoryService` in `billing-service` had undecorated parameter `internalSecret?: string` at index `[0]`, compiling to `[String]`, which would crash on `String` provider lookup.
+     TypeScript's static type checker did not catch these because optional arguments (`arg?: string` or default values) are syntactically valid in TS, but NestJS DI operates entirely at runtime using `reflect-metadata`. Prior unit tests instantiated services directly (`new Service(...)`), bypassing the NestJS IoC container.
+- **Fix**: Surgically applied NestJS DI conventions across all affected constructors and extracted circular constants:
+  1. **ProfileDirectoryService**: Exported `PROFILE_DIRECTORY_MAX_ENTRIES = 'PROFILE_DIRECTORY_MAX_ENTRIES'` from `@fieldforge/common`. Decorated constructor parameter with `@Optional() @Inject(PROFILE_DIRECTORY_MAX_ENTRIES) maxEntries?: number` with a safe numeric fallback.
+  2. **TechnicianDirectoryService**: Exported `TECHNICIAN_DIRECTORY_INTERNAL_SECRET` and `TECHNICIAN_DIRECTORY_MAX_ENTRIES`. Decorated constructor parameters with `@Optional() @Inject(...)`. Extracted `REDIS_CLIENT` and `TECH_LOCATIONS_KEY` into dedicated `geo-search.constants.ts` to break the circular dependency loop.
+  3. **WorkOrderDirectoryService**: Exported `WORK_ORDER_DIRECTORY_INTERNAL_SECRET` in `billing-service`. Decorated parameter with `@Optional() @Inject(WORK_ORDER_DIRECTORY_INTERNAL_SECRET) internalSecret?: string`.
+  4. **Module Bootstrap Integration Tests**: Created `module-bootstrap.spec.ts` in `apps/billing-service`, `apps/work-order-service`, and `apps/dispatch-matching-service` that initialize the NestJS IoC container and verify that all controllers and providers resolve cleanly without DI exceptions.
+
 ---
 
 ## Suggested remediation order

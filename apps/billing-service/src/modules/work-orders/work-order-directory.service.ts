@@ -1,6 +1,8 @@
 import {
+  Inject,
   Injectable,
   Logger,
+  Optional,
   InternalServerErrorException,
   ServiceUnavailableException
 } from '@nestjs/common';
@@ -11,6 +13,8 @@ import {
   getInternalServiceSecret
 } from '@fieldforge/common';
 
+export const WORK_ORDER_DIRECTORY_INTERNAL_SECRET = 'WORK_ORDER_DIRECTORY_INTERNAL_SECRET';
+
 @Injectable()
 export class WorkOrderDirectoryService {
   private readonly logger = new Logger(WorkOrderDirectoryService.name);
@@ -18,7 +22,11 @@ export class WorkOrderDirectoryService {
   private readonly internalSecret?: string;
   private readonly localWorkOrders = new Map<string, WorkOrderBillingContextDto>();
 
-  constructor(internalSecret?: string) {
+  constructor(
+    @Optional()
+    @Inject(WORK_ORDER_DIRECTORY_INTERNAL_SECRET)
+    internalSecret?: string
+  ) {
     this.workOrderServiceUrl = process.env.WORK_ORDER_SERVICE_URL || 'http://localhost:8002';
     this.internalSecret = internalSecret;
   }
