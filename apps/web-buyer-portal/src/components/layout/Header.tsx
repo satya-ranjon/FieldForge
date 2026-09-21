@@ -16,7 +16,6 @@ import {
   LogIn,
   LogOut,
   User as UserIcon,
-  Check,
   Search,
   MessageSquare,
   Calendar
@@ -143,7 +142,9 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab, onOpenAu
               <span className="text-base tracking-tighter leading-none">F</span>
             </div>
             <div className="flex flex-col">
-              <span className="font-bold text-[#090E11] text-sm tracking-tight leading-none">FieldForge</span>
+              <span className="font-bold text-[#090E11] text-sm tracking-tight leading-none">
+                FieldForge
+              </span>
               <span className="text-[10px] text-[#22B947] font-mono font-medium tracking-wider uppercase">
                 Enterprise
               </span>

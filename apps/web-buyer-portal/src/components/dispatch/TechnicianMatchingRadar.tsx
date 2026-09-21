@@ -175,10 +175,7 @@ export const TechnicianMatchingRadar: React.FC = () => {
       </Card>
 
       {/* Tactical Circular Radar Visualizer Banner */}
-      <Card
-        variant="default"
-        className="p-4 sm:p-5 bg-[#FFFFFF] border border-[#E3E8E1] shadow-xs"
-      >
+      <Card variant="default" className="p-4 sm:p-5 bg-[#FFFFFF] border border-[#E3E8E1] shadow-xs">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
           {/* Animated Circular Radar Scope */}
           <div className="md:col-span-5 flex justify-center py-2">

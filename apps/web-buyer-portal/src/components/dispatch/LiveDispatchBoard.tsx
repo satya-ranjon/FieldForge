@@ -696,7 +696,9 @@ export const LiveDispatchBoard: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="bg-[#F8FAF7] p-3.5 rounded-xl border border-[#EBEFE9]">
                 <span className="text-[#59636E] block mb-1 font-semibold">Address & Geofence:</span>
-                <span className="text-[#090E11] font-medium block">{selectedOrder.addressLine}</span>
+                <span className="text-[#090E11] font-medium block">
+                  {selectedOrder.addressLine}
+                </span>
                 <span className="text-[#7D8791] font-mono text-[10px] block mt-1">
                   Lat: {selectedOrder.latitude}, Lng: {selectedOrder.longitude} (Tolerance:{' '}
                   {selectedOrder.geofenceRadiusMeters}m)

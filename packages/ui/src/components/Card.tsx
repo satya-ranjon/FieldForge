@@ -19,7 +19,8 @@ export const Card: React.FC<CardProps> = ({
     'soft-green': 'bg-[#F0F8E7] border-[#DFECD5] text-[#0B1114]',
     dark: 'bg-[#081A15] border-white/10 text-white shadow-xs',
     floating: 'bg-white/95 backdrop-blur-md border-[#E3E8E1] text-[#0B1114] shadow-floating',
-    interactive: 'bg-[#FFFFFF] border-[#E3E8E1] text-[#0B1114] hover:border-[#D1D9CE] hover:shadow-sm cursor-pointer'
+    interactive:
+      'bg-[#FFFFFF] border-[#E3E8E1] text-[#0B1114] hover:border-[#D1D9CE] hover:shadow-sm cursor-pointer'
   };
 
   return (
@@ -60,7 +61,10 @@ export const CardTitle: React.FC<React.HTMLAttributes<HTMLHeadingElement>> = ({
   ...props
 }) => (
   <h3
-    className={cn('text-sm sm:text-base font-semibold tracking-tight text-[#090E11]', className || '')}
+    className={cn(
+      'text-sm sm:text-base font-semibold tracking-tight text-[#090E11]',
+      className || ''
+    )}
     {...props}
   >
     {children}

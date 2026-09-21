@@ -202,67 +202,60 @@ const HeroVisual: React.FC = () => {
       <ActiveJobsCard />
       <VerifiedTechnicianCard />
       <StatsRail />
-
-      <div className="absolute left-[645px] top-0 hidden xl:block">
-        <CurvedArrow />
-        <p
-          className="rotate-[-12deg] text-[19px] font-bold leading-[1.02] tracking-[0.02em] text-[#53697d]"
-          style={{ fontFamily: "'Comic Sans MS', 'Bradley Hand', cursive" }}
-        >
-          Real-time
-          <br />
-          visibility.
-          <br />
-          Better results.
-        </p>
-      </div>
     </div>
   );
 };
 
 const LiveTrackingCard: React.FC = () => {
   return (
-    <div className="absolute left-[35px] top-9 hidden h-[174px] w-[255px] rounded-[16px] border border-white/15 bg-[#102126]/94 p-5 text-white shadow-[0_26px_70px_rgba(7,18,27,0.34)] backdrop-blur xl:block">
-      <div className="mb-3 flex items-center gap-2.5">
-        <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#83eb36]/20">
+    <div className="absolute left-[30px] top-9 hidden h-[168px] w-[275px] rounded-[18px] border border-white/15 bg-[#102126]/95 p-4 text-white shadow-[0_26px_70px_rgba(7,18,27,0.34)] backdrop-blur xl:block z-30">
+      <div className="mb-2.5 flex items-center gap-2">
+        <span className="flex h-3 w-3 items-center justify-center rounded-full bg-[#83eb36]/20">
           <span className="h-2 w-2 rounded-full bg-[#83eb36]" />
         </span>
-        <h2 className="text-[16px] font-extrabold tracking-[-0.04em]">Live Job Tracking</h2>
+        <h2 className="text-[15px] font-extrabold tracking-[-0.03em]">Live Job Tracking</h2>
       </div>
 
-      <div className="relative h-[116px] overflow-hidden rounded-[12px] bg-[#21353a]/75">
-        <div className="absolute inset-0 opacity-25 [background-image:linear-gradient(#496067_1px,transparent_1px),linear-gradient(90deg,#496067_1px,transparent_1px)] [background-size:28px_28px]" />
-        <div className="absolute left-6 top-6 flex items-center gap-2.5">
-          <span className="h-8 w-8 overflow-hidden rounded-full border-2 border-white/80 bg-[#d2e4e6]">
-            <span className="block h-full w-full bg-[radial-gradient(circle_at_50%_32%,#c57a54_0_16%,transparent_17%),linear-gradient(#1c2630_0_46%,#ffffff_47%_100%)]" />
-          </span>
-          <span>
-            <span className="block text-[12px] font-extrabold">Alex M.</span>
-            <span className="mt-0.5 block text-[11px] font-extrabold text-[#83eb36]">
-              On the way
-            </span>
-            <span className="mt-0.5 block text-[10px] font-bold text-white/78">ETA 12 min</span>
-          </span>
+      <div className="relative h-[112px] overflow-hidden rounded-[14px] bg-[#162a30]/85 border border-white/5">
+        <div className="absolute inset-0 opacity-20 [background-image:linear-gradient(#496067_1px,transparent_1px),linear-gradient(90deg,#496067_1px,transparent_1px)] [background-size:24px_24px]" />
+
+        {/* Alex info */}
+        <div className="absolute left-3.5 top-3 flex items-center gap-2.5 z-10">
+          <img
+            src="/marketing/avatars/alex-morgan.png"
+            alt="Alex M."
+            className="h-9 w-9 rounded-full object-cover border-2 border-white/80 shadow-md"
+          />
+          <div>
+            <span className="block text-[12px] font-extrabold text-white">Alex M.</span>
+            <span className="block text-[11px] font-bold text-[#83eb36]">On the way</span>
+            <span className="block text-[10px] font-medium text-white/70">ETA 12 min</span>
+          </div>
         </div>
-        <div className="absolute bottom-7 left-[92px] flex h-9 w-9 items-center justify-center rounded-full bg-[#8bed34] text-[#082328] shadow-[0_0_28px_rgba(139,237,52,0.45)]">
-          <Car className="h-5 w-5 fill-current" />
-        </div>
+
+        {/* Route Line SVG */}
         <svg
-          className="absolute bottom-8 left-[118px] h-20 w-32"
-          viewBox="0 0 160 96"
+          className="absolute inset-0 h-full w-full pointer-events-none"
+          viewBox="0 0 240 100"
           aria-hidden="true"
         >
           <path
-            d="M0 62 C26 62 26 48 55 54 C84 60 78 34 112 36 L142 36"
+            d="M 125 72 Q 155 72 175 48 T 215 32"
             fill="none"
             stroke="#83eb36"
             strokeLinecap="round"
-            strokeWidth="5"
+            strokeWidth="3.5"
           />
-          <circle cx="142" cy="36" r="7" fill="#83eb36" />
         </svg>
-        <div className="absolute right-4 top-[48px] flex h-9 w-9 items-center justify-center rounded-full bg-[#63cc35] text-white shadow-[0_0_26px_rgba(99,204,53,0.52)]">
-          <span className="h-2.5 w-2.5 rounded-full bg-white" />
+
+        {/* Car Icon on route */}
+        <div className="absolute bottom-4 left-[118px] z-10 flex h-7 w-7 items-center justify-center rounded-full bg-[#83eb36] text-[#082328] shadow-[0_0_16px_rgba(131,235,54,0.6)]">
+          <Car className="h-4 w-4 fill-current" />
+        </div>
+
+        {/* Destination Dot */}
+        <div className="absolute right-3.5 top-[25px] z-10 flex h-6 w-6 items-center justify-center rounded-full bg-[#83eb36]/30 animate-pulse">
+          <span className="h-3 w-3 rounded-full bg-[#83eb36] shadow-[0_0_12px_#83eb36]" />
         </div>
       </div>
     </div>
@@ -380,30 +373,6 @@ const StatsRail: React.FC = () => {
     </div>
   );
 };
-
-const CurvedArrow: React.FC = () => (
-  <svg
-    className="absolute -left-[86px] top-[24px] h-[86px] w-[76px]"
-    viewBox="0 0 76 86"
-    aria-hidden="true"
-  >
-    <path
-      d="M66 8C33 10 18 35 19 72"
-      fill="none"
-      stroke="#54c43b"
-      strokeLinecap="round"
-      strokeWidth="4"
-    />
-    <path
-      d="M8 58 19 74 35 63"
-      fill="none"
-      stroke="#54c43b"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="4"
-    />
-  </svg>
-);
 
 const DecorativeFieldLines: React.FC = () => (
   <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-55" aria-hidden="true">

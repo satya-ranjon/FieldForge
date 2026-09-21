@@ -40,7 +40,8 @@ export const Button: React.FC<ButtonProps> = ({
       'bg-[#F04444] text-[#FFFFFF] hover:bg-[#DC2626] active:bg-[#B91C1C] focus-visible:ring-[#F04444] shadow-xs border border-red-500/30',
     outline:
       'border border-[#DDE4DA] text-[#0B1114] hover:bg-[#F8FAF7] active:bg-[#EBEFE9] focus-visible:ring-[#A8F22D]',
-    ghost: 'text-[#59636E] hover:text-[#0B1114] hover:bg-[#F0F8E7] active:bg-[#EAFAD5] focus-visible:ring-[#A8F22D]',
+    ghost:
+      'text-[#59636E] hover:text-[#0B1114] hover:bg-[#F0F8E7] active:bg-[#EAFAD5] focus-visible:ring-[#A8F22D]',
     success:
       'bg-[#22B947] text-[#FFFFFF] hover:bg-[#1CA03D] active:bg-[#168532] focus-visible:ring-[#22B947] shadow-xs border border-emerald-500/30'
   };
@@ -65,7 +66,14 @@ export const Button: React.FC<ButtonProps> = ({
           viewBox="0 0 24 24"
           aria-hidden="true"
         >
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <circle
+            className="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            strokeWidth="4"
+          />
           <path
             className="opacity-75"
             fill="currentColor"

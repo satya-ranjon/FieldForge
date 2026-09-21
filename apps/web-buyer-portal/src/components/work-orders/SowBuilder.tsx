@@ -361,7 +361,9 @@ export const SowBuilder: React.FC = () => {
                     ${preset.budgetDollars}
                   </span>
                 </div>
-                <h4 className="text-xs font-bold text-[#090E11] mt-2 leading-snug">{preset.name}</h4>
+                <h4 className="text-xs font-bold text-[#090E11] mt-2 leading-snug">
+                  {preset.name}
+                </h4>
                 <p className="text-[11px] text-[#59636E] line-clamp-2 mt-1 leading-relaxed">
                   {preset.description}
                 </p>

@@ -25,7 +25,10 @@ export function Tabs<T extends string = string>({
 }: TabsProps<T>): React.JSX.Element {
   if (variant === 'underline') {
     return (
-      <nav className={cn('flex space-x-6 border-b border-[#EBEFE9]', className || '')} aria-label="Tabs">
+      <nav
+        className={cn('flex space-x-6 border-b border-[#EBEFE9]', className || '')}
+        aria-label="Tabs"
+      >
         {items.map((tab) => {
           const isActive = tab.id === activeTab;
           const Icon = tab.icon;
@@ -81,7 +84,9 @@ export function Tabs<T extends string = string>({
                 : 'text-[#59636E] hover:text-[#0B1114] hover:bg-[#F8FAF7]'
             )}
           >
-            {Icon && <Icon className={cn('w-3.5 h-3.5', isActive ? 'text-white' : 'text-[#59636E]')} />}
+            {Icon && (
+              <Icon className={cn('w-3.5 h-3.5', isActive ? 'text-white' : 'text-[#59636E]')} />
+            )}
             <span>{tab.label}</span>
             {tab.count !== undefined && (
               <span

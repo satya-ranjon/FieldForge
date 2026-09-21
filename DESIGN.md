@@ -79,50 +79,51 @@ FieldForge is an enterprise field service marketplace and autonomous dispatch pl
 
 ### Core Surfaces & Borders
 
-| Token | Value | Purpose |
-| :--- | :--- | :--- |
-| `surface-page` | `#FBFCF8` | Marketing website canvas and page background |
-| `surface-soft` | `#F7F9F5` | Dashboard background (light gray-green) |
-| `surface-white` | `#FFFFFF` | Main cards, tables, topbar, modal dialogs |
-| `surface-green` | `#F0F8E7` | Soft green container card / highlighted alert |
-| `surface-green-strong` | `#E7F5D7` | Active green badge container |
-| `surface-dark` | `#081A15` | Primary dashboard sidebar, dark operational cards |
-| `surface-dark-secondary` | `#10241D` | Secondary dark elevation |
-| `border-default` | `#E3E8E1` | Default card and panel structural border |
-| `border-soft` | `#EBEFE9` | Table row dividers and inner separators |
-| `border-strong` | `#D5DDD2` | Form input and active container boundaries |
+| Token                    | Value     | Purpose                                           |
+| :----------------------- | :-------- | :------------------------------------------------ |
+| `surface-page`           | `#FBFCF8` | Marketing website canvas and page background      |
+| `surface-soft`           | `#F7F9F5` | Dashboard background (light gray-green)           |
+| `surface-white`          | `#FFFFFF` | Main cards, tables, topbar, modal dialogs         |
+| `surface-green`          | `#F0F8E7` | Soft green container card / highlighted alert     |
+| `surface-green-strong`   | `#E7F5D7` | Active green badge container                      |
+| `surface-dark`           | `#081A15` | Primary dashboard sidebar, dark operational cards |
+| `surface-dark-secondary` | `#10241D` | Secondary dark elevation                          |
+| `border-default`         | `#E3E8E1` | Default card and panel structural border          |
+| `border-soft`            | `#EBEFE9` | Table row dividers and inner separators           |
+| `border-strong`          | `#D5DDD2` | Form input and active container boundaries        |
 
 ### Primary Brand & Accents
 
-| Token | Value | Usage Rules |
-| :--- | :--- | :--- |
-| `brand-green` | `#A8F22D` | Primary action buttons, active navigation, key highlights, selected state |
-| `brand-green-hover` | `#94DC20` | Primary action button hover |
-| `brand-green-active` | `#82C719` | Primary action button active / pressed |
-| `brand-green-soft` | `#EAFAD5` | Soft green icon background containers (32–40px) |
-| `brand-dark` | `#081A15` | Dark primary buttons, sidebar, dark footer, dark CTA banner |
-| `text-primary` | `#0B1114` | Primary body text and table rows |
-| `text-heading` | `#090E11` | Bold headers and major titles |
-| `text-secondary` | `#59636E` | Subtitles, table headers, metadata |
-| `text-muted` | `#7D8791` | Secondary indicators, placeholders |
+| Token                | Value     | Usage Rules                                                               |
+| :------------------- | :-------- | :------------------------------------------------------------------------ |
+| `brand-green`        | `#A8F22D` | Primary action buttons, active navigation, key highlights, selected state |
+| `brand-green-hover`  | `#94DC20` | Primary action button hover                                               |
+| `brand-green-active` | `#82C719` | Primary action button active / pressed                                    |
+| `brand-green-soft`   | `#EAFAD5` | Soft green icon background containers (32–40px)                           |
+| `brand-dark`         | `#081A15` | Dark primary buttons, sidebar, dark footer, dark CTA banner               |
+| `text-primary`       | `#0B1114` | Primary body text and table rows                                          |
+| `text-heading`       | `#090E11` | Bold headers and major titles                                             |
+| `text-secondary`     | `#59636E` | Subtitles, table headers, metadata                                        |
+| `text-muted`         | `#7D8791` | Secondary indicators, placeholders                                        |
 
 > **IMPORTANT ACCENT RULE**: Lime green (`#A8F22D`) is an ACCENT. Most of the interface remains crisp white, off-white, charcoal, and subtle pale green.
 
 ### Status System
 
-| Status | Foreground | Background | Semantic Meaning |
-| :--- | :--- | :--- | :--- |
-| **Success / Completed / Approved / On Site / Paid** | `#22B947` | `#E9F8EC` | Verified, approved, on-site, or paid |
-| **Warning / Pending / En Route / Held** | `#F5A623` | `#FFF5DF` | In transit, awaiting bid, or escrow held |
-| **Danger / Cancelled / Disputed / Expired** | `#F04444` | `#FDEAEA` | Dispute flagged, cancelled, SLA breach |
-| **Info / Published / Assigned / In Progress** | `#2693F2` | `#EAF4FE` | Active broadcast, scheduled, or progress |
-| **Neutral / Draft / Closed** | `#78838D` | `#F0F2F3` | Inactive draft or closed |
+| Status                                              | Foreground | Background | Semantic Meaning                         |
+| :-------------------------------------------------- | :--------- | :--------- | :--------------------------------------- |
+| **Success / Completed / Approved / On Site / Paid** | `#22B947`  | `#E9F8EC`  | Verified, approved, on-site, or paid     |
+| **Warning / Pending / En Route / Held**             | `#F5A623`  | `#FFF5DF`  | In transit, awaiting bid, or escrow held |
+| **Danger / Cancelled / Disputed / Expired**         | `#F04444`  | `#FDEAEA`  | Dispute flagged, cancelled, SLA breach   |
+| **Info / Published / Assigned / In Progress**       | `#2693F2`  | `#EAF4FE`  | Active broadcast, scheduled, or progress |
+| **Neutral / Draft / Closed**                        | `#78838D`  | `#F0F2F3`  | Inactive draft or closed                 |
 
 ---
 
 ## 2. Component Design Standards
 
 ### Buttons
+
 - **Primary Button**: Background `#A8F22D`, text `#08120D`, hover `#94DC20`, font-weight 600, radius 10–12px.
 - **Dark Primary Button**: Background `#081A15`, text `#FFFFFF`, hover `#153028`, font-weight 600, radius 10–12px.
 - **Secondary Button**: Background `#FFFFFF`, border `1px solid #DDE4DA`, text `#0B1114`, hover `#F8FAF7`.
@@ -131,22 +132,26 @@ FieldForge is an enterprise field service marketplace and autonomous dispatch pl
 - **Heights**: Small 36px, Default 42px, Large 48px, Mobile 50–52px.
 
 ### Inputs & Forms
+
 - Height: Desktop 42–44px, Large Form 46–48px, Mobile 48–52px.
 - Radius: 10–12px. Background: `#FFFFFF`. Border: `1px solid #DDE4DA`.
 - Focus: Border `#A8F22D`, focus ring `0 0 0 3px rgba(168,242,45,0.14)`.
 
 ### Cards
+
 - **Base Card**: Background `#FFFFFF`, border `1px solid #E3E8E1`, radius 14–16px, padding 20–24px.
 - **Metric Card**: Background `#FFFFFF`, border `1px solid #E3E8E1`, radius 14px, padding 16–20px, minimal/no shadow.
 - **Soft Green Card**: Background `#F0F8E7`, border `#DFECD5`, radius 14–16px.
 - **Dark Operational Card**: Background `#081A15`, text `#FFFFFF`, secondary text `rgba(255,255,255,0.64)`.
 
 ### Tables
+
 - Header height: 42–46px, background `#F8FAF7`, text 12px weight 600 `#59636E`.
 - Row height: 54–62px, background `#FFFFFF`, border-bottom `1px solid #EBEFE9`, hover `#FAFCF8`, selected `#F1F9E8`.
 - Status pill: Height 24–28px, padding 6–10px, font-size 12px, radius 999px.
 
 ### Layout & Navigation
+
 - **Marketing Navbar**: Height 68–72px, background `#FFFFFF` (or `#FBFCF8`), border `#EBEFE9`, logo 28–32px.
 - **Dashboard Sidebar**: Width 232px, background `#081A15`, logo area 64–72px, item height 42–44px, active item background `rgba(168,242,45,0.10)`, text `#FFFFFF`, icon `#A8F22D`. Inactive text `rgba(255,255,255,0.72)`.
 - **Dashboard Topbar**: Height 64–68px, background `#FFFFFF`, bottom border `#E7EBE5`, search input height 40–42px.

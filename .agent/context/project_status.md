@@ -1,7 +1,7 @@
 # FieldForge Implementation Status
 
-**Last reviewed:** 2026-09-20  
-**Phase:** Phase 53 complete — Brand Visual System Redesign & Dual-Surface Architecture. Roadmap: `docs/DEVELOPMENT_PLAN.md`.
+**Last reviewed:** 2026-09-21  
+**Phase:** Phase 54 complete — High-Fidelity 1442px Desktop Marketing Page Visual Reconstruction & Photographic Asset Pipeline. Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
 
@@ -9,11 +9,12 @@
   portal (migrated off Vite; still served on port 5173), an Expo technician app, and
   shared contracts, database, common, messaging, and UI packages.
 - **Brand Design System v3.0.0 & Dual-Surface Architecture (`DESIGN.md`).**
-  - **Marketing Canvas (`#f5fbf5`):** Mint-tinted light canvas with crisp white cards (`#ffffff`), soft mint borders (`#e2ece5`), dark forest headings (`#0f172a`), and WCAG AA green text accent (`#5a9332`).
+  - **Marketing Canvas (`#f5fbf5` / `#F8FAF7`):** Mint-tinted light canvas with crisp white cards (`#ffffff`), soft mint borders (`#e2ece5` / `#E3E8E1`), dark forest headings (`#0f172a` / `#090E11`), and WCAG AA green text accent (`#22B947`).
   - **Command Center Canvas (`#0d1517`):** Slate-forest dark operational theme with elevated cards (`#142427`), subtle borders (`#22383c`), and radial ambient glow.
-  - **Brand Green Identity:** High-energy spring-lime (`#84e539`), high-contrast dark-labeled CTA buttons (`#92ec3d` / text `#0f1a1c`).
+  - **Brand Green Identity:** High-energy spring-lime (`#A8F22D`), high-contrast dark-labeled CTA buttons (`#A8F22D` / text `#08120D`).
   - **Unified Component Library (`@fieldforge/ui`):** Reusable `Button`, `Card`, `StatusBadge`, `Input`, `Modal`, `Badge`, and `Tabs`.
-  - **Public Marketing Website:** Dedicated routes for `/marketing`, `/platform`, `/solutions`, `/industries`, `/resources`, and `/pricing` with floating pill navbar, live radar matching preview, and responsive enterprise layouts.
+  - **Public Marketing Website (Phase 54 High-Fidelity 1442px Desktop Reconstruction):** Complete pixel-accurate reconstruction of `design-files/marketing-page-desgn/1442.png` broken into 13 modular JSX components with zero baked-in UI text: `MarketingNavbar`, `MarketingHero`, `CommandCenterPreview`, `TwoSidedAudience`, `SmartDispatchSection`, `HowItWorksSteps`, `RealWorkSection`, `ExpertiseGrid`, `TechnicianMarketplace`, `LifecyclePipeline`, `FieldOperationsSection`, `ComplianceTrustSection`, `SecurePaymentsSection`, `EnterpriseReliability`, `DarkBottomCtaBanner`, and `MarketingFooter`. Dedicated routes for `/marketing`, `/platform`, `/solutions`, `/industries`, `/resources`, and `/pricing`.
+  - **Photographic Asset Pipeline (`apps/web-buyer-portal/public/marketing/`):** 19 isolated photographic and vector map assets cleanly cropped to eliminate text overlays, documented in `docs/reference-analysis.md` and `docs/asset-plan.md`.
   - **Mobile Tech App Brand Alignment (`apps/mobile-tech-app`):** Slate-forest canvas, elevated job cards, verified green badges (`#84e539`), and tactical GPS radar widget.
 - **NestJS Runtime Dependency Injection Invariants (ISSUE-016).**
   - `ProfileDirectoryService` constructor in `@fieldforge/common` uses `@Optional() @Inject(PROFILE_DIRECTORY_MAX_ENTRIES) maxEntries?: number` with a safe numeric fallback to `PROFILE_DIRECTORY_CACHE_MAX_ENTRIES`.

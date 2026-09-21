@@ -53,7 +53,9 @@ export const Input: React.FC<InputProps> = ({
           </div>
         )}
       </div>
-      {error && <p className="text-xs text-[#F04444] font-medium flex items-center gap-1">{error}</p>}
+      {error && (
+        <p className="text-xs text-[#F04444] font-medium flex items-center gap-1">{error}</p>
+      )}
       {helperText && !error && <p className="text-xs text-[#7D8791]">{helperText}</p>}
     </div>
   );

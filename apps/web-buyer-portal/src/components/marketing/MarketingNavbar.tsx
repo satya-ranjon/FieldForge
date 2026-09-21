@@ -20,29 +20,26 @@ export const MarketingNavbar: React.FC = () => {
   return (
     <>
       <header className="relative z-50 w-full bg-[#fbfcf8]">
-        <div className="mx-auto flex h-[104px] max-w-[1260px] items-center justify-between px-6 sm:px-8 xl:px-0">
+        <div className="mx-auto flex h-[88px] max-w-[1360px] items-center justify-between px-6 sm:px-8 xl:px-12">
           <Link
             href="/marketing"
-            className="group flex items-center gap-4"
+            className="group flex items-center gap-3"
             aria-label="FieldForge home"
           >
-            <span className="relative flex h-[43px] w-[43px] items-center justify-center rounded-xl bg-[#85eb32] shadow-[0_14px_34px_rgba(117,222,38,0.28)] transition group-hover:bg-[#78dc29]">
-              <span className="text-[26px] font-black leading-none tracking-[-0.16em] text-white">
+            <span className="relative flex h-[38px] w-[38px] items-center justify-center rounded-xl bg-[#85eb32] shadow-[0_8px_20px_rgba(133,235,50,0.3)] transition group-hover:bg-[#78dc29]">
+              <span className="text-[22px] font-black leading-none tracking-tight text-white">
                 F
               </span>
-              <span className="absolute left-4 top-4 h-1 w-4 rounded-full bg-white" />
             </span>
-            <span className="text-[29px] font-extrabold tracking-[-0.04em] text-[#07121b]">
-              FieldForge
-            </span>
+            <span className="text-[24px] font-bold tracking-tight text-[#07121b]">FieldForge</span>
           </Link>
 
-          <nav className="hidden items-center gap-11 lg:flex" aria-label="Primary navigation">
+          <nav className="hidden items-center gap-9 lg:flex" aria-label="Primary navigation">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="text-[16px] font-semibold tracking-[-0.01em] text-[#17212b] transition hover:text-[#5ea824] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a8f22d]"
+                className="text-[15px] font-medium text-[#243342] transition hover:text-[#5ea824] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#85eb32]"
               >
                 {link.label}
               </Link>
@@ -52,26 +49,24 @@ export const MarketingNavbar: React.FC = () => {
           <div className="hidden items-center gap-4 lg:flex">
             <button
               type="button"
-              className="flex h-12 w-12 items-center justify-center rounded-full text-[#07121b] transition hover:bg-[#eef6ed] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a8f22d]"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-[#07121b] transition hover:bg-[#eef6ed] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#85eb32]"
               aria-label="Search"
             >
-              <Search className="h-7 w-7 stroke-[3]" />
+              <Search className="h-5 w-5 stroke-[2.2]" />
             </button>
             <button
               type="button"
               onClick={() => setAuthModalOpen(true)}
-              className="h-16 rounded-[22px] border border-[#dfe9dd] bg-[#fbfcf8] px-7 text-[17px] font-bold text-[#081018] shadow-[0_8px_24px_rgba(10,20,15,0.04)] transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a8f22d]"
+              className="h-[46px] rounded-full border border-[#dce5dc] bg-white px-6 text-[15px] font-semibold text-[#07121b] shadow-[0_2px_8px_rgba(0,0,0,0.03)] transition hover:bg-[#f8faf8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#85eb32]"
             >
               Log in
             </button>
             <Link
               href="/technicians"
-              className="inline-flex h-16 items-center gap-4 rounded-[22px] bg-[#111c22] px-7 text-[17px] font-bold text-white shadow-[0_18px_36px_rgba(7,18,27,0.18)] transition hover:bg-[#1b2b31] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a8f22d]"
+              className="inline-flex h-[46px] items-center gap-2.5 rounded-full bg-[#112328] px-6 text-[15px] font-semibold text-white shadow-[0_8px_20px_rgba(17,35,40,0.2)] transition hover:bg-[#0c1a1e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#85eb32]"
             >
-              <span>
-                <span className="text-[#80e439]">Join</span> as Technician
-              </span>
-              <ArrowRight className="h-6 w-6 text-[#80e439]" />
+              <span>Join as Technician</span>
+              <ArrowRight className="h-4 w-4 stroke-[2.5] text-[#85eb32]" />
             </Link>
           </div>
 

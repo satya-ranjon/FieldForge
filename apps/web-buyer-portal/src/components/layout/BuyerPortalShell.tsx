@@ -15,12 +15,8 @@ import {
   ShieldCheck,
   CheckCircle,
   Globe,
-  Settings,
-  Users,
   FileCheck2,
-  BarChart3,
-  Check,
-  ChevronDown
+  BarChart3
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../store';
@@ -64,7 +60,9 @@ export const BuyerPortalShell: React.FC<BuyerPortalShellProps> = ({
               <span className="text-base tracking-tighter leading-none">F</span>
             </div>
             <div className="flex flex-col">
-              <span className="font-bold text-white text-base tracking-tight leading-none">FieldForge</span>
+              <span className="font-bold text-white text-base tracking-tight leading-none">
+                FieldForge
+              </span>
               <span className="text-[10px] text-[#A8F22D] font-mono font-medium tracking-wider uppercase mt-0.5">
                 Enterprise
               </span>
