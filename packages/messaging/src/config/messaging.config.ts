@@ -9,6 +9,8 @@ export interface MessagingOptions {
   exchange: string;
   dlxExchange: string;
   serviceName: string;
+  connectRetries?: number;
+  connectRetryDelayMs?: number;
 }
 
 export function resolveMessagingOptions(
@@ -36,6 +38,8 @@ export function resolveMessagingOptions(
     redisPassword,
     exchange: overrides.exchange || EVENT_EXCHANGE,
     dlxExchange: overrides.dlxExchange || EVENT_DEAD_LETTER_EXCHANGE,
-    serviceName: overrides.serviceName || process.env.SERVICE_NAME || 'fieldforge-service'
+    serviceName: overrides.serviceName || process.env.SERVICE_NAME || 'fieldforge-service',
+    connectRetries: overrides.connectRetries ?? (process.env.NODE_ENV === 'test' ? 1 : 5),
+    connectRetryDelayMs: overrides.connectRetryDelayMs ?? 1500
   };
 }

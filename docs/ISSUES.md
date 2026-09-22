@@ -1567,6 +1567,19 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   3. **WorkOrderDirectoryService**: Exported `WORK_ORDER_DIRECTORY_INTERNAL_SECRET` in `billing-service`. Decorated parameter with `@Optional() @Inject(WORK_ORDER_DIRECTORY_INTERNAL_SECRET) internalSecret?: string`.
   4. **Module Bootstrap Integration Tests**: Created `module-bootstrap.spec.ts` in `apps/billing-service`, `apps/work-order-service`, and `apps/dispatch-matching-service` that initialize the NestJS IoC container and verify that all controllers and providers resolve cleanly without DI exceptions.
 
+### ISSUE-017 · 🔌 Backing Infrastructure Auto-Start & RabbitMQ Connection Startup Race Condition
+
+- **Status: resolved.**
+- **Severity**: High
+- **Root Cause**:
+  1. `pnpm dev` executed `./scripts/clean-ports.sh && turbo run dev --parallel`. While `clean-ports.sh` ensured `.env` existed and terminated stale port listeners, it never checked whether backing services (MySQL :3306, RabbitMQ :5672, Redis :6379) were running. When a developer ran `pnpm dev` without having explicitly started Docker (`pnpm docker:up`), services immediately crashed with `connect ECONNREFUSED 127.0.0.1:3306` in `OutboxRelay` and `connect ECONNREFUSED 127.0.0.1:5672` in `RabbitMQConnectionManager`.
+  2. In `RabbitMQConnectionManager.ensureConnected()`, there was zero connection retry logic. If RabbitMQ was still initializing during boot or delayed by a few seconds, `amqp.connect` threw immediately on the very first attempt during `onApplicationBootstrap()`, fataling the service bootstrap lifecycle (`process.exit(1)`).
+- **Fix**:
+  1. **Automated Infrastructure Pre-flight (`scripts/clean-ports.sh`)**: Added `check_port()` probing ports 3306, 5672, and 6379. If any backing service is not listening and Docker CLI is available, it automatically invokes `scripts/docker-up.sh` to boot and wait for container health before starting the Turborepo dev servers.
+  2. **Resilient Connection Retry Engine (`RabbitMQConnectionManager.ensureConnected`)**: Implemented connection retry loop with backoff and warning logs. Configurable via `connectRetries` (defaults to 5 in dev/production, 1 in `NODE_ENV === 'test'`) and `connectRetryDelayMs` (1,500ms).
+  3. **Messaging Configuration Alignment (`resolveMessagingOptions`)**: Extended `MessagingOptions` in `@fieldforge/messaging` with `connectRetries` and `connectRetryDelayMs`.
+  4. **Verification**: Backing infrastructure auto-starts cleanly; `work-order-service` boots with zero connection errors; all 15 monorepo test suites pass.
+
 ---
 
 ## Suggested remediation order

@@ -49,8 +49,33 @@ export class RabbitMQConnectionManager implements OnApplicationShutdown {
     }
 
     this.isConnecting = true;
+    const maxRetries = this.options.connectRetries ?? (process.env.NODE_ENV === 'test' ? 1 : 5);
+    const delayMs = this.options.connectRetryDelayMs ?? 1500;
+
     try {
-      this.connection = await amqp.connect(this.options.rabbitUrl);
+      let lastErr: unknown;
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          this.connection = await amqp.connect(this.options.rabbitUrl);
+          lastErr = null;
+          break;
+        } catch (err: unknown) {
+          lastErr = err;
+          const msg = err instanceof Error ? err.message : String(err);
+          if (attempt < maxRetries) {
+            console.warn(
+              `[RabbitMQConnectionManager] Connection attempt ${attempt}/${maxRetries} failed (${msg}). Retrying in ${delayMs}ms...`
+            );
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+          }
+        }
+      }
+
+      if (!this.connection) {
+        throw (
+          lastErr || new Error('[RabbitMQConnectionManager] Failed to connect to RabbitMQ broker')
+        );
+      }
 
       this.connection.on('error', (err) => {
         console.error('[RabbitMQConnectionManager] Connection error:', err.message);

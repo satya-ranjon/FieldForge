@@ -22,6 +22,9 @@
   - Circular import between `geo-search.service.ts` and `technician-directory.service.ts` eliminated by extracting `REDIS_CLIENT` and `TECH_LOCATIONS_KEY` into `geo-search.constants.ts`.
   - `WorkOrderDirectoryService` constructor in `apps/billing-service` uses `@Optional() @Inject(WORK_ORDER_DIRECTORY_INTERNAL_SECRET)`.
   - Automated module bootstrap integration tests added in `billing-service`, `work-order-service`, and `dispatch-matching-service` verifying clean IoC container instantiation and provider resolution in CI.
+- **Backing Infrastructure Auto-Start & RabbitMQ Connection Startup Race Condition (ISSUE-017).**
+  - `scripts/clean-ports.sh` probes ports 3306 (MySQL), 5672 (RabbitMQ), and 6379 (Redis) before Turborepo dev servers launch, automatically invoking `scripts/docker-up.sh` if any backing dependency is offline.
+  - `RabbitMQConnectionManager.ensureConnected()` in `@fieldforge/messaging` implements a resilient connection retry loop with backoff (configurable via `connectRetries` and `connectRetryDelayMs`, defaulting to 5 attempts in dev/production, 1 attempt in test), preventing fatal process exits on momentary broker startup delays.
 - Drizzle schemas and migrations for users, work orders, status history, bids,
   deliverables, escrow, refresh tokens, technician certifications, idempotency keys,
   invoices, payout ledger, and outbox tables (`0000`, `0001`, `0002_auth.sql`, `0003_wo_history.sql`, `0004_long_marvel_boy.sql`, `0005_chubby_iron_lad.sql`, `0006_green_wild_pack.sql`, `0007_blue_malice.sql`).
