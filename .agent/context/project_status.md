@@ -193,12 +193,14 @@
   - Decoupled `WorkOrderDirectoryService.getWorkOrder()` and caller profile checks from `db.transaction()` in `EscrowService.releaseFunds()` and `refundEscrow()`, eliminating holding InnoDB row locks (`SELECT ... FOR UPDATE`) during inter-service network HTTP calls.
   - Enforced API Gateway anti-spoofing stripping internal credentials and explicitly blocking external routing to `/internal/*`.
   - Removed unsafe 60-second in-memory response cache in `WorkOrderDirectoryService`, guaranteeing zero stale remote caching of mutable fields (`status`, `assignedTechnicianId`) for financial authorization.
-- **Frontend Work Order Transition Payload Contract Alignment (Phase 39, Resolves ISSUE-009).**
-  - Eliminated HTTP 400 Bad Request errors on buyer portal lifecycle transitions caused by payload mismatch (`{ status, notes }` sent by UI vs `{ nextStatus, reason }` expected by `WorkOrdersController` and `transitionStatusSchema`).
-  - Realigned `transitionWorkOrder` mutation in `apps/web-buyer-portal/src/store/services/api.ts` with canonical `TransitionWorkOrderDto` from `@fieldforge/contracts` and exported pure query builder `buildTransitionWorkOrderRequest`.
-  - Updated `handleApprove` and `handleRaiseDispute` in `LiveDispatchBoard.tsx` to dispatch canonical payloads (`{ nextStatus: WorkOrderStatus.APPROVED }` and `{ nextStatus: WorkOrderStatus.DISPUTED, reason }`).
-  - Added unit regression tests in `packages/contracts/test/validators.spec.ts` proving schema rejection of legacy `{ status, notes }` and acceptance of canonical `{ nextStatus, reason }`.
-  - Added Playwright tests in `apps/web-buyer-portal/e2e/transition.spec.ts` verifying API query generation and UI action interception. Total verified tests increased to 743 unit/integration + 36 E2E = 779 total.
+- **Frontend & Mobile Work Order Transition Execution Remediation (Phase 39, Resolves ISSUE-009).**
+  - Reclassified historical finding: web buyer portal payload contract `{ status, notes }` was already aligned with canonical `TransitionWorkOrderDto` (`{ nextStatus, reason }`) in commit `e68dbe6`.
+  - Remediated the 3 true client-side execution defects identified during forensic verification:
+    1. Fixed mobile offline sync manager in `apps/mobile-tech-app/src/services/syncManager.ts` dynamically replaying `payload.nextStatus` (e.g. `EN_ROUTE`) instead of hardcoding `ON_SITE`, preserving valid FSM sequence on sync.
+    2. Implemented real online HTTP transition dispatch with `x-idempotency-key` and in-flight guards (`isTransitioning`) in `apps/mobile-tech-app/src/screens/ActiveJobScreen.tsx`, eliminating optimistic-only state updates.
+    3. Fixed error swallowing in `apps/web-buyer-portal/src/components/dispatch/LiveDispatchBoard.tsx`, displaying error toast notifications (`data-testid="transition-error-toast"`) and preventing optimistic approval/dispute state mutations on backend errors.
+  - Added 11 unit tests in `apps/mobile-tech-app/test/syncManager.spec.ts`, 3 unit tests in `apps/mobile-tech-app/test/activeJob.spec.ts`, and 8 Playwright E2E tests in `apps/web-buyer-portal/e2e/transition.spec.ts`.
+  - Total verified tests increased to 898 unit/integration tests + 56 E2E tests = 954 total. Zero database migrations (`RULE-DB-02`).
 - **Payment Provider Capture & Payout Idempotency (Phase 36, Resolves FINDING-PAY-001 & FINDING-PAY-002).**
   - Eliminated external double-charge and double-payout vulnerabilities when external payment provider calls succeed but MySQL transactions fail to commit or roll back.
   - Extended `PaymentProviderPort.captureEscrow()` and `PaymentProviderPort.disbursePayout()` with mandatory `idempotencyKey: string;`.

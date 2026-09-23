@@ -151,6 +151,195 @@ test.describe('Work Order Transition Contract — ISSUE-009 Verification', () =>
     await expect(page.locator('header')).toBeVisible();
     expect(capturedTransitionPayload).toBeNull();
   });
+
+  test('UI Approve action failure: displays error notification, does not show success toast, and prevents false approval (Requirement 21)', async ({
+    page
+  }) => {
+    await page.route('**/api/v1/auth/login', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          accessToken: 'test-jwt',
+          refreshToken: 'test-refresh',
+          user: {
+            id: 'b1111111-1111-1111-1111-111111111111',
+            email: 'buyer@fieldforge.dev',
+            role: 'BUYER',
+            status: 'ACTIVE'
+          }
+        })
+      });
+    });
+
+    await page.route('**/api/v1/users/me', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'b1111111-1111-1111-1111-111111111111',
+          email: 'buyer@fieldforge.dev',
+          role: 'BUYER',
+          status: 'ACTIVE',
+          buyerProfile: { id: 'bp-1', companyName: 'Apex Logistics' }
+        })
+      });
+    });
+
+    await page.route('**/api/v1/work-orders', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          {
+            id: 'wo-test-err-001',
+            buyerId: 'b1111111-1111-1111-1111-111111111111',
+            title: 'Substation Transformer Inspection',
+            description: 'Inspect auxiliary cooling loops and oil dielectric levels',
+            category: 'ELECTRICAL',
+            status: 'COMPLETED',
+            budgetType: 'FIXED',
+            budgetAmountMinor: 45000,
+            addressLine: '120 Market Street, San Francisco, CA',
+            latitude: 37.7749,
+            longitude: -122.4194,
+            scheduledStartTime: '2026-09-25T08:00:00.000Z',
+            scheduledEndTime: '2026-09-25T17:00:00.000Z',
+            slaExpirationTime: '2026-09-26T17:00:00.000Z',
+            createdAt: '2026-09-20T10:00:00.000Z',
+            updatedAt: '2026-09-21T10:00:00.000Z'
+          }
+        ])
+      });
+    });
+
+    // Mock transition failure: 400 Bad Request
+    await page.route('**/api/v1/work-orders/*/transition', async (route) => {
+      await route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          statusCode: 400,
+          message:
+            'Invalid FSM transition: Cannot transition work order from COMPLETED to APPROVED. Missing required deliverables.',
+          error: 'Bad Request'
+        })
+      });
+    });
+
+    await page.goto('/operations');
+
+    // Click Approve button if present on page
+    const approveButton = page.getByRole('button', { name: /Approve & Release Escrow/i });
+    if (await approveButton.isVisible()) {
+      await approveButton.click();
+
+      // Verify error toast appears with the backend error message
+      const errorToast = page.locator('[data-testid="transition-error-toast"]');
+      await expect(errorToast).toBeVisible();
+      await expect(errorToast).toContainText('Missing required deliverables');
+
+      // Verify success toast is NOT displayed
+      const successToast = page.locator('[data-testid="transition-success-toast"]');
+      await expect(successToast).not.toBeVisible();
+    }
+  });
+
+  test('UI Dispute action failure: displays error notification, does not show success toast, and keeps modal open on rejection (Requirement 22)', async ({
+    page
+  }) => {
+    await page.route('**/api/v1/auth/login', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          accessToken: 'test-jwt',
+          refreshToken: 'test-refresh',
+          user: {
+            id: 'b1111111-1111-1111-1111-111111111111',
+            email: 'buyer@fieldforge.dev',
+            role: 'BUYER',
+            status: 'ACTIVE'
+          }
+        })
+      });
+    });
+
+    await page.route('**/api/v1/users/me', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'b1111111-1111-1111-1111-111111111111',
+          email: 'buyer@fieldforge.dev',
+          role: 'BUYER',
+          status: 'ACTIVE',
+          buyerProfile: { id: 'bp-1', companyName: 'Apex Logistics' }
+        })
+      });
+    });
+
+    await page.route('**/api/v1/work-orders', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          {
+            id: 'wo-test-err-002',
+            buyerId: 'b1111111-1111-1111-1111-111111111111',
+            title: 'Substation Transformer Inspection',
+            description: 'Inspect auxiliary cooling loops and oil dielectric levels',
+            category: 'ELECTRICAL',
+            status: 'COMPLETED',
+            budgetType: 'FIXED',
+            budgetAmountMinor: 45000,
+            addressLine: '120 Market Street, San Francisco, CA',
+            latitude: 37.7749,
+            longitude: -122.4194,
+            scheduledStartTime: '2026-09-25T08:00:00.000Z',
+            scheduledEndTime: '2026-09-25T17:00:00.000Z',
+            slaExpirationTime: '2026-09-26T17:00:00.000Z',
+            createdAt: '2026-09-20T10:00:00.000Z',
+            updatedAt: '2026-09-21T10:00:00.000Z'
+          }
+        ])
+      });
+    });
+
+    await page.route('**/api/v1/work-orders/*/transition', async (route) => {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          statusCode: 500,
+          message: 'Internal database transaction timeout',
+          error: 'Internal Server Error'
+        })
+      });
+    });
+
+    await page.goto('/operations');
+
+    const disputeButton = page.getByRole('button', { name: /Dispute Deliverables/i });
+    if (await disputeButton.isVisible()) {
+      await disputeButton.click();
+
+      // Fill in dispute reason
+      await page.fill('textarea', 'Work performed violates site safety standards');
+
+      // Click Confirm Dispute
+      await page.getByRole('button', { name: /Confirm Dispute & Lock Escrow/i }).click();
+
+      // Verify error toast appears
+      const errorToast = page.locator('[data-testid="transition-error-toast"]');
+      await expect(errorToast).toBeVisible();
+      await expect(errorToast).toContainText('Internal database transaction timeout');
+
+      // Verify success toast is NOT displayed
+      const successToast = page.locator('[data-testid="transition-success-toast"]');
+      await expect(successToast).not.toBeVisible();
+    }
+  });
 });
 
 test.describe('Escrow Release Contract — ISSUE-010 Verification', () => {

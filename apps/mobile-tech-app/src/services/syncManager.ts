@@ -1,4 +1,8 @@
-import { DeliverableType } from '@fieldforge/contracts';
+import {
+  DeliverableType,
+  WorkOrderStatus,
+  type TransitionWorkOrderDto
+} from '@fieldforge/contracts';
 import { OfflineSyncService, OfflineQueueItem } from './offlineSync.service';
 import { store } from '../store/store';
 import { setPendingCount, syncCompleted, setIsSyncing } from '../store/slices/syncSlice';
@@ -14,6 +18,58 @@ export interface UploadPhotoOfflinePayload {
   sizeBytes: number;
   objectKey?: string;
   stage?: 'LOCAL_PENDING' | 'S3_UPLOADED_PENDING_CONFIRMATION';
+}
+
+export interface TransitionOfflinePayload {
+  workOrderId: string;
+  nextStatus?: WorkOrderStatus | string;
+  latitude?: number;
+  longitude?: number;
+  reason?: string;
+  assignedTechnicianId?: string;
+}
+
+/**
+ * Generate cryptographically secure UUID or collision-safe fallback.
+ */
+export function generateId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+/**
+ * Canonical helper for constructing TransitionWorkOrderDto payloads.
+ * Strips undefined and null keys so the wire request matches @fieldforge/contracts.
+ */
+export function buildTransitionPayload(params: {
+  nextStatus: WorkOrderStatus | string;
+  latitude?: number;
+  longitude?: number;
+  reason?: string;
+  assignedTechnicianId?: string;
+}): TransitionWorkOrderDto {
+  const body: TransitionWorkOrderDto = {
+    nextStatus: params.nextStatus as WorkOrderStatus
+  };
+  if (params.latitude !== undefined && params.latitude !== null) {
+    body.latitude = params.latitude;
+  }
+  if (params.longitude !== undefined && params.longitude !== null) {
+    body.longitude = params.longitude;
+  }
+  if (params.reason !== undefined && params.reason !== null) {
+    body.reason = params.reason;
+  }
+  if (params.assignedTechnicianId !== undefined && params.assignedTechnicianId !== null) {
+    body.assignedTechnicianId = params.assignedTechnicianId;
+  }
+  return body;
 }
 
 /**
@@ -35,18 +91,22 @@ export async function defaultMobileDispatcher(item: OfflineQueueItem): Promise<b
   try {
     switch (item.action) {
       case 'CHECK_IN': {
-        const payload = item.payload as {
-          workOrderId: string;
-          latitude: number;
-          longitude: number;
-        };
+        const payload = item.payload as TransitionOfflinePayload;
         const endpoint = `${gatewayUrl}/work-orders/${payload.workOrderId}/transition`;
-        const body = {
-          nextStatus: 'ON_SITE',
+        const nextStatus = (payload.nextStatus as WorkOrderStatus) || WorkOrderStatus.ON_SITE;
+        const body = buildTransitionPayload({
+          nextStatus,
           latitude: payload.latitude,
-          longitude: payload.longitude
-        };
-        return await dispatchJsonMutation(endpoint, body, item.idempotencyKey, token);
+          longitude: payload.longitude,
+          reason: payload.reason,
+          assignedTechnicianId: payload.assignedTechnicianId
+        });
+        return await dispatchJsonMutation(
+          endpoint,
+          body as unknown as Record<string, unknown>,
+          item.idempotencyKey,
+          token
+        );
       }
 
       case 'UPLOAD_PHOTO': {
@@ -184,12 +244,23 @@ export async function defaultMobileDispatcher(item: OfflineQueueItem): Promise<b
       }
 
       case 'COMPLETE_JOB': {
-        const payload = item.payload as { workOrderId: string };
-        const endpoint = `${gatewayUrl}/work-orders/${payload.workOrderId}/transition`;
-        const body = {
-          nextStatus: 'COMPLETED'
+        const payload = item.payload as {
+          workOrderId: string;
+          nextStatus?: WorkOrderStatus | string;
+          reason?: string;
         };
-        return await dispatchJsonMutation(endpoint, body, item.idempotencyKey, token);
+        const endpoint = `${gatewayUrl}/work-orders/${payload.workOrderId}/transition`;
+        const nextStatus = (payload.nextStatus as WorkOrderStatus) || WorkOrderStatus.COMPLETED;
+        const body = buildTransitionPayload({
+          nextStatus,
+          reason: payload.reason
+        });
+        return await dispatchJsonMutation(
+          endpoint,
+          body as unknown as Record<string, unknown>,
+          item.idempotencyKey,
+          token
+        );
       }
 
       default:
@@ -205,7 +276,7 @@ export async function defaultMobileDispatcher(item: OfflineQueueItem): Promise<b
   }
 }
 
-async function dispatchJsonMutation(
+export async function dispatchJsonMutation(
   endpoint: string,
   body: Record<string, unknown>,
   idempotencyKey: string,
@@ -234,18 +305,52 @@ async function dispatchJsonMutation(
     if (response.ok || response.status === 409) {
       return true;
     }
-    if (response.status === 401 || response.status === 403 || response.status === 422) {
-      throw new DeliverableHttpError(
-        response.status,
-        `Dispatch rejected with HTTP ${response.status}`,
-        true
-      );
+
+    let errDetail = `Dispatch failed with HTTP ${response.status}`;
+    try {
+      const errJson = await response.json();
+      if (errJson && typeof errJson === 'object' && 'message' in errJson) {
+        errDetail = Array.isArray(errJson.message)
+          ? errJson.message.join('; ')
+          : String(errJson.message);
+      }
+    } catch {
+      // ignore json parse error
     }
-    throw new Error(`Dispatch failed with HTTP ${response.status}`);
+
+    if (
+      response.status === 400 ||
+      response.status === 401 ||
+      response.status === 403 ||
+      response.status === 422
+    ) {
+      throw new DeliverableHttpError(response.status, errDetail, true);
+    }
+    throw new Error(errDetail);
   } catch (err) {
     clearTimeout(timeoutId);
     throw err;
   }
+}
+
+/**
+ * Executes an immediate online transition against the API gateway.
+ * Returns true if successful; throws DeliverableHttpError or Error on failure.
+ */
+export async function executeOnlineTransition(
+  workOrderId: string,
+  payload: TransitionWorkOrderDto,
+  token?: string | null,
+  gatewayUrl = 'http://localhost:8000/api/v1'
+): Promise<boolean> {
+  const endpoint = `${gatewayUrl}/work-orders/${workOrderId}/transition`;
+  const idempotencyKey = `mob-online-${generateId()}`;
+  return await dispatchJsonMutation(
+    endpoint,
+    payload as unknown as Record<string, unknown>,
+    idempotencyKey,
+    token
+  );
 }
 
 export const syncServiceInstance = new OfflineSyncService(defaultMobileDispatcher);

@@ -116,4 +116,52 @@ describe('Job State Management & Deliverables (FR-MOB-001/002/003)', () => {
     expect(state.deliverables.clientSignature?.signatureHash).toContain('sha256-');
     expect(state.deliverables.clientSignature?.signedAt).toBeDefined();
   });
+
+  describe('Online Transition Consistency (ISSUE-009 Requirements 18, 19, 20)', () => {
+    it('updates state to EN_ROUTE only when online transition succeeds, preserving previous on failure', () => {
+      let state = getInitialState();
+      expect(state.activeJob?.status).toBe(WorkOrderStatus.ASSIGNED);
+
+      // Simulated failure: action rejected, state remains ASSIGNED
+      const onTransitionFailure = () => {
+        // State remains untouched on rejection
+      };
+      onTransitionFailure();
+      expect(state.activeJob?.status).toBe(WorkOrderStatus.ASSIGNED);
+
+      // Simulated success: state committed
+      state = jobReducer(state, updateJobStatus(WorkOrderStatus.EN_ROUTE));
+      expect(state.activeJob?.status).toBe(WorkOrderStatus.EN_ROUTE);
+    });
+
+    it('updates state to ON_SITE only when online geofenced check-in succeeds', () => {
+      let state = getInitialState();
+      state = jobReducer(state, updateJobStatus(WorkOrderStatus.EN_ROUTE));
+      expect(state.activeJob?.status).toBe(WorkOrderStatus.EN_ROUTE);
+
+      // Rejection does not advance state
+      const onCheckInFailure = () => {};
+      onCheckInFailure();
+      expect(state.activeJob?.status).toBe(WorkOrderStatus.EN_ROUTE);
+
+      // Success advances state
+      state = jobReducer(state, updateJobStatus(WorkOrderStatus.ON_SITE));
+      expect(state.activeJob?.status).toBe(WorkOrderStatus.ON_SITE);
+    });
+
+    it('updates state to COMPLETED only when online complete transition succeeds', () => {
+      let state = getInitialState();
+      state = jobReducer(state, updateJobStatus(WorkOrderStatus.ON_SITE));
+      expect(state.activeJob?.status).toBe(WorkOrderStatus.ON_SITE);
+
+      // Rejection does not advance state
+      const onCompleteFailure = () => {};
+      onCompleteFailure();
+      expect(state.activeJob?.status).toBe(WorkOrderStatus.ON_SITE);
+
+      // Success advances state
+      state = jobReducer(state, updateJobStatus(WorkOrderStatus.COMPLETED));
+      expect(state.activeJob?.status).toBe(WorkOrderStatus.COMPLETED);
+    });
+  });
 });

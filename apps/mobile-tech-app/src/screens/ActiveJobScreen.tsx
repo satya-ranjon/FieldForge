@@ -26,7 +26,12 @@ import { toggleOnlineStatus } from '../store/slices/syncSlice';
 import { GpsRadar } from '../components/GpsRadar';
 import { GeofenceService } from '../services/geofencing.service';
 import { PermissionsService } from '../services/permissions.service';
-import { syncServiceInstance, triggerManualSync } from '../services/syncManager';
+import {
+  syncServiceInstance,
+  triggerManualSync,
+  executeOnlineTransition,
+  buildTransitionPayload
+} from '../services/syncManager';
 import { DeliverableType, WorkOrderStatus } from '@fieldforge/contracts';
 import * as ImagePicker from 'expo-image-picker';
 import {
@@ -52,6 +57,7 @@ export const ActiveJobScreen: React.FC<ActiveJobScreenProps> = ({ onBack }) => {
   const [signerName, setSignerName] = useState('');
   const [isSigning, setIsSigning] = useState(false);
   const [locationStatus, setLocationStatus] = useState<string>('GPS Active');
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   const jobLocation = job
     ? { latitude: job.latitude, longitude: job.longitude }
@@ -98,22 +104,37 @@ export const ActiveJobScreen: React.FC<ActiveJobScreenProps> = ({ onBack }) => {
 
   // Handle FSM State: ASSIGNED -> EN_ROUTE
   const handleStartTravel = async () => {
-    dispatch(updateJobStatus(WorkOrderStatus.EN_ROUTE));
-    if (!isOnline) {
-      await syncServiceInstance.enqueue('CHECK_IN', {
-        workOrderId: job.id,
-        nextStatus: WorkOrderStatus.EN_ROUTE,
-        latitude: techLocation.latitude,
-        longitude: techLocation.longitude
-      });
-      Alert.alert('Offline Mode', 'En Route status queued locally for auto-sync.');
-    } else {
-      Alert.alert('En Route', 'Technician transit started.');
+    if (isTransitioning) return;
+    setIsTransitioning(true);
+    try {
+      if (!isOnline) {
+        await syncServiceInstance.enqueue('CHECK_IN', {
+          workOrderId: job.id,
+          nextStatus: WorkOrderStatus.EN_ROUTE
+        });
+        dispatch(updateJobStatus(WorkOrderStatus.EN_ROUTE));
+        Alert.alert('Offline Mode', 'En Route status queued locally for auto-sync.');
+      } else {
+        const payload = buildTransitionPayload({
+          nextStatus: WorkOrderStatus.EN_ROUTE
+        });
+        await executeOnlineTransition(job.id, payload, token);
+        dispatch(updateJobStatus(WorkOrderStatus.EN_ROUTE));
+        Alert.alert('En Route', 'Technician transit started.');
+      }
+    } catch (err) {
+      Alert.alert(
+        'Transition Failed',
+        err instanceof Error ? err.message : 'Failed to start travel. Please try again.'
+      );
+    } finally {
+      setIsTransitioning(false);
     }
   };
 
   // Handle FSM State: EN_ROUTE -> ON_SITE
   const handleCheckIn = async () => {
+    if (isTransitioning) return;
     if (!canCheckIn) {
       Alert.alert(
         'Geofence Boundary Violation',
@@ -122,24 +143,49 @@ export const ActiveJobScreen: React.FC<ActiveJobScreenProps> = ({ onBack }) => {
       return;
     }
 
-    dispatch(updateJobStatus(WorkOrderStatus.ON_SITE));
+    if (
+      !techLocation ||
+      techLocation.latitude === undefined ||
+      techLocation.longitude === undefined
+    ) {
+      Alert.alert('Location Required', 'GPS location is required to check in.');
+      return;
+    }
 
-    if (!isOnline) {
-      await syncServiceInstance.enqueue('CHECK_IN', {
-        workOrderId: job.id,
-        nextStatus: WorkOrderStatus.ON_SITE,
-        latitude: techLocation.latitude,
-        longitude: techLocation.longitude
-      });
+    setIsTransitioning(true);
+    try {
+      if (!isOnline) {
+        await syncServiceInstance.enqueue('CHECK_IN', {
+          workOrderId: job.id,
+          nextStatus: WorkOrderStatus.ON_SITE,
+          latitude: techLocation.latitude,
+          longitude: techLocation.longitude
+        });
+        dispatch(updateJobStatus(WorkOrderStatus.ON_SITE));
+        Alert.alert(
+          'Offline Check-In Queued',
+          `GPS location verified within 200m (${distance.toFixed(0)}m). Check-in mutation stored in offline queue.`
+        );
+      } else {
+        const payload = buildTransitionPayload({
+          nextStatus: WorkOrderStatus.ON_SITE,
+          latitude: techLocation.latitude,
+          longitude: techLocation.longitude
+        });
+        await executeOnlineTransition(job.id, payload, token);
+        dispatch(updateJobStatus(WorkOrderStatus.ON_SITE));
+        Alert.alert(
+          'Geofence Verified',
+          `GPS location verified within 200m (${distance.toFixed(0)}m). Transitioned to ON_SITE.`
+        );
+      }
+    } catch (err) {
       Alert.alert(
-        'Offline Check-In Queued',
-        `GPS location verified within 200m (${distance.toFixed(0)}m). Check-in mutation stored in offline queue.`
+        'Check-In Failed',
+        err instanceof Error ? err.message : 'Check-in transition failed. Please try again.'
       );
-    } else {
-      Alert.alert(
-        'Geofence Verified',
-        `GPS location verified within 200m (${distance.toFixed(0)}m). Transitioned to ON_SITE.`
-      );
+    } finally {
+      setIsTransitioning(false);
     }
   };
 
@@ -376,6 +422,7 @@ export const ActiveJobScreen: React.FC<ActiveJobScreenProps> = ({ onBack }) => {
 
   // Handle FSM State: ON_SITE -> COMPLETED
   const handleCompleteJob = async () => {
+    if (isTransitioning) return;
     const allChecked = deliverables.checklist.every((c) => c.completed);
     if (!allChecked) {
       Alert.alert(
@@ -392,19 +439,36 @@ export const ActiveJobScreen: React.FC<ActiveJobScreenProps> = ({ onBack }) => {
       return;
     }
 
-    dispatch(updateJobStatus(WorkOrderStatus.COMPLETED));
-
-    if (!isOnline) {
-      await syncServiceInstance.enqueue('COMPLETE_JOB', {
-        workOrderId: job.id,
-        nextStatus: WorkOrderStatus.COMPLETED
-      });
+    setIsTransitioning(true);
+    try {
+      if (!isOnline) {
+        await syncServiceInstance.enqueue('COMPLETE_JOB', {
+          workOrderId: job.id,
+          nextStatus: WorkOrderStatus.COMPLETED
+        });
+        dispatch(updateJobStatus(WorkOrderStatus.COMPLETED));
+        Alert.alert(
+          'Offline Completion Queued',
+          'Job completed in airplane mode! Mutation saved in persistent queue and will disburse upon reconnect.'
+        );
+      } else {
+        const payload = buildTransitionPayload({
+          nextStatus: WorkOrderStatus.COMPLETED
+        });
+        await executeOnlineTransition(job.id, payload, token);
+        dispatch(updateJobStatus(WorkOrderStatus.COMPLETED));
+        Alert.alert(
+          'Job Completed',
+          'Work order marked COMPLETED. Escrow approval cycle initiated.'
+        );
+      }
+    } catch (err) {
       Alert.alert(
-        'Offline Completion Queued',
-        'Job completed in airplane mode! Mutation saved in persistent queue and will disburse upon reconnect.'
+        'Completion Failed',
+        err instanceof Error ? err.message : 'Failed to complete work order. Please try again.'
       );
-    } else {
-      Alert.alert('Job Completed', 'Work order marked COMPLETED. Escrow approval cycle initiated.');
+    } finally {
+      setIsTransitioning(false);
     }
   };
 
@@ -490,7 +554,11 @@ export const ActiveJobScreen: React.FC<ActiveJobScreenProps> = ({ onBack }) => {
             <Text style={styles.sectionDescription}>
               Acknowledge assignment and notify dispatch that you are en route to the work site.
             </Text>
-            <TouchableOpacity style={styles.actionButtonPrimary} onPress={handleStartTravel}>
+            <TouchableOpacity
+              style={[styles.actionButtonPrimary, isTransitioning && styles.actionButtonDisabled]}
+              onPress={handleStartTravel}
+              disabled={isTransitioning}
+            >
               <Text style={styles.buttonText}>Start Travel (En Route)</Text>
             </TouchableOpacity>
           </View>
@@ -507,9 +575,12 @@ export const ActiveJobScreen: React.FC<ActiveJobScreenProps> = ({ onBack }) => {
             <GpsRadar distanceMeters={distance} isVerified={canCheckIn} />
 
             <TouchableOpacity
-              style={[styles.actionButtonPrimary, !canCheckIn && styles.actionButtonDisabled]}
+              style={[
+                styles.actionButtonPrimary,
+                (!canCheckIn || isTransitioning) && styles.actionButtonDisabled
+              ]}
               onPress={handleCheckIn}
-              disabled={!canCheckIn}
+              disabled={!canCheckIn || isTransitioning}
             >
               <Text style={styles.buttonText}>
                 {canCheckIn ? 'Geofence Check-In (On Site)' : 'Move Within 200m of Site'}
@@ -656,7 +727,14 @@ export const ActiveJobScreen: React.FC<ActiveJobScreenProps> = ({ onBack }) => {
 
             {/* Complete Job Action */}
             <View style={styles.sectionCard}>
-              <TouchableOpacity style={styles.actionButtonComplete} onPress={handleCompleteJob}>
+              <TouchableOpacity
+                style={[
+                  styles.actionButtonComplete,
+                  isTransitioning && styles.actionButtonDisabled
+                ]}
+                onPress={handleCompleteJob}
+                disabled={isTransitioning}
+              >
                 <Text style={styles.buttonText}>Complete Work Order</Text>
               </TouchableOpacity>
             </View>

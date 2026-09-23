@@ -1347,17 +1347,36 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   5. Total unit tests in `billing-service` increased to 36 (+3 tests, 649 total across the monorepo).
   6. Zero database migrations (`RULE-DB-02`).
 
-### ISSUE-009 · 🐛 Frontend Work Order Transition Payload Contract Mismatch
+### ISSUE-009 · 🐛 Frontend / Mobile Work Order Transition Execution Defects
 
-- **Status: resolved.**
-- **Root Cause**: `apps/web-buyer-portal` used a legacy transition request payload `{ status, notes }` in the `transitionWorkOrder` mutation and `LiveDispatchBoard` (`handleApprove`, `handleRaiseDispute`), while the backend `WorkOrdersController` and `transitionStatusSchema` strictly expected `TransitionWorkOrderDto` (`{ nextStatus: WorkOrderStatus, reason?: string }`). When sent, `nextStatus` was `undefined`, triggering `ZodValidationPipe` validation failures (HTTP 400 Bad Request) on all web buyer transition actions.
-- **Fix**: Realigned the web buyer portal with the canonical backend contract:
-  1. Updated `apps/web-buyer-portal/src/store/services/api.ts` to import `TransitionWorkOrderDto` from `@fieldforge/contracts`, typed mutation arguments with `TransitionWorkOrderArgs`, and extracted `buildTransitionWorkOrderRequest` generating the canonical `{ url: '/work-orders/:id/transition', method: 'POST', body: { nextStatus, reason } }` structure.
-  2. Updated `handleApprove` in `apps/web-buyer-portal/src/components/dispatch/LiveDispatchBoard.tsx` to send `{ id: wo.id, body: { nextStatus: WorkOrderStatus.APPROVED } }`.
-  3. Updated `handleRaiseDispute` in `LiveDispatchBoard.tsx` to map `disputeReasonInput.trim()` to `reason: disputeReasonInput.trim()` and send `{ id: selectedOrder.id, body: { nextStatus: WorkOrderStatus.DISPUTED, reason } }`.
-  4. Added contract schema regression tests in `packages/contracts/test/validators.spec.ts` proving canonical `{ nextStatus, reason }` parses and legacy `{ status, notes }` throws.
-  5. Added Playwright E2E and API client verification tests in `apps/web-buyer-portal/e2e/transition.spec.ts` asserting exact outgoing payload shape and absence of `status` or `notes`.
-  6. Zero database migrations (`RULE-DB-02`).
+- **Status: resolved (reclassified & remediated).**
+- **Forensic Reclassification**:
+  - The historical assumption that `apps/web-buyer-portal` transmitted `{ status, notes }` was already resolved in commit `e68dbe6`, which aligned `apps/web-buyer-portal/src/store/services/api.ts` with `TransitionWorkOrderDto` (`{ nextStatus, reason }`).
+  - Forensic audit of current source revealed three real remaining execution defects:
+    1. **Defect A — Mobile Offline Sync Hardcodes `ON_SITE`**: In `apps/mobile-tech-app/src/services/syncManager.ts`, the `CHECK_IN` action hardcoded `nextStatus: 'ON_SITE'` in `defaultMobileDispatcher`, ignoring `payload.nextStatus`. When a technician queued "Start Travel" (`EN_ROUTE`) offline, reconnecting replayed `nextStatus: 'ON_SITE'` on a work order in `ASSIGNED`, violating backend FSM rules (`ASSIGNED -> ON_SITE` 400 Bad Request) and permanently wedging offline replay.
+    2. **Defect B — Mobile Online Actions Bypassed Backend API**: In `apps/mobile-tech-app/src/screens/ActiveJobScreen.tsx`, `handleStartTravel`, `handleCheckIn`, and `handleCompleteJob` mutated local Redux state (`updateJobStatus`) when `isOnline === true` without dispatching HTTP transition mutations to the backend. State advanced in mobile UI while the backend remained unchanged.
+    3. **Defect C — Web Dispatch Swallowed Backend Errors**: In `apps/web-buyer-portal/src/components/dispatch/LiveDispatchBoard.tsx`, `handleApprove` and `handleRaiseDispute` swallowed backend rejections with empty `catch {}` blocks, optimistically marking work orders approved/disputed in local Redux and displaying false success toasts even when the server rejected the transition.
+- **Fix**: Remediated transition execution across mobile app and web dispatch board:
+  1. Updated `apps/mobile-tech-app/src/services/syncManager.ts`:
+     - Added `TransitionOfflinePayload` interface preserving `nextStatus`, `latitude`, `longitude`, `reason`, and `assignedTechnicianId`.
+     - Exported `generateId()` for collision-resistant idempotency keys.
+     - Exported `buildTransitionPayload()` helper producing canonical `TransitionWorkOrderDto` payloads without undefined/null fields.
+     - Updated `defaultMobileDispatcher`: `CHECK_IN` dynamically replays `payload.nextStatus` (e.g. `WorkOrderStatus.EN_ROUTE`) instead of hardcoding `'ON_SITE'`, and `COMPLETE_JOB` replays via `buildTransitionPayload()` with `nextStatus: WorkOrderStatus.COMPLETED`.
+     - Implemented `dispatchJsonMutation()` with backend JSON error body extraction (`errJson.message`) and classified HTTP error throwing (`DeliverableHttpError`).
+     - Exported `executeOnlineTransition()` for live authenticated transitions with `x-idempotency-key`.
+  2. Updated `apps/mobile-tech-app/src/screens/ActiveJobScreen.tsx`:
+     - Added `isTransitioning` state guard preventing double-submissions.
+     - `handleStartTravel`, `handleCheckIn`, and `handleCompleteJob`: When `isOnline`, executes `executeOnlineTransition()`, updating local status only upon API success and alerting with backend error details on rejection.
+     - Bound `disabled={isTransitioning}` to Start Travel, Check In, and Complete Job action buttons.
+  3. Updated `apps/web-buyer-portal/src/components/dispatch/LiveDispatchBoard.tsx`:
+     - Extracted `{ isLoading: isTransitioning }` from `useTransitionWorkOrderMutation()`.
+     - Added `actionErrorMsg` state and rendered `<div data-testid="transition-error-toast">` error notification toast.
+     - `handleApprove` & `handleRaiseDispute`: Moved local Redux state mutations into the `try` block after `unwrap()`. Added catch block setting `actionErrorMsg` from server response.
+     - Updated approval toast wording to `"Work order ${wo.id} approved successfully."`, reflecting asynchronous escrow payout.
+     - Bound `disabled={isTransitioning}` to Approve and Dispute modal buttons.
+  4. Added unit tests in `apps/mobile-tech-app/test/syncManager.spec.ts` (11 tests) and `apps/mobile-tech-app/test/activeJob.spec.ts` (3 tests).
+  5. Added Playwright E2E tests in `apps/web-buyer-portal/e2e/transition.spec.ts` verifying UI Approve and Dispute failure handling.
+  6. Backend FSM, database schemas, and `@fieldforge/contracts` remained untouched. Zero database migrations (`RULE-DB-02`).
 
 ### ISSUE-010 · 🐛 Frontend Escrow Release Route Mismatch
 

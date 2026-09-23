@@ -17,7 +17,8 @@ import {
   X,
   RotateCcw,
   Navigation,
-  Check
+  Check,
+  AlertCircle
 } from 'lucide-react';
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../../store';
@@ -52,13 +53,14 @@ export const LiveDispatchBoard: React.FC = () => {
   const selectedId = useSelector((state: RootState) => state.workOrders.selectedId);
   const filters = useSelector((state: RootState) => state.workOrders.filters);
 
-  const [transitionWorkOrderApi] = useTransitionWorkOrderMutation();
+  const [transitionWorkOrderApi, { isLoading: isTransitioning }] = useTransitionWorkOrderMutation();
   const { data: apiOrders } = useGetWorkOrdersQuery();
 
   const [inspectModalOpen, setInspectModalOpen] = useState(false);
   const [disputeModalOpen, setDisputeModalOpen] = useState(false);
   const [disputeReasonInput, setDisputeReasonInput] = useState('');
   const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
+  const [actionErrorMsg, setActionErrorMsg] = useState<string | null>(null);
 
   const effectiveWorkOrders: ExtendedWorkOrder[] =
     workOrders.length > 0
@@ -113,24 +115,33 @@ export const LiveDispatchBoard: React.FC = () => {
   const priorities = ['ALL', 'CRITICAL_SLA', 'URGENT', 'STANDARD', 'LOW'];
 
   const handleApprove = async (wo: ExtendedWorkOrder) => {
+    setActionErrorMsg(null);
     try {
       await transitionWorkOrderApi({
         id: wo.id,
         body: { nextStatus: WorkOrderStatus.APPROVED }
       }).unwrap();
-    } catch {
-      // Non-blocking fallback for offline/mock test environments
+
+      dispatch(approveDeliverables({ workOrderId: wo.id }));
+      dispatch(releaseEscrow({ workOrderId: wo.id }));
+      setActionSuccessMsg(`Work order ${wo.id} approved successfully.`);
+      setTimeout(() => setActionSuccessMsg(null), 5000);
+    } catch (err: unknown) {
+      let msg = 'Failed to approve work order. Please verify order status and try again.';
+      if (err && typeof err === 'object' && 'data' in err) {
+        const errorData = (err as { data: { message?: string | string[] } }).data;
+        if (errorData?.message) {
+          msg = Array.isArray(errorData.message) ? errorData.message.join('; ') : errorData.message;
+        }
+      }
+      setActionErrorMsg(msg);
+      setTimeout(() => setActionErrorMsg(null), 7000);
     }
-    dispatch(approveDeliverables({ workOrderId: wo.id }));
-    dispatch(releaseEscrow({ workOrderId: wo.id }));
-    setActionSuccessMsg(
-      `Work Order ${wo.id} approved! Escrow funds ${formatMinor(wo.budgetAmountMinor)} released to technician.`
-    );
-    setTimeout(() => setActionSuccessMsg(null), 5000);
   };
 
   const handleRaiseDispute = async () => {
     if (!selectedOrder || !disputeReasonInput.trim()) return;
+    setActionErrorMsg(null);
     try {
       await transitionWorkOrderApi({
         id: selectedOrder.id,
@@ -139,24 +150,36 @@ export const LiveDispatchBoard: React.FC = () => {
           reason: disputeReasonInput.trim()
         }
       }).unwrap();
-    } catch {
-      // Non-blocking fallback for offline/mock test environments
+
+      dispatch(
+        disputeWorkOrder({ workOrderId: selectedOrder.id, reason: disputeReasonInput.trim() })
+      );
+      dispatch(disputeEscrow({ workOrderId: selectedOrder.id }));
+      setDisputeModalOpen(false);
+      setDisputeReasonInput('');
+      setActionSuccessMsg(`Dispute flagged on ${selectedOrder.id}. Escrow locked for review.`);
+      setTimeout(() => setActionSuccessMsg(null), 5000);
+    } catch (err: unknown) {
+      let msg = 'Failed to raise dispute on work order. Please try again.';
+      if (err && typeof err === 'object' && 'data' in err) {
+        const errorData = (err as { data: { message?: string | string[] } }).data;
+        if (errorData?.message) {
+          msg = Array.isArray(errorData.message) ? errorData.message.join('; ') : errorData.message;
+        }
+      }
+      setActionErrorMsg(msg);
+      setTimeout(() => setActionErrorMsg(null), 7000);
     }
-    dispatch(
-      disputeWorkOrder({ workOrderId: selectedOrder.id, reason: disputeReasonInput.trim() })
-    );
-    dispatch(disputeEscrow({ workOrderId: selectedOrder.id }));
-    setDisputeModalOpen(false);
-    setDisputeReasonInput('');
-    setActionSuccessMsg(`Dispute flagged on ${selectedOrder.id}. Escrow locked for review.`);
-    setTimeout(() => setActionSuccessMsg(null), 5000);
   };
 
   return (
     <div className="space-y-4 sm:space-y-5">
       {/* Toast Notification */}
       {actionSuccessMsg && (
-        <div className="bg-[#EAF8E9] border border-[#C3EBC2] text-[#18852E] px-4 py-3 rounded-xl flex items-center justify-between text-xs animate-in fade-in slide-in-from-top-2 shadow-xs">
+        <div
+          data-testid="transition-success-toast"
+          className="bg-[#EAF8E9] border border-[#C3EBC2] text-[#18852E] px-4 py-3 rounded-xl flex items-center justify-between text-xs animate-in fade-in slide-in-from-top-2 shadow-xs"
+        >
           <div className="flex items-center space-x-2.5">
             <CheckCircle2 className="w-4 h-4 text-[#18852E] shrink-0" />
             <span className="font-semibold">{actionSuccessMsg}</span>
@@ -165,6 +188,26 @@ export const LiveDispatchBoard: React.FC = () => {
             onClick={() => setActionSuccessMsg(null)}
             className="text-[#18852E] hover:text-[#0f591e] p-1 cursor-pointer"
             aria-label="Dismiss toast"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Error Toast Notification */}
+      {actionErrorMsg && (
+        <div
+          data-testid="transition-error-toast"
+          className="bg-[#FDF2F2] border border-[#F87171] text-[#991B1B] px-4 py-3 rounded-xl flex items-center justify-between text-xs animate-in fade-in slide-in-from-top-2 shadow-xs"
+        >
+          <div className="flex items-center space-x-2.5">
+            <AlertCircle className="w-4 h-4 text-[#991B1B] shrink-0" />
+            <span className="font-semibold">{actionErrorMsg}</span>
+          </div>
+          <button
+            onClick={() => setActionErrorMsg(null)}
+            className="text-[#991B1B] hover:text-[#7f1d1d] p-1 cursor-pointer"
+            aria-label="Dismiss error toast"
           >
             <X className="w-4 h-4" />
           </button>
@@ -625,6 +668,7 @@ export const LiveDispatchBoard: React.FC = () => {
                       <Button
                         variant="success"
                         size="sm"
+                        disabled={isTransitioning}
                         onClick={() => handleApprove(selectedOrder)}
                         leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
                       >
@@ -774,7 +818,7 @@ export const LiveDispatchBoard: React.FC = () => {
             <Button
               variant="danger"
               size="sm"
-              disabled={!disputeReasonInput.trim()}
+              disabled={!disputeReasonInput.trim() || isTransitioning}
               onClick={handleRaiseDispute}
             >
               Confirm Dispute & Lock Escrow
