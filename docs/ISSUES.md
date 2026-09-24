@@ -552,9 +552,15 @@ that wall.
 
 ### H8 · 🐛 Kubernetes manifests can't actually run the system
 
-`infra/k8s/services/*` has 5 Deployments (no notification-service), all `image: …:latest`, with **no Service objects, no readiness/liveness probes, no resource limits, no securityContext, and no `envFrom`** — so the ConfigMap/Secret values never reach the pods. There are no MySQL/Redis/RabbitMQ workloads.
-**Impact:** even with images, nothing is reachable or configured; the ingress targets Services that don't exist.
-**Fix:** add Services, wire `envFrom` to the ConfigMap/Secret, add probes hitting `/healthz`/`/readyz`, set limits + non-root securityContext, add the notification Deployment and stateful backing services (or point at managed ones).
+**Status: partially resolved (H8-A implemented).**
+
+- Core non-secret configuration and service discovery URLs populated in `infra/k8s/base/configmap.yaml` (`fieldforge-global-config`).
+- All 6 microservice Deployments (`api-gateway`, `auth-service`, `work-order-service`, `dispatch-service`, `billing-service`, `notification-service`) now inject `fieldforge-global-config` via `envFrom`.
+- Service objects, resource limits, security contexts, probes, and notification deployment are present; backing workloads (MySQL/Redis/RabbitMQ), production secrets injection (H8-B), and web portal deployment remain open.
+
+`infra/k8s/services/*` previously lacked `envFrom` and service discovery wiring, causing microservices to fall back to `localhost` / `127.0.0.1` defaults in Kubernetes.
+**Impact:** pods could not discover adjacent microservices or cluster services.
+**Fix:** configure global ConfigMap with cluster DNS and non-secret configs, wire `envFrom` into all Deployments, add backing workloads and secret injection.
 
 ### H9 · Kubernetes deployment workflow was broken
 

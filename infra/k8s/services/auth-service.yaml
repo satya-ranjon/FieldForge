@@ -20,15 +20,10 @@ spec:
           image: fieldforge/auth-service:latest
           ports:
             - containerPort: 8001
+          envFrom:
+            - configMapRef:
+                name: fieldforge-global-config
           env:
-            - name: REDIS_HOST
-              valueFrom:
-                configMapKeyRef:
-                  name: fieldforge-global-config
-                  key: REDIS_HOST
-                  optional: true
-            - name: REDIS_PORT
-              value: '6379'
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:

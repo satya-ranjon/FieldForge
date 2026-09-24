@@ -20,6 +20,9 @@ spec:
           image: fieldforge/api-gateway:latest
           ports:
             - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: fieldforge-global-config
           livenessProbe:
             httpGet:
               path: /api/v1/healthz
