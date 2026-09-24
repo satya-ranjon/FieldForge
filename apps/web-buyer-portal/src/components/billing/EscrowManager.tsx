@@ -6,6 +6,7 @@ import {
   CreditCard,
   Download,
   CheckCircle2,
+  AlertCircle,
   Clock,
   Lock,
   Search,
@@ -41,7 +42,7 @@ export const EscrowManager: React.FC = () => {
   const billing = useSelector((state: RootState) => state.billing);
   const workOrders = useSelector((state: RootState) => state.workOrders.items);
 
-  const [releaseEscrowApi] = useReleaseEscrowMutation();
+  const [releaseEscrowApi, { isLoading: isReleasing }] = useReleaseEscrowMutation();
 
   const [selectedTx, setSelectedTx] = useState<EscrowTransaction | null>(null);
   const [releaseModalOpen, setReleaseModalOpen] = useState(false);
@@ -49,6 +50,7 @@ export const EscrowManager: React.FC = () => {
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
   const [disputeReason, setDisputeReason] = useState('');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [releaseError, setReleaseError] = useState<string | null>(null);
   const [filterQuery, setFilterQuery] = useState('');
 
   const effectiveTransactions =
@@ -81,7 +83,15 @@ export const EscrowManager: React.FC = () => {
 
   const handleOpenRelease = (tx: EscrowTransaction) => {
     setSelectedTx(tx);
+    setReleaseError(null);
     setReleaseModalOpen(true);
+  };
+
+  const handleCloseRelease = () => {
+    if (!isReleasing) {
+      setReleaseModalOpen(false);
+      setReleaseError(null);
+    }
   };
 
   const handleOpenDispute = (tx: EscrowTransaction) => {
@@ -90,19 +100,29 @@ export const EscrowManager: React.FC = () => {
   };
 
   const handleConfirmRelease = async () => {
-    if (!selectedTx) return;
+    if (!selectedTx || isReleasing) return;
+    setReleaseError(null);
     try {
       await releaseEscrowApi({ workOrderId: selectedTx.workOrderId }).unwrap();
-    } catch {
-      // Non-blocking fallback for offline/mock test environments
+      dispatch(releaseEscrow({ workOrderId: selectedTx.workOrderId }));
+      dispatch(approveDeliverables({ workOrderId: selectedTx.workOrderId }));
+      setReleaseModalOpen(false);
+      setToastMsg(
+        `Escrow of ${formatMinor(selectedTx.amountMinor)} released to technician for work order ${selectedTx.workOrderId}. Invoice generated!`
+      );
+      setTimeout(() => setToastMsg(null), 5000);
+    } catch (err: unknown) {
+      let msg = 'Failed to release escrow funds. Please verify order status and try again.';
+      if (err && typeof err === 'object' && 'data' in err) {
+        const errorData = (err as { data: { message?: string | string[] } }).data;
+        if (errorData?.message) {
+          msg = Array.isArray(errorData.message) ? errorData.message.join('; ') : errorData.message;
+        }
+      } else if (err instanceof Error) {
+        msg = err.message;
+      }
+      setReleaseError(msg);
     }
-    dispatch(releaseEscrow({ workOrderId: selectedTx.workOrderId }));
-    dispatch(approveDeliverables({ workOrderId: selectedTx.workOrderId }));
-    setReleaseModalOpen(false);
-    setToastMsg(
-      `Escrow of ${formatMinor(selectedTx.amountMinor)} released to technician for work order ${selectedTx.workOrderId}. Invoice generated!`
-    );
-    setTimeout(() => setToastMsg(null), 5000);
   };
 
   const handleConfirmDispute = () => {
@@ -122,9 +142,12 @@ export const EscrowManager: React.FC = () => {
 
   return (
     <div className="space-y-5 sm:space-y-6">
-      {/* Toast Notification */}
+      {/* Success Toast Notification */}
       {toastMsg && (
-        <div className="bg-[#EAF8E9] border border-[#C3EBC2] text-[#18852E] px-4 py-3 rounded-xl flex items-center justify-between text-xs animate-in fade-in shadow-xs">
+        <div
+          data-testid="escrow-release-success-toast"
+          className="bg-[#EAF8E9] border border-[#C3EBC2] text-[#18852E] px-4 py-3 rounded-xl flex items-center justify-between text-xs animate-in fade-in shadow-xs"
+        >
           <div className="flex items-center space-x-2.5">
             <CheckCircle2 className="w-4 h-4 text-[#18852E] shrink-0" />
             <span className="font-semibold">{toastMsg}</span>
@@ -133,6 +156,26 @@ export const EscrowManager: React.FC = () => {
             onClick={() => setToastMsg(null)}
             className="text-[#18852E] hover:text-[#0f591e] p-1 cursor-pointer"
             aria-label="Dismiss toast"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Error Toast Notification (when modal is closed) */}
+      {releaseError && !releaseModalOpen && (
+        <div
+          data-testid="escrow-release-error-toast"
+          className="bg-[#FDF2F2] border border-[#F87171] text-[#991B1B] px-4 py-3 rounded-xl flex items-center justify-between text-xs animate-in fade-in shadow-xs"
+        >
+          <div className="flex items-center space-x-2.5">
+            <AlertCircle className="w-4 h-4 text-[#991B1B] shrink-0" />
+            <span className="font-semibold">{releaseError}</span>
+          </div>
+          <button
+            onClick={() => setReleaseError(null)}
+            className="text-[#991B1B] hover:text-[#7f1d1d] p-1 cursor-pointer"
+            aria-label="Dismiss error toast"
           >
             <X className="w-4 h-4" />
           </button>
@@ -349,12 +392,33 @@ export const EscrowManager: React.FC = () => {
       {selectedTx && (
         <Modal
           isOpen={releaseModalOpen}
-          onClose={() => setReleaseModalOpen(false)}
+          onClose={handleCloseRelease}
           title="Confirm Milestone Sign-Off & Escrow Release"
           description={`Releasing funds for ${selectedTx.workOrderId}`}
           maxWidth="md"
         >
           <div className="space-y-4 text-xs">
+            {/* In-Modal Error Notification */}
+            {releaseError && (
+              <div
+                data-testid="escrow-release-error-toast"
+                className="bg-[#FDF2F2] border border-[#F87171] text-[#991B1B] px-3.5 py-2.5 rounded-xl flex items-center justify-between text-xs animate-in fade-in shadow-xs"
+              >
+                <div className="flex items-center space-x-2">
+                  <AlertCircle className="w-4 h-4 text-[#991B1B] shrink-0" />
+                  <span className="font-semibold">{releaseError}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setReleaseError(null)}
+                  className="text-[#991B1B] hover:text-[#7f1d1d] p-0.5 cursor-pointer"
+                  aria-label="Dismiss error"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
             <div className="bg-[#F8FAF7] p-3.5 rounded-xl border border-[#EBEFE9] space-y-2">
               <div className="flex justify-between items-center text-[#59636E]">
                 <span>Escrow Transaction:</span>
@@ -379,16 +443,23 @@ export const EscrowManager: React.FC = () => {
             </p>
 
             <div className="flex justify-end space-x-2 pt-2">
-              <Button variant="secondary" size="sm" onClick={() => setReleaseModalOpen(false)}>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={isReleasing}
+                onClick={handleCloseRelease}
+              >
                 Cancel
               </Button>
               <Button
                 variant="primary"
                 size="sm"
+                disabled={isReleasing}
+                isLoading={isReleasing}
                 onClick={handleConfirmRelease}
                 leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
               >
-                Confirm & Release Funds
+                {isReleasing ? 'Releasing Funds...' : 'Confirm & Release Funds'}
               </Button>
             </div>
           </div>

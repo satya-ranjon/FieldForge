@@ -388,3 +388,305 @@ test.describe('Escrow Release Contract — ISSUE-010 Verification', () => {
     expect(request.body).not.toHaveProperty('userId');
   });
 });
+
+test.describe('EscrowManager UI False-Success Prevention — ISSUE-010 Follow-Up', () => {
+  test('successful escrow release closes modal, displays success toast, and updates transaction status', async ({
+    page
+  }) => {
+    await page.route('**/api/v1/auth/login', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          accessToken: 'test-jwt',
+          refreshToken: 'test-refresh',
+          user: {
+            id: 'b1111111-1111-1111-1111-111111111111',
+            email: 'buyer@fieldforge.dev',
+            role: 'BUYER',
+            status: 'ACTIVE'
+          }
+        })
+      });
+    });
+
+    await page.route('**/api/v1/users/me', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'b1111111-1111-1111-1111-111111111111',
+          email: 'buyer@fieldforge.dev',
+          role: 'BUYER',
+          status: 'ACTIVE',
+          buyerProfile: { id: 'bp-1', companyName: 'Apex Logistics' }
+        })
+      });
+    });
+
+    await page.route('**/api/v1/billing/escrow/release', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          workOrderId: 'wo-101',
+          status: 'RELEASED'
+        })
+      });
+    });
+
+    await page.goto('/billing');
+
+    // Click Release Funds on first pending escrow transaction
+    const releaseBtn = page.getByRole('button', { name: /Release Funds/i }).first();
+    await expect(releaseBtn).toBeVisible();
+    await releaseBtn.click();
+
+    // Verify modal is open
+    await expect(page.getByText('Confirm Milestone Sign-Off & Escrow Release')).toBeVisible();
+
+    // Click Confirm & Release Funds
+    const confirmBtn = page.getByRole('button', { name: /Confirm & Release Funds/i });
+    await expect(confirmBtn).toBeVisible();
+    await confirmBtn.click();
+
+    // Verify success toast appears and error toast is not visible
+    const successToast = page.locator('[data-testid="escrow-release-success-toast"]');
+    await expect(successToast).toBeVisible();
+    await expect(successToast).toContainText('released to technician');
+
+    const errorToast = page.locator('[data-testid="escrow-release-error-toast"]');
+    await expect(errorToast).not.toBeVisible();
+
+    // Verify modal has closed
+    await expect(page.getByText('Confirm Milestone Sign-Off & Escrow Release')).not.toBeVisible();
+  });
+
+  test('failed escrow release (400 Bad Request) keeps modal open, displays error feedback, and prevents false success', async ({
+    page
+  }) => {
+    await page.route('**/api/v1/auth/login', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          accessToken: 'test-jwt',
+          refreshToken: 'test-refresh',
+          user: {
+            id: 'b1111111-1111-1111-1111-111111111111',
+            email: 'buyer@fieldforge.dev',
+            role: 'BUYER',
+            status: 'ACTIVE'
+          }
+        })
+      });
+    });
+
+    await page.route('**/api/v1/users/me', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'b1111111-1111-1111-1111-111111111111',
+          email: 'buyer@fieldforge.dev',
+          role: 'BUYER',
+          status: 'ACTIVE',
+          buyerProfile: { id: 'bp-1', companyName: 'Apex Logistics' }
+        })
+      });
+    });
+
+    await page.route('**/api/v1/billing/escrow/release', async (route) => {
+      await route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          statusCode: 400,
+          message: 'Escrow release rejected: deliverables must be approved prior to payout',
+          error: 'Bad Request'
+        })
+      });
+    });
+
+    await page.goto('/billing');
+
+    // Click Release Funds on first pending escrow transaction
+    const releaseBtn = page.getByRole('button', { name: /Release Funds/i }).first();
+    await expect(releaseBtn).toBeVisible();
+    await releaseBtn.click();
+
+    // Verify modal is open
+    await expect(page.getByText('Confirm Milestone Sign-Off & Escrow Release')).toBeVisible();
+
+    // Click Confirm & Release Funds
+    const confirmBtn = page.getByRole('button', { name: /Confirm & Release Funds/i });
+    await expect(confirmBtn).toBeVisible();
+    await confirmBtn.click();
+
+    // Verify error toast appears inside the modal with the backend error message
+    const errorToast = page.locator('[data-testid="escrow-release-error-toast"]');
+    await expect(errorToast).toBeVisible();
+    await expect(errorToast).toContainText('deliverables must be approved prior to payout');
+
+    // Verify success toast is NOT displayed
+    const successToast = page.locator('[data-testid="escrow-release-success-toast"]');
+    await expect(successToast).not.toBeVisible();
+
+    // Verify modal remains open
+    await expect(page.getByText('Confirm Milestone Sign-Off & Escrow Release')).toBeVisible();
+
+    // Close modal via Cancel
+    await page.getByRole('button', { name: 'Cancel' }).click();
+    await expect(page.getByText('Confirm Milestone Sign-Off & Escrow Release')).not.toBeVisible();
+
+    // Verify row still has "Release Funds" (remains HELD, no false release)
+    await expect(page.getByRole('button', { name: /Release Funds/i }).first()).toBeVisible();
+  });
+
+  test('failed escrow release (500 Server Error) keeps modal open and does not produce false success state', async ({
+    page
+  }) => {
+    await page.route('**/api/v1/auth/login', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          accessToken: 'test-jwt',
+          refreshToken: 'test-refresh',
+          user: {
+            id: 'b1111111-1111-1111-1111-111111111111',
+            email: 'buyer@fieldforge.dev',
+            role: 'BUYER',
+            status: 'ACTIVE'
+          }
+        })
+      });
+    });
+
+    await page.route('**/api/v1/users/me', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'b1111111-1111-1111-1111-111111111111',
+          email: 'buyer@fieldforge.dev',
+          role: 'BUYER',
+          status: 'ACTIVE',
+          buyerProfile: { id: 'bp-1', companyName: 'Apex Logistics' }
+        })
+      });
+    });
+
+    await page.route('**/api/v1/billing/escrow/release', async (route) => {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          statusCode: 500,
+          message: 'Payment gateway disbursement service timeout',
+          error: 'Internal Server Error'
+        })
+      });
+    });
+
+    await page.goto('/billing');
+
+    const releaseBtn = page.getByRole('button', { name: /Release Funds/i }).first();
+    await expect(releaseBtn).toBeVisible();
+    await releaseBtn.click();
+
+    const confirmBtn = page.getByRole('button', { name: /Confirm & Release Funds/i });
+    await expect(confirmBtn).toBeVisible();
+    await confirmBtn.click();
+
+    // Verify error toast appears with backend message
+    const errorToast = page.locator('[data-testid="escrow-release-error-toast"]');
+    await expect(errorToast).toBeVisible();
+    await expect(errorToast).toContainText('Payment gateway disbursement service timeout');
+
+    // Verify success toast is NOT visible
+    const successToast = page.locator('[data-testid="escrow-release-success-toast"]');
+    await expect(successToast).not.toBeVisible();
+
+    // Verify modal remains open
+    await expect(page.getByText('Confirm Milestone Sign-Off & Escrow Release')).toBeVisible();
+  });
+
+  test('release buttons are disabled and loading spinner is rendered during flight to prevent double submit', async ({
+    page
+  }) => {
+    let releaseHoldPromiseResolve: () => void;
+    const releaseHoldPromise = new Promise<void>((resolve) => {
+      releaseHoldPromiseResolve = resolve;
+    });
+
+    await page.route('**/api/v1/auth/login', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          accessToken: 'test-jwt',
+          refreshToken: 'test-refresh',
+          user: {
+            id: 'b1111111-1111-1111-1111-111111111111',
+            email: 'buyer@fieldforge.dev',
+            role: 'BUYER',
+            status: 'ACTIVE'
+          }
+        })
+      });
+    });
+
+    await page.route('**/api/v1/users/me', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'b1111111-1111-1111-1111-111111111111',
+          email: 'buyer@fieldforge.dev',
+          role: 'BUYER',
+          status: 'ACTIVE',
+          buyerProfile: { id: 'bp-1', companyName: 'Apex Logistics' }
+        })
+      });
+    });
+
+    await page.route('**/api/v1/billing/escrow/release', async (route) => {
+      await releaseHoldPromise;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          workOrderId: 'wo-101',
+          status: 'RELEASED'
+        })
+      });
+    });
+
+    await page.goto('/billing');
+
+    const releaseBtn = page.getByRole('button', { name: /Release Funds/i }).first();
+    await expect(releaseBtn).toBeVisible();
+    await releaseBtn.click();
+
+    const confirmBtn = page.getByRole('button', { name: /Confirm & Release Funds/i });
+    await expect(confirmBtn).toBeVisible();
+    await confirmBtn.click();
+
+    // During flight: confirm button should show "Releasing Funds..." and be disabled
+    const inFlightBtn = page.getByRole('button', { name: /Releasing Funds/i });
+    await expect(inFlightBtn).toBeVisible();
+    await expect(inFlightBtn).toBeDisabled();
+
+    // Cancel button should also be disabled
+    const cancelBtn = page.getByRole('button', { name: 'Cancel' });
+    await expect(cancelBtn).toBeDisabled();
+
+    // Release the API hold
+    releaseHoldPromiseResolve!();
+
+    // After resolution: success toast appears
+    const successToast = page.locator('[data-testid="escrow-release-success-toast"]');
+    await expect(successToast).toBeVisible();
+  });
+});

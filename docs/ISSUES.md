@@ -1390,6 +1390,7 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
   5. Updated `EscrowManager.tsx` manual release flow and Playwright E2E route mocks in `e2e/lifecycle.spec.ts` and `e2e/transition.spec.ts` to target `**/api/v1/billing/escrow/release`.
   6. Added automated unit tests in `packages/contracts/test/validators.spec.ts` for `releaseEscrowSchema`, in `apps/billing-service/test/billing.controller.spec.ts` for `releaseEscrow`, and in `apps/web-buyer-portal/e2e/transition.spec.ts` for `buildReleaseEscrowRequest`.
   7. Zero database migrations (`RULE-DB-02`).
+  8. **Follow-Up (False-Success Elimination)**: Hardened client-side error handling in `EscrowManager.tsx`. Resolved the defect where manual escrow release swallowed API errors and prematurely dispatched optimistic Redux actions (`releaseEscrow`, `approveDeliverables`). Now strictly updates Redux and emits success toasts only after API `unwrap()` succeeds. On API rejection (HTTP 4xx/5xx), retains modal state, preserves local `HELD` status, displays descriptive error alert (`data-testid="escrow-release-error-toast"`), and disables action controls (`isLoading={isReleasing}`) during in-flight operations to prevent double disbursement submissions. Added 4 comprehensive E2E tests in `apps/web-buyer-portal/e2e/transition.spec.ts`.
 
 ### ISSUE-011 · 🐛 Premature PAYOUT_FAILED Emission & Payout Failure Consistency Remediation
 
