@@ -43,6 +43,13 @@
   - Enforced AOF persistence (`appendonly yes`) via shell entrypoint generating secure `/tmp/redis.conf` (permissions 600), dynamically setting `requirepass "$REDIS_PASSWORD"` if configured in `fieldforge-secrets` without command-line argument exposure in `/proc`.
   - Configured non-leaking health probes (`startupProbe`, `readinessProbe`, `livenessProbe`) using native `redis-cli ping` with `REDISCLI_AUTH` environment variable injection, eliminating command-line password leakage.
   - Wired into root `infra/k8s/kustomization.yaml`; verified 100% clean rendering via `kubectl kustomize infra/k8s`.
+- **In-Cluster RabbitMQ 4.1 Backing Infrastructure (H8-C3).**
+  - Provisioned staging in-cluster RabbitMQ 4.1 StatefulSet (`rabbitmq`), canonical Headless governing Service (`rabbitmq-headless`), and ClusterIP Service (`rabbitmq-service:5672,15672`) in `infra/k8s/backing/rabbitmq.yaml`, resolving cluster DNS `RABBITMQ_HOST: rabbitmq-service`.
+  - Configured 10Gi persistent storage via `volumeClaimTemplates` mounting `/var/lib/rabbitmq` (preserving Mnesia schema, durable queues, and auto-generated `.erlang.cookie` with 0400 permissions across restarts).
+  - Sourced broker initialization credentials from `fieldforge-global-config` (`RABBITMQ_DEFAULT_USER: RABBITMQ_USER`) and `fieldforge-secrets` (`RABBITMQ_DEFAULT_PASS: RABBITMQ_PASSWORD`), automatically eliminating the default `guest` user.
+  - Configured non-leaking health probes (`startupProbe`, `readinessProbe`, `livenessProbe`) using CLI-native `rabbitmq-diagnostics -q ping` and `rabbitmq-diagnostics -q check_port_connectivity`, requiring zero credentials in arguments or environment.
+  - Set pod security context to `fsGroup: 101` matching Alpine's `rabbitmq` group (UID 100, GID 101) and container baseline resources (requests 200m/512Mi, limits 1000m/1024Mi).
+  - Wired into root `infra/k8s/kustomization.yaml`; verified 100% clean rendering via `kubectl kustomize infra/k8s`.
 - **Backing Infrastructure Auto-Start & RabbitMQ Connection Startup Race Condition (ISSUE-017).**
   - `scripts/clean-ports.sh` probes ports 3306 (MySQL), 5672 (RabbitMQ), and 6379 (Redis) before Turborepo dev servers launch, automatically invoking `scripts/docker-up.sh` if any backing dependency is offline.
   - `RabbitMQConnectionManager.ensureConnected()` in `@fieldforge/messaging` implements a resilient connection retry loop with backoff (configurable via `connectRetries` and `connectRetryDelayMs`, defaulting to 5 attempts in dev/production, 1 attempt in test), preventing fatal process exits on momentary broker startup delays.

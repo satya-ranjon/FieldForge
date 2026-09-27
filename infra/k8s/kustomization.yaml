@@ -5,6 +5,7 @@ resources:
   - base/ingress.yaml
   - backing/mysql.yaml
   - backing/redis.yaml
+  - backing/rabbitmq.yaml
   - services/api-gateway.yaml
   - services/auth-service.yaml
   - services/billing-service.yaml

@@ -552,13 +552,14 @@ that wall.
 
 ### H8 · 🐛 Kubernetes manifests can't actually run the system
 
-**Status: partially resolved (H8-A, H8-B, H8-C1, and H8-C2 implemented).**
+**Status: partially resolved (H8-A, H8-B, H8-C1, H8-C2, and H8-C3 implemented).**
 
 - **H8-A**: Core non-secret configuration and service discovery URLs populated in `infra/k8s/base/configmap.yaml` (`fieldforge-global-config`). All 6 microservice Deployments inject `fieldforge-global-config` via `envFrom`.
 - **H8-B**: Required secrets (`JWT_SECRET`, `INTERNAL_SERVICE_SECRET`, `DB_PASSWORD`, `RABBITMQ_PASSWORD`, `REDIS_PASSWORD`) wired into backend Deployments via explicit `secretKeyRef` targeting external `fieldforge-secrets`. Secret template in `infra/k8s/base/secrets.example.yaml` updated with safe non-production placeholders.
 - **H8-C1**: Provisioned staging in-cluster MySQL 8.4 StatefulSet (`mysql`) and ClusterIP Service (`mysql-service:3306`) with 10Gi PVC storage (`infra/k8s/backing/mysql.yaml`), backed by `fieldforge-global-config` and `fieldforge-secrets`.
 - **H8-C2**: Provisioned staging in-cluster Redis 8.0 StatefulSet (`redis`), Headless Service (`redis-headless`), and ClusterIP Service (`redis-service:6379`) with 5Gi PVC storage and AOF persistence (`infra/k8s/backing/redis.yaml`).
-- **Remaining Open**: Backing infrastructure for RabbitMQ 4.1 (H8-C3), database migration Job (H8-C4), AWS IAM IRSA / S3 credentials and web portal deployment in H8-D remain open.
+- **H8-C3**: Provisioned staging in-cluster RabbitMQ 4.1 StatefulSet (`rabbitmq`), Headless Service (`rabbitmq-headless`), and ClusterIP Service (`rabbitmq-service:5672,15672`) with 10Gi PVC storage (`infra/k8s/backing/rabbitmq.yaml`), backed by `fieldforge-global-config` and `fieldforge-secrets`.
+- **Remaining Open**: Database schema migration Job (H8-C4), AWS IAM IRSA / S3 credentials and web portal deployment in H8-D remain open.
 
 `infra/k8s/services/*` previously lacked `envFrom`, service discovery wiring, secret injection, and backing database workloads, causing microservices to fall back to `localhost` defaults and fail runtime authentication.
 **Impact:** pods could not discover adjacent microservices, authenticate against databases/brokers, or resolve database/cache endpoints.
