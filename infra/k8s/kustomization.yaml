@@ -4,6 +4,7 @@ resources:
   - base/configmap.yaml
   - base/ingress.yaml
   - backing/mysql.yaml
+  - backing/redis.yaml
   - services/api-gateway.yaml
   - services/auth-service.yaml
   - services/billing-service.yaml

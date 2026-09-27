@@ -37,6 +37,12 @@
   - Sourced database initialization credentials from `fieldforge-global-config` (`MYSQL_DATABASE: DB_NAME`, `MYSQL_USER: DB_USER`) and `fieldforge-secrets` (`MYSQL_PASSWORD: DB_PASSWORD`) with `MYSQL_RANDOM_ROOT_PASSWORD: "yes"`.
   - Configured non-leaking health probes (`startupProbe`, `readinessProbe`, `livenessProbe`) using `mysqladmin ping` with user credentials, and `fsGroup: 999` pod security context.
   - Wired into root `infra/k8s/kustomization.yaml`; verified 100% clean rendering via `kubectl kustomize infra/k8s`.
+- **In-Cluster Redis 8.0 Backing Infrastructure (H8-C2).**
+  - Provisioned staging in-cluster Redis 8.0 StatefulSet (`redis`), canonical Headless governing Service (`redis-headless`), and ClusterIP Service (`redis-service:6379`) in `infra/k8s/backing/redis.yaml`, resolving cluster DNS `REDIS_HOST: redis-service`.
+  - Configured 5Gi persistent storage via `volumeClaimTemplates` mounting `/data`, default dynamic StorageClass, `replicas: 1` (explicitly documented as staging single instance, not production HA).
+  - Enforced AOF persistence (`appendonly yes`) via shell entrypoint generating secure `/tmp/redis.conf` (permissions 600), dynamically setting `requirepass "$REDIS_PASSWORD"` if configured in `fieldforge-secrets` without command-line argument exposure in `/proc`.
+  - Configured non-leaking health probes (`startupProbe`, `readinessProbe`, `livenessProbe`) using native `redis-cli ping` with `REDISCLI_AUTH` environment variable injection, eliminating command-line password leakage.
+  - Wired into root `infra/k8s/kustomization.yaml`; verified 100% clean rendering via `kubectl kustomize infra/k8s`.
 - **Backing Infrastructure Auto-Start & RabbitMQ Connection Startup Race Condition (ISSUE-017).**
   - `scripts/clean-ports.sh` probes ports 3306 (MySQL), 5672 (RabbitMQ), and 6379 (Redis) before Turborepo dev servers launch, automatically invoking `scripts/docker-up.sh` if any backing dependency is offline.
   - `RabbitMQConnectionManager.ensureConnected()` in `@fieldforge/messaging` implements a resilient connection retry loop with backoff (configurable via `connectRetries` and `connectRetryDelayMs`, defaulting to 5 attempts in dev/production, 1 attempt in test), preventing fatal process exits on momentary broker startup delays.
