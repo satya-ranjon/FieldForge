@@ -1,5 +1,28 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+
+# Root Platform Kustomization — Full Desired State
+#
+# Renders: ConfigMap + Ingress + backing infrastructure + all 6 application Deployments.
+#
+# EXPLICITLY EXCLUDES the database migration Job.
+# The migration Job lives in infra/k8s/migrations/ and is executed by
+# scripts/k8s-run-db-migration.sh as an explicit sequential step BEFORE
+# application Deployments are submitted.
+#
+# ⚠️  DO NOT run `kubectl apply -k infra/k8s` directly as the deployment
+#    command — it submits application Deployments without migration ordering.
+#
+# Authoritative staging deployment procedure:
+#   ./scripts/k8s-deploy-staging.sh
+#
+# What that script does in order:
+#   1. Apply ConfigMap + backing infra only (no application Deployments)
+#   2. Wait for MySQL, Redis, RabbitMQ readiness
+#   3. scripts/k8s-run-db-migration.sh  (explicit migration Job)
+#   4. kubectl apply -k infra/k8s      (this file — only after migration succeeds)
+#   5. Verify application rollouts
+
 resources:
   - base/configmap.yaml
   - base/ingress.yaml

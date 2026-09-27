@@ -50,6 +50,28 @@
   - Configured non-leaking health probes (`startupProbe`, `readinessProbe`, `livenessProbe`) using CLI-native `rabbitmq-diagnostics -q ping` and `rabbitmq-diagnostics -q check_port_connectivity`, requiring zero credentials in arguments or environment.
   - Set pod security context to `fsGroup: 101` matching Alpine's `rabbitmq` group (UID 100, GID 101) and container baseline resources (requests 200m/512Mi, limits 1000m/1024Mi).
   - Wired into root `infra/k8s/kustomization.yaml`; verified 100% clean rendering via `kubectl kustomize infra/k8s`.
+- **Kubernetes Database Migration Job & Staging Deployment Orchestrator (H8-C4 — enforced ordering).**
+  - Migration Job manifest (`fieldforge-db-migrate`) relocated to dedicated `infra/k8s/migrations/db-migrate-job.yaml` with its own `infra/k8s/migrations/kustomization.yaml`. **Not** included in root `infra/k8s/kustomization.yaml`.
+  - Root `infra/k8s/kustomization.yaml` remains the complete desired-state representation (ConfigMap, backing services, Ingress, and application Deployments), but direct `kubectl apply -k infra/k8s` is not the authoritative deployment procedure (running it directly would submit application Deployments concurrently before migrations run).
+  - Created staging deployment orchestrator `scripts/k8s-deploy-staging.sh` enforcing the strict sequential deployment pipeline:
+    1. Preflight `kubectl` connectivity and cluster reachability verification.
+    2. Verification that required Secret `fieldforge-secrets` exists (existence check only, never printing secret contents).
+    3. Prerequisite application of non-application resources ONLY: `base/configmap.yaml`, `backing/mysql.yaml`, `backing/redis.yaml`, `backing/rabbitmq.yaml`. Application Deployments are strictly withheld.
+    4. Bounded `kubectl wait --for=condition=ready` checks for all backing pods (`app=mysql`, `app=redis`, `app=rabbitmq`).
+    5. Execution of migration runner `scripts/k8s-run-db-migration.sh`.
+    6. ONLY upon migration success (`set -euo pipefail` ensures non-zero exits halt deployment immediately), execution of full platform apply `kubectl apply -k infra/k8s`.
+    7. Bounded `kubectl rollout status` verification across all 6 service Deployments (`api-gateway`, `auth-service`, `work-order-service`, `dispatch-service`, `billing-service`, `notification-service`).
+  - Created standalone repeatable migration runner `scripts/k8s-run-db-migration.sh` implementing explicit delete → apply → wait semantics (`kubectl delete job fieldforge-db-migrate --ignore-not-found --wait=true`, apply `infra/k8s/migrations/`, wait for `condition=complete`, sanitize diagnostics without printing secrets).
+  - Standardized on authoritative Drizzle migration command `pnpm --filter @fieldforge/database db:migrate` executing `drizzle-kit migrate` against `packages/database/drizzle.config.ts`.
+  - Reused monorepo container image `fieldforge/auth-service:latest` (contains full `/app` monorepo, global `pnpm`, `packages/database`, and `drizzle-kit`). Mutable `:latest` tag noted as deployment hardening follow-up (H8-D+).
+  - Sourced configuration from `fieldforge-global-config` and `fieldforge-secrets: DB_PASSWORD` via `secretKeyRef`.
+  - Defense-in-depth TCP readiness polling (`nc -z`) retained inside the Job in addition to the outer pod readiness wait.
+  - Drizzle re-run safety confirmed: `__drizzle_migrations` table makes repeated execution idempotent.
+  - `ttlSecondsAfterFinished: 600` retained for passive housekeeping only. Repeat execution driven by runner's explicit delete/recreate.
+  - Rollout safety: new application revision does not roll out until migration succeeds. Existing old revision may remain running during migration (backward-compatible additive migrations assumed).
+  - CI scaffold (`k8s-deploy.yml`) updated to validate shell syntax (`bash -n`) for both scripts, and verify root render excludes migration Job while migration render includes exactly 1 Job.
+  - Automated CD orchestration against remote clusters remains H8-D (scaffold-only in CI currently).
+
 - **Backing Infrastructure Auto-Start & RabbitMQ Connection Startup Race Condition (ISSUE-017).**
   - `scripts/clean-ports.sh` probes ports 3306 (MySQL), 5672 (RabbitMQ), and 6379 (Redis) before Turborepo dev servers launch, automatically invoking `scripts/docker-up.sh` if any backing dependency is offline.
   - `RabbitMQConnectionManager.ensureConnected()` in `@fieldforge/messaging` implements a resilient connection retry loop with backoff (configurable via `connectRetries` and `connectRetryDelayMs`, defaulting to 5 attempts in dev/production, 1 attempt in test), preventing fatal process exits on momentary broker startup delays.

@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Migration Kustomization
+#
+# Renders ONLY the fieldforge-db-migrate Job.
+#
+# Applied exclusively by scripts/k8s-run-db-migration.sh via:
+#
+#   kubectl apply -k infra/k8s/migrations
+#
+# NOT included in the root infra/k8s/kustomization.yaml.
+# Never run as part of the normal platform apply path.
+
+resources:
+  - db-migrate-job.yaml

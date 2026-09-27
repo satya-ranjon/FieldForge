@@ -1,0 +1,109 @@
+# Kubernetes Database Migration Job — fieldforge-db-migrate
+#
+# PURPOSE
+# -------
+# Executes the FieldForge Drizzle schema migration
+# (pnpm --filter @fieldforge/database db:migrate) as a one-shot Kubernetes Job.
+#
+# LIFECYCLE CONTRACT
+# ------------------
+# This Job MUST NOT be included in the root infra/k8s/kustomization.yaml.
+# It is rendered and executed exclusively via:
+#
+#   scripts/k8s-run-db-migration.sh
+#
+# That script implements explicit delete → apply → wait semantics:
+#   1. Delete any existing Job (completed or failed) from a prior run.
+#   2. Apply this migration Kustomization to create a fresh Job object.
+#   3. Wait for Job completion with a bounded timeout.
+#   4. Fail non-zero on migration failure.
+#
+# This guarantees migration execution is:
+#   - Explicit (not implicitly triggered by kubectl apply -k infra/k8s)
+#   - Repeatable (Job is always recreated, never skipped because one already exists)
+#   - Observable (runner surfaces logs and describe output on failure)
+#
+# REQUIRED PREREQUISITES
+# ----------------------
+# Before running migrations, the following must exist in the cluster:
+#   - ConfigMap:  fieldforge-global-config (provides DB_HOST, DB_PORT, DB_NAME, DB_USER)
+#   - Secret:     fieldforge-secrets       (provides DB_PASSWORD)
+#   - StatefulSet: mysql (mysql-service:3306 must be ready)
+#
+# REPEAT-RUN SAFETY
+# -----------------
+# drizzle-kit migrate is idempotent. Applied migrations are tracked in the
+# __drizzle_migrations table. Re-running on an up-to-date schema is a safe no-op.
+#
+# TTL
+# ---
+# ttlSecondsAfterFinished: 600 provides passive cleanup of completed/failed Job
+# objects after 10 minutes. This is housekeeping only. Repeat execution is NOT
+# driven by TTL — it is driven by the runner's explicit delete/recreate cycle.
+#
+# IMAGE REVISION NOTE
+# -------------------
+# Uses fieldforge/auth-service:latest (contains full /app monorepo, pnpm, drizzle-kit).
+# In production, the migration image tag MUST be pinned to the same immutable
+# revision as the application Deployments being rolled out. Mutable :latest
+# tagging is a deployment hardening follow-up (H8-D+).
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fieldforge-db-migrate
+  labels:
+    app: fieldforge-db-migrate
+    tier: database
+spec:
+  # Housekeeping cleanup only. Repeat execution is guaranteed by the runner
+  # via explicit delete/recreate, not by relying on TTL expiry.
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: fieldforge-db-migrate
+        tier: database
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: db-migrate
+          image: fieldforge/auth-service:latest
+          workingDir: /app
+          command:
+            - /bin/sh
+            - -c
+            - |
+              # Defense-in-depth: bounded TCP poll before executing Drizzle.
+              # The outer runner also waits for the MySQL pod via kubectl wait,
+              # but this guard handles network-layer readiness within the Job.
+              ATTEMPTS=0
+              MAX_ATTEMPTS=30
+              until nc -z -w 3 "$DB_HOST" "$DB_PORT"; do
+                ATTEMPTS=$((ATTEMPTS + 1))
+                if [ "$ATTEMPTS" -ge "$MAX_ATTEMPTS" ]; then
+                  echo "Timed out waiting for MySQL at $DB_HOST:$DB_PORT after ${MAX_ATTEMPTS} attempts."
+                  exit 1
+                fi
+                echo "Waiting for MySQL at $DB_HOST:$DB_PORT (attempt $ATTEMPTS/$MAX_ATTEMPTS)..."
+                sleep 2
+              done
+              echo "MySQL is reachable at $DB_HOST:$DB_PORT. Executing Drizzle migrations..."
+              pnpm --filter @fieldforge/database db:migrate
+          envFrom:
+            - configMapRef:
+                name: fieldforge-global-config
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: fieldforge-secrets
+                  key: DB_PASSWORD
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
