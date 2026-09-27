@@ -552,15 +552,15 @@ that wall.
 
 ### H8 · 🐛 Kubernetes manifests can't actually run the system
 
-**Status: partially resolved (H8-A implemented).**
+**Status: partially resolved (H8-A and H8-B implemented).**
 
-- Core non-secret configuration and service discovery URLs populated in `infra/k8s/base/configmap.yaml` (`fieldforge-global-config`).
-- All 6 microservice Deployments (`api-gateway`, `auth-service`, `work-order-service`, `dispatch-service`, `billing-service`, `notification-service`) now inject `fieldforge-global-config` via `envFrom`.
-- Service objects, resource limits, security contexts, probes, and notification deployment are present; backing workloads (MySQL/Redis/RabbitMQ), production secrets injection (H8-B), and web portal deployment remain open.
+- **H8-A**: Core non-secret configuration and service discovery URLs populated in `infra/k8s/base/configmap.yaml` (`fieldforge-global-config`). All 6 microservice Deployments inject `fieldforge-global-config` via `envFrom`.
+- **H8-B**: Required secrets (`JWT_SECRET`, `INTERNAL_SERVICE_SECRET`, `DB_PASSWORD`, `RABBITMQ_PASSWORD`, `REDIS_PASSWORD`) wired into backend Deployments via explicit `secretKeyRef` targeting external `fieldforge-secrets`. Secret template in `infra/k8s/base/secrets.example.yaml` updated with safe non-production placeholders.
+- **Remaining Open**: Backing infrastructure workloads (MySQL/Redis/RabbitMQ StatefulSets or cloud DB/broker provisioning in H8-C), AWS IAM IRSA / S3 credentials and web portal deployment in H8-D remain open.
 
-`infra/k8s/services/*` previously lacked `envFrom` and service discovery wiring, causing microservices to fall back to `localhost` / `127.0.0.1` defaults in Kubernetes.
-**Impact:** pods could not discover adjacent microservices or cluster services.
-**Fix:** configure global ConfigMap with cluster DNS and non-secret configs, wire `envFrom` into all Deployments, add backing workloads and secret injection.
+`infra/k8s/services/*` previously lacked `envFrom`, service discovery wiring, and secret injection, causing microservices to fall back to `localhost` defaults and fail runtime authentication.
+**Impact:** pods could not discover adjacent microservices or authenticate against databases, brokers, or internal HTTP APIs.
+**Fix:** configure global ConfigMap with cluster DNS and non-secret configs, wire `secretKeyRef` for required secrets across all Deployments, and add backing infrastructure.
 
 ### H9 · Kubernetes deployment workflow was broken
 

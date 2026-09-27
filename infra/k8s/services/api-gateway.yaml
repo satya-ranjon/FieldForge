@@ -23,6 +23,12 @@ spec:
           envFrom:
             - configMapRef:
                 name: fieldforge-global-config
+          env:
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: fieldforge-secrets
+                  key: JWT_SECRET
           livenessProbe:
             httpGet:
               path: /api/v1/healthz

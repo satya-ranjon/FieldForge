@@ -23,6 +23,28 @@ spec:
           envFrom:
             - configMapRef:
                 name: fieldforge-global-config
+          env:
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: fieldforge-secrets
+                  key: JWT_SECRET
+            - name: INTERNAL_SERVICE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: fieldforge-secrets
+                  key: INTERNAL_SERVICE_SECRET
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: fieldforge-secrets
+                  key: RABBITMQ_PASSWORD
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: fieldforge-secrets
+                  key: REDIS_PASSWORD
+                  optional: true
           livenessProbe:
             httpGet:
               path: /healthz

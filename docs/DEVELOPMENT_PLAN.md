@@ -2123,7 +2123,7 @@ silence as completion.
   Rotation and history rewriting are external follow-up. The signing key is no longer _usable_
   from history: `requireJwtSecret()` refuses the published values outright, so a stale copy of
   `.env` fails startup rather than restoring the old boundary. The MySQL, RabbitMQ, and Grafana
-- **H8** — Kubernetes manifests: H8-A completed (all 6 service Deployments wire `fieldforge-global-config` via `envFrom`, establishing cluster service discovery and non-secret config). Services, probes, resource limits, securityContext, and notification-service are present. Backing workloads (MySQL, Redis, RabbitMQ), secret injection (H8-B), and web portal deployment remain open.
+- **H8** — Kubernetes manifests: H8-A and H8-B completed (all 6 service Deployments wire `fieldforge-global-config` via `envFrom` and secrets via `secretKeyRef` to external `fieldforge-secrets`, establishing service discovery and authentication). Services, probes, resource limits, securityContext, and notification-service are present. Backing workloads (MySQL, Redis, RabbitMQ in H8-C), IAM IRSA and web portal deployment (in H8-D) remain open.
 - **Real provider SDKs** — Stripe, Twilio, FCM, and SES slot in behind ports once credentials exist.
   Amazon S3 is now implemented for deliverable storage (Phase 42).
 - **Service-to-service authentication** — no service authenticates its callers; reaching a service

@@ -24,6 +24,21 @@ spec:
             - configMapRef:
                 name: fieldforge-global-config
           env:
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: fieldforge-secrets
+                  key: JWT_SECRET
+            - name: INTERNAL_SERVICE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: fieldforge-secrets
+                  key: INTERNAL_SERVICE_SECRET
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: fieldforge-secrets
+                  key: DB_PASSWORD
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
