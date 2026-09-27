@@ -31,6 +31,12 @@
   - Maintained strict principle of least privilege: zero secret `envFrom` bulk injection; each pod receives exclusively the secrets it consumes at runtime.
   - Updated `infra/k8s/base/secrets.example.yaml` as a clean operator template containing explicit non-production placeholders (`REPLACE_WITH_SECURE_VALUE`), kept untracked in production `kustomization.yaml`.
   - Zero secrets committed to git repository; verified via manual audit and git diff inspections.
+- **In-Cluster MySQL 8.4 Backing Infrastructure (H8-C1).**
+  - Provisioned staging in-cluster MySQL 8.4 StatefulSet (`mysql`) and ClusterIP Service (`mysql-service:3306`) in `infra/k8s/backing/mysql.yaml`, resolving unbacked cluster DNS from `fieldforge-global-config`.
+  - Configured 10Gi persistent storage via `volumeClaimTemplates` mounting `/var/lib/mysql`, default dynamic StorageClass, `replicas: 1` (explicitly documented as staging-only single instance, not production HA).
+  - Sourced database initialization credentials from `fieldforge-global-config` (`MYSQL_DATABASE: DB_NAME`, `MYSQL_USER: DB_USER`) and `fieldforge-secrets` (`MYSQL_PASSWORD: DB_PASSWORD`) with `MYSQL_RANDOM_ROOT_PASSWORD: "yes"`.
+  - Configured non-leaking health probes (`startupProbe`, `readinessProbe`, `livenessProbe`) using `mysqladmin ping` with user credentials, and `fsGroup: 999` pod security context.
+  - Wired into root `infra/k8s/kustomization.yaml`; verified 100% clean rendering via `kubectl kustomize infra/k8s`.
 - **Backing Infrastructure Auto-Start & RabbitMQ Connection Startup Race Condition (ISSUE-017).**
   - `scripts/clean-ports.sh` probes ports 3306 (MySQL), 5672 (RabbitMQ), and 6379 (Redis) before Turborepo dev servers launch, automatically invoking `scripts/docker-up.sh` if any backing dependency is offline.
   - `RabbitMQConnectionManager.ensureConnected()` in `@fieldforge/messaging` implements a resilient connection retry loop with backoff (configurable via `connectRetries` and `connectRetryDelayMs`, defaulting to 5 attempts in dev/production, 1 attempt in test), preventing fatal process exits on momentary broker startup delays.

@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - base/configmap.yaml
   - base/ingress.yaml
+  - backing/mysql.yaml
   - services/api-gateway.yaml
   - services/auth-service.yaml
   - services/billing-service.yaml
