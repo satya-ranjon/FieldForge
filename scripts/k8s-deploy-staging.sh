@@ -130,6 +130,7 @@ APP_DEPLOYMENTS=(
   "dispatch-service"
   "billing-service"
   "notification-service"
+  "web-buyer-portal"
 )
 
 TIMEOUT_SECONDS=180

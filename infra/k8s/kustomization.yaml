@@ -35,3 +35,4 @@ resources:
   - services/dispatch-service.yaml
   - services/work-order-service.yaml
   - services/notification-service.yaml
+  - services/web-buyer-portal.yaml

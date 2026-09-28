@@ -70,7 +70,20 @@
   - `ttlSecondsAfterFinished: 600` retained for passive housekeeping only. Repeat execution driven by runner's explicit delete/recreate.
   - Rollout safety: new application revision does not roll out until migration succeeds. Existing old revision may remain running during migration (backward-compatible additive migrations assumed).
   - CI scaffold (`k8s-deploy.yml`) updated to validate shell syntax (`bash -n`) for both scripts, and verify root render excludes migration Job while migration render includes exactly 1 Job.
-  - Automated CD orchestration against remote clusters remains H8-D (scaffold-only in CI currently).
+  - Automated CD orchestration against remote clusters remains H8-D2 (scaffold-only in CI currently).
+
+- **Web Buyer Portal Kubernetes Workload & Internal API Routing (H8-D1).**
+  - Created `infra/k8s/services/web-buyer-portal.yaml` defining:
+    - `Deployment/web-buyer-portal`: 1 replica, container port 5173, non-root user 1001 (`nextjs:nodejs`), securityContext dropping all capabilities (`readOnlyRootFilesystem: false`, `allowPrivilegeEscalation: false`), resources (requests 100m/256Mi, limits 500m/512Mi), `envFrom: configMapRef fieldforge-global-config`, and decoupled health probes (startup/liveness/readiness) on `GET /` port 5173 (serving HTTP 200 independently of backend databases or upstream APIs).
+    - `Service/web-buyer-portal-service`: ClusterIP on port 80 mapping to targetPort 5173 (`selector: app=web-buyer-portal`).
+  - Audited Next.js rewrite semantics empirically: Next.js standalone compiles `rewrites()` into static JSON routes during `next build` (`.next/routes-manifest.json` and `server.js`). The staging Docker image bakes `http://api-gateway-service:8000/api/:path*` at build time. The Kubernetes container runtime environment does NOT retarget rewrites, and changing the target requires an image rebuild until a future runtime-proxy architecture is introduced.
+  - Audited frontend API calls (`apps/web-buyer-portal/src/`): zero hardcoded hosts (`localhost`, `127.0.0.1`, or `api-gateway-service`) exist in client code. All API calls use relative `/api/v1` base URLs via RTK Query (`baseUrl: '/api/v1'`), ensuring the browser never receives or attempts to resolve internal Kubernetes DNS (`api-gateway-service:8000`).
+  - Hardened Dockerfile and build context: pinned `pnpm@11.24.0` matching `package.json` engines contract; excluded `.pnpm-store` in `.dockerignore` (reducing context transfer from 5.05GB to 46KB); packaged `public/` assets (`/app/apps/web-buyer-portal/public`); configured Alpine user `nextjs:nodejs` (UID/GID 1001) matching Kubernetes securityContext.
+  - Removed misleading `API_GATEWAY_URL` from runtime container environments (both the global `fieldforge-global-config` and `infra/k8s/services/web-buyer-portal.yaml`), keeping runtime env strictly focused on genuine runtime controls (`PORT`, `HOSTNAME`, `NODE_ENV`).
+  - Empirically verified: Docker image build passes cleanly (`fieldforge/web-buyer-portal:h8-d1-verify`), container boots as non-root UID 1001 without runtime `API_GATEWAY_URL`, serves `GET /` with HTTP 200, serves static assets (`/marketing/...`) with HTTP 200, and rewrites `/api/v1/*` across Docker network to upstream `http://api-gateway-service:8000`.
+  - Added `services/web-buyer-portal.yaml` to `infra/k8s/kustomization.yaml` (root Kustomize now manages 7 microservices + 3 backing services + ingress + configmap).
+  - Updated `scripts/k8s-deploy-staging.sh` to include `"web-buyer-portal"` in `APP_DEPLOYMENTS`, verifying all 7 Deployments achieve readiness post-migration.
+  - Updated `.github/workflows/docker-build-push.yml` build matrix to include `web-buyer-portal`.
 
 - **Backing Infrastructure Auto-Start & RabbitMQ Connection Startup Race Condition (ISSUE-017).**
   - `scripts/clean-ports.sh` probes ports 3306 (MySQL), 5672 (RabbitMQ), and 6379 (Redis) before Turborepo dev servers launch, automatically invoking `scripts/docker-up.sh` if any backing dependency is offline.

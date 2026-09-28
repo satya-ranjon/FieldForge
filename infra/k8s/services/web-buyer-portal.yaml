@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-buyer-portal
+  labels:
+    app: web-buyer-portal
+    tier: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web-buyer-portal
+  template:
+    metadata:
+      labels:
+        app: web-buyer-portal
+        tier: frontend
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: web-buyer-portal
+          image: fieldforge/web-buyer-portal:latest
+          ports:
+            - name: http
+              containerPort: 5173
+          envFrom:
+            - configMapRef:
+                name: fieldforge-global-config
+          env:
+            - name: PORT
+              value: '5173'
+            - name: HOSTNAME
+              value: '0.0.0.0'
+            - name: NODE_ENV
+              value: 'production'
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          startupProbe:
+            httpGet:
+              path: /
+              port: 5173
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5173
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5173
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-buyer-portal-service
+  labels:
+    app: web-buyer-portal
+    tier: frontend
+spec:
+  type: ClusterIP
+  selector:
+    app: web-buyer-portal
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 5173

@@ -8,8 +8,11 @@ node_modules
 **/coverage
 .env
 .env.*
-!.env.example
 *.log
 .DS_Store
 docs
+.pnpm-store
+**/.next
+**/test-results
+**/playwright-report
 

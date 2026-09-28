@@ -17,6 +17,7 @@ jobs:
           - dispatch-matching-service
           - billing-service
           - notification-service
+          - web-buyer-portal
     steps:
       - uses: actions/checkout@v4
       - name: Build Docker Image
