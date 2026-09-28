@@ -552,7 +552,7 @@ that wall.
 
 ### H8 · 🐛 Kubernetes manifests can't actually run the system
 
-**Status: partially resolved (H8-A, H8-B, H8-C1, H8-C2, H8-C3, H8-C4, H8-D1, H8-D1.5, and H8-D1.6A implemented).**
+**Status: partially resolved (H8-A, H8-B, H8-C1, H8-C2, H8-C3, H8-C4, H8-D1, H8-D1.5, H8-D1.6A, and H8-D1.6B implemented).**
 
 - **H8-A**: Core non-secret configuration and service discovery URLs populated in `infra/k8s/base/configmap.yaml` (`fieldforge-global-config`). All 6 microservice Deployments inject `fieldforge-global-config` via `envFrom`.
 - **H8-B**: Required secrets (`JWT_SECRET`, `INTERNAL_SERVICE_SECRET`, `DB_PASSWORD`, `RABBITMQ_PASSWORD`, `REDIS_PASSWORD`) wired into backend Deployments via explicit `secretKeyRef` targeting external `fieldforge-secrets`. Secret template in `infra/k8s/base/secrets.example.yaml` updated with safe non-production placeholders.
@@ -563,7 +563,8 @@ that wall.
 - **H8-D1 (Web Buyer Portal Workload & Internal API Routing)**: Created `infra/k8s/services/web-buyer-portal.yaml` declaring `Deployment/web-buyer-portal` (replicas: 1, port 5173, non-root user 1001, securityContext drop ALL, `/` startup/liveness/readiness probes, runtime env strictly limited to `PORT`, `HOSTNAME`, `NODE_ENV`) and `Service/web-buyer-portal-service` (ClusterIP, port 80 -> targetPort 5173). Hardened `apps/web-buyer-portal/Dockerfile` by pinning `pnpm@11.24.0` matching `package.json` engines, packaging `public/` assets, setting non-root user `nextjs:nodejs` (UID 1001), and ignoring `.pnpm-store` in `.dockerignore` (reducing context transfer from 5.05GB to 46KB). Established that Next.js internal API rewrites are BUILD-TIME: the staging Docker image statically compiles and bakes `http://api-gateway-service:8000/api/:path*` into `routes-manifest.json` and `server.js` during `next build`, and changing the target requires an image rebuild as container runtime env does not retarget Next.js rewrites. Removed misleading runtime `API_GATEWAY_URL` from the portal deployment manifest and global ConfigMap. Audited frontend requests confirming relative `/api/v1` base URLs preventing Kubernetes DNS leakage to browsers. Updated `scripts/k8s-deploy-staging.sh` to roll out and verify all 7 application deployments after database migrations. Updated `.github/workflows/docker-build-push.yml` build matrix.
 - **H8-D1.5 (Backend Container Build Reproducibility Remediation)**: Resolved unpinned `pnpm` across all 6 backend Dockerfiles (`apps/api-gateway`, `apps/auth-service`, `apps/billing-service`, `apps/dispatch-matching-service`, `apps/notification-service`, `apps/work-order-service`), pinning `RUN npm install -g pnpm@11.24.0 turbo` matching repository `packageManager = pnpm@11.24.0` and `engines.pnpm = >=11.0.0 <12`. Verified 6/6 backend Docker image builds pass locally (`fieldforge/<service>:h8-container-verify`). Verified auth-service image retains complete migration execution capability (`pnpm --filter @fieldforge/database db:migrate`, `drizzle-kit@0.31.10`, migrations 0000-0007 + meta, and `nc`). Pinned pnpm coverage across all application Dockerfiles is now 7/7.
 - **H8-D1.6A (Terraform ECR Repositories & Lifecycle Policies)**: Created declarative AWS ECR repositories and tiered lifecycle policies in `infra/terraform/ecr.tf` for all 7 FieldForge application images (`fieldforge/api-gateway`, `fieldforge/auth-service`, `fieldforge/billing-service`, `fieldforge/dispatch-matching-service`, `fieldforge/notification-service`, `fieldforge/work-order-service`, `fieldforge/web-buyer-portal`). Configured tag immutability (`image_tag_mutability = "IMMUTABLE"`), automated vulnerability scanning (`scan_on_push = true`), KMS encryption at rest (`encryption_type = "KMS"` with AWS-managed key), and non-cascading deletion protection (`force_delete = false`). Enforced 3 distinct lifecycle policy rules per repository: (1) retain 30 semver releases (`v*`), (2) retain 30 commit SHA images (`sha-*`), and (3) expire untagged images after 1 day. Exported `ecr_repository_urls` and `ecr_repository_arns` in `infra/terraform/outputs.tf`. Validated configuration with `terraform fmt` and `terraform validate`. Verified zero AWS mutation and zero credential usage.
-- **Remaining Open**: GitHub Actions OIDC provider and ECR push IAM role (H8-D1.6B), image tag immutability workflow integration, and EKS cluster provisioning / IAM IRSA (H8-D2) remain open. Production CD pipeline with cluster authentication and remote execution remains H8-D2.
+- **H8-D1.6B (GitHub OIDC Provider & ECR Publisher IAM Role)**: Created declarative AWS IAM and OIDC resources in `infra/terraform/iam_github_oidc.tf`. Configured `aws_iam_openid_connect_provider.github` with URL `https://token.actions.githubusercontent.com` and audience `sts.amazonaws.com` (toggleable via `manage_github_oidc_provider` to support pre-existing account-wide providers via `existing_github_oidc_provider_arn`). Declared `aws_iam_role.github_actions_ecr_publisher` (`fieldforge-github-ecr-publisher`) with federated `sts:AssumeRoleWithWebIdentity` trust policy restricted to audience `sts.amazonaws.com` and repository subjects `repo:satya-ranjon/FieldForge:ref:refs/heads/develop` and `repo:satya-ranjon/FieldForge:ref:refs/tags/v*` (zero open wildcards). Declared least-privilege policy granting `ecr:GetAuthorizationToken` on `*` and push actions (`BatchCheckLayerAvailability`, `BatchGetImage`, `CompleteLayerUpload`, `InitiateLayerUpload`, `PutImage`, `UploadLayerPart`) scoped exclusively to the 7 FieldForge ECR repository ARNs. Exported role ARN and effective provider ARN in `infra/terraform/outputs.tf`. Validated via `tofu fmt` and `tofu validate`. Verified zero AWS mutation and zero credential usage.
+- **Remaining Open**: GitHub Actions workflow OIDC authentication and immutable image publishing (H8-D1.6C), and EKS cluster provisioning / IAM IRSA (H8-D2) remain open. Production CD pipeline with cluster authentication and remote execution remains H8-D2.
 
 `infra/k8s/services/*` previously lacked `envFrom`, service discovery wiring, secret injection, and backing database workloads, causing microservices to fall back to `localhost` defaults and fail runtime authentication.
 **Impact:** pods could not discover adjacent microservices, authenticate against databases/brokers, or resolve database/cache endpoints.
@@ -1650,3 +1651,33 @@ _Line references point at the code as read during this audit; a few stub locatio
   content clipped out and rebuilt as live HTML.
 - **Existing limitation retained:** Trust-brand names and headline metrics are
   illustrative marketing content, not evidence of customer relationships or SLOs.
+
+### Marketing image resolution and zoom follow-up — 2026-09-28
+
+- **Resolved:** Scaling cropped 988px screenshot details across the full desktop
+  width blurred the photo, customer marks, and small illustrations. The new
+  transparent 1254px technician asset is independent of all live text and SVG/CSS
+  graphics; the canvas is a solid CSS color. No screenshot sprites remain in use.
+- **Resolved:** The pure `vw` sizing canceled browser zoom. A bounded rem/viewport
+  unit now allows enlargement/reduction and retains the stacked narrow layout.
+  This supersedes the prior unlimited-width decision under the user's current
+  request. Browser checks cover seven widths and five modeled zoom levels.
+- **Known limit:** The supplied photograph and its handwritten note remain raster
+  artwork. Vector UI stays sharp; photography can soften at extreme zoom/density.
+
+- **Separate existing mobile issue:** `CommandCenterPreview` below this hero has
+  content extending past the viewport (the “↑ 16%” label reaches 391.75px at a
+  390px viewport). Hero regression assertions are scoped to the hero/header;
+  resolving the lower preview layout is outside this asset-separation change.
+
+### Marketing detailed reference review — 2026-09-28
+
+- **Resolved:** The rem/viewport formula undersized the composition at 1536px.
+  Rem-based responsive steps now match the reference's 94px left margin and
+  measured card positions, while preserving zoom and mobile stacking.
+- **Resolved:** Generic avatar and service icons, faint tracking route, uniform
+  text coloring in the join CTA, missing row dividers, and incorrect trust-pill
+  widths/underline were replaced or refined against the latest reference.
+- **Fidelity limit:** Independently generated illustrations/photo extraction have
+  small shape and portrait differences; they are not literal reference pixels.
+  Separate assets retain the user's previous sharpness and CSS-background request.

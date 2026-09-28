@@ -108,7 +108,20 @@
   - OpenTofu / Terraform validation: `terraform fmt -check` passes cleanly; `terraform validate` passes (Success! The configuration is valid).
   - Plan / AWS safety: `terraform plan` cleanly respects credential boundaries (zero AWS mutations performed; no AWS credentials configured or touched).
   - Zero changes to Kubernetes manifests, Dockerfiles, GitHub CI workflows, application code, DB schemas, or API contracts.
-  - Overall H8 remains OPEN pending GitHub OIDC / ECR push IAM role (H8-D1.6B), immutable image workflow integration, and EKS cluster provisioning (H8-D2).
+
+- **Terraform GitHub OIDC Provider & ECR Publisher IAM Role (H8-D1.6B).**
+  - Created `infra/terraform/iam_github_oidc.tf` declaring:
+    - `aws_iam_openid_connect_provider.github`: Configurable GitHub Actions OIDC provider (`https://token.actions.githubusercontent.com`, client ID `sts.amazonaws.com`, managed conditionally via `manage_github_oidc_provider`).
+    - Account-wide provider reuse model: `local.effective_github_oidc_provider_arn` resolves either the managed provider ARN or an externally supplied ARN (`existing_github_oidc_provider_arn`), supporting pre-existing account-wide OIDC providers without conflict.
+    - `aws_iam_role.github_actions_ecr_publisher`: IAM role `fieldforge-github-ecr-publisher` with federated `sts:AssumeRoleWithWebIdentity` trust policy strictly restricted to `aud = "sts.amazonaws.com"` and `sub` conditions matching only `repo:satya-ranjon/FieldForge:ref:refs/heads/develop` and `repo:satya-ranjon/FieldForge:ref:refs/tags/v*` (zero open wildcards). Maximum session duration set to 3600 seconds.
+    - `aws_iam_policy.github_actions_ecr_publisher`: Least-privilege image publishing policy granting `ecr:GetAuthorizationToken` on `*` (AWS requirement) and push actions (`ecr:BatchCheckLayerAvailability`, `ecr:BatchGetImage`, `ecr:CompleteLayerUpload`, `ecr:InitiateLayerUpload`, `ecr:PutImage`, `ecr:UploadLayerPart`) scoped exclusively to the 7 FieldForge ECR repository ARNs (`aws_ecr_repository.application[*].arn`).
+    - Explicit security boundary: zero permissions granted for S3, EKS, RDS, Secrets Manager, IAM mutation, or KMS key administration. `ecr:GetDownloadUrlForLayer` omitted as image push does not require layer download permissions.
+  - Updated `infra/terraform/variables.tf`: declared `github_repository` (default `"satya-ranjon/FieldForge"` with regex validation), `manage_github_oidc_provider` (boolean, default `true`), and `existing_github_oidc_provider_arn` (string, default `null` with ARN validation).
+  - Updated `infra/terraform/outputs.tf`: exported `github_actions_ecr_publisher_role_arn` and `github_oidc_provider_arn`.
+  - OpenTofu validation: `tofu fmt -check` passes cleanly; `tofu validate` passes (Success! The configuration is valid).
+  - Safety boundary: zero AWS resources provisioned or mutated; `tofu plan` halts at credential boundary.
+  - Zero changes to Kubernetes manifests, application code, DB schemas, API contracts, or `.github/workflows/**`.
+  - Overall H8 remains OPEN pending GitHub Actions OIDC workflow integration & immutable image publishing (H8-D1.6C), and EKS cluster provisioning / IAM IRSA (H8-D2).
 
 - **Backing Infrastructure Auto-Start & RabbitMQ Connection Startup Race Condition (ISSUE-017).**
   - `scripts/clean-ports.sh` probes ports 3306 (MySQL), 5672 (RabbitMQ), and 6379 (Redis) before Turborepo dev servers launch, automatically invoking `scripts/docker-up.sh` if any backing dependency is offline.
@@ -506,19 +519,16 @@ Future feature work must resolve each affected contract before shipping behavior
 
 ## Marketing hero presentation follow-up — 2026-09-28
 
-The `/marketing` hero now follows the supplied desktop reference with proportional
-copy/artwork columns, visible floating cards at 988px, a compact opt-in navbar,
-and a stacked mobile composition with a two-column metric rail. Six focused
-Playwright scenarios cover five widths and existing secondary CTA destinations.
-This is a visual refinement; the preview numbers and tracking state remain
-illustrative and do not establish any new backend capability.
+The `/marketing` hero follows the latest 1536 × 1024 reference with independent
+service, tracking, verification, trust, and metric elements. The technician, avatar,
+service illustrations, map, underline, and route decoration are separate assets;
+the canvas is a CSS background color. Service thumbnails and the avatar use
+Next.js image optimization. Screenshot crops and background inpainting are not
+used. Rem-based size steps retain browser zoom and cap photography enlargement.
 
-Verification for this presentation follow-up: `pnpm check` passed with 898 existing
-automated tests (cached where unchanged); six focused Chromium E2E scenarios
-passed. Frozen-lockfile install, full build, and infrastructure configuration
-validation passed. Visual evidence and fidelity exceptions are in `design-qa.md`.
-
-The user review correction removes desktop width caps, restores original raster
-photography/brand details, self-hosts the display font, and limits reference-colored
-status overrides to this marketing illustration. The 2020px regression check also
-asserts matching header/hero left alignment and unwrapped technician signup text.
+Ten focused Chromium scenarios cover eight widths from 320–2560px, existing CTA
+navigation, and modeled browser zoom geometry from 80–400%. The 1536px scenario
+asserts reference positions for the heading, CTA, all six cards, and metric rail.
+The existing backend verification count remains 898 tests. No endpoint, contract,
+domain behavior, or requirement acceptance changes. Current visual evidence and
+remaining asset differences are recorded in `design-qa.md`.

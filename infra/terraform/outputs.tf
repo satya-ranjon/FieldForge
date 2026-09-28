@@ -24,3 +24,13 @@ output "ecr_repository_arns" {
   }
 }
 
+output "github_actions_ecr_publisher_role_arn" {
+  description = "ARN of IAM role assumed by GitHub Actions to publish images to FieldForge ECR repositories"
+  value       = aws_iam_role.github_actions_ecr_publisher.arn
+}
+
+output "github_oidc_provider_arn" {
+  description = "Effective ARN of GitHub Actions OIDC provider used for federated IAM authentication"
+  value       = local.effective_github_oidc_provider_arn
+}
+
