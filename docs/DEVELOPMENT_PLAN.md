@@ -2185,3 +2185,20 @@ behavior regresses.
       profile photo; refine underline, status type, card dividers, trust pills,
       green “Join” text, and decorative route. Expand to ten browser scenarios
       with explicit reference-coordinate assertions for all six floating cards.
+
+### Phase 54 follow-up — Platform assurance reference (2026-09-28)
+
+- [x] Replace the How It Works card with the five-item reference trust strip.
+- [x] Use independent text/icons, CSS surfaces/dividers, and transparent accents.
+- [x] Add five browser scenarios for desktop/tablet/mobile layout and divider clearance.
+- Existing milestone sequencing and backend scope are unchanged.
+
+- [x] Convert the assurance section to Tailwind utilities and remove its CSS module.
+
+- [x] Convert hero, artwork, and compact-navbar CSS to Tailwind with identical
+      before/after screenshots at eight widths; retain font registration only.
+
+- [x] Align the trust row with the hero content frame per the annotated review;
+      expand trust-strip coverage to seven widths and assert shared content edges.
+
+- [x] Start the five-item trust row at 1024px and verify both sides of the breakpoint.

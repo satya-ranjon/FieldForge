@@ -155,3 +155,81 @@ FieldForge is an enterprise field service marketplace and autonomous dispatch pl
 - **Marketing Navbar**: Height 68–72px, background `#FFFFFF` (or `#FBFCF8`), border `#EBEFE9`, logo 28–32px.
 - **Dashboard Sidebar**: Width 232px, background `#081A15`, logo area 64–72px, item height 42–44px, active item background `rgba(168,242,45,0.10)`, text `#FFFFFF`, icon `#A8F22D`. Inactive text `rgba(255,255,255,0.72)`.
 - **Dashboard Topbar**: Height 64–68px, background `#FFFFFF`, bottom border `#E7EBE5`, search input height 40–42px.
+
+## Marketing hero reference adaptation — 2026-09-28
+
+The latest user-supplied 1536 × 1024 design is the desktop target; the earlier
+988 × 659 reference is retained for comparison at the smaller breakpoint. The
+canvas uses `surface-marketing` as a CSS background color. No full-page screenshot,
+background inpainting, screenshot sprites, or baked-in UI cards are rendered.
+
+Independent components render service cards, tracking, verification, highlights,
+and the trust row. The technician cutout, tracking avatar, map, service illustrations,
+underline, and faint route decoration are separate high-resolution assets. Small
+service images and the avatar use Next.js image optimization. Text, badges, controls,
+brand glyph, and metric icons remain HTML/SVG. The body is Arial/Helvetica; the
+self-hosted Roboto Black display face uses a 5.05em size and 0.91 line height.
+
+The composition uses rem-based steps: 0.625rem by default, 0.8125rem from 75rem,
+and 0.975rem from 93.75rem. This replaces continuous viewport scaling so zoom
+changes element size within each layout, and reflows at the responsive breakpoints.
+The centered frame is 86.4 composition units wide. At 1536px, copy starts at 94px,
+tracking at 664/175, and the metrics rail at 635/865. Below 56.25rem, copy and artwork
+stack and metrics use two columns. The photo is capped at 998.4 CSS pixels at the
+default root font size, below its 1254px source. It may soften at extreme zoom or
+high device density; generated photo details are not pixel-identical to the source.
+
+Asset provenance and prompts are recorded in `public/marketing/hero-assets.md`.
+
+Scoped marketing tokens:
+
+| Token                      | Value     | Purpose                            |
+| :------------------------- | :-------- | :--------------------------------- |
+| `surface-marketing`        | `#F5FBF5` | Mint canvas                        |
+| `marketing-heading-accent` | `#5A9D2F` | Large green headline               |
+| `marketing-lime`           | `#8BEB32` | CTA and tracking accents           |
+| `marketing-check`          | `#50D22A` | Benefit and verification checks    |
+| `marketing-glass`          | `#1B3033` | Translucent preview cards          |
+| `marketing-map`            | `#293E3F` | Tracking map surface               |
+| `marketing-status-soft`    | `#EAFBDD` | Green preview status background    |
+| `marketing-status-green`   | `#477D2D` | Readable Scheduled/Assigned labels |
+| `marketing-status-red`     | `#C92C2C` | Readable Urgent label              |
+
+The current request explicitly prioritizes the reference's green Scheduled/Assigned
+and red Urgent preview badges. These are local style overrides on `StatusBadge`;
+operational badge defaults and public state semantics are unchanged.
+
+## Marketing platform assurance strip — 2026-09-28
+
+The user-selected trust-strip reference replaces the How It Works card beneath
+the hero. Five native labels and Lucide icons sit on a full-width off-white band,
+with alternating lime/teal circles, vertical dividers, and separate faint orbital
+decorations. The desktop row becomes two columns below 1024px and one below 640px.
+Text and icons remain independent of raster resolution. Scoped tokens are
+`surface-trust` (#F7F8F2), `trust-lime` (#D3F59B), `trust-lime-ink` (#3F620E),
+`trust-teal` (#AFE4DF), and `trust-teal-ink` (#145456). This explicit reference
+overrides the previous dotted workflow-card styling only in this section.
+
+The assurance strip uses Tailwind utilities exclusively, including responsive
+breakpoints, pseudo-element dividers, typography, and decorative positioning.
+Its section background inherits the page canvas, preserving the user's latest
+background adjustment. No component CSS module is required.
+
+Styling conversions must preserve the existing appearance. Prefer Tailwind only
+when it reproduces the current design; retain custom CSS where necessary for
+visual parity. Do not combine this conversion with layout or asset changes.
+
+The hero, preview cards, trust wordmarks, and compact navbar now use shared
+Tailwind utility groups in `MarketingHero.styles.ts`. Existing em/rem dimensions,
+responsive breakpoints, colors, shadows, and image assets are preserved. The only
+required raw CSS is the self-hosted `@font-face` registration in `globals.css`;
+Tailwind utilities cannot register a font resource.
+
+The latest annotated trust-strip review supersedes its independent 82% desktop
+width. At desktop widths, its row now uses the hero's centered 86.4-unit frame
+and shared rem-scale breakpoints. The first icon and final label align with the
+frame edges. Icon/type sizing follows that scale; orbital accents are positioned
+relative to the row. Tablet and mobile stacking remains unchanged.
+
+The single-row assurance layout starts at the 1024px laptop breakpoint, with
+a 14px minimum label size. Below 1024px it uses two columns, then one below 640px.

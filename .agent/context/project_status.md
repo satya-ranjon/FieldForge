@@ -13,7 +13,7 @@
   - **Command Center Canvas (`#0d1517`):** Slate-forest dark operational theme with elevated cards (`#142427`), subtle borders (`#22383c`), and radial ambient glow.
   - **Brand Green Identity:** High-energy spring-lime (`#A8F22D`), high-contrast dark-labeled CTA buttons (`#A8F22D` / text `#08120D`).
   - **Unified Component Library (`@fieldforge/ui`):** Reusable `Button`, `Card`, `StatusBadge`, `Input`, `Modal`, `Badge`, and `Tabs`.
-  - **Public Marketing Website (Phase 54 High-Fidelity 1442px Desktop Reconstruction):** Complete pixel-accurate reconstruction of `design-files/marketing-page-desgn/1442.png` broken into 13 modular JSX components with zero baked-in UI text: `MarketingNavbar`, `MarketingHero`, `CommandCenterPreview`, `TwoSidedAudience`, `SmartDispatchSection`, `HowItWorksSteps`, `RealWorkSection`, `ExpertiseGrid`, `TechnicianMarketplace`, `LifecyclePipeline`, `FieldOperationsSection`, `ComplianceTrustSection`, `SecurePaymentsSection`, `EnterpriseReliability`, `DarkBottomCtaBanner`, and `MarketingFooter`. Dedicated routes for `/marketing`, `/platform`, `/solutions`, `/industries`, `/resources`, and `/pricing`.
+  - **Public Marketing Website (Phase 54 High-Fidelity 1442px Desktop Reconstruction):** Complete pixel-accurate reconstruction of `design-files/marketing-page-desgn/1442.png` broken into 13 modular JSX components with zero baked-in UI text: `MarketingNavbar`, `MarketingHero`, `CommandCenterPreview`, `TwoSidedAudience`, `SmartDispatchSection`, `MarketingTrustStrip`, `RealWorkSection`, `ExpertiseGrid`, `TechnicianMarketplace`, `LifecyclePipeline`, `FieldOperationsSection`, `ComplianceTrustSection`, `SecurePaymentsSection`, `EnterpriseReliability`, `DarkBottomCtaBanner`, and `MarketingFooter`. Dedicated routes for `/marketing`, `/platform`, `/solutions`, `/industries`, `/resources`, and `/pricing`.
   - **Photographic Asset Pipeline (`apps/web-buyer-portal/public/marketing/`):** 19 isolated photographic and vector map assets cleanly cropped to eliminate text overlays, documented in `docs/reference-analysis.md` and `docs/asset-plan.md`.
   - **Mobile Tech App Brand Alignment (`apps/mobile-tech-app`):** Slate-forest canvas, elevated job cards, verified green badges (`#84e539`), and tactical GPS radar widget.
 - **NestJS Runtime Dependency Injection Invariants (ISSUE-016).**
@@ -532,3 +532,30 @@ asserts reference positions for the heading, CTA, all six cards, and metric rail
 The existing backend verification count remains 898 tests. No endpoint, contract,
 domain behavior, or requirement acceptance changes. Current visual evidence and
 remaining asset differences are recorded in `design-qa.md`.
+
+## Marketing assurance strip follow-up — 2026-09-28
+
+`MarketingTrustStrip` replaces the prior `HowItWorksSteps` card using the supplied
+five-assurance reference. Native text, vector icons, CSS backgrounds/dividers, and
+a separate transparent orbital decoration keep the section sharp when resized.
+Five Chromium scenarios cover 2172, 1440, 1280, 768, and 390px, including label
+alignment, divider clearance, asset loading, alternating colors, and reflow.
+This presentation change introduces no domain behavior or acceptance change; the
+existing backend verification count remains 898.
+
+The assurance strip now uses Tailwind utilities only; its CSS module was removed.
+The user's transparent section background is retained. Layout and content are
+unchanged, with the existing five responsive browser checks reused.
+
+Hero and compact-navbar styling also use Tailwind utility groups now. An isolated
+Chromium comparison produced identical hero and header PNG buffers at eight
+widths (320–2560px) before and after conversion. Only font registration requires
+raw CSS. Existing assets, routes, behavior, and backend test counts are unchanged.
+
+The annotated trust-strip alignment correction uses the same centered desktop
+frame and scale as the hero. Nine trust-strip browser cases now cover widths
+390–2560px, with explicit first-icon/last-label and hero-frame alignment assertions.
+This is a visual correction only; all operational acceptance states are unchanged.
+
+The assurance row stays on one line from 1024px. Explicit 1023px/1024px checks
+verify the tablet/laptop boundary along with the existing wider layouts.

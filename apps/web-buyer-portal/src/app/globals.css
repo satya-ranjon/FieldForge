@@ -1,5 +1,14 @@
 @import 'tailwindcss';
 
+/* Font registration has no equivalent Tailwind utility. */
+@font-face {
+  font-family: 'FieldForge Hero';
+  src: url('/fonts/Roboto-Black.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+}
+
 @theme {
   --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'JetBrains Mono', Menlo, Monaco, Consolas, monospace;
@@ -11,6 +20,14 @@
   --color-brand-green-soft: #eafad5;
   --color-brand-green-subtle: #f3fbea;
   --color-brand-green-faint: #f8fcf4;
+  --color-marketing-heading-accent: #5a9d2f;
+  --color-marketing-lime: #8beb32;
+  --color-marketing-check: #50d22a;
+  --color-marketing-glass: #1b3033;
+  --color-marketing-map: #293e3f;
+  --color-marketing-status-soft: #eafbdd;
+  --color-marketing-status-green: #477d2d;
+  --color-marketing-status-red: #c92c2c;
 
   --color-brand-dark: #081a15;
   --color-brand-dark-2: #0d211b;
@@ -25,6 +42,12 @@
 
   /* Surfaces */
   --color-surface-page: #fbfcf8;
+  --color-surface-marketing: #f5fbf5;
+  --color-surface-trust: #f7f8f2;
+  --color-trust-lime: #d3f59b;
+  --color-trust-lime-ink: #3f620e;
+  --color-trust-teal: #afe4df;
+  --color-trust-teal-ink: #145456;
   --color-surface-white: #ffffff;
   --color-surface-soft: #f7f9f5;
   --color-surface-green: #f0f8e7;

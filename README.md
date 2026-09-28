@@ -720,3 +720,25 @@ All coding agents start with [`AGENTS.md`](./AGENTS.md). Supporting guardrails a
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
+
+### Marketing hero
+
+`/marketing` includes a responsive reference-aligned hero with technician artwork,
+live-tracking and job preview cards, trust signals, and platform highlights.
+The technician and small illustrations are separate assets over a CSS background
+color. Cards and copy render as HTML, with vector UI icons and optimized service
+images. Rem-based responsive steps preserve the 1536px reference layout and zoom.
+Preview metrics remain illustrative. Run its focused browser checks with
+`pnpm --filter @fieldforge/web-buyer-portal exec playwright test e2e/marketing-hero.spec.ts --project=chromium`.
+
+### Marketing platform assurances
+
+The section directly below the hero presents five platform assurances with native
+text/icons, alternating lime and teal circles, dividers, and decorative orbit
+assets. It reflows to two columns on tablets and one column on phones.
+The five-item row begins at 1024px. Run its nine responsive browser checks with
+`pnpm --filter @fieldforge/web-buyer-portal exec playwright test e2e/marketing-trust-strip.spec.ts --project=chromium`.
+
+Hero and compact-navbar presentation use Tailwind utilities, preserving the
+existing design and zoom behavior. The custom hero CSS module is removed;
+self-hosted font registration remains in the global stylesheet.

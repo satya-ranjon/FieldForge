@@ -1681,3 +1681,30 @@ _Line references point at the code as read during this audit; a few stub locatio
 - **Fidelity limit:** Independently generated illustrations/photo extraction have
   small shape and portrait differences; they are not literal reference pixels.
   Separate assets retain the user's previous sharpness and CSS-background request.
+
+### Platform assurance strip reference correction — 2026-09-28
+
+- **Resolved:** The dotted How It Works card did not match the user's replacement
+  reference. It is replaced with five assurances, alternating icon circles, subtle
+  dividers, and pale orbital accents on a CSS background.
+- **Resolved:** The first responsive draft allowed dividers to crowd labels at
+  1280px. Proportional icon/text sizing now preserves a tested clearance above 8px.
+- **Design conflict resolved by current user instruction:** The selected horizontal
+  assurance reference supersedes the prior workflow-card pattern for this section.
+  No architecture, contract, or operational guarantee changes are introduced.
+
+- **Resolved:** Replaced the assurance strip's custom CSS module with Tailwind
+  utilities at the user's request. All section styling is supported by Tailwind;
+  no custom CSS fallback is needed. The latest transparent background is retained.
+
+- **Resolved:** The hero and compact navbar still depended on a custom CSS module.
+  Their styles now use Tailwind utility groups, with exact before/after screenshot
+  parity at eight Chromium widths. Font registration is the required CSS exception.
+
+- **Resolved:** The trust row used viewport percentages while the hero used a
+  centered composition, causing mismatched edges on wide screens. The row now
+  shares the hero's desktop scale and frame width; its edge alignment is tested.
+  The current annotated request supersedes the earlier independent-width layout.
+
+- **Resolved:** Trust assurances stacked at 1024px laptop width. The single-row
+  breakpoint is now 1024px, with compact sizing and nine responsive checks.

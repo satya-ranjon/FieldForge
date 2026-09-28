@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Menu, Search, X } from 'lucide-react';
 import { AuthModal } from '../auth/AuthModal';
+import { heroStyles as styles } from './MarketingHero.styles';
+import { MarketingBrandMark } from './MarketingHeroArtwork';
 
 const navLinks = [
   { href: '/platform', label: 'Platform' },
@@ -13,24 +15,32 @@ const navLinks = [
   { href: '/pricing', label: 'Pricing' }
 ];
 
-export const MarketingNavbar: React.FC = () => {
+export const MarketingNavbar: React.FC<{ compact?: boolean }> = ({ compact = false }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
   return (
     <>
-      <header className="relative z-50 w-full bg-[#fbfcf8]">
+      <header
+        className={`relative z-50 w-full bg-[#fbfcf8] ${compact ? styles.referenceNavbar : ''}`}
+      >
         <div className="mx-auto flex h-[88px] max-w-[1360px] items-center justify-between px-6 sm:px-8 xl:px-12">
           <Link
             href="/marketing"
             className="group flex items-center gap-3"
             aria-label="FieldForge home"
           >
-            <span className="relative flex h-[38px] w-[38px] items-center justify-center rounded-xl bg-[#85eb32] shadow-[0_8px_20px_rgba(133,235,50,0.3)] transition group-hover:bg-[#78dc29]">
-              <span className="text-[22px] font-black leading-none tracking-tight text-white">
-                F
+            {compact ? (
+              <span className={styles.referenceBrand}>
+                <MarketingBrandMark />
               </span>
-            </span>
+            ) : (
+              <span className="relative flex h-[38px] w-[38px] items-center justify-center rounded-xl bg-[#85eb32] shadow-[0_8px_20px_rgba(133,235,50,0.3)] transition group-hover:bg-[#78dc29]">
+                <span className="text-[22px] font-black leading-none tracking-tight text-white">
+                  F
+                </span>
+              </span>
+            )}
             <span className="text-[24px] font-bold tracking-tight text-[#07121b]">FieldForge</span>
           </Link>
 
@@ -65,7 +75,15 @@ export const MarketingNavbar: React.FC = () => {
               href="/technicians"
               className="inline-flex h-[46px] items-center gap-2.5 rounded-full bg-[#112328] px-6 text-[15px] font-semibold text-white shadow-[0_8px_20px_rgba(17,35,40,0.2)] transition hover:bg-[#0c1a1e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#85eb32]"
             >
-              <span>Join as Technician</span>
+              <span>
+                {compact ? (
+                  <>
+                    <span className={styles.joinAccent}>Join</span> as Technician
+                  </>
+                ) : (
+                  'Join as Technician'
+                )}
+              </span>
               <ArrowRight className="h-4 w-4 stroke-[2.5] text-[#85eb32]" />
             </Link>
           </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { HowItWorksSteps } from './HowItWorksSteps';
+import { MarketingTrustStrip } from './MarketingTrustStrip';
 import { LifecyclePipeline } from './LifecyclePipeline';
 import { RealWorkSection } from './RealWorkSection';
 import { TechnicianMarketplace } from './TechnicianMarketplace';
@@ -18,8 +18,8 @@ import { DarkBottomCtaBanner } from './DarkBottomCtaBanner';
 export const MarketingSections: React.FC = () => {
   return (
     <div className="flex flex-col gap-y-12 sm:gap-y-16">
-      {/* 1. 5-Step How It Works Banner */}
-      <HowItWorksSteps />
+      {/* 1. Platform assurances */}
+      <MarketingTrustStrip />
 
       {/* 2. 7-Stage Lifecycle Pipeline */}
       <LifecyclePipeline />

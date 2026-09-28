@@ -223,3 +223,18 @@ technician accreditation verification.
    offered. Consistent with note 1, these clauses describe required behavior;
    `.agent/context/project_status.md` is where their implementation status is
    tracked.
+
+3. **Marketing hero presentation (2026-09-28).** The reference-aligned public hero
+   illustrates FR-WO-001 (work creation), FR-DISP-001 (technician matching), and
+   FR-DISP-003 (dispatch). This styling change introduces no domain behavior and
+   does not change requirement acceptance status. The user-requested visual
+   correction uses a separate technician cutout with HTML/SVG interface elements
+   and bounded, zoom-responsive sizing across wide viewports. The latest 1536px
+   review also corrects small visual assets and measures card alignment. Preview metrics and job states
+   are illustrative, not production verification evidence.
+
+4. **Platform assurance presentation (2026-09-28).** The user-selected five-item
+   strip replaces the public How It Works illustration. Like note 3, this is a
+   presentation refinement around the existing dispatch/work-order narrative;
+   verification, GPS, payment, compliance, and real-time labels do not establish
+   new capabilities or change requirement acceptance status.

@@ -177,3 +177,17 @@
 | `GET`  | `/healthz` | Kubernetes liveness probe asserting application process responsiveness                         | Public      | `{ status: 'UP', timestamp: string }`                           |
 | `GET`  | `/readyz`  | Honest readiness probe validating active MySQL pool (`SELECT 1`), Redis, and RabbitMQ channels | Public      | `{ status: 'READY', checks: { ... }, uptimeSeconds, memoryMb }` |
 | `GET`  | `/metrics` | Prometheus metrics exposition scraped by Prometheus (`infra/docker/prometheus.yml`)            | Public      | `text/plain; version=0.0.4; charset=utf-8`                      |
+
+### Marketing presentation review — 2026-09-28
+
+The `/marketing` hero refresh changes no HTTP endpoints, DTOs, validators, events,
+or database schemas. Tracking, job statuses, and metrics in this public preview
+are illustrative UI content. Reference-colored status badge overrides apply only
+to this public illustration; operational status enums and defaults are unchanged.
+The subsequent asset-separation, zoom, and detailed 1536px reference corrections
+also change no contracts.
+Existing links to `/create-wo`, `/resources`, and `/operations` are retained.
+
+The subsequent five-item platform assurance strip is also presentation-only.
+It introduces no API calls, endpoints, schemas, or verification guarantees; its
+assurance labels are marketing copy, not additional implementation evidence.
