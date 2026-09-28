@@ -96,7 +96,19 @@
   - CI image matrix in `.github/workflows/docker-build-push.yml` verified to cover all 7 application images (7/7).
   - Intentional naming mapping verified: Kubernetes Deployment `dispatch-service` pulls Docker image `fieldforge/dispatch-matching-service:latest`.
   - Zero application business logic changes, zero DB schema changes, zero API contract changes.
-  - H8 remains OPEN pending H8-D2 cluster provisioning / IAM IRSA.
+- **Terraform ECR Repositories & Lifecycle Policies (H8-D1.6A).**
+  - Created `infra/terraform/ecr.tf` declaring:
+    - `local.application_ecr_repositories`: Set of 7 canonical FieldForge application images (`fieldforge/api-gateway`, `fieldforge/auth-service`, `fieldforge/billing-service`, `fieldforge/dispatch-matching-service`, `fieldforge/notification-service`, `fieldforge/work-order-service`, `fieldforge/web-buyer-portal`). Excludes third-party backing services (`mysql`, `redis`, `rabbitmq`) and dedicated migration image (auth-service image is reused for migration Job).
+    - `aws_ecr_repository.application`: Manages 7 ECR repositories via `for_each` with `image_tag_mutability = "IMMUTABLE"` (preventing tag overwrites and guaranteeing immutability across promotions), `force_delete = false` (preventing accidental deletion of repositories containing images), `scan_on_push = true` (automated vulnerability scanning), KMS encryption at rest (`encryption_type = "KMS"` with AWS-managed default key), and standard tags (`Project: FieldForge`, `ManagedBy: Terraform`, `Environment: var.environment`).
+    - `aws_ecr_lifecycle_policy.application`: Attaches 3 distinct tiered lifecycle rules to each application repository:
+      1. Priority 1: Retain the most recent 30 semver release images (`tagPrefixList: ["v"]`, `imageCountMoreThan: 30`, `action: expire`). Release tags are evaluated first and kept safe from SHA-based pruning.
+      2. Priority 2: Retain the most recent 30 commit images (`tagPrefixList: ["sha-"]`, `imageCountMoreThan: 30`, `action: expire`). Separate prefix rule avoids ECR's AND-conjunction behavior on multiple prefixes within a single rule.
+      3. Priority 3: Expire untagged images after 1 day (`tagStatus: "untagged"`, `sinceImagePushed`, `1 days`, `action: expire`).
+  - Updated `infra/terraform/outputs.tf` exporting `ecr_repository_urls` (map of repo names to repository URLs) and `ecr_repository_arns` (map of repo names to repository ARNs).
+  - OpenTofu / Terraform validation: `terraform fmt -check` passes cleanly; `terraform validate` passes (Success! The configuration is valid).
+  - Plan / AWS safety: `terraform plan` cleanly respects credential boundaries (zero AWS mutations performed; no AWS credentials configured or touched).
+  - Zero changes to Kubernetes manifests, Dockerfiles, GitHub CI workflows, application code, DB schemas, or API contracts.
+  - Overall H8 remains OPEN pending GitHub OIDC / ECR push IAM role (H8-D1.6B), immutable image workflow integration, and EKS cluster provisioning (H8-D2).
 
 - **Backing Infrastructure Auto-Start & RabbitMQ Connection Startup Race Condition (ISSUE-017).**
   - `scripts/clean-ports.sh` probes ports 3306 (MySQL), 5672 (RabbitMQ), and 6379 (Redis) before Turborepo dev servers launch, automatically invoking `scripts/docker-up.sh` if any backing dependency is offline.
@@ -491,3 +503,22 @@ state, and `SETTLED`/`BIDDING`/`OPEN`/`IN_PROGRESS` are gone from the docs and U
 
 The remaining items are intentionally recorded rather than silently resolved.
 Future feature work must resolve each affected contract before shipping behavior.
+
+## Marketing hero presentation follow-up — 2026-09-28
+
+The `/marketing` hero now follows the supplied desktop reference with proportional
+copy/artwork columns, visible floating cards at 988px, a compact opt-in navbar,
+and a stacked mobile composition with a two-column metric rail. Six focused
+Playwright scenarios cover five widths and existing secondary CTA destinations.
+This is a visual refinement; the preview numbers and tracking state remain
+illustrative and do not establish any new backend capability.
+
+Verification for this presentation follow-up: `pnpm check` passed with 898 existing
+automated tests (cached where unchanged); six focused Chromium E2E scenarios
+passed. Frozen-lockfile install, full build, and infrastructure configuration
+validation passed. Visual evidence and fidelity exceptions are in `design-qa.md`.
+
+The user review correction removes desktop width caps, restores original raster
+photography/brand details, self-hosts the display font, and limits reference-colored
+status overrides to this marketing illustration. The 2020px regression check also
+asserts matching header/hero left alignment and unwrapped technician signup text.

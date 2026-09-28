@@ -552,7 +552,7 @@ that wall.
 
 ### H8 · 🐛 Kubernetes manifests can't actually run the system
 
-**Status: partially resolved (H8-A, H8-B, H8-C1, H8-C2, H8-C3, H8-C4, H8-D1, and H8-D1.5 implemented).**
+**Status: partially resolved (H8-A, H8-B, H8-C1, H8-C2, H8-C3, H8-C4, H8-D1, H8-D1.5, and H8-D1.6A implemented).**
 
 - **H8-A**: Core non-secret configuration and service discovery URLs populated in `infra/k8s/base/configmap.yaml` (`fieldforge-global-config`). All 6 microservice Deployments inject `fieldforge-global-config` via `envFrom`.
 - **H8-B**: Required secrets (`JWT_SECRET`, `INTERNAL_SERVICE_SECRET`, `DB_PASSWORD`, `RABBITMQ_PASSWORD`, `REDIS_PASSWORD`) wired into backend Deployments via explicit `secretKeyRef` targeting external `fieldforge-secrets`. Secret template in `infra/k8s/base/secrets.example.yaml` updated with safe non-production placeholders.
@@ -562,7 +562,8 @@ that wall.
 - **H8-C4 (enforced migration before application rollout)**: Migration Job manifest (`fieldforge-db-migrate`) relocated to dedicated `infra/k8s/migrations/db-migrate-job.yaml` (with dedicated `infra/k8s/migrations/kustomization.yaml`). Removed from root `infra/k8s/kustomization.yaml` so root apply does not trigger migrations concurrently with application Deployments. Created `scripts/k8s-run-db-migration.sh` implementing explicit delete → apply → wait semantics (`kubectl delete job ... --wait=true`, wait for MySQL ready, wait for completion, secret-safe error reporting). Created `scripts/k8s-deploy-staging.sh` as the authoritative staging deployment orchestrator: applies prerequisite backing infrastructure only (`base/configmap.yaml`, `backing/*.yaml`), waits for backing readiness (`app=mysql`, `app=redis`, `app=rabbitmq`), runs migration runner, and ONLY if migration succeeds applies root `infra/k8s/` and verifies rollout status for all 6 service Deployments. Documented guardrails against direct `kubectl apply -k infra/k8s`. CI scaffold (`k8s-deploy.yml`) updated with shell syntax checks and dual-kustomize render assertions.
 - **H8-D1 (Web Buyer Portal Workload & Internal API Routing)**: Created `infra/k8s/services/web-buyer-portal.yaml` declaring `Deployment/web-buyer-portal` (replicas: 1, port 5173, non-root user 1001, securityContext drop ALL, `/` startup/liveness/readiness probes, runtime env strictly limited to `PORT`, `HOSTNAME`, `NODE_ENV`) and `Service/web-buyer-portal-service` (ClusterIP, port 80 -> targetPort 5173). Hardened `apps/web-buyer-portal/Dockerfile` by pinning `pnpm@11.24.0` matching `package.json` engines, packaging `public/` assets, setting non-root user `nextjs:nodejs` (UID 1001), and ignoring `.pnpm-store` in `.dockerignore` (reducing context transfer from 5.05GB to 46KB). Established that Next.js internal API rewrites are BUILD-TIME: the staging Docker image statically compiles and bakes `http://api-gateway-service:8000/api/:path*` into `routes-manifest.json` and `server.js` during `next build`, and changing the target requires an image rebuild as container runtime env does not retarget Next.js rewrites. Removed misleading runtime `API_GATEWAY_URL` from the portal deployment manifest and global ConfigMap. Audited frontend requests confirming relative `/api/v1` base URLs preventing Kubernetes DNS leakage to browsers. Updated `scripts/k8s-deploy-staging.sh` to roll out and verify all 7 application deployments after database migrations. Updated `.github/workflows/docker-build-push.yml` build matrix.
 - **H8-D1.5 (Backend Container Build Reproducibility Remediation)**: Resolved unpinned `pnpm` across all 6 backend Dockerfiles (`apps/api-gateway`, `apps/auth-service`, `apps/billing-service`, `apps/dispatch-matching-service`, `apps/notification-service`, `apps/work-order-service`), pinning `RUN npm install -g pnpm@11.24.0 turbo` matching repository `packageManager = pnpm@11.24.0` and `engines.pnpm = >=11.0.0 <12`. Verified 6/6 backend Docker image builds pass locally (`fieldforge/<service>:h8-container-verify`). Verified auth-service image retains complete migration execution capability (`pnpm --filter @fieldforge/database db:migrate`, `drizzle-kit@0.31.10`, migrations 0000-0007 + meta, and `nc`). Pinned pnpm coverage across all application Dockerfiles is now 7/7.
-- **Remaining Open**: AWS IAM IRSA / S3 credentials and EKS cluster provisioning in H8-D2 remain open. Production CD pipeline with cluster authentication and remote execution remains H8-D2.
+- **H8-D1.6A (Terraform ECR Repositories & Lifecycle Policies)**: Created declarative AWS ECR repositories and tiered lifecycle policies in `infra/terraform/ecr.tf` for all 7 FieldForge application images (`fieldforge/api-gateway`, `fieldforge/auth-service`, `fieldforge/billing-service`, `fieldforge/dispatch-matching-service`, `fieldforge/notification-service`, `fieldforge/work-order-service`, `fieldforge/web-buyer-portal`). Configured tag immutability (`image_tag_mutability = "IMMUTABLE"`), automated vulnerability scanning (`scan_on_push = true`), KMS encryption at rest (`encryption_type = "KMS"` with AWS-managed key), and non-cascading deletion protection (`force_delete = false`). Enforced 3 distinct lifecycle policy rules per repository: (1) retain 30 semver releases (`v*`), (2) retain 30 commit SHA images (`sha-*`), and (3) expire untagged images after 1 day. Exported `ecr_repository_urls` and `ecr_repository_arns` in `infra/terraform/outputs.tf`. Validated configuration with `terraform fmt` and `terraform validate`. Verified zero AWS mutation and zero credential usage.
+- **Remaining Open**: GitHub Actions OIDC provider and ECR push IAM role (H8-D1.6B), image tag immutability workflow integration, and EKS cluster provisioning / IAM IRSA (H8-D2) remain open. Production CD pipeline with cluster authentication and remote execution remains H8-D2.
 
 `infra/k8s/services/*` previously lacked `envFrom`, service discovery wiring, secret injection, and backing database workloads, causing microservices to fall back to `localhost` defaults and fail runtime authentication.
 **Impact:** pods could not discover adjacent microservices, authenticate against databases/brokers, or resolve database/cache endpoints.
@@ -1631,3 +1632,21 @@ All 9 issues discovered during the Section 13 audit were remediated on branch `f
 ---
 
 _Line references point at the code as read during this audit; a few stub locations are described by module rather than an exact line because the relevant logic is a placeholder. Cross-checked across five subsystem passes (contracts/DB, work-order/FSM, dispatch/billing/events, gateway/auth/common, frontends/infra/CI)._
+
+## Marketing hero reference reconciliation — 2026-09-28
+
+- **Resolved:** Fixed desktop columns and XL-only cards caused the hero to overflow
+  or lose its overlays at the supplied 988px reference width. The composition now
+  scales together and stacks below 900px, with responsive browser coverage.
+- **Design conflict resolved by the user's follow-up:** The original screenshot
+  colors Scheduled/Assigned green and Urgent red. The user explicitly requested
+  this appearance after rejecting the initial adaptation. Local hero styles now
+  reproduce it while leaving shared operational `StatusBadge` defaults unchanged.
+  No public contract or architecture decision changes.
+- **Resolved after user review:** The earlier 1264px maximum width left excessive
+  whitespace on wide displays. Removed the cap from both hero and navbar; browser
+  assertions verify matching 6.1% left alignment through 2020px. The recreated
+  photograph is replaced on desktop by the original photo, with all baked-in card
+  content clipped out and rebuilt as live HTML.
+- **Existing limitation retained:** Trust-brand names and headline metrics are
+  illustrative marketing content, not evidence of customer relationships or SLOs.

@@ -2123,7 +2123,7 @@ silence as completion.
   Rotation and history rewriting are external follow-up. The signing key is no longer _usable_
   from history: `requireJwtSecret()` refuses the published values outright, so a stale copy of
   `.env` fails startup rather than restoring the old boundary. The MySQL, RabbitMQ, and Grafana
-- **H8** — Kubernetes manifests: H8-A, H8-B, H8-C1, H8-C2, H8-C3, H8-C4, H8-D1, and H8-D1.5 completed (all 6 backend service Deployments wire `fieldforge-global-config` via `envFrom` and secrets via `secretKeyRef` to external `fieldforge-secrets`; in-cluster MySQL 8.4 StatefulSet and `mysql-service:3306` provisioned with 10Gi PVC in `infra/k8s/backing/mysql.yaml`; in-cluster Redis 8.0 StatefulSet, `redis-headless`, and `redis-service:6379` provisioned with 5Gi PVC and AOF in `infra/k8s/backing/redis.yaml`; in-cluster RabbitMQ 4.1 StatefulSet, `rabbitmq-headless`, and `rabbitmq-service:5672,15672` provisioned with 10Gi PVC in `infra/k8s/backing/rabbitmq.yaml`; database migration Job `fieldforge-db-migrate` provisioned in dedicated `infra/k8s/migrations/` with standalone runner `scripts/k8s-run-db-migration.sh`; staging deployment orchestrator `scripts/k8s-deploy-staging.sh` enforces strict pipeline: backing prerequisites → backing readiness → migration success → 7 application Deployments rollout; `Deployment/web-buyer-portal` and `Service/web-buyer-portal-service` provisioned with port 5173, build-time API Gateway rewrite configuration, and decoupled health probes; backend Dockerfiles pinned to `pnpm@11.24.0` matching package manager engine contract with 6/6 backend Docker builds verified and auth migration capability verified). IAM IRSA and EKS cluster provisioning (H8-D2), immutable image registry pipeline, and remote CD pipeline execution remain open.
+- **H8** — Kubernetes manifests: H8-A, H8-B, H8-C1, H8-C2, H8-C3, H8-C4, H8-D1, H8-D1.5, and H8-D1.6A completed (all 6 backend service Deployments wire `fieldforge-global-config` via `envFrom` and secrets via `secretKeyRef` to external `fieldforge-secrets`; in-cluster MySQL 8.4 StatefulSet and `mysql-service:3306` provisioned with 10Gi PVC in `infra/k8s/backing/mysql.yaml`; in-cluster Redis 8.0 StatefulSet, `redis-headless`, and `redis-service:6379` provisioned with 5Gi PVC and AOF in `infra/k8s/backing/redis.yaml`; in-cluster RabbitMQ 4.1 StatefulSet, `rabbitmq-headless`, and `rabbitmq-service:5672,15672` provisioned with 10Gi PVC in `infra/k8s/backing/rabbitmq.yaml`; database migration Job `fieldforge-db-migrate` provisioned in dedicated `infra/k8s/migrations/` with standalone runner `scripts/k8s-run-db-migration.sh`; staging deployment orchestrator `scripts/k8s-deploy-staging.sh` enforces strict pipeline: backing prerequisites → backing readiness → migration success → 7 application Deployments rollout; `Deployment/web-buyer-portal` and `Service/web-buyer-portal-service` provisioned with port 5173, build-time API Gateway rewrite configuration, and decoupled health probes; backend Dockerfiles pinned to `pnpm@11.24.0` matching package manager engine contract with 6/6 backend Docker builds verified and auth migration capability verified; declarative AWS ECR repositories and tiered lifecycle policies declared in `infra/terraform/ecr.tf` and `outputs.tf` for all 7 application images with tag immutability, KMS encryption, scan on push, and 3-tier lifecycle rules: 30 releases, 30 SHA images, 1-day untagged expiration). GitHub OIDC push role (H8-D1.6B), IAM IRSA and EKS cluster provisioning (H8-D2), and remote CD pipeline execution remain open.
 
 - **Real provider SDKs** — Stripe, Twilio, FCM, and SES slot in behind ports once credentials exist.
   Amazon S3 is now implemented for deliverable storage (Phase 42).
@@ -2162,3 +2162,15 @@ Task-graph or `turbo.json` changes must additionally pass the clean-typecheck va
 The standing rule for this project, from `AGENTS.md`: a test command that finds no tests is not a
 successful verification. Each phase closes only when a test exists that fails if that phase's
 behavior regresses.
+
+### Phase 54 follow-up — Marketing hero reference alignment (2026-09-28)
+
+- [x] Replace fixed overflowing hero columns with proportional desktop composition.
+- [x] Preserve the reference headline, floating job cards, verification card, trust
+      row, and four-metric rail; stack the composition below 900px.
+- [x] Keep existing CTA destinations and add focused browser regression coverage
+      at 390, 768, 988, 1440, and 2020px.
+- This is a presentation refinement; roadmap sequencing and backend scope are unchanged.
+
+- [x] Address user visual review: remove hero/navbar width caps, preserve original
+      photo and brand artwork, and align headline/card styling to the first reference.
