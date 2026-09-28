@@ -85,6 +85,19 @@
   - Updated `scripts/k8s-deploy-staging.sh` to include `"web-buyer-portal"` in `APP_DEPLOYMENTS`, verifying all 7 Deployments achieve readiness post-migration.
   - Updated `.github/workflows/docker-build-push.yml` build matrix to include `web-buyer-portal`.
 
+- **Backend Container Build Reproducibility Remediation (H8-D1.5).**
+  - Resolved unpinned `pnpm` across all 6 backend Dockerfiles (`apps/api-gateway`, `apps/auth-service`, `apps/billing-service`, `apps/dispatch-matching-service`, `apps/notification-service`, `apps/work-order-service`), replacing unpinned `RUN npm install -g pnpm turbo` with `RUN npm install -g pnpm@11.24.0 turbo` matching repository `packageManager = pnpm@11.24.0` and `engines.pnpm = >=11.0.0 <12`.
+  - Pinned pnpm coverage across all application Dockerfiles is now 7/7 (including `web-buyer-portal`).
+  - Turbo pinning assessed: root `package.json` pins `turbo: "^2.10.12"` which the global turbo CLI automatically delegates to within the monorepo workspace.
+  - Built and verified all 6 backend Docker images locally (`fieldforge/<service>:h8-container-verify`): 6/6 PASS.
+  - Verified `pnpm --version` returns `11.24.0` inside all built container images.
+  - Verified compiled main entrypoints exist in all backend images (`apps/<service>/dist/main.js`).
+  - Verified auth-service image contains `drizzle-kit@0.31.10`, `drizzle-orm@0.45.2`, `/app/packages/database/src/migrations` (0000-0007 + meta), `/app/packages/database/drizzle.config.ts`, and `/usr/bin/nc`, guaranteeing H8-C4 migration Job compatibility (`pnpm --filter @fieldforge/database db:migrate`).
+  - CI image matrix in `.github/workflows/docker-build-push.yml` verified to cover all 7 application images (7/7).
+  - Intentional naming mapping verified: Kubernetes Deployment `dispatch-service` pulls Docker image `fieldforge/dispatch-matching-service:latest`.
+  - Zero application business logic changes, zero DB schema changes, zero API contract changes.
+  - H8 remains OPEN pending H8-D2 cluster provisioning / IAM IRSA.
+
 - **Backing Infrastructure Auto-Start & RabbitMQ Connection Startup Race Condition (ISSUE-017).**
   - `scripts/clean-ports.sh` probes ports 3306 (MySQL), 5672 (RabbitMQ), and 6379 (Redis) before Turborepo dev servers launch, automatically invoking `scripts/docker-up.sh` if any backing dependency is offline.
   - `RabbitMQConnectionManager.ensureConnected()` in `@fieldforge/messaging` implements a resilient connection retry loop with backoff (configurable via `connectRetries` and `connectRetryDelayMs`, defaulting to 5 attempts in dev/production, 1 attempt in test), preventing fatal process exits on momentary broker startup delays.
