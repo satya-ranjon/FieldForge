@@ -183,3 +183,231 @@ Laptop follow-up: the five-item row now starts at 1024px, retaining the shared
 hero alignment and a minimum 14px label size. All nine responsive cases pass,
 including 1023px (stacked) and 1024px (one row). The 1024px capture was inspected
 for clipping, divider clearance, and readable labels.
+
+### Lifecycle reference layout review (2026-09-29)
+
+Source: `codex-clipboard-68fa4c13-5b68-40fb-8c51-d626401e84e3.png`.
+Scope: the lifecycle section at the top of the reference.
+
+The source and rendered 1024px and 390px captures were inspected together; the
+1536px capture was also reviewed. The shared hero content frame is retained, so
+comparison normalizes the lifecycle region rather than the entire screenshot.
+The former full-width row is replaced by the reference composition: introduction
+on the left, summaries above seven compact cards on the right, stacked numbers
+and icons, inter-card arrows, and a soft lime Dispatch card with a bottom marker.
+Native text, Tailwind colors, and vector icons stay sharp when enlarged.
+
+Six Chromium cases cover 320, 390, 768, 1024, 1536, and 2172px, asserting stage
+order, highlight, summary alignment, desktop row placement, mobile reflow, and
+viewport containment. Captures are under the buyer portal `test-results/`
+marketing-lifecycle directories. No new interactive controls or raster assets
+are introduced. Minor icon geometry differs because existing Lucide icons are
+used. No outstanding P0–P2 findings; final result: passed.
+
+Verification: six focused Chromium cases, `pnpm check`,
+`pnpm build --cache=local:r`, `pnpm infra:config`, and `git diff --check` passed.
+Unchanged backend tests used verified local caches; the browser preview emitted
+no console errors during this review.
+
+### Real-work reference follow-up (2026-09-29)
+
+Target: `codex-clipboard-468c76db-5491-4ead-9430-8acb34c7a61f.png`.
+The reference and existing `real-work-technician.png` asset were inspected.
+Implementation removes the white nested wrapper, moves the heading and benefits
+into a narrow desktop column, fills the remainder with existing artwork, replaces
+clipped job text with a native sample card, and reduces the lifecycle gap.
+Tailwind handles all layout changes. Six responsive cases were authored for
+320–2172px, including the 1024px desktop breakpoint, but have not been executed.
+
+Browser security policy rejected the request to access the local marketing
+preview. No alternate browser route was attempted. The rendered comparison and
+responsive verification are outstanding; final result: blocked.
+
+Nonvisual verification passed: `pnpm check`, `pnpm build --cache=local:r`,
+`pnpm infra:config`, and `git diff --check`. Backend suites used verified local
+caches. Visual verification remains blocked as described above.
+
+### Marketplace reference follow-up (2026-09-29)
+
+Source: `codex-clipboard-ace7fbce-aa49-435f-a603-bbb1d956c7dc.png`.
+The target places a three-line heading and compact benefits on the left, Marcus
+in the center of a pale map panel, Priya on the left, Daniel above Alex on the
+right, and the navigation strip beneath all cards. The implementation follows
+these proportions with Tailwind and native card content. Existing portraits are
+reused; `marketplace-map.png` is a generated 1536×1024 decorative background
+which was inspected locally. Directory links replace previously inert controls.
+
+Six browser cases were authored for 320–2172px. They assert card containment,
+relative positioning, image loading, and directory links. They remain unrun: the
+earlier local-preview browser security rejection remains in force. No alternate
+browser access was attempted. Rendered visual comparison remains outstanding;
+final result: blocked.
+
+Marketplace nonvisual verification: `pnpm check`,
+`pnpm build --cache=local:r`, `pnpm infra:config`, and `git diff --check` passed.
+Existing backend tests replayed from verified caches. Six new browser cases
+remain unrun; the visual gate is still blocked.
+
+### Marketplace avatar replacement (2026-09-29)
+
+All four generated portraits were inspected together: distinct faces, consistent
+lighting, square framing, no text or baked-in status dots. Each is 1254 × 1254px.
+The marketplace references the new `*-v2.png` assets with Next.js Image sizing;
+card layout and online indicators are unchanged. Asset inspection passed. The
+existing browser security block prevents verification of the rendered page.
+
+### Smart dispatch reference follow-up (2026-09-29)
+
+Source: `codex-clipboard-d50e9e9d-44b9-4581-a751-41b1d5f91992.png`.
+The reference has a pale-green canvas, compact header, larger left map, dark
+candidate list on the right, and four rounded feature pills below that list.
+The implementation follows these proportions using Tailwind and existing tokens.
+The original map is retained with an aspect-ratio crop to remove its outer pale
+edge; existing portraits are retained. The existing orbit asset supplies a faint
+corner accent, so its exact curves differ from the reference.
+
+Six responsive cases were authored for 320–2172px, covering candidate count, best
+match emphasis, the two-by-two pill grid, map loading, desktop alignment, and
+mobile stacking. The earlier browser security rejection remains in force; no
+alternate browser access was attempted. Tests and rendered comparison remain
+outstanding; final result: blocked.
+
+Smart-dispatch nonvisual verification passed: `pnpm check`,
+`pnpm build --cache=local:r`, `pnpm infra:config`, and `git diff --check`.
+Unchanged backend suites used verified local caches. The six new responsive
+browser cases remain unrun; visual acceptance is pending.
+
+### Operations and payments reference follow-up (2026-09-29)
+
+Source: `codex-clipboard-36ec00e1-6a11-4848-ba31-7dc40c0c5ba9.png`.
+The requested target contains two adjacent sections. Field operations has a
+centered heading, a light assignment phone, a large live map/site card, an
+unboxed capability column, a completion phone with a floating notification,
+and a separate four-item benefits strip. Payments has a left introduction,
+four steps on the right, and three horizontal benefit cards below.
+
+Implemented with native HTML, Tailwind, library icons, and existing map/photo
+assets. Mobile layouts stack; the shared marketing scale controls desktop
+proportions from 1024px. The outer canvas is a solid pale background, preserving
+the preference for CSS background colors rather than a flattened section image.
+
+Six browser cases were authored for 320–2172px with assertions for phone/list
+content, desktop column placement, bottom alignment, payment emphasis, and
+containment. They remain unrun because the earlier browser security rejection
+prevents local-preview access. Rendered comparison is outstanding;
+final result: blocked.
+
+Operations/payment nonvisual checks passed: `pnpm check`,
+`pnpm build --cache=local:r`, `pnpm infra:config`, and `git diff --check`.
+Existing backend test suites used verified local caches; the six newly authored
+responsive browser cases remain unrun under the security block.
+
+### Compliance reference follow-up (2026-09-29)
+
+Source: `codex-clipboard-4d7a9091-fdef-4e59-8a16-7045337f0800.png`.
+The target uses a profile card on the left and a heading above three separate
+right-hand panels. Implemented the tall portrait, compact badge grid, title-case
+panel headings, verification timeline, dates aligned beside work history,
+icon-led reliability rows, and compact bottom trust row with Tailwind.
+The broken portrait path is repaired using the previously inspected generated
+Marcus asset, which differs from the reference photo and was generated for the earlier
+avatar request. Existing orbit artwork supplies the faint decorative corner.
+
+Six responsive cases were authored for 320–2172px, checking the portrait, links,
+content counts, column placement, panel alignment, and containment. Browser
+access remains blocked by the earlier security rejection; no alternate browser
+route was attempted. Rendered comparison is pending; final result: blocked.
+
+Compliance nonvisual verification passed: `pnpm check`,
+`pnpm build --cache=local:r`, `pnpm infra:config`, and `git diff --check`.
+The replacement portrait exists at its referenced path. Existing backend test
+suites used verified caches; the six browser cases remain unrun.
+
+### Command center reference follow-up (2026-09-29)
+
+Source: `codex-clipboard-e52d52af-2609-4c1b-b127-d144d76f6462.png`.
+Implemented the pale mint backdrop, upper-corner labels, narrow KPI row, circular
+icons, light dashboard frame, full-height dark sidebar, white header, two white
+right-hand panels, and unified benefits bar with Tailwind. The existing map and
+generated portraits are reused; these portraits differ from the reference.
+Native text and vector icons remain sharp when enlarged.
+
+Six responsive cases cover 320–2172px, including containment, map loading, content
+counts, sidebar visibility, desktop column placement, and the single-row benefits.
+They remain unrun because browser access was rejected by security policy. No
+alternate browser path was attempted. Rendered comparison remains pending;
+final result: blocked.
+
+Command center nonvisual verification passed: `pnpm check`,
+`pnpm build --cache=local:r`, `pnpm infra:config`, and `git diff --check`.
+The existing backend suites used verified local caches. The six new responsive
+browser cases remain unrun; visual fidelity has not been confirmed in a browser.
+
+### Audience and expertise reference follow-up (2026-09-29)
+
+Source: `codex-clipboard-5758f672-2772-411b-82dc-e3074b5d35c5.png`. Implemented the shared pale-green canvas, adjacent copy and numbered steps within each audience card, compact section spacing, wide desktop heading, three-plus-four service grid, photo proportions, circular arrows, and understated white card footers. Existing seven photos were inspected and reused; the first three contain baked category labels, preserved with left-aligned crops. Smaller screens stack the cards. Six cases cover content, existing link destinations, image loading, desktop arrangement, spacing, and containment at 320–2172px. Browser capture remains blocked by the previous security rejection, and no alternate route was attempted. Rendered comparison is pending; final result: blocked.
+
+Audience/expertise nonvisual checks passed: `pnpm check`,
+`pnpm build --cache=local:r`, `pnpm infra:config`, and `git diff --check`.
+Existing backend suites used verified local caches. The six newly authored
+browser cases remain unrun; rendered fidelity has not been verified.
+
+### Reliability and closing banner follow-up (2026-09-29)
+
+Source: `codex-clipboard-9b0e44ab-0f50-4e27-9d60-79a5906e0579.png`. Implemented the large centered reliability heading, circular icon cards, compact section gap, separate dark forest background, large three-line CTA, inset right dashboard, assurance badges, and handwritten note. Existing Texas map and generated portrait are reused. The generated forest follows the reference mood but is not the identical photograph. Six responsive cases cover 320–2172px, including content, destinations, asset loading, containment, spacing, and desktop columns. Browser capture remains blocked by the previous security rejection; no alternate route was attempted. Rendered comparison remains pending; final result: blocked.
+
+Reliability/CTA nonvisual verification passed: `pnpm check`,
+`pnpm build --cache=local:r`, `pnpm infra:config`, and `git diff --check`.
+Existing backend suites used verified local caches. The generated forest image
+was inspected and saved in the public marketing directory. Six new browser
+cases remain unrun, and rendered fidelity has not been confirmed.
+
+### Footer reference follow-up (2026-09-29)
+
+Source: `codex-clipboard-ec4fde38-13b2-4151-ad8e-26467b6232e2.png`. Implemented the dark background, compact desktop brand/four-column/newsletter arrangement, vertical dividers, lime headings, round social buttons, email field, app badges, and slim copyright/status/language bar. Decorative background is separately generated and differs slightly from the reference curves. The copyright uses the current year. Six responsive cases cover 320–2172px and form feedback. Browser capture remains blocked by the existing security rejection; no alternate route was attempted. Rendered comparison remains pending; final result: blocked.
+
+Footer nonvisual checks passed: `pnpm check`, `pnpm build --cache=local:r`,
+`pnpm infra:config`, and `git diff --check`. Existing backend suites used verified
+local caches. The generated background was inspected and saved to the project.
+Six responsive browser cases remain unrun; visual fidelity and browser form
+behavior have not been verified under the existing security block.
+
+### Expertise image replacement follow-up (2026-09-29)
+
+Source: `codex-clipboard-e4a131bd-9cf6-477f-8bef-13b3dddc40f3.png`.
+Generated and inspected seven separate replacements corresponding to every red
+rectangle. The photographs share neutral/sage lighting and equipment subjects;
+the enterprise illustration retains the map and three city status cards. These
+are newly generated images rather than identical copies of the originals.
+Source dimensions are 2022 × 778 for the upper row and 1774 × 887 for the lower.
+The card layout stays unchanged, and every category pill is native text.
+Existing responsive cases now assert all seven replacement paths and labels.
+Browser capture remains blocked by the previous security rejection; no alternate
+route was attempted. Rendered comparison remains pending; final result: blocked.
+
+Expertise asset nonvisual verification passed: `pnpm check`,
+`pnpm build --cache=local:r`, `pnpm infra:config`, and `git diff --check`.
+All seven versioned files exist at the referenced paths and their dimensions
+were confirmed. Existing backend suites used verified local caches; the updated
+browser cases remain unrun under the security block.
+
+### Field Operations image replacement (2026-09-29)
+
+Source: `codex-clipboard-a98d21ad-0caa-4430-a8e3-9ebd8a7b17e2.png`. Generated and visually inspected a sharp light technician map preserving the three names/statuses and network issue, a clean server-rack photo without a baked badge, and a fictional technician portrait. The assets are new interpretations, not identical copies of the reference. Map and avatar are 1254px square; the server photo is 1681 × 936. Only FieldOperationsSection references these new versioned paths; existing assets remain untouched. Smaller viewports contain the map to avoid clipping names, while desktop retains cover fitting. Existing six responsive cases now check the three replacements and single Live label. Browser capture remains blocked by the previous security rejection; no alternate route was attempted. Rendered comparison remains pending; final result: blocked.
+
+Field Operations asset nonvisual checks passed: `pnpm check`,
+`pnpm build --cache=local:r`, `pnpm infra:config`, and `git diff --check`.
+All three source images were inspected and their saved dimensions confirmed.
+Existing backend suites used verified local caches. Updated browser cases remain
+unrun under the security block; rendered fidelity has not been verified.
+
+### Real Work separated assets follow-up (2026-09-29)
+
+Sources: `codex-clipboard-da7ffddf-da3d-4a12-b1e4-14dbcb5fbffe.png` and `codex-clipboard-80a2eee3-44f4-4057-885e-c5a5a4e5a97f.png`. Replaced the combined illustration with a separate technician photograph, six individually generated service photos, native captions, native dispatch badge, and the existing native Active Jobs panel. The desktop service grid remains two columns and three rows; mobile elements stack without bitmap cropping. The new photos are interpretations of the references, and the decorative route arc is omitted. Dispatch badge is positioned over clear office space rather than the technician. Updated six responsive cases to verify all seven images, label counts, and desktop geometry. Browser capture remains blocked by the existing security rejection; no alternate route was attempted. Rendered comparison remains pending; final result: blocked.
+
+Real Work separation nonvisual checks passed: `pnpm check`,
+`pnpm build --cache=local:r`, `pnpm infra:config`, and `git diff --check`.
+The technician image was refined to face right, keeping the tablet clear of the
+jobs panel, and all seven saved image dimensions were checked. Existing backend
+suites used verified local caches. The updated six browser cases remain unrun;
+rendered fidelity has not been confirmed under the existing security block.

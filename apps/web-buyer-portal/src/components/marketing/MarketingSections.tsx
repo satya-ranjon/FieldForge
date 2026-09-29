@@ -21,11 +21,13 @@ export const MarketingSections: React.FC = () => {
       {/* 1. Platform assurances */}
       <MarketingTrustStrip />
 
-      {/* 2. 7-Stage Lifecycle Pipeline */}
-      <LifecyclePipeline />
+      <div className="space-y-3 lg:space-y-0">
+        {/* 2. 7-Stage Lifecycle Pipeline */}
+        <LifecyclePipeline />
 
-      {/* 3. Real Work, All Industries */}
-      <RealWorkSection />
+        {/* 3. Real Work, All Industries */}
+        <RealWorkSection />
+      </div>
 
       {/* 4. Technician Marketplace Directory & Filter */}
       <TechnicianMarketplace />
@@ -33,11 +35,13 @@ export const MarketingSections: React.FC = () => {
       {/* 5. Smart Dispatch Tactical Map & Matching */}
       <SmartDispatchSection />
 
-      {/* 6. Field Operations Live Proof & Mobile App */}
-      <FieldOperationsSection />
+      <div className="space-y-6 bg-surface-marketing pb-10 lg:space-y-6">
+        {/* 6. Field Operations Live Proof & Mobile App */}
+        <FieldOperationsSection />
 
-      {/* 7. Secure Payments & Escrow Settlement */}
-      <SecurePaymentsSection />
+        {/* 7. Secure Payments & Escrow Settlement */}
+        <SecurePaymentsSection />
+      </div>
 
       {/* 8. Compliance & Trust Verification Matrix */}
       <ComplianceTrustSection />
@@ -45,17 +49,33 @@ export const MarketingSections: React.FC = () => {
       {/* 9. One Command Center Live Operations Window */}
       <CommandCenterPreview />
 
-      {/* 10. For Businesses vs For Technicians Split Section */}
-      <TwoSidedAudience />
+      <div className="space-y-8 bg-surface-green py-9 lg:space-y-7">
+        {/* 10. For Businesses vs For Technicians Split Section */}
+        <TwoSidedAudience />
 
-      {/* 11. Expertise & 7 Service Cards Taxonomy */}
-      <ExpertiseGrid />
+        {/* 11. Expertise & 7 Service Cards Taxonomy */}
+        <ExpertiseGrid />
+      </div>
 
-      {/* 12. Enterprise Reliability Guarantees */}
-      <EnterpriseReliability />
+      <div className="relative isolate space-y-5 overflow-hidden bg-surface-page pt-5 pb-5">
+        <img
+          src="/marketing/trust-orbit.png"
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute -left-20 top-20 -z-10 w-64 opacity-10"
+        />
+        <img
+          src="/marketing/trust-orbit.png"
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-20 top-12 -z-10 w-64 rotate-180 opacity-10"
+        />
+        {/* 12. Enterprise Reliability Guarantees */}
+        <EnterpriseReliability />
 
-      {/* 13. Dark Bottom Call To Action Banner */}
-      <DarkBottomCtaBanner />
+        {/* 13. Dark Bottom Call To Action Banner */}
+        <DarkBottomCtaBanner />
+      </div>
     </div>
   );
 };

@@ -191,3 +191,43 @@ Existing links to `/create-wo`, `/resources`, and `/operations` are retained.
 The subsequent five-item platform assurance strip is also presentation-only.
 It introduces no API calls, endpoints, schemas, or verification guarantees; its
 assurance labels are marketing copy, not additional implementation evidence.
+
+### Marketing lifecycle layout note (2026-09-29)
+
+The compact lifecycle illustration is static presentation. Its seven stages and
+summary values do not call APIs or modify DTOs, validators, events, or endpoints.
+
+The real-work illustration now contains native sample-job markup. These fixed
+examples do not fetch or mutate work orders; contracts and endpoints are unchanged.
+
+Marketplace reference styling introduces no API changes. Sample-card entry links
+use the existing `/technicians` page; sample ratings and availability are static.
+
+The smart-dispatch marketing redesign uses existing static candidate/map data
+and introduces no endpoints, requests, DTOs, events, or dispatch side effects.
+
+The operations/payment marketing update adds no APIs or state transitions.
+Preview links lead to existing `/`, `/technicians`, and `/audit` pages; they do
+not submit notes, sign work orders, generate reports, or release funds.
+
+The compliance layout change introduces no requests or verification endpoints.
+Its existing sample profile now links to the `/technicians` directory; displayed
+credentials, history, match percentages, and trust counts remain static.
+
+### Command center presentation follow-up (2026-09-29)
+
+The marketing Command Center layout changes no endpoints, DTOs, events, or
+authorization contracts. Its summary values, map, and technician rows remain
+illustrative data without new API calls.
+
+### Audience and expertise reference follow-up (2026-09-29)
+
+Audience/expertise layout changes introduce no endpoints, DTOs, event types, or authorization changes. Existing navigation destinations remain unchanged.
+
+### Reliability and closing banner follow-up (2026-09-29)
+
+Reliability/CTA presentation introduces no new API calls, endpoints, DTOs, or events. The assignment preview links to the existing technician directory; it creates no assignment mutation.
+
+### Footer reference follow-up (2026-09-29)
+
+Footer updates introduce no endpoints, DTOs, events, external subscription requests, or persistent data. Email input remains local to the form, and submit displays service-unavailability feedback without transmitting or logging the address.

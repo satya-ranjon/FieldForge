@@ -1746,3 +1746,46 @@ The oversized operations wrapper, missing completion phone, and stacked desktop
 payment heading/workflow have been replaced with the supplied composition.
 A shared pale canvas reduces the intervening gap. Responsive cases were authored
 but browser verification remains blocked by the existing security rejection.
+
+### Pending verification: compliance reference layout (2026-09-29)
+
+The wide header and single large matrix did not match the compact reference.
+The profile now sits beside the heading and three separate panels. The broken
+`/marketing/avatars/hero-tracking-avatar.png` reference is replaced with the
+existing `marcus-lee-v2.png`. Browser image-loading and responsive cases are
+authored but remain unrun under the existing security rejection.
+
+### Pending verification: command center reference layout (2026-09-29)
+
+The previous dark full-width header and right column differed from the supplied
+reference. The layout now uses a light workspace, separate white information
+panels, circular summary icons, and one benefits bar. Browser visual comparison
+and six responsive cases remain blocked by the earlier security rejection.
+
+### Audience and expertise reference follow-up (2026-09-29)
+
+The previous audience cards stacked steps below the introduction and left a large gap above expertise. The desktop cards now use adjacent columns, and both sections share a compact canvas. Existing top-row photo labels are kept visible with left-aligned crops. Responsive browser verification remains pending under the earlier security rejection.
+
+### Reliability and closing banner follow-up (2026-09-29)
+
+The previous reliability cards and closing banner were undersized and separated by a large gap. Their composition and spacing are revised to the supplied reference. Replaced the inert preview assignment button with a link to the existing technician directory. Rendered comparison and responsive browser verification remain pending under the earlier security rejection.
+
+### Footer reference follow-up (2026-09-29)
+
+Footer reference styling is implemented. Newsletter delivery, app-store listings, legal routes, and existing company destinations are still absent. The UI reports newsletter unavailability, disables store badges, and displays legal items as static labels without fabricating policy content or routes. Existing company links are preserved as pre-existing route debt. Browser visual verification remains blocked by the earlier security rejection.
+
+### Expertise thumbnail resolution follow-up (2026-09-29)
+
+The screenshot identified seven low-resolution expertise thumbnails. Replaced
+those assets with separately generated 1774px/2022px-wide versions and moved the
+first-row category labels into native UI. Existing card dimensions and routes
+are preserved. The assets and dimensions were checked; rendered browser
+verification remains pending under the existing security block.
+
+### Field Operations image replacement (2026-09-29)
+
+Replaced the low-resolution technician map and server thumbnail, plus the requested avatar, with separately generated assets. The old server photograph included a baked Live label that duplicated the native badge; the new photograph has none. All new source files and dimensions were verified. Rendered responsive verification remains pending under the earlier browser security rejection.
+
+### Real Work separated assets follow-up (2026-09-29)
+
+Removed the combined Real Work raster from the section. It embedded service cards, dispatch text, and a clipped job panel that could appear behind the native Active Jobs overlay. Separate generated images and native cards now replace those baked elements. The decorative route arc is not reproduced. Image files and code checks can be verified, but rendered comparison remains blocked by the earlier browser security rejection.

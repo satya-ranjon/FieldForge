@@ -1,160 +1,119 @@
-'use client';
-
 import React from 'react';
 import {
   FileText,
   ShieldCheck,
   CreditCard,
-  CheckCircle2,
+  CircleCheck,
   Wallet,
   Shield,
-  TrendingUp,
-  ArrowRight
+  ChartNoAxesCombined
 } from 'lucide-react';
+import { marketingLayoutScale } from './MarketingHero.styles';
 
 const paymentSteps = [
-  {
-    icon: FileText,
-    title: 'Job Posted',
-    desc: 'Client creates a job',
-    highlight: false
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Work Completed',
-    desc: 'Deliver and get approved',
-    highlight: false
-  },
-  {
-    icon: CreditCard,
-    title: 'Payment Released',
-    desc: 'Get paid securely',
-    highlight: false
-  },
-  {
-    icon: CheckCircle2,
-    title: 'You Get Paid',
-    desc: 'Funds in your account',
-    highlight: true
-  }
+  { icon: FileText, title: 'Job Posted', desc: 'Client creates a job' },
+  { icon: ShieldCheck, title: 'Work Completed', desc: 'Deliver and get approved' },
+  { icon: CreditCard, title: 'Payment Released', desc: 'Get paid securely' },
+  { icon: CircleCheck, title: 'You Get Paid', desc: 'Funds in your account', highlight: true }
 ];
-
 const valuePillars = [
   {
     num: '01',
     icon: Wallet,
     title: 'Transparent & Fair Funds',
     desc: 'Payments are held securely and released when work is completed.',
-    iconBg: 'bg-[#EAF7E2] text-[#22C55E]'
+    tone: 'bg-brand-green-soft'
   },
   {
     num: '02',
     icon: Shield,
     title: 'Secure and On-time',
     desc: 'Your payments are protected with industry-standard security.',
-    iconBg: 'bg-[#E6F4F1] text-[#0D9488]'
+    tone: 'bg-teal-50'
   },
   {
     num: '03',
-    icon: TrendingUp,
+    icon: ChartNoAxesCombined,
     title: 'Hassle-free Payouts',
     desc: 'Multiple payment methods and fast withdrawals to your account.',
-    iconBg: 'bg-[#F3E8FF] text-[#9333EA]'
+    tone: 'bg-purple-50'
   }
 ];
 
-export const SecurePaymentsSection: React.FC = () => {
+export function SecurePaymentsSection(): React.JSX.Element {
   return (
-    <section className="relative mx-auto my-16 max-w-[1360px] px-4 sm:px-6 lg:px-8">
-      {/* Outer Card Container */}
-      <div className="relative overflow-hidden rounded-3xl border border-[#DCE8DB] bg-white p-8 sm:p-12 shadow-[0_16px_50px_rgba(9,20,15,0.03)]">
-        {/* Top Header */}
-        <div className="max-w-2xl space-y-3">
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#DCE8DB] bg-[#F2F8EE] px-3.5 py-1 text-[11px] font-extrabold uppercase tracking-wider text-[#17212B]">
-            <span className="h-2 w-2 rounded-full bg-[#85EB32]" />
-            Secure Payments
-          </div>
-
-          <h2 className="text-3xl sm:text-4xl lg:text-[46px] font-black tracking-tight leading-[1.12] text-[#09130F]">
-            Payments built around completed work.
+    <section
+      id="secure-payments"
+      aria-labelledby="secure-payments-title"
+      className={`${marketingLayoutScale} relative mx-auto w-[calc(100%-2.5rem)] rounded-2xl bg-surface-white/65 p-5 font-[family-name:Arial,Helvetica,sans-serif] text-text-primary shadow-sm sm:p-7 lg:w-[calc(var(--hero-unit)*89)] lg:rounded-[1.6em] lg:p-[2.8em] lg:text-[length:var(--hero-unit)]`}
+    >
+      <div className="grid items-center gap-6 lg:grid-cols-[42%_minmax(0,1fr)] lg:gap-[2.7em]">
+        <header>
+          <span className="inline-flex items-center gap-[0.65em] rounded-full bg-surface-white px-[1em] py-[0.55em] text-[0.625rem] font-bold uppercase leading-none lg:text-[0.7em]">
+            <span className="size-[0.8em] rounded-full bg-lifecycle-active" aria-hidden="true" />
+            Secure payments
+          </span>
+          <h2
+            id="secure-payments-title"
+            className="mt-2 text-3xl font-bold leading-[1.1] tracking-[-0.025em] lg:mt-[0.25em] lg:text-[2.5em]"
+          >
+            Payments built around
+            <br className="hidden lg:block" /> completed work.
           </h2>
-
-          <p className="text-base sm:text-lg text-[#5A6874] leading-relaxed">
+          <p className="mt-3 max-w-md text-sm leading-[1.35] text-text-secondary lg:mt-[0.6em] lg:text-[1.1em]">
             Get paid with confidence. Your work, our secure payment flow — simple, transparent and
             reliable.
           </p>
-        </div>
-
-        {/* 4-Step Horizontal Payment Sequence */}
-        <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {paymentSteps.map((step, idx) => {
-            const Icon = step.icon;
-            return (
-              <div
-                key={step.title}
-                className={`relative flex flex-col items-center justify-center rounded-2xl p-6 text-center transition-all ${
-                  step.highlight
-                    ? 'border-2 border-[#85EB32] bg-[#A8F22D] text-[#08120D] shadow-[0_12px_36px_rgba(168,242,45,0.3)] ring-4 ring-[#A8F22D]/20'
-                    : 'border border-[#DCE8DB] bg-[#F8FAF7] text-[#09130F] hover:bg-white'
-                }`}
-              >
-                <div
-                  className={`mb-3 flex h-12 w-12 items-center justify-center rounded-2xl ${
-                    step.highlight
-                      ? 'bg-[#08120D] text-[#A8F22D]'
-                      : 'bg-white text-[#09130F] shadow-xs'
-                  }`}
-                >
-                  <Icon className="h-6 w-6 stroke-[2.2]" />
-                </div>
-
-                <h4 className="text-base font-extrabold">{step.title}</h4>
-                <p
-                  className={`mt-1 text-xs ${
-                    step.highlight ? 'text-[#08120D]/80 font-semibold' : 'text-[#5A6874]'
-                  }`}
-                >
-                  {step.desc}
-                </p>
-
-                {/* Connecting Arrow for desktop (hidden on last item) */}
-                {idx < paymentSteps.length - 1 && (
-                  <div className="pointer-events-none absolute -right-3 top-1/2 -translate-y-1/2 z-10 hidden lg:block">
-                    <ArrowRight className="h-4 w-4 text-[#C3EBC2]" />
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* 3 Pillars Below */}
-        <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-3">
-          {valuePillars.map((pillar) => {
-            const Icon = pillar.icon;
-            return (
-              <div
-                key={pillar.num}
-                className="relative overflow-hidden rounded-2xl border border-[#EBEFE9] bg-[#F8FAF7] p-6 transition hover:bg-white hover:shadow-sm"
-              >
-                <div className="flex items-center justify-between">
-                  <div
-                    className={`flex h-12 w-12 items-center justify-center rounded-2xl ${pillar.iconBg}`}
-                  >
-                    <Icon className="h-6 w-6 stroke-[2]" />
-                  </div>
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#EAF8E9] text-[11px] font-mono font-bold text-[#18852E]">
-                    {pillar.num}
-                  </span>
-                </div>
-
-                <h4 className="mt-5 text-base font-extrabold text-[#09130F]">{pillar.title}</h4>
-                <p className="mt-1.5 text-xs text-[#5A6874] leading-relaxed">{pillar.desc}</p>
-              </div>
-            );
-          })}
-        </div>
+        </header>
+        <ol
+          aria-label="Payment workflow"
+          className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:gap-[1.5em]"
+        >
+          {paymentSteps.map(({ icon: Icon, title, desc, highlight }, index) => (
+            <li
+              key={title}
+              className={`relative flex flex-col items-center justify-center rounded-lg border border-border-soft px-2 py-4 text-center lg:min-h-[7.2em] lg:rounded-[0.8em] lg:px-[0.6em] lg:py-[1em] ${highlight ? 'bg-lifecycle-active' : 'bg-surface-white'} ${index < 3 ? "lg:after:absolute lg:after:top-1/2 lg:after:-right-[1.6em] lg:after:w-[1.5em] lg:after:border-t lg:after:border-dashed lg:after:border-border-strong lg:after:content-['']" : ''}`}
+            >
+              <Icon
+                className={`mb-2 size-6 lg:mb-[0.8em] lg:size-[2em] ${highlight ? 'fill-brand-dark text-lifecycle-active' : 'text-text-primary'}`}
+                aria-hidden="true"
+              />
+              <h3 className="text-xs font-bold lg:text-[0.8em]">{title}</h3>
+              <p className="mt-1 text-[10px] leading-tight text-text-secondary lg:text-[0.7em]">
+                {desc}
+              </p>
+            </li>
+          ))}
+        </ol>
       </div>
+      <ol
+        aria-label="Payment benefits"
+        className="mt-6 grid gap-4 md:grid-cols-3 lg:mt-[2em] lg:gap-[1.6em]"
+      >
+        {valuePillars.map(({ num, icon: Icon, title, desc, tone }) => (
+          <li
+            key={num}
+            className="relative flex items-center gap-4 overflow-hidden rounded-xl border border-border-soft bg-surface-white/90 p-4 lg:min-h-[9em] lg:gap-[1.8em] lg:rounded-[1em] lg:p-[1.5em]"
+          >
+            <span
+              className={`grid size-12 shrink-0 place-items-center rounded-lg text-brand-dark lg:size-[5em] lg:rounded-[0.6em] ${tone}`}
+            >
+              <Icon className="size-[48%] stroke-[1.8]" aria-hidden="true" />
+            </span>
+            <div className="relative">
+              <span
+                className={`mb-1 inline-grid size-5 place-items-center rounded-full text-[9px] font-bold lg:mb-[0.7em] lg:size-[2em] lg:text-[0.65em] ${tone}`}
+              >
+                {num}
+              </span>
+              <h3 className="text-sm font-bold leading-tight lg:text-[1em]">{title}</h3>
+              <p className="mt-1 text-xs leading-[1.4] text-text-secondary lg:mt-[0.6em] lg:text-[0.85em]">
+                {desc}
+              </p>
+            </div>
+          </li>
+        ))}
+      </ol>
     </section>
   );
-};
+}

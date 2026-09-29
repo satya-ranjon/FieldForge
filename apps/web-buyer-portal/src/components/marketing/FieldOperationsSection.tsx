@@ -1,301 +1,346 @@
-'use client';
-
 import React from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
 import {
   MapPin,
-  ListOrdered,
+  List,
   Camera,
-  PenTool,
-  FileCheck,
-  CheckCircle2,
+  Signature,
+  FileText,
+  CircleCheck,
   ChevronDown,
-  Send,
+  Navigation,
   Zap,
   Eye,
   ShieldCheck,
-  TrendingUp
+  ChartNoAxesColumnIncreasing,
+  ArrowRight,
+  ArrowLeft,
+  Menu,
+  Circle,
+  Signal,
+  Wifi,
+  BatteryFull,
+  Clock3,
+  CornerDownRight
 } from 'lucide-react';
+import { marketingLayoutScale } from './MarketingHero.styles';
 
 const deliverables = [
+  { icon: MapPin, title: 'Live Location', desc: 'Track technicians in real time' },
+  { icon: List, title: 'Job Progress', desc: 'See each step as it happens' },
+  { icon: Camera, title: 'Photo Proof', desc: 'Images from the site' },
+  { icon: Signature, title: 'Digital Signature', desc: 'Customer confirmation' },
+  { icon: FileText, title: 'Instant Reports', desc: 'Field data, no delays' }
+];
+const benefits = [
+  { icon: Zap, title: 'Faster Resolution', desc: 'Solve issues quickly' },
+  { icon: Eye, title: 'Full Visibility', desc: 'Real-time field insights' },
+  { icon: ShieldCheck, title: 'Trusted & Compliant', desc: 'Verified work & proof' },
   {
-    icon: MapPin,
-    title: 'Live Location',
-    desc: 'Track technicians in real time',
-    color: 'bg-[#EAF7E2] text-[#22C55E]'
-  },
-  {
-    icon: ListOrdered,
-    title: 'Job Progress',
-    desc: 'See each step as it happens',
-    color: 'bg-[#EAF7E2] text-[#22C55E]'
-  },
-  {
-    icon: Camera,
-    title: 'Photo Proof',
-    desc: 'Images from the site',
-    color: 'bg-[#EAF7E2] text-[#22C55E]'
-  },
-  {
-    icon: PenTool,
-    title: 'Digital Signature',
-    desc: 'Customer confirmation',
-    color: 'bg-[#EAF7E2] text-[#22C55E]'
-  },
-  {
-    icon: FileCheck,
-    title: 'Instant Reports',
-    desc: 'Field data, no delays',
-    color: 'bg-[#EAF7E2] text-[#22C55E]'
+    icon: ChartNoAxesColumnIncreasing,
+    title: 'Higher Productivity',
+    desc: 'More jobs, less downtime'
   }
 ];
+const focus =
+  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green';
+const action = `${focus} flex min-h-11 items-center justify-center gap-1 rounded-full px-2 py-[0.85em] text-[0.72em] font-bold lg:min-h-0`;
+const phone =
+  'relative rounded-[2.2em] border-[0.3em] border-brand-dark bg-surface-white p-[0.65em] text-text-primary shadow-lg ring-2 ring-trust-lime';
 
-export const FieldOperationsSection: React.FC = () => {
+function AssignmentPhone(): React.JSX.Element {
   return (
-    <section className="relative mx-auto my-20 max-w-[1360px] px-4 sm:px-6 lg:px-8">
-      {/* Top Header */}
-      <div className="relative text-center max-w-3xl mx-auto space-y-4">
-        {/* Handwritten note left */}
-        <div className="absolute -left-12 -top-6 hidden sm:block">
-          <p
-            className="rotate-[-10deg] text-sm font-bold text-[#5EA824]"
-            style={{ fontFamily: "'Comic Sans MS', 'Caveat', cursive" }}
-          >
-            From assignment
-            <br />
-            to completion
+    <div
+      aria-label="Technician assignment preview"
+      className={`${phone} mx-auto flex w-[16.5em] max-w-full flex-col lg:h-[29em] lg:w-full`}
+    >
+      <div className="relative mb-[0.9em] flex items-center justify-between text-[0.6em] font-bold">
+        <span>9:41</span>
+        <span
+          className="absolute top-0 left-1/2 h-[1.5em] w-[6em] -translate-x-1/2 rounded-full bg-text-primary"
+          aria-hidden="true"
+        />
+        <span className="flex gap-[0.3em]" aria-hidden="true">
+          <Signal className="size-[1em]" />
+          <Wifi className="size-[1em]" />
+          <BatteryFull className="size-[1.1em]" />
+        </span>
+      </div>
+      <div className="mb-[1em] flex items-center justify-between text-[0.8em] font-bold">
+        <span className="flex items-center gap-1">
+          <Zap className="size-[1em] rounded bg-lifecycle-active" aria-hidden="true" />
+          TechCare
+        </span>
+        <Menu className="size-[1.2em]" aria-hidden="true" />
+      </div>
+      <div className="flex items-center justify-between rounded-[0.8em] bg-surface-dark-secondary p-[1em] text-white">
+        <div>
+          <p className="text-[0.65em] text-white/70">Current Job</p>
+          <p className="mt-0.5 text-[1.2em] font-bold">En Route</p>
+          <p className="mt-0.5 text-[0.65em] text-white/80">ETA 12 min · 2.8 km</p>
+        </div>
+        <Navigation
+          className="size-[2.5em] rounded-full bg-white/5 p-[0.5em] text-brand-green"
+          aria-hidden="true"
+        />
+      </div>
+      <ol className="my-[1.4em] ml-[0.5em] space-y-[1.2em] lg:my-[1em] lg:flex lg:flex-1 lg:flex-col lg:justify-between lg:space-y-0">
+        {['Job Assigned', 'En Route', 'Arrived on Site', 'Work in Progress', 'Complete Job'].map(
+          (step, index) => (
+            <li
+              key={step}
+              className={`relative flex items-start gap-[0.8em] text-[0.75em] ${index === 1 ? 'font-bold text-trust-lime-ink' : 'text-text-secondary'} ${index < 4 ? "after:absolute after:top-[1.2em] after:left-[0.45em] after:h-[2.4em] after:border-l after:border-border-strong after:content-['']" : ''}`}
+            >
+              <Circle
+                className={`relative z-10 mt-0.5 size-[1.1em] shrink-0 bg-surface-white ${index === 1 ? 'fill-brand-green text-marketing-check' : index === 0 ? 'text-marketing-status-green' : 'text-border-strong'}`}
+                aria-hidden="true"
+              />
+              <div>
+                {step}
+                {index < 2 && (
+                  <span className="block text-[0.8em] font-normal">
+                    {index === 0 ? '10:14 AM' : '10:32 AM'}
+                  </span>
+                )}
+              </div>
+            </li>
+          )
+        )}
+      </ol>
+      <Link href="/" className={`${action} bg-lifecycle-active text-brand-dark`}>
+        View Job Details <ArrowRight className="size-[1em]" aria-hidden="true" />
+      </Link>
+    </div>
+  );
+}
+
+function CompletionPhone(): React.JSX.Element {
+  return (
+    <div className="relative mx-auto mt-14 w-[15em] max-w-full lg:mt-0 lg:w-full">
+      <div
+        aria-label="Job completion notification"
+        className="absolute -top-[6em] left-1/2 flex w-[19em] max-w-[calc(100vw-3rem)] -translate-x-1/2 items-start gap-[0.8em] rounded-[1.3em] bg-surface-white p-[1.2em] shadow-sm lg:-top-[5.7em]"
+      >
+        <CircleCheck
+          className="size-[2.4em] shrink-0 rounded-full bg-brand-green-soft p-[0.3em] text-green-700"
+          aria-hidden="true"
+        />
+        <div className="flex-1">
+          <div className="flex justify-between gap-1">
+            <strong className="text-[0.75em]">Job Completed!</strong>
+            <span className="text-[0.6em] text-text-secondary">2m ago</span>
+          </div>
+          <p className="mt-0.5 text-[0.7em] leading-[1.3] text-text-secondary">
+            Priya Shah has completed the job at 1200 Market St.
           </p>
         </div>
-
-        <div className="inline-flex items-center gap-2 rounded-full border border-[#DCE8DB] bg-white px-3.5 py-1 text-[11px] font-extrabold uppercase tracking-wider text-[#17212B] shadow-xs">
-          <span className="h-2 w-2 rounded-full bg-[#85EB32]" />
-          Field Operations
+      </div>
+      <div aria-label="Completed job summary preview" className={`${phone} rounded-[1.8em]`}>
+        <div className="flex items-center justify-between px-[0.4em] py-[0.5em] text-[0.75em] font-bold">
+          <ArrowLeft className="size-[1em]" aria-hidden="true" />
+          Job Summary
+          <Menu className="size-[1em]" aria-hidden="true" />
         </div>
+        <div className="py-[1.8em] text-center">
+          <CircleCheck
+            className="mx-auto size-[2em] fill-green-600 text-white"
+            aria-hidden="true"
+          />
+          <h3 className="mt-[0.7em] text-[1.1em] font-bold">Completed</h3>
+          <p className="mt-1 text-[0.65em] text-text-secondary">Today, 12:41 PM</p>
+        </div>
+        <ul className="space-y-[1.4em] rounded-[0.9em] bg-surface-soft p-[0.8em]">
+          {['Arrived on Site', 'Work Completed', 'Customer Signature'].map((label, index) => (
+            <li key={label} className="flex items-start gap-[0.5em]">
+              <CircleCheck
+                className="size-[1.3em] shrink-0 fill-marketing-check text-white"
+                aria-hidden="true"
+              />
+              <div>
+                <h4 className="text-[0.72em] font-bold">{label}</h4>
+                <p className="text-[0.65em] text-text-secondary">
+                  {['10:24 AM', '12:10 PM', '12:14 PM'][index]}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
+        <Link href="/audit" className={`${action} mt-[1em] bg-surface-dark-secondary text-white`}>
+          View Report <ArrowRight className="size-[1em]" aria-hidden="true" />
+        </Link>
+        <Link href="/" className={`${action} mt-[0.5em] bg-status-neutral-soft`}>
+          Add Note
+        </Link>
+      </div>
+    </div>
+  );
+}
 
-        <h2 className="text-3xl sm:text-4xl lg:text-[46px] font-black tracking-tight leading-[1.12] text-[#09130F]">
-          Know what is happening in the field —{' '}
-          <span className="relative inline-block text-[#22C55E]">
+export function FieldOperationsSection(): React.JSX.Element {
+  return (
+    <section
+      id="field-operations"
+      aria-labelledby="field-operations-title"
+      className={`${marketingLayoutScale} relative mx-auto w-[calc(100%-2.5rem)] pt-8 pb-6 font-[family-name:Arial,Helvetica,sans-serif] text-sm text-text-primary lg:w-[calc(var(--hero-unit)*89)] lg:pt-[2em] lg:pb-[2em] lg:text-[length:var(--hero-unit)]`}
+    >
+      <header className="mx-auto max-w-3xl text-center lg:max-w-[62em]">
+        <span className="inline-flex items-center gap-[0.7em] rounded-full bg-surface-white px-[1.1em] py-[0.7em] text-[0.7em] font-bold uppercase shadow-xs">
+          <span className="size-[0.75em] rounded-full bg-marketing-check" aria-hidden="true" />
+          Field operations
+        </span>
+        <h2
+          id="field-operations-title"
+          className="mt-3 text-3xl font-bold leading-[1.08] tracking-[-0.025em] lg:mt-[0.4em] lg:text-[2.7em]"
+        >
+          <span className="block">Know what is happening in the field —</span>
+          <span className="relative inline-block text-green-800">
             then prove it.
-            <span className="absolute -bottom-1 left-0 h-2 w-full rounded-full bg-[#A8F22D]/40" />
+            <img
+              src="/marketing/hero-underline.png"
+              alt=""
+              aria-hidden="true"
+              className="absolute -bottom-[0.15em] left-0 h-[0.12em] w-full"
+            />
           </span>
         </h2>
-
-        <p className="text-base sm:text-lg text-[#5A6874] leading-relaxed max-w-2xl mx-auto">
+        <p className="mx-auto mt-4 max-w-xl text-sm leading-[1.4] text-text-secondary lg:mt-[1.2em] lg:max-w-[38em] lg:text-[1.05em]">
           Get real-time updates from the field, track technician location, job progress, photos,
           signatures and more — all in one place.
         </p>
-      </div>
-
-      {/* Main Composite Visual Container */}
-      <div className="relative mt-12 rounded-3xl border border-[#DCE8DB] bg-gradient-to-b from-[#F2F8EE]/60 to-[#EDF6EA]/80 p-6 sm:p-10 shadow-[0_16px_50px_rgba(9,20,15,0.03)]">
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:items-center">
-          {/* Left Smartphone Mock: TechCare App */}
-          <div className="mx-auto w-[270px] rounded-[38px] border-[6px] border-[#162821] bg-[#0F1A15] p-3.5 text-white shadow-2xl lg:col-span-3">
-            {/* Phone Top Notch */}
-            <div className="mx-auto mb-3 flex h-4 w-28 items-center justify-center rounded-full bg-black">
-              <span className="h-2 w-2 rounded-full bg-[#22C55E]" />
-            </div>
-
-            {/* App Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-white/10">
-              <div className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-[#85EB32]" />
-                <span className="text-xs font-black">TechCare</span>
-              </div>
-              <span className="text-[10px] text-white/60">9:41</span>
-            </div>
-
-            {/* Current Job Status Card */}
-            <div className="mt-3 rounded-2xl bg-[#1A2E26] p-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] text-white/60">Current Job</span>
-                  <h4 className="text-sm font-black text-[#85EB32]">En Route</h4>
-                  <span className="text-[10px] text-white/80">ETA 12 min • 2.8 km</span>
-                </div>
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#85EB32] text-[#0F1A15]">
-                  <Send className="h-4 w-4" />
-                </div>
-              </div>
-            </div>
-
-            {/* Job Stepper */}
-            <div className="mt-4 space-y-3 pl-2 text-xs">
-              <div className="flex items-center gap-2 text-white/60">
-                <span className="h-2 w-2 rounded-full border border-white/40" />
-                <span>Job Assigned</span>
-                <span className="ml-auto text-[10px]">10:14 AM</span>
-              </div>
-              <div className="flex items-center gap-2 font-bold text-[#85EB32]">
-                <span className="h-2 w-2 rounded-full bg-[#85EB32]" />
-                <span>En Route</span>
-                <span className="ml-auto text-[10px]">10:32 AM</span>
-              </div>
-              <div className="flex items-center gap-2 text-white/40">
-                <span className="h-2 w-2 rounded-full border border-white/20" />
-                <span>Arrived on Site</span>
-              </div>
-              <div className="flex items-center gap-2 text-white/40">
-                <span className="h-2 w-2 rounded-full border border-white/20" />
-                <span>Work in Progress</span>
-              </div>
-              <div className="flex items-center gap-2 text-white/40">
-                <span className="h-2 w-2 rounded-full border border-white/20" />
-                <span>Complete Job</span>
-              </div>
-            </div>
-
-            <button className="mt-5 w-full rounded-xl bg-[#85EB32] py-2.5 text-xs font-bold text-[#0F1A15] shadow-sm">
-              View Job Details →
-            </button>
+      </header>
+      <div className="relative mt-8 grid items-end gap-8 md:grid-cols-2 lg:mt-[1.5em] lg:grid-cols-[17%_41%_16%_16%] lg:gap-[3.333%]">
+        <p className="absolute -top-[5em] -left-[2em] hidden -rotate-12 text-center font-[family-name:'Comic_Sans_MS',cursive] text-[1em] text-text-secondary lg:block">
+          From assignment
+          <br />
+          to completion
+          <CornerDownRight
+            className="ml-auto size-[2.5em] rotate-12 stroke-1 text-marketing-check"
+            aria-hidden="true"
+          />
+        </p>
+        <AssignmentPhone />
+        <div
+          aria-label="Live technician dashboard preview"
+          className="min-w-0 rounded-2xl bg-surface-white p-3 shadow-sm lg:rounded-[1.3em] lg:p-[1em]"
+        >
+          <div className="mb-[1em] flex items-center justify-between gap-2">
+            <h3 className="flex items-center gap-[0.5em] text-[0.85em] font-bold">
+              <span className="size-[0.55em] rounded-full bg-marketing-check" aria-hidden="true" />
+              Live Technicians{' '}
+              <span className="rounded-full bg-brand-green-soft px-[0.5em] py-[0.25em]">12</span>
+            </h3>
+            <Link
+              href="/technicians"
+              className={`${focus} flex min-h-11 items-center gap-[1em] rounded-full border border-border-soft px-[1em] text-[0.6em] lg:min-h-0 lg:py-[0.5em]`}
+            >
+              All Technicians
+              <ChevronDown className="size-[1em]" aria-hidden="true" />
+            </Link>
           </div>
-
-          {/* Center Live Map & Site Visit Card */}
-          <div className="rounded-2xl border border-[#DCE8DB] bg-white p-4 shadow-sm lg:col-span-5">
-            <div className="flex items-center justify-between border-b border-[#EBEFE9] pb-3">
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-[#22C55E]" />
-                <span className="text-xs font-black text-[#09130F]">Live Technicians</span>
-                <span className="rounded-full bg-[#EAF8E9] px-2 py-0.5 text-[10px] font-bold text-[#18852E]">
-                  12
-                </span>
-              </div>
-              <div className="flex items-center gap-1 text-[11px] font-bold text-[#5A6874]">
-                <span>All Technicians</span>
-                <ChevronDown className="h-3 w-3" />
-              </div>
+          <div className="grid grid-cols-[1.8fr_1fr] gap-2 lg:gap-[0.8em]">
+            <div className="relative min-h-60 overflow-hidden rounded-lg lg:min-h-[23em]">
+              <Image
+                src="/marketing/map-field-operations-v2.png"
+                alt="Map showing technician locations, job statuses, and a network issue"
+                fill
+                sizes="(min-width: 1500px) 360px, (min-width: 1024px) 240px, 50vw"
+                className="bg-surface-soft object-contain lg:object-cover"
+              />
             </div>
-
-            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-12">
-              {/* Map Column */}
-              <div className="relative h-56 overflow-hidden rounded-xl sm:col-span-6">
-                <img
-                  src="/marketing/map-field-operations.png"
-                  alt="City street map"
-                  className="h-full w-full object-cover"
+            <div className="flex min-w-0 flex-col rounded-lg bg-surface-soft p-1.5 lg:p-[0.6em]">
+              <div className="relative mb-[0.7em] aspect-[1.8] overflow-hidden rounded-lg">
+                <Image
+                  src="/marketing/photo-server-rack-v2.png"
+                  alt="Server racks at the job site"
+                  fill
+                  sizes="(min-width: 1500px) 190px, 120px"
+                  className="object-cover"
                 />
-              </div>
-
-              {/* Site Visit Card Column */}
-              <div className="flex flex-col justify-between rounded-xl border border-[#EBEFE9] bg-[#F8FAF7] p-3 text-xs sm:col-span-6">
-                <div>
-                  <div className="relative mb-2 h-20 w-full overflow-hidden rounded-lg">
-                    <img
-                      src="/marketing/photo-server-rack.png"
-                      alt="Data center server rack"
-                      className="h-full w-full object-cover"
-                    />
-                    <span className="absolute bottom-1 right-1 rounded bg-black/70 px-1.5 py-0.5 text-[9px] font-bold text-[#85EB32]">
-                      ● Live
-                    </span>
-                  </div>
-
-                  <h5 className="font-extrabold text-[#09130F]">Site Visit</h5>
-                  <p className="text-[10px] text-[#7D8791]">1200 Market St, NY</p>
-
-                  <div className="mt-2 flex items-center gap-2">
-                    <img
-                      src="/marketing/avatars/priya-shah.png"
-                      alt="Priya Shah"
-                      className="h-6 w-6 rounded-full object-cover"
-                    />
-                    <div>
-                      <span className="block text-[10px] font-bold text-[#09130F]">Priya Shah</span>
-                      <span className="block text-[9px] text-[#22C55E]">● On Site</span>
-                    </div>
-                  </div>
-                </div>
-
-                <button className="mt-2 w-full rounded-lg bg-[#111C22] py-1.5 text-[11px] font-bold text-white">
-                  View Details →
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: Deliverables List & Summary Phone Mock */}
-          <div className="space-y-4 lg:col-span-4">
-            {/* 5 Deliverables Pills */}
-            <div className="space-y-2 rounded-2xl border border-[#DCE8DB] bg-white p-4 shadow-sm">
-              {deliverables.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <div
-                    key={item.title}
-                    className="flex items-center gap-3 p-1.5 rounded-lg hover:bg-[#F8FAF7] transition"
-                  >
-                    <div
-                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${item.color}`}
-                    >
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <h5 className="text-xs font-extrabold text-[#09130F]">{item.title}</h5>
-                      <p className="text-[10px] text-[#7D8791]">{item.desc}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Floating Job Completed Toast */}
-            <div className="flex items-center gap-3 rounded-2xl border border-[#DCE8DB] bg-white p-3.5 shadow-md">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#EAF8E9] text-[#18852E]">
-                <CheckCircle2 className="h-5 w-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <span className="block text-xs font-extrabold text-[#09130F]">Job Completed!</span>
-                <span className="block truncate text-[10px] text-[#5A6874]">
-                  Priya Shah completed job at 1200 Market St.
+                <span className="absolute right-1 bottom-1 rounded-full bg-surface-white px-[0.6em] text-[0.6em]">
+                  Live
                 </span>
               </div>
-              <span className="text-[9px] font-bold text-[#A0AEC0]">2m ago</span>
+              <h4 className="text-[0.8em] font-bold">Site Visit</h4>
+              <p className="text-[0.7em] text-text-secondary">1200 Market St, NY</p>
+              <div className="mt-[1.2em] flex items-center gap-[0.5em]">
+                <Image
+                  src="/marketing/avatars/priya-shah-field-v3.png"
+                  alt="Priya Shah"
+                  width={96}
+                  height={96}
+                  className="size-[1.8em] rounded-full object-cover"
+                />
+                <div className="text-[0.7em]">
+                  <p className="text-text-secondary">Technician</p>
+                  <p className="font-bold">Priya Shah</p>
+                </div>
+              </div>
+              <div className="mt-[1.3em] flex items-center gap-[0.6em]">
+                <CircleCheck
+                  className="size-[1.7em] rounded-full bg-brand-green-soft p-[0.3em] text-green-700"
+                  aria-hidden="true"
+                />
+                <div className="text-[0.7em]">
+                  <p className="text-text-secondary">Status</p>
+                  <p className="font-bold text-green-700">On Site</p>
+                </div>
+              </div>
+              <div className="mt-[1.3em] mb-[1em] flex items-center gap-[0.6em]">
+                <Clock3
+                  className="size-[1.7em] rounded-full bg-brand-green-soft p-[0.3em] text-green-700"
+                  aria-hidden="true"
+                />
+                <div className="text-[0.7em]">
+                  <p className="text-text-secondary">Started</p>
+                  <p className="font-bold">10:24 AM</p>
+                </div>
+              </div>
+              <Link href="/" className={`${action} mt-auto bg-surface-dark-secondary text-white`}>
+                View Details <ArrowRight className="size-[1em]" aria-hidden="true" />
+              </Link>
             </div>
           </div>
         </div>
-
-        {/* 4 Bottom Metric Cards */}
-        <div className="mt-8 grid grid-cols-2 gap-4 border-t border-[#DCE8DB] pt-8 sm:grid-cols-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EAF7E2] text-[#22C55E]">
-              <Zap className="h-5 w-5" />
-            </div>
-            <div>
-              <h5 className="text-xs font-bold text-[#09130F]">Faster Resolution</h5>
-              <p className="text-[10px] text-[#5A6874]">Solve issues quickly</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EAF7E2] text-[#22C55E]">
-              <Eye className="h-5 w-5" />
-            </div>
-            <div>
-              <h5 className="text-xs font-bold text-[#09130F]">Full Visibility</h5>
-              <p className="text-[10px] text-[#5A6874]">Real-time field insights</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EAF7E2] text-[#22C55E]">
-              <ShieldCheck className="h-5 w-5" />
-            </div>
-            <div>
-              <h5 className="text-xs font-bold text-[#09130F]">Trusted &amp; Compliant</h5>
-              <p className="text-[10px] text-[#5A6874]">Verified work &amp; proof</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EAF7E2] text-[#22C55E]">
-              <TrendingUp className="h-5 w-5" />
-            </div>
-            <div>
-              <h5 className="text-xs font-bold text-[#09130F]">Higher Productivity</h5>
-              <p className="text-[10px] text-[#5A6874]">More jobs, less downtime</p>
-            </div>
-          </div>
-        </div>
+        <ul
+          aria-label="Field operation capabilities"
+          className="grid grid-cols-2 gap-4 md:grid-cols-1 lg:min-h-[26em] lg:content-between lg:gap-[1em] lg:pb-[0.6em]"
+        >
+          {deliverables.map(({ icon: Icon, title, desc }) => (
+            <li key={title} className="flex items-start gap-2 lg:gap-[1em]">
+              <span className="grid size-9 shrink-0 place-items-center rounded-full bg-brand-green-soft text-trust-lime-ink lg:size-[3.2em]">
+                <Icon className="size-[50%] stroke-[2.3]" aria-hidden="true" />
+              </span>
+              <div className="pt-0.5">
+                <h3 className="text-xs font-bold lg:text-[0.8em]">{title}</h3>
+                <p className="mt-0.5 text-[11px] leading-tight text-text-secondary lg:text-[0.8em]">
+                  {desc}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
+        <CompletionPhone />
       </div>
+      <ul
+        aria-label="Field operations benefits"
+        className="mt-8 grid grid-cols-2 gap-4 rounded-2xl bg-surface-white/75 p-5 shadow-sm lg:mt-[2em] lg:w-[95%] lg:grid-cols-4 lg:gap-0 lg:rounded-[1.8em] lg:py-[1.5em] lg:px-[2em]"
+      >
+        {benefits.map(({ icon: Icon, title, desc }, index) => (
+          <li
+            key={title}
+            className={`flex items-center gap-3 lg:justify-center lg:gap-[1.2em] ${index ? 'lg:border-l lg:border-border-default' : ''}`}
+          >
+            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-brand-green-soft text-trust-lime-ink lg:size-[3.3em]">
+              <Icon className="size-[50%] stroke-[2.5]" aria-hidden="true" />
+            </span>
+            <div>
+              <h3 className="text-xs font-bold lg:text-[0.95em]">{title}</h3>
+              <p className="mt-0.5 text-[11px] text-text-secondary lg:text-[0.85em]">{desc}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
     </section>
   );
-};
+}

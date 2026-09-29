@@ -1,209 +1,289 @@
-'use client';
-
 import React from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight, Play, Shield, Zap, BarChart2 } from 'lucide-react';
+import {
+  ArrowRight,
+  Play,
+  ShieldCheck,
+  Zap,
+  BarChart2,
+  CircleAlert,
+  CircleCheck,
+  Navigation,
+  MapPin,
+  House
+} from 'lucide-react';
+import { marketingLayoutScale } from './MarketingHero.styles';
+import { MarketingBrandMark } from './MarketingHeroArtwork';
 
-export const DarkBottomCtaBanner: React.FC = () => {
+const focus =
+  'focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-green';
+const metrics = [
+  { value: '18', label: 'Open Jobs' },
+  { value: '04', label: 'At Risk' },
+  { value: '09', label: 'Pending Approval' },
+  { value: '$42K', label: 'Spend' }
+];
+const alerts = [
+  {
+    text: 'Emergency work needs dispatch',
+    time: '2 min ago',
+    icon: CircleAlert,
+    tone: 'text-status-danger'
+  },
+  {
+    text: 'Arrival verification pending',
+    time: '14 min ago',
+    icon: CircleAlert,
+    tone: 'text-status-warning'
+  },
+  {
+    text: 'Invoice awaiting approval',
+    time: '1 hour ago',
+    icon: CircleCheck,
+    tone: 'text-brand-green'
+  }
+];
+const benefits = [
+  { first: 'Trusted', second: 'Technicians', icon: ShieldCheck },
+  { first: 'Faster', second: 'Dispatch', icon: Zap },
+  { first: 'Greater', second: 'Accountability', icon: BarChart2 }
+];
+
+function DispatchDashboard(): React.JSX.Element {
   return (
-    <section className="relative mx-auto my-20 max-w-[1360px] px-4 sm:px-6 lg:px-8">
-      <div className="relative overflow-hidden rounded-[36px] border border-[#22383C] bg-gradient-to-br from-[#0B1A15] via-[#0E1E19] to-[#081410] p-8 sm:p-12 lg:p-16 text-white shadow-2xl">
-        {/* Ambient background glow */}
-        <div className="pointer-events-none absolute -left-20 -top-20 h-96 w-96 rounded-full bg-[#22C55E]/10 blur-[100px]" />
-        <div className="pointer-events-none absolute -bottom-20 -right-20 h-96 w-96 rounded-full bg-[#85EB32]/10 blur-[100px]" />
-
-        <div className="relative z-10 grid grid-cols-1 gap-12 lg:grid-cols-12 lg:items-center">
-          {/* Left Column: CTA Pitch */}
-          <div className="space-y-6 lg:col-span-5">
-            <span className="text-[11px] font-mono font-bold tracking-[0.2em] text-[#85EB32] uppercase">
-              — FIELDWORK MOVES FORWARD
+    <div
+      aria-label="Dispatch command center preview"
+      className="min-w-0 rounded-2xl border border-trust-lime/30 bg-brand-dark/70 p-2 shadow-xl lg:rounded-[1.8em] lg:p-[0.8em]"
+    >
+      <div className="overflow-hidden rounded-xl border border-white/15 bg-brand-dark/95 lg:rounded-[1em]">
+        <div className="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-3 lg:px-[1.6em] lg:py-[0.8em]">
+          <div className="flex items-center gap-4 lg:gap-[4em]">
+            <span className="flex items-center gap-1 text-xs font-bold lg:gap-[0.4em] lg:text-[0.9em]">
+              <span className="block size-4 lg:size-[1.6em]">
+                <MarketingBrandMark />
+              </span>
+              FieldForge
             </span>
-
-            <h2 className="text-3xl sm:text-4xl lg:text-[46px] font-black tracking-tight leading-[1.08] text-white">
-              Your next field job should not take hours to staff.
-            </h2>
-
-            <p className="text-sm sm:text-base text-white/75 leading-relaxed">
-              Find qualified technicians, coordinate field work and keep every job accountable from
-              dispatch through payment.
-            </p>
-
-            <div className="flex flex-wrap items-center gap-3.5 pt-2">
-              <Link
-                href="/create-wo"
-                className="inline-flex h-12 items-center gap-3 rounded-full bg-[#85EB32] px-7 text-sm font-black text-[#08120D] shadow-[0_12px_28px_rgba(133,235,50,0.28)] transition hover:bg-[#78dc29]"
-              >
-                Find Technicians
-                <ArrowRight className="h-4 w-4 stroke-[3]" />
-              </Link>
-              <Link
-                href="/resources"
-                className="inline-flex h-12 items-center gap-3 rounded-full border border-white/20 bg-white/5 px-6 text-sm font-bold text-white transition hover:bg-white/10"
-              >
-                Book a Demo
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#85EB32] text-[#08120D]">
-                  <Play className="ml-0.5 h-2.5 w-2.5 fill-current" />
-                </span>
-              </Link>
-            </div>
-
-            {/* 3 Bottom Badges */}
-            <div className="flex flex-wrap items-center gap-6 pt-6 border-t border-white/10 text-[10px] font-bold text-white/80 uppercase tracking-wider">
-              <div className="flex items-center gap-2">
-                <Shield className="h-4 w-4 text-[#85EB32]" />
-                TRUSTED TECHNICIANS
-              </div>
-              <div className="flex items-center gap-2">
-                <Zap className="h-4 w-4 text-[#85EB32]" />
-                FASTER DISPATCH
-              </div>
-              <div className="flex items-center gap-2">
-                <BarChart2 className="h-4 w-4 text-[#85EB32]" />
-                GREATER ACCOUNTABILITY
-              </div>
-            </div>
-
-            {/* Handwritten Note */}
-            <div className="pt-2">
-              <p
-                className="rotate-[-6deg] text-base font-bold text-[#85EB32]"
-                style={{ fontFamily: "'Comic Sans MS', 'Caveat', cursive" }}
-              >
-                Field work. Built better.
-              </p>
+            <div className="hidden items-center gap-[2em] text-[0.65em] text-white/65 sm:flex">
+              <span className="flex items-center gap-[0.5em] rounded-md bg-brand-green/10 px-[1em] py-[0.8em] text-brand-green">
+                <House className="size-[1.2em]" aria-hidden="true" />
+                Command Center
+              </span>
+              <span>Work Orders</span>
+              <span>Technicians</span>
+              <span>Payments</span>
             </div>
           </div>
-
-          {/* Right Column: Tablet Frame Live Command Mockup */}
-          <div className="relative lg:col-span-7">
-            <div className="overflow-hidden rounded-3xl border-4 border-white/10 bg-[#0E1B15] shadow-2xl">
-              {/* Tablet App Header */}
-              <div className="flex items-center justify-between border-b border-white/10 bg-[#11211B] px-5 py-3 text-xs text-white">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1.5 font-bold">
-                    <span className="flex h-5 w-5 items-center justify-center rounded bg-[#85EB32] text-[10px] font-black text-[#08120D]">
-                      F
-                    </span>
-                    <span>FieldForge</span>
-                  </div>
-                  <span className="rounded-full bg-[#1A2E26] px-2.5 py-0.5 text-[10px] font-extrabold text-[#85EB32]">
-                    ● Command Center
-                  </span>
-                  <span className="hidden sm:inline text-white/60">Work Orders</span>
-                  <span className="hidden sm:inline text-white/60">Technicians</span>
-                  <span className="hidden sm:inline text-white/60">Payments</span>
+          <span className="grid size-6 shrink-0 place-items-center rounded-full bg-white/15 text-[10px] lg:size-[2.4em] lg:text-[0.8em]">
+            JS
+          </span>
+        </div>
+        <div className="p-3 lg:p-[1.5em]">
+          <div className="mb-3 flex flex-wrap items-start justify-between gap-2 lg:mb-[0.6em] lg:gap-[1em]">
+            <div>
+              <h3 className="text-sm font-bold lg:text-[1.3em]">Command Center</h3>
+              <p className="max-w-[22em] text-[9px] leading-tight text-white/70 lg:text-[0.75em]">
+                Open jobs, technicians, approvals
+                <br />
+                and operational risk.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 pt-1 text-[8px] lg:gap-[2em] lg:text-[0.65em]">
+              <span className="flex items-center gap-1.5">
+                <span className="size-[0.7em] rounded-full bg-brand-green" />
+                Live Operational View
+              </span>
+              <span className="text-white/60">Mon, Apr 22 &nbsp; 10:24 AM</span>
+            </div>
+          </div>
+          <ul
+            aria-label="Dispatch summary"
+            className="mb-3 grid grid-cols-2 gap-2 text-center sm:grid-cols-4 lg:mb-[0.7em] lg:gap-[0.8em]"
+          >
+            {metrics.map(({ value, label }, index) => (
+              <li
+                key={label}
+                className="rounded-md border border-white/10 bg-white/[0.035] px-1 py-2 lg:rounded-[0.6em] lg:py-[0.65em]"
+              >
+                <strong
+                  className={`block text-base leading-tight lg:text-[1.3em] ${index === 1 ? 'text-status-warning' : 'text-brand-green'}`}
+                >
+                  {value}
+                </strong>
+                <span className="block text-[9px] text-white/80 lg:text-[0.7em]">{label}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="grid gap-3 sm:grid-cols-[1.4fr_1fr] lg:gap-[0.7em]">
+            <div className="relative aspect-[1.28] overflow-hidden rounded-lg bg-brand-dark lg:rounded-[0.7em]">
+              <Image
+                src="/marketing/map-texas-command.png"
+                alt="Texas dispatch operations map showing an emergency near Austin"
+                fill
+                sizes="(min-width: 1500px) 405px, (min-width: 1200px) 340px, (min-width: 1024px) 260px, (min-width: 640px) 50vw, 90vw"
+                className="object-cover"
+              />
+            </div>
+            <div className="flex min-w-0 flex-col gap-2 lg:gap-[0.7em]">
+              <section
+                aria-labelledby="dispatch-alerts-title"
+                className="rounded-lg border border-white/10 bg-white/[0.035] px-2 py-2 lg:rounded-[0.6em] lg:px-[0.7em] lg:py-[0.6em]"
+              >
+                <div className="mb-1 flex items-center justify-between gap-1">
+                  <h4 id="dispatch-alerts-title" className="text-[10px] font-bold lg:text-[0.8em]">
+                    Operational Alerts
+                  </h4>
+                  <span className="text-[8px] text-brand-green lg:text-[0.6em]">View All →</span>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-white/60">Mon, Apr 22 10:24 AM</span>
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-[10px] font-bold">
-                    JS
-                  </div>
-                </div>
-              </div>
-
-              {/* Sub-header & 4 KPIs */}
-              <div className="p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h4 className="text-sm font-black text-white">Command Center</h4>
-                    <p className="text-[10px] text-white/60">
-                      Open jobs, technicians, approvals and operational risk.
+                <ul className="divide-y divide-white/10">
+                  {alerts.map(({ text, time, icon: Icon, tone }) => (
+                    <li
+                      key={text}
+                      className="flex items-center gap-1 py-1.5 lg:gap-[0.4em] lg:py-[0.6em]"
+                    >
+                      <Icon
+                        className={`size-3 shrink-0 lg:size-[1em] ${tone}`}
+                        aria-hidden="true"
+                      />
+                      <span className="flex-1 text-[9px] leading-tight text-white/90 lg:text-[0.65em]">
+                        {text}
+                      </span>
+                      <span className="shrink-0 text-[7px] text-white/60 lg:text-[0.55em]">
+                        {time}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+              <section
+                aria-label="Best technician match"
+                className="flex flex-1 flex-col justify-between rounded-lg border border-brand-green/15 bg-brand-green/[0.06] p-2 lg:rounded-[0.6em] lg:p-[0.7em]"
+              >
+                <p className="text-[9px] font-bold uppercase tracking-wider text-brand-green lg:text-[0.6em]">
+                  Best Match
+                </p>
+                <div className="my-2 flex items-center gap-2 lg:my-[0.5em] lg:gap-[0.7em]">
+                  <Image
+                    src="/marketing/avatars/marcus-lee-v2.png"
+                    alt="Alex Morgan"
+                    width={80}
+                    height={80}
+                    className="size-9 shrink-0 rounded-full object-cover lg:size-[3em]"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center justify-between gap-1">
+                      <h4 className="text-xs font-bold lg:text-[0.85em]">Alex Morgan</h4>
+                      <span className="rounded-full bg-brand-green px-[0.8em] py-[0.3em] text-[8px] font-bold text-brand-dark lg:text-[0.6em]">
+                        96% match
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-[9px] text-white/80 lg:text-[0.65em]">
+                      HVAC · 4.9 ★ · 120 jobs
+                    </p>
+                    <p className="mt-0.5 flex items-center gap-1 text-[9px] text-white/75 lg:text-[0.65em]">
+                      <MapPin className="size-[1em]" aria-hidden="true" />
+                      Austin, TX · 18 mi
                     </p>
                   </div>
-                  <span className="flex items-center gap-1.5 text-[10px] text-[#85EB32] font-bold">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#85EB32] animate-pulse" />
-                    Live Operational View
-                  </span>
                 </div>
-
-                <div className="grid grid-cols-4 gap-2 mb-4 text-center">
-                  <div className="rounded-xl bg-white/5 p-2">
-                    <span className="block text-base font-black text-[#85EB32]">18</span>
-                    <span className="text-[9px] text-white/60">Open Jobs</span>
-                  </div>
-                  <div className="rounded-xl bg-white/5 p-2">
-                    <span className="block text-base font-black text-[#FBBF24]">04</span>
-                    <span className="text-[9px] text-white/60">At Risk</span>
-                  </div>
-                  <div className="rounded-xl bg-white/5 p-2">
-                    <span className="block text-base font-black text-[#38BDF8]">09</span>
-                    <span className="text-[9px] text-white/60">Pending Approval</span>
-                  </div>
-                  <div className="rounded-xl bg-white/5 p-2">
-                    <span className="block text-base font-black text-white">$42K</span>
-                    <span className="text-[9px] text-white/60">Spend</span>
-                  </div>
-                </div>
-
-                {/* Map & Alerts Two-Column Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-                  {/* Texas Tactical Map */}
-                  <div className="relative h-56 rounded-xl overflow-hidden sm:col-span-7 bg-[#0A1612]">
-                    <img
-                      src="/marketing/map-texas-command.png"
-                      alt="Texas dispatch operations map"
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-
-                  {/* Right Alerts & Best Match */}
-                  <div className="space-y-2 text-[10px] sm:col-span-5">
-                    {/* Operational Alerts */}
-                    <div className="rounded-xl bg-white/5 p-2.5">
-                      <span className="block font-bold text-white mb-1.5">Operational Alerts</span>
-                      <div className="space-y-1.5 text-[9px]">
-                        <div className="flex items-center justify-between text-red-400">
-                          <span>! Emergency work needs dispatch</span>
-                          <span className="text-white/40">2 min ago</span>
-                        </div>
-                        <div className="flex items-center justify-between text-amber-400">
-                          <span>! Arrival verification pending</span>
-                          <span className="text-white/40">14 min ago</span>
-                        </div>
-                        <div className="flex items-center justify-between text-[#85EB32]">
-                          <span>✓ Invoice awaiting approval</span>
-                          <span className="text-white/40">1 hour ago</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Best Match Candidate */}
-                    <div className="rounded-xl border border-[#85EB32]/40 bg-[#14261F] p-2.5">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-[9px] font-bold uppercase text-[#85EB32]">
-                          BEST MATCH
-                        </span>
-                        <span className="rounded bg-[#85EB32] px-1.5 py-0.5 text-[8px] font-extrabold text-[#08120D]">
-                          96% match
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <img
-                          src="/marketing/avatars/alex-morgan.png"
-                          alt="Alex Morgan"
-                          className="h-7 w-7 rounded-full object-cover"
-                        />
-                        <div>
-                          <span className="block font-bold text-white">Alex Morgan</span>
-                          <span className="block text-[8px] text-white/60">
-                            HVAC • 4.9 ★ • 120 jobs
-                          </span>
-                        </div>
-                      </div>
-
-                      <button className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#85EB32] py-1.5 text-[10px] font-bold text-[#08120D]">
-                        Assign Technician
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                <Link
+                  href="/technicians"
+                  className={`${focus} flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-brand-green px-2 py-2 text-xs font-bold text-brand-dark transition hover:bg-brand-green-hover lg:min-h-0 lg:gap-[0.6em] lg:py-[0.65em] lg:text-[0.7em]`}
+                >
+                  <Navigation className="size-[1.2em]" aria-hidden="true" />
+                  Assign Technician
+                </Link>
+              </section>
             </div>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+export function DarkBottomCtaBanner(): React.JSX.Element {
+  return (
+    <section
+      id="fieldwork-cta"
+      aria-labelledby="fieldwork-cta-title"
+      className={`${marketingLayoutScale} relative isolate mx-auto w-[calc(100%-2.5rem)] overflow-hidden rounded-2xl border border-white/15 bg-brand-dark font-[family-name:Arial,Helvetica,sans-serif] text-white lg:w-[calc(var(--hero-unit)*90)] lg:rounded-[1.6em] lg:text-[length:var(--hero-unit)]`}
+    >
+      <Image
+        src="/marketing/cta-forest-background.png"
+        alt=""
+        fill
+        sizes="(min-width: 1500px) 1440px, (min-width: 1200px) 1200px, 100vw"
+        className="pointer-events-none -z-10 object-cover"
+      />
+      <div className="grid gap-8 p-5 sm:p-7 lg:grid-cols-[41%_minmax(0,1fr)] lg:gap-[1.5em] lg:py-[1.8em] lg:pr-[1.7em] lg:pl-[2.8em]">
+        <div className="flex min-w-0 flex-col lg:pt-[2em]">
+          <p className="flex items-center gap-3 text-[9px] font-bold uppercase tracking-[0.1em] text-trust-lime/80 lg:gap-[1.3em] lg:text-[0.7em]">
+            <span className="h-px w-4 bg-brand-green" aria-hidden="true" />
+            Fieldwork moves forward
+          </p>
+          <h2
+            id="fieldwork-cta-title"
+            className="mt-4 max-w-md font-[family-name:'FieldForge_Hero',Arial,sans-serif] text-4xl font-black leading-[1.04] tracking-[-0.025em] lg:mt-[0.5em] lg:text-[3.65em]"
+          >
+            Your next field job
+            <br className="hidden lg:block" /> should not take
+            <br className="hidden lg:block" /> hours to staff.
+          </h2>
+          <p className="mt-4 max-w-md text-sm leading-[1.3] text-white/80 lg:mt-[1em] lg:max-w-[29em] lg:text-[1.2em]">
+            Find qualified technicians, coordinate field work and keep every job accountable from
+            dispatch through payment.
+          </p>
+          <div className="mt-5 flex flex-wrap items-center gap-3 lg:mt-[1.7em] lg:gap-[0.6em]">
+            <Link
+              href="/create-wo"
+              className={`${focus} inline-flex min-h-11 items-center gap-3 rounded-full bg-brand-green px-5 py-3 text-xs font-bold text-brand-dark transition hover:bg-brand-green-hover lg:min-h-0 lg:gap-[1em] lg:px-[1.8em] lg:py-[1em] lg:text-[1em]`}
+            >
+              Find Technicians
+              <ArrowRight className="size-[1.4em]" aria-hidden="true" />
+            </Link>
+            <Link
+              href="/resources"
+              className={`${focus} inline-flex min-h-11 items-center gap-3 rounded-full border border-trust-lime/35 bg-brand-dark/50 px-5 py-3 text-xs font-bold text-white transition hover:bg-brand-dark-hover lg:min-h-0 lg:gap-[1em] lg:px-[1.8em] lg:py-[1em] lg:text-[0.85em]`}
+            >
+              Book a Demo
+              <span className="grid size-[1.5em] place-items-center rounded-full bg-trust-lime/15 text-brand-green">
+                <Play className="size-[0.85em] fill-current" aria-hidden="true" />
+              </span>
+            </Link>
+          </div>
+          <div className="mt-8 flex flex-wrap items-end justify-between gap-4 lg:mt-auto lg:gap-[1em] lg:pt-[4.5em] lg:pb-[1em]">
+            <ul
+              aria-label="Fieldwork benefits"
+              className="flex flex-wrap items-center gap-y-3 divide-x divide-brand-green/40 lg:flex-nowrap"
+            >
+              {benefits.map(({ first, second, icon: Icon }) => (
+                <li
+                  key={first}
+                  className="flex items-center gap-2 px-3 first:pl-0 lg:gap-[0.8em] lg:px-[1.5em]"
+                >
+                  <Icon
+                    className="size-4 shrink-0 text-brand-green lg:size-[1.6em]"
+                    aria-hidden="true"
+                  />
+                  <span className="text-[7px] font-bold uppercase leading-relaxed tracking-wider text-white/85 lg:text-[0.55em]">
+                    {first}
+                    <br />
+                    {second}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="-rotate-12 font-[family-name:'Comic_Sans_MS',cursive] text-sm leading-tight text-trust-lime/80 lg:text-[1.3em]">
+              Field work.
+              <br />
+              Built better.
+            </p>
+          </div>
+        </div>
+        <DispatchDashboard />
+      </div>
     </section>
   );
-};
+}

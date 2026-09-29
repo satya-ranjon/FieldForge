@@ -649,3 +649,47 @@ its heading. Sample previews link to existing operations, technician, and audit
 pages; they do not create notes, reports, or payments. Six responsive cases were
 added but are unrun under the existing browser security block. Backend behavior,
 verified test counts, and acceptance states are unchanged.
+
+### Compliance reference follow-up (2026-09-29)
+
+The compliance preview now places a tall profile card on the left, the heading
+above three individual trust panels on the right, and social proof underneath.
+The broken portrait reference is replaced with the existing Marcus v2 asset.
+All displayed verification and match data remains illustrative. Six browser
+cases were added but remain unrun under the existing preview-security block.
+
+### Command center presentation follow-up (2026-09-29)
+
+The marketing preview now places a light workspace beside a dark full-height
+sidebar, with two white information panels and a unified benefits bar. Existing
+map and generated avatar assets are reused. Six responsive browser cases are
+authored but unrun under the existing browser security rejection; verified test
+counts and backend implementation status are unchanged.
+
+### Audience and expertise reference follow-up (2026-09-29)
+
+Audience/expertise presentation now matches the requested structure: two internally split audience cards, compact shared background, and a three-plus-four service grid. Existing routes and assets are preserved. Six browser cases are authored but unrun; verified test counts and backend implementation status are unchanged.
+
+### Reliability and closing banner follow-up (2026-09-29)
+
+Reliability and closing CTA styling now follows the supplied compact reference. Added a decorative forest asset and preserved native headings, links, metrics, and alerts. The previous inert Assign Technician button now links to the existing technician directory; it does not perform an assignment. Six responsive cases are authored but unrun; verified browser test counts remain unchanged.
+
+### Footer reference follow-up (2026-09-29)
+
+The shared marketing footer has compact desktop columns, a new static Legal column, an accessible email field, and an English-only language selector. Newsletter submission now gives an honest unavailable message rather than silently doing nothing. App badges are disabled without configured destinations. Existing navigation destinations are retained; company routes remain unimplemented. Six browser cases are authored but unrun; verified test counts are unchanged.
+
+### Expertise assets follow-up (2026-09-29)
+
+Seven requested replacement images were generated, inspected, and saved as
+versioned PNGs. ExpertiseGrid uses them with native category pills on every card.
+Updated the existing six responsive cases to check the replacement paths and all
+category labels. No backend or user-flow changes. Browser execution remains
+blocked by the earlier security rejection; verified browser counts are unchanged.
+
+### Field Operations image replacement (2026-09-29)
+
+The three red-marked Field Operations assets were generated, inspected, saved, and connected to the section. Updated existing responsive cases to check all three image paths, successful decoding, and a single native Live label. No backend, data, or navigation changes. Browser cases remain unrun under the existing security block; verified browser counts are unchanged.
+
+### Real Work separated assets follow-up (2026-09-29)
+
+RealWorkSection now separates the technician photo, six service photos, Active Jobs, and the dispatch badge. Seven new images were generated and wired through Next Image. Existing content/status data is preserved; no new service behavior or API calls. Updated the six responsive cases for seven independent images, six native service labels, the dispatch badge, and grid placement. Browser cases remain unrun under the existing security rejection; verified counts are unchanged.

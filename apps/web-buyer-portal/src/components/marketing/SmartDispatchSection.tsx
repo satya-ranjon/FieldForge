@@ -1,157 +1,158 @@
-'use client';
-
 import React from 'react';
-import { MapPin, Layers, Zap, ShieldCheck, ArrowRight } from 'lucide-react';
+import Image from 'next/image';
+import { MapPin, Layers, Zap, ShieldCheck, ChevronRight, Users, Navigation } from 'lucide-react';
+import { marketingLayoutScale } from './MarketingHero.styles';
 
 const candidates = [
   {
     name: 'Alex Morgan',
-    meta: '1.8 mi • 4 min • CCNA • Available',
+    meta: '1.8 mi · 4 min · CCNA · Available',
     avatar: '/marketing/avatars/alex-morgan.png',
     bestMatch: true
   },
   {
     name: 'Daniel Lee',
-    meta: '3.1 mi • 8 min • A+',
+    meta: '3.1 mi · 8 min · A+',
     avatar: '/marketing/avatars/daniel-carter.png',
     bestMatch: false
   },
   {
     name: 'Priya Shah',
-    meta: '4.0 mi • 11 min • OSHA',
+    meta: '4.0 mi · 11 min · OSHA',
     avatar: '/marketing/avatars/priya-shah.png',
     bestMatch: false
   }
 ];
 
-export const SmartDispatchSection: React.FC = () => {
+const features = [
+  { label: 'Real-time location', icon: MapPin },
+  { label: 'Smart matching', icon: Layers },
+  { label: 'Emergency routing', icon: Zap },
+  { label: 'Priority dispatch', icon: ShieldCheck }
+];
+
+export function SmartDispatchSection(): React.JSX.Element {
   return (
-    <section className="relative mx-auto my-16 max-w-[1360px] px-4 sm:px-6 lg:px-8">
-      {/* Top Header */}
-      <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end mb-10">
-        <div className="space-y-3">
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#DCE8DB] bg-white px-3.5 py-1 text-[11px] font-extrabold uppercase tracking-wider text-[#17212B] shadow-xs">
-            <span className="h-2 w-2 rounded-full bg-[#85EB32]" />
-            Smart Dispatch
+    <section
+      id="smart-dispatch"
+      aria-labelledby="smart-dispatch-title"
+      className={`${marketingLayoutScale} relative isolate overflow-hidden bg-surface-green py-12 font-[family-name:Arial,Helvetica,sans-serif] text-text-primary lg:pt-[calc(var(--hero-unit)*4)] lg:pb-[calc(var(--hero-unit)*10)]`}
+    >
+      <img
+        src="/marketing/trust-orbit.png"
+        alt=""
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-40 -right-20 w-60 -rotate-35 opacity-20 lg:-top-[calc(var(--hero-unit)*22)] lg:-right-[calc(var(--hero-unit)*9)] lg:w-[calc(var(--hero-unit)*27)]"
+      />
+      <div className="relative mx-auto w-[calc(100%-2.5rem)] lg:w-[calc(var(--hero-unit)*89)] lg:text-[length:var(--hero-unit)]">
+        <header className="mb-7 grid gap-5 px-1 lg:mb-[2.8em] lg:grid-cols-2 lg:items-end lg:gap-[4em] lg:px-[2.7em]">
+          <div>
+            <span className="inline-flex items-center gap-[0.7em] rounded-full bg-surface-white/80 px-[1.1em] py-[0.8em] text-[0.625rem] font-bold uppercase leading-none tracking-[0.06em] lg:text-[0.8em]">
+              <span className="size-[0.7em] rounded-full bg-brand-green" aria-hidden="true" />
+              Smart dispatch
+            </span>
+            <h2
+              id="smart-dispatch-title"
+              className="mt-4 font-[family-name:'FieldForge_Hero',Arial,sans-serif] text-3xl font-black leading-[1.08] tracking-[-0.025em] sm:text-4xl lg:mt-[0.4em] lg:text-[3.7em]"
+            >
+              Dispatch faster.
+              <br />
+              Without guessing.
+            </h2>
           </div>
-          <h2 className="text-3xl sm:text-4xl lg:text-[46px] font-black tracking-tight leading-[1.08] text-[#09130F]">
-            Dispatch faster.
-            <br />
-            Without guessing.
-          </h2>
-        </div>
+          <p className="max-w-lg text-base leading-[1.45] text-text-secondary lg:mb-[0.6em] lg:text-[1.3em]">
+            Automatically identify nearby qualified technicians using location, availability,
+            performance and verified credentials.
+          </p>
+        </header>
 
-        <p className="max-w-md text-base sm:text-lg text-[#5A6874] leading-relaxed">
-          Automatically identify nearby qualified technicians using location, availability,
-          performance and verified credentials.
-        </p>
-      </div>
-
-      {/* Main Map + Candidates Card Container */}
-      <div className="relative overflow-hidden rounded-3xl border border-[#DCE8DB] bg-white p-6 sm:p-8 shadow-[0_16px_50px_rgba(9,20,15,0.03)]">
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          {/* Left Tactical Map View */}
-          <div className="relative overflow-hidden rounded-2xl border border-[#22383C] bg-[#0A1612] lg:col-span-8">
-            <img
+        <div className="grid gap-5 rounded-3xl bg-surface-white/65 p-4 sm:p-6 lg:grid-cols-[1.69fr_1fr] lg:gap-[2em] lg:rounded-[2.4em] lg:p-[2.2em]">
+          <div className="relative aspect-[1.55] overflow-hidden rounded-2xl bg-surface-dark lg:rounded-[1.4em]">
+            <Image
               src="/marketing/map-smart-dispatch.png"
-              alt="San Francisco dispatch map with real-time technician routes and emergency callout"
-              className="h-full w-full object-cover"
+              alt="San Francisco dispatch map showing an emergency network outage and nearby technician routes"
+              fill
+              sizes="(min-width: 1500px) 820px, (min-width: 1200px) 680px, (min-width: 1024px) 530px, 90vw"
+              className="object-cover"
             />
+            <span
+              className="absolute right-[3%] bottom-[4%] grid size-8 place-items-center rounded-full border border-white/30 bg-surface-dark-secondary text-white lg:size-[2.8em]"
+              aria-hidden="true"
+            >
+              <Navigation className="size-[52%] fill-white/80" />
+            </span>
           </div>
 
-          {/* Right Dispatch Candidates List */}
-          <div className="flex flex-col justify-between rounded-2xl border border-[#22383C] bg-[#111C22] p-5 text-white lg:col-span-4">
-            <div>
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-extrabold text-white">Dispatch candidates</span>
-                </div>
-                <span className="text-[11px] text-[#A0AEC0]">Sorted by best match</span>
+          <div className="flex min-w-0 flex-col gap-4 lg:gap-[1.6em]">
+            <div
+              aria-labelledby="dispatch-candidates-title"
+              className="rounded-2xl bg-surface-dark p-4 text-white lg:rounded-[1.4em] lg:p-[1.3em]"
+            >
+              <div className="flex items-center justify-between gap-2 lg:py-[0.3em]">
+                <h3
+                  id="dispatch-candidates-title"
+                  className="flex items-center gap-2 text-sm font-bold lg:gap-[0.7em] lg:text-[1.1em]"
+                >
+                  <Users className="size-[1.25em] shrink-0 text-brand-green" aria-hidden="true" />
+                  Dispatch candidates
+                </h3>
+                <span className="text-[10px] text-white/65 lg:text-[0.85em]">
+                  Sorted by best match
+                </span>
               </div>
-
-              {/* Candidate Items */}
-              <div className="mt-4 space-y-3">
-                {candidates.map((candidate) => (
-                  <div
-                    key={candidate.name}
-                    className={`flex items-center justify-between rounded-2xl p-3 transition-all ${
-                      candidate.bestMatch
-                        ? 'bg-[#A8F22D] text-[#08120D] shadow-[0_8px_24px_rgba(168,242,45,0.25)] ring-2 ring-[#A8F22D]/40'
-                        : 'border border-white/10 bg-white/5 text-white hover:bg-white/10'
-                    }`}
+              <ul className="mt-4 space-y-2 lg:mt-[1.3em] lg:space-y-[0.8em]">
+                {candidates.map(({ name, meta, avatar, bestMatch }) => (
+                  <li
+                    key={name}
+                    className={`flex min-w-0 items-center gap-3 rounded-xl px-3 py-2.5 lg:min-h-[5em] lg:gap-[1em] lg:rounded-[1em] lg:px-[1em] lg:py-[0.8em] ${bestMatch ? 'bg-lifecycle-active text-brand-dark' : 'bg-white/5 text-white'}`}
                   >
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={candidate.avatar}
-                        alt={candidate.name}
-                        className="h-10 w-10 rounded-full border border-white/40 object-cover"
-                      />
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h4
-                            className={`text-xs font-black ${
-                              candidate.bestMatch ? 'text-[#08120D]' : 'text-white'
-                            }`}
-                          >
-                            {candidate.name}
-                          </h4>
-                          {candidate.bestMatch && (
-                            <span className="rounded-full bg-[#08120D] px-2 py-0.5 text-[9px] font-extrabold text-[#A8F22D]">
-                              BEST MATCH
-                            </span>
-                          )}
-                        </div>
-                        <p
-                          className={`text-[10px] ${
-                            candidate.bestMatch
-                              ? 'text-[#08120D]/80 font-semibold'
-                              : 'text-[#A0AEC0]'
-                          }`}
-                        >
-                          {candidate.meta}
-                        </p>
-                      </div>
-                    </div>
-
-                    <ArrowRight
-                      className={`h-4 w-4 ${
-                        candidate.bestMatch ? 'text-[#08120D]' : 'text-white/60'
-                      }`}
+                    <Image
+                      src={avatar}
+                      alt=""
+                      width={48}
+                      height={48}
+                      sizes="(min-width: 1500px) 52px, 40px"
+                      className="size-9 shrink-0 rounded-full object-cover lg:size-[3.3em]"
                     />
-                  </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center justify-between gap-1 lg:gap-[0.5em]">
+                        <h4 className="text-xs font-bold leading-tight lg:text-[1em]">{name}</h4>
+                        {bestMatch && (
+                          <span className="rounded-full bg-trust-lime-ink px-[0.8em] py-[0.5em] text-[7px] font-bold leading-none tracking-[0.06em] text-white lg:text-[0.6em]">
+                            BEST MATCH
+                          </span>
+                        )}
+                      </div>
+                      <p
+                        className={`mt-1 text-[10px] leading-tight lg:mt-[0.35em] lg:text-[0.9em] ${bestMatch ? 'text-brand-dark' : 'text-white/65'}`}
+                      >
+                        {meta}
+                      </p>
+                    </div>
+                    <ChevronRight className="size-4 shrink-0 lg:size-[1.3em]" aria-hidden="true" />
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
-
-            {/* Quick Dispatch Bottom Action */}
-            <div className="mt-6 pt-4 border-t border-white/10 text-center">
-              <span className="text-xs text-white/70">
-                Algorithmically optimized for sub-15m arrival
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* 4 Feature Pills Below */}
-        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="flex items-center gap-2.5 rounded-xl border border-[#DCE8DB] bg-[#F8FAF7] px-4 py-3 text-xs font-extrabold text-[#09130F]">
-            <MapPin className="h-4 w-4 text-[#5EA824]" />
-            Real-time location
-          </div>
-          <div className="flex items-center gap-2.5 rounded-xl border border-[#DCE8DB] bg-[#F8FAF7] px-4 py-3 text-xs font-extrabold text-[#09130F]">
-            <Layers className="h-4 w-4 text-[#5EA824]" />
-            Smart matching
-          </div>
-          <div className="flex items-center gap-2.5 rounded-xl border border-[#DCE8DB] bg-[#F8FAF7] px-4 py-3 text-xs font-extrabold text-[#09130F]">
-            <Zap className="h-4 w-4 text-[#5EA824]" />
-            Emergency routing
-          </div>
-          <div className="flex items-center gap-2.5 rounded-xl border border-[#DCE8DB] bg-[#F8FAF7] px-4 py-3 text-xs font-extrabold text-[#09130F]">
-            <ShieldCheck className="h-4 w-4 text-[#5EA824]" />
-            Priority dispatch
+            <ul
+              aria-label="Smart dispatch features"
+              className="grid grid-cols-2 gap-2.5 lg:gap-x-[1em] lg:gap-y-[0.9em]"
+            >
+              {features.map(({ label, icon: Icon }) => (
+                <li
+                  key={label}
+                  className="flex min-w-0 items-center gap-2 rounded-full bg-brand-green-soft px-3 py-3 text-[11px] font-bold lg:min-h-[4em] lg:gap-[0.8em] lg:px-[1.3em] lg:py-[1em] lg:text-[1em]"
+                >
+                  <span className="grid size-5 shrink-0 place-items-center rounded-full bg-lifecycle-active text-trust-lime-ink lg:size-[1.8em]">
+                    <Icon className="size-[80%] stroke-[2.3]" aria-hidden="true" />
+                  </span>
+                  {label}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </div>
     </section>
   );
-};
+}

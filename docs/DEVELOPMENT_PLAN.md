@@ -2242,3 +2242,30 @@ behavior regresses.
       and use horizontal benefit cards with Tailwind.
 - [ ] Execute the six responsive cases and compare screenshots. Local-preview
       access remains blocked by the earlier browser security rejection.
+
+### Compliance reference follow-up (2026-09-29)
+
+- [x] Place the profile left of the heading and three separate detail panels.
+- [x] Match the compact badge/metric styling and bottom trust row with Tailwind.
+- [x] Replace the missing portrait path with the generated Marcus asset.
+- [ ] Run six responsive browser cases and visual comparison. The existing
+      browser security rejection still blocks local-preview access.
+
+### Command center visual follow-up (2026-09-29)
+
+- [x] Recompose the preview to the supplied light-dashboard reference using Tailwind.
+- [x] Preserve the existing map asset and keep labels, cards, and icons native.
+- [ ] Run six responsive browser cases and compare the rendered section once the
+      existing browser security block is resolved. No product milestone acceptance changed.
+
+### Audience and expertise reference follow-up (2026-09-29)
+
+The audience/expertise reference layout is implemented with Tailwind and existing imagery. Six responsive cases are authored; rendered comparison and browser execution remain pending under the existing browser security rejection. No product milestone acceptance changes.
+
+### Reliability and closing banner follow-up (2026-09-29)
+
+Implemented the reliability/closing-banner reference composition with Tailwind, a separate generated forest background, and the existing map. Six responsive browser cases are authored but remain unrun under the existing browser security block. No backend milestone acceptance changes.
+
+### Footer reference follow-up (2026-09-29)
+
+Implemented the footer reference layout, reused social/brand artwork, and added a separate decorative background. Six responsive browser cases cover navigation, form validation, unavailability feedback, disabled app badges, and layout. They remain unrun under the existing browser security rejection. Newsletter integration, legal pages, and store releases are not added to accepted feature scope.

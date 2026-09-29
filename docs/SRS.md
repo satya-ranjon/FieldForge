@@ -238,3 +238,50 @@ technician accreditation verification.
    presentation refinement around the existing dispatch/work-order narrative;
    verification, GPS, payment, compliance, and real-time labels do not establish
    new capabilities or change requirement acceptance status.
+
+### Lifecycle marketing presentation note (2026-09-29)
+
+The static seven-stage marketing illustration relates to the work-order and
+dispatch concepts in FR-WO-001, FR-WO-002, FR-DISP-001, and FR-DISP-003. Its
+reference-layout update is presentation only and does not change their acceptance
+status or prove workflow execution.
+
+The real-work marketing layout follow-up is also presentation-only. Its sample
+Active Jobs card does not represent live work orders or change FR-WO-001 or
+FR-WO-002 acceptance. Visual browser verification remains pending.
+
+The marketplace reference-layout follow-up is a static illustration of matching
+concepts (FR-DISP-001). Its profile counts and availability are sample content;
+directory entry links do not implement matching, invitations, or profile APIs.
+Requirement acceptance is unchanged.
+
+The smart-dispatch reference presentation relates to FR-DISP-001 and
+FR-DISP-003. Its static sample candidate ordering and map do not demonstrate
+live matching, routing, or dispatch execution; acceptance is unchanged.
+
+The field-operations and payment marketing previews illustrate FR-MOB-001,
+FR-MOB-002, FR-MOB-003, and FR-BILL-002 without changing implementation acceptance.
+The displayed completion, signature, and payment steps are static examples.
+
+The compliance marketing layout retains illustrative credentials and job-fit
+figures related to FR-DISP-001. Its new composition and repaired portrait do not
+change verification behavior or requirement acceptance.
+
+### Command center presentation traceability (2026-09-29)
+
+The marketing Command Center reference update is presentation-only. Its static
+map, operational summaries, alert rows, and technician statuses do not establish
+acceptance of live operations, dispatch, reporting, or location requirements.
+Existing requirement acceptance and backend coverage remain unchanged.
+
+### Audience and expertise reference follow-up (2026-09-29)
+
+This audience/expertise update is presentation-only. Existing work creation, technician directory, and solutions links are retained. It does not establish acceptance of onboarding, marketplace matching, or service-delivery requirements; no requirement acceptance status changes.
+
+### Reliability and closing banner follow-up (2026-09-29)
+
+This reliability/CTA update is marketing presentation only. Dashboard values, alerts, and suggested matches remain illustrative, and the assignment CTA navigates to the existing directory without changing assignment state. No reliability, notification, financial, monitoring, or dispatch requirement acceptance changes.
+
+### Footer reference follow-up (2026-09-29)
+
+The footer redesign does not establish acceptance of newsletter delivery, legal publication, app-store availability, localization, or live system health. Status copy remains illustrative, English is the only language, and the newsletter never submits data to a service. No backend requirement acceptance changes.

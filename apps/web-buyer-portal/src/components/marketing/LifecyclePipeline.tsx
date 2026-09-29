@@ -1,6 +1,4 @@
-'use client';
-
-import React from 'react';
+import type { ReactElement } from 'react';
 import {
   FileText,
   Users,
@@ -9,125 +7,128 @@ import {
   CheckCircle2,
   ClipboardCheck,
   Wallet,
-  Network,
+  GitFork,
   Layers,
   ArrowRight
 } from 'lucide-react';
+import { marketingLayoutScale } from './MarketingHero.styles';
 
 const pipelineStages = [
-  { num: '01', title: 'CREATE', desc: 'Define work', icon: FileText, active: false },
-  { num: '02', title: 'MATCH', desc: 'Find talent', icon: Users, active: false },
-  { num: '03', title: 'DISPATCH', desc: 'Send tech', icon: Send, active: true },
-  { num: '04', title: 'EXECUTE', desc: 'Capture data', icon: Settings, active: false },
-  { num: '05', title: 'VERIFY', desc: 'Confirm proof', icon: CheckCircle2, active: false },
-  { num: '06', title: 'APPROVE', desc: 'Buyer sign-off', icon: ClipboardCheck, active: false },
-  { num: '07', title: 'PAY', desc: 'Release payout', icon: Wallet, active: false }
-];
+  { num: '01', title: 'CREATE', desc: 'Define work', icon: FileText },
+  { num: '02', title: 'MATCH', desc: 'Find talent', icon: Users },
+  { num: '03', title: 'DISPATCH', desc: 'Send tech', icon: Send },
+  { num: '04', title: 'EXECUTE', desc: 'Capture data', icon: Settings },
+  { num: '05', title: 'VERIFY', desc: 'Confirm proof', icon: CheckCircle2 },
+  { num: '06', title: 'APPROVE', desc: 'Buyer sign-off', icon: ClipboardCheck },
+  { num: '07', title: 'PAY', desc: 'Release payout', icon: Wallet }
+] as const;
 
-export const LifecyclePipeline: React.FC = () => {
+const summaries = [
+  { value: '07', lines: ['active workflow', 'stages'], icon: GitFork },
+  { value: '1', lines: ['single operational', 'thread'], icon: Layers }
+] as const;
+
+export function LifecyclePipeline(): ReactElement {
   return (
-    <section className="relative mx-auto my-16 max-w-[1360px] px-4 sm:px-6 lg:px-8">
-      {/* Top Header Row with Metrics */}
-      <div className="flex flex-col justify-between gap-8 lg:flex-row lg:items-end">
-        {/* Left Copy */}
-        <div className="max-w-2xl space-y-3">
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#DCE8DB] bg-white px-3.5 py-1 text-[11px] font-extrabold uppercase tracking-wider text-[#17212B] shadow-xs">
-            <span className="h-2 w-2 rounded-full bg-[#85EB32]" />
+    <section
+      id="lifecycle"
+      aria-labelledby="lifecycle-title"
+      className={`${marketingLayoutScale} relative mx-auto w-[calc(100%-2.5rem)] pt-6 pb-4 font-[family-name:Arial,Helvetica,sans-serif] text-text-primary lg:w-[calc(var(--hero-unit)*86.4)] lg:pt-[2em] lg:pb-[1em] lg:text-[length:var(--hero-unit)]`}
+    >
+      <div className="grid gap-6 lg:grid-cols-[33%_minmax(0,1fr)] lg:gap-[2em]">
+        <div>
+          <span className="inline-flex items-center gap-[0.6em] rounded-full border border-border-soft bg-surface-white px-[1em] py-[0.5em] text-[0.625rem] font-bold uppercase leading-none lg:text-[0.8em]">
+            <span className="size-[0.8em] rounded-full bg-brand-green" aria-hidden="true" />
             Lifecycle
-          </div>
-          <h2 className="text-3xl sm:text-4xl lg:text-[46px] font-black tracking-tight leading-[1.1] text-[#09130F]">
-            One platform.
-            <br />
-            Every step of the job.
+          </span>
+          <h2
+            id="lifecycle-title"
+            className="mt-3 font-[family-name:'FieldForge_Hero',Arial,sans-serif] text-[clamp(1.75rem,4vw,2.5rem)] font-black leading-[1.1] tracking-[-0.025em] lg:mt-[0.3em] lg:text-[3em]"
+          >
+            <span className="block">One platform.</span>
+            <span className="block lg:whitespace-nowrap">Every step of the job.</span>
           </h2>
-          <p className="text-base sm:text-lg text-[#5A6874] leading-relaxed max-w-xl">
+          <p className="mt-3 max-w-[30em] text-sm leading-[1.35] text-text-secondary lg:mt-[0.6em] lg:text-[1.2em]">
             From the first work order to verified completion and payout, FieldForge keeps every
             handoff visible, accountable and ready for action.
           </p>
         </div>
 
-        {/* Right 2 Metric Cards */}
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex h-24 w-56 items-center justify-between rounded-2xl border border-[#DCE8DB] bg-white p-5 shadow-[0_8px_24px_rgba(9,20,15,0.03)]">
-            <div>
-              <span className="block text-3xl font-black tracking-tight text-[#09130F]">07</span>
-              <span className="text-xs font-semibold text-[#5A6874]">active workflow stages</span>
-            </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#EAF7E2] text-[#22C55E]">
-              <Network className="h-6 w-6 stroke-[2]" />
-            </div>
-          </div>
-
-          <div className="flex h-24 w-56 items-center justify-between rounded-2xl border border-[#DCE8DB] bg-white p-5 shadow-[0_8px_24px_rgba(9,20,15,0.03)]">
-            <div>
-              <span className="block text-3xl font-black tracking-tight text-[#09130F]">1</span>
-              <span className="text-xs font-semibold text-[#5A6874]">
-                single operational thread
-              </span>
-            </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#EAF7E2] text-[#22C55E]">
-              <Layers className="h-6 w-6 stroke-[2]" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Horizontal 7 Pipeline Stages */}
-      <div className="mt-12 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7 lg:gap-2.5">
-        {pipelineStages.map((stage, idx) => {
-          const Icon = stage.icon;
-          return (
-            <div key={stage.num} className="relative flex items-center">
+        <div className="flex min-w-0 flex-col gap-5 lg:gap-[1.9em] lg:pt-[1.3em]">
+          <dl
+            aria-label="Workflow summary"
+            className="grid grid-cols-2 gap-3 sm:ml-auto sm:w-[35.5em] lg:w-[35.5em] lg:gap-[1.5em]"
+          >
+            {summaries.map(({ value, lines, icon: Icon }) => (
               <div
-                className={`flex w-full flex-col justify-between rounded-2xl p-4 transition-all duration-200 ${
-                  stage.active
-                    ? 'border-2 border-[#85EB32] bg-[#A8F22D] text-[#08120D] shadow-[0_12px_32px_rgba(168,242,45,0.32)] ring-4 ring-[#A8F22D]/20'
-                    : 'border border-[#DCE8DB] bg-white text-[#17212B] shadow-[0_6px_20px_rgba(9,20,15,0.03)] hover:border-[#C3EBC2]'
-                }`}
+                key={value}
+                className="flex min-w-0 items-center justify-between gap-2 rounded-[0.9em] border border-border-soft bg-surface-white p-3 lg:h-[6.7em] lg:px-[1.3em] lg:py-[1em]"
               >
-                <div className="flex items-center justify-between">
-                  <span
-                    className={`font-mono text-[11px] font-bold ${
-                      stage.active ? 'text-[#08120D]/70' : 'text-[#7D8791]'
-                    }`}
-                  >
-                    {stage.num}
-                  </span>
+                <div className="flex min-w-0 flex-col">
+                  <dt className="text-xs leading-[1.15] text-text-secondary lg:text-[1.1em]">
+                    {lines.map((line) => (
+                      <span key={line} className="block">
+                        {line}
+                      </span>
+                    ))}
+                  </dt>
+                  <dd className="order-first text-2xl font-bold leading-none tracking-tight lg:text-[2.3em]">
+                    {value}
+                  </dd>
+                </div>
+                <span className="grid size-10 shrink-0 place-items-center rounded-[1em] bg-surface-soft text-trust-lime-ink lg:size-[4.5em]">
                   <Icon
-                    className={`h-5 w-5 ${
-                      stage.active ? 'text-[#08120D] stroke-[2.5]' : 'text-[#17212B] stroke-[2]'
-                    }`}
+                    className={`size-[60%] stroke-[2.2] ${value === '07' ? 'rotate-180' : ''}`}
+                    aria-hidden="true"
                   />
-                </div>
-
-                <div className="mt-6">
-                  <h4
-                    className={`text-sm font-black tracking-tight uppercase ${
-                      stage.active ? 'text-[#08120D]' : 'text-[#09130F]'
-                    }`}
-                  >
-                    {stage.title}
-                  </h4>
-                  <p
-                    className={`mt-0.5 text-[11px] font-medium ${
-                      stage.active ? 'text-[#08120D]/80 font-semibold' : 'text-[#5A6874]'
-                    }`}
-                  >
-                    {stage.desc}
-                  </p>
-                </div>
+                </span>
               </div>
+            ))}
+          </dl>
 
-              {/* Connecting Arrow between items (hidden on last item) */}
-              {idx < pipelineStages.length - 1 && (
-                <div className="pointer-events-none absolute -right-2 z-10 hidden lg:block">
-                  <ArrowRight className="h-3.5 w-3.5 text-[#A0AEC0]" />
-                </div>
-              )}
-            </div>
-          );
-        })}
+          <ol
+            aria-label="Work order lifecycle"
+            className="m-0 grid list-none grid-cols-2 gap-3 p-0 sm:grid-cols-4 lg:grid-cols-7 lg:gap-[1.3em]"
+          >
+            {pipelineStages.map(({ num, title, desc, icon: Icon }, index) => {
+              const active = title === 'DISPATCH';
+              return (
+                <li
+                  key={num}
+                  className="relative min-w-0"
+                  aria-current={active ? 'step' : undefined}
+                >
+                  <div
+                    className={`relative flex h-full min-h-28 flex-col items-start rounded-[0.9em] border p-3 lg:min-h-[7.4em] lg:px-[1.05em] lg:py-[0.8em] ${
+                      active
+                        ? "border-lifecycle-active-border bg-lifecycle-active after:absolute after:bottom-0 after:left-[1.4em] after:h-px after:w-[2.4em] after:bg-trust-lime-ink after:content-['']"
+                        : 'border-border-soft bg-surface-white'
+                    }`}
+                  >
+                    <span className="text-xs font-bold leading-[1.2] text-text-secondary lg:text-[0.85em]">
+                      {num}
+                    </span>
+                    <Icon
+                      className="mt-1 mb-1.5 size-5 stroke-[2.5] lg:mt-[0.4em] lg:mb-[0.55em] lg:size-[1.65em]"
+                      aria-hidden="true"
+                    />
+                    <h3 className="text-xs font-bold leading-[1.15] lg:text-[0.85em]">{title}</h3>
+                    <p className="mt-0.5 text-[0.6875rem] leading-[1.15] text-text-secondary lg:mt-[0.2em] lg:whitespace-nowrap lg:text-[0.8em]">
+                      {desc}
+                    </p>
+                  </div>
+                  {index < pipelineStages.length - 1 && (
+                    <ArrowRight
+                      className="pointer-events-none absolute top-1/2 -right-[1.2em] hidden size-[1.1em] -translate-y-1/2 text-text-muted lg:block"
+                      aria-hidden="true"
+                    />
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        </div>
       </div>
     </section>
   );
-};
+}

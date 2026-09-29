@@ -14,27 +14,27 @@ In accordance with the **Critical Image vs Code Rule**:
 
 ## 2. Inventory of Photographic & Raster Assets
 
-| Asset Name                   | Target File Path                               | Dimensions (1x) | Source / Extraction Method                           | Crop & Aspect Ratio                                                           | Transparency                       | Usage Location                                    |
-| :--------------------------- | :--------------------------------------------- | :-------------- | :--------------------------------------------------- | :---------------------------------------------------------------------------- | :--------------------------------- | :------------------------------------------------ |
-| `hero-technician.png`        | `/public/marketing/hero-technician.png`        | 660 × 640px     | Extracted at native 3.42x resolution from `1442.png` | Aspect ~1:1, rounded corners, shows technician holding tablet in front of van | False (has background environment) | Right side of Hero section                        |
-| `real-work-bg.png`           | `/public/marketing/real-work-bg.png`           | 740 × 360px     | Extracted from `1442.png` section 3                  | Landscape ~2:1, technician in facility                                        | False                              | Background of "Real Work, All Industries" section |
-| `service-networking.png`     | `/public/marketing/service-networking.png`     | 380 × 220px     | Extracted from `1442.png` section 9                  | 16:9, enterprise switches with green cables                                   | False                              | Expertise grid: Networking card                   |
-| `service-cabling.png`        | `/public/marketing/service-cabling.png`        | 380 × 220px     | Extracted from `1442.png` section 9                  | 16:9, blue combed patch cables in tray                                        | False                              | Expertise grid: Structured Cabling card           |
-| `service-pos.png`            | `/public/marketing/service-pos.png`            | 380 × 220px     | Extracted from `1442.png` section 9                  | 16:9, touchscreen POS terminal with scanner                                   | False                              | Expertise grid: Point of Sale card                |
-| `service-security.png`       | `/public/marketing/service-security.png`       | 380 × 220px     | Extracted from `1442.png` section 9                  | 16:9, ceiling mounted dome and bullet cameras                                 | False                              | Expertise grid: Security & Surveillance card      |
-| `service-hardware.png`       | `/public/marketing/service-hardware.png`       | 380 × 220px     | Extracted from `1442.png` section 9                  | 16:9, laptop with internal circuit board repair                               | False                              | Expertise grid: Computer Hardware card            |
-| `service-av.png`             | `/public/marketing/service-av.png`             | 380 × 220px     | Extracted from `1442.png` section 9                  | 16:9, wall digital signage display                                            | False                              | Expertise grid: AV & Digital Signage card         |
-| `service-enterprise-map.png` | `/public/marketing/service-enterprise-map.png` | 380 × 220px     | Extracted from `1442.png` section 9                  | 16:9, US map with New York, Chicago, Dallas pins                              | False                              | Expertise grid: Enterprise Locations card         |
-| `map-smart-dispatch.png`     | `/public/marketing/map-smart-dispatch.png`     | 640 × 440px     | Extracted from `1442.png` section 4                  | ~1.45:1, dark satellite map of San Francisco                                  | False                              | Smart Dispatch section map                        |
-| `map-field-operations.png`   | `/public/marketing/map-field-operations.png`   | 420 × 360px     | Extracted from `1442.png` section 5                  | ~1.15:1, light street map with technician routes                              | False                              | Field Operations live tracking panel              |
-| `photo-server-rack.png`      | `/public/marketing/photo-server-rack.png`      | 180 × 120px     | Extracted from `1442.png` section 5                  | ~1.5:1, data center server rack with green LEDs                               | False                              | Field Operations site visit thumbnail             |
-| `map-command-center.png`     | `/public/marketing/map-command-center.png`     | 620 × 400px     | Extracted from `1442.png` section 8                  | ~1.55:1, tactical dark map of NYC / Brooklyn                                  | False                              | Command Center preview map                        |
-| `map-texas-command.png`      | `/public/marketing/map-texas-command.png`      | 440 × 360px     | Extracted from `1442.png` section 10                 | ~1.2:1, dark map of Texas with Austin, Houston, etc.                          | False                              | Dark bottom CTA banner tablet mockup              |
-| `avatar-alex-morgan.png`     | `/public/marketing/avatars/alex-morgan.png`    | 120 × 120px     | Extracted from `1442.png`                            | 1:1 circular portrait                                                         | False                              | Hero tracking card, Smart dispatch candidate      |
-| `avatar-marcus-lee.png`      | `/public/marketing/avatars/marcus-lee.png`     | 160 × 160px     | Extracted from `1442.png`                            | 1:1 circular portrait (smiling with cap)                                      | False                              | Technician marketplace, Compliance section        |
-| `avatar-priya-shah.png`      | `/public/marketing/avatars/priya-shah.png`     | 120 × 120px     | Extracted from `1442.png`                            | 1:1 circular portrait                                                         | False                              | Technician marketplace, Field operations          |
-| `avatar-daniel-carter.png`   | `/public/marketing/avatars/daniel-carter.png`  | 120 × 120px     | Extracted from `1442.png`                            | 1:1 circular portrait                                                         | False                              | Technician marketplace                            |
-| `avatar-alex-rivera.png`     | `/public/marketing/avatars/alex-rivera.png`    | 120 × 120px     | Extracted from `1442.png`                            | 1:1 circular portrait                                                         | False                              | Technician marketplace                            |
+| Asset Name                        | Target File Path                                     | Dimensions (1x) | Source / Extraction Method                           | Crop & Aspect Ratio                                                           | Transparency                       | Usage Location                                    |
+| :-------------------------------- | :--------------------------------------------------- | :-------------- | :--------------------------------------------------- | :---------------------------------------------------------------------------- | :--------------------------------- | :------------------------------------------------ |
+| `hero-technician.png`             | `/public/marketing/hero-technician.png`              | 660 × 640px     | Extracted at native 3.42x resolution from `1442.png` | Aspect ~1:1, rounded corners, shows technician holding tablet in front of van | False (has background environment) | Right side of Hero section                        |
+| `real-work-bg.png`                | `/public/marketing/real-work-bg.png`                 | 740 × 360px     | Extracted from `1442.png` section 3                  | Landscape ~2:1, technician in facility                                        | False                              | Background of "Real Work, All Industries" section |
+| `service-networking.png`          | `/public/marketing/service-networking.png`           | 380 × 220px     | Extracted from `1442.png` section 9                  | 16:9, enterprise switches with green cables                                   | False                              | Expertise grid: Networking card                   |
+| `service-cabling.png`             | `/public/marketing/service-cabling.png`              | 380 × 220px     | Extracted from `1442.png` section 9                  | 16:9, blue combed patch cables in tray                                        | False                              | Expertise grid: Structured Cabling card           |
+| `service-pos.png`                 | `/public/marketing/service-pos.png`                  | 380 × 220px     | Extracted from `1442.png` section 9                  | 16:9, touchscreen POS terminal with scanner                                   | False                              | Expertise grid: Point of Sale card                |
+| `service-security.png`            | `/public/marketing/service-security.png`             | 380 × 220px     | Extracted from `1442.png` section 9                  | 16:9, ceiling mounted dome and bullet cameras                                 | False                              | Expertise grid: Security & Surveillance card      |
+| `service-hardware.png`            | `/public/marketing/service-hardware.png`             | 380 × 220px     | Extracted from `1442.png` section 9                  | 16:9, laptop with internal circuit board repair                               | False                              | Expertise grid: Computer Hardware card            |
+| `service-av.png`                  | `/public/marketing/service-av.png`                   | 380 × 220px     | Extracted from `1442.png` section 9                  | 16:9, wall digital signage display                                            | False                              | Expertise grid: AV & Digital Signage card         |
+| `service-enterprise-map.png`      | `/public/marketing/service-enterprise-map.png`       | 380 × 220px     | Extracted from `1442.png` section 9                  | 16:9, US map with New York, Chicago, Dallas pins                              | False                              | Expertise grid: Enterprise Locations card         |
+| `map-smart-dispatch.png`          | `/public/marketing/map-smart-dispatch.png`           | 640 × 440px     | Extracted from `1442.png` section 4                  | ~1.45:1, dark satellite map of San Francisco                                  | False                              | Smart Dispatch section map                        |
+| `map-field-operations.png`        | `/public/marketing/map-field-operations.png`         | 420 × 360px     | Extracted from `1442.png` section 5                  | ~1.15:1, light street map with technician routes                              | False                              | Field Operations live tracking panel              |
+| `photo-server-rack.png`           | `/public/marketing/photo-server-rack.png`            | 180 × 120px     | Extracted from `1442.png` section 5                  | ~1.5:1, data center server rack with green LEDs                               | False                              | Field Operations site visit thumbnail             |
+| `map-command-center.png`          | `/public/marketing/map-command-center.png`           | 620 × 400px     | Extracted from `1442.png` section 8                  | ~1.55:1, tactical dark map of NYC / Brooklyn                                  | False                              | Command Center preview map                        |
+| `map-texas-command.png`           | `/public/marketing/map-texas-command.png`            | 440 × 360px     | Extracted from `1442.png` section 10                 | ~1.2:1, dark map of Texas with Austin, Houston, etc.                          | False                              | Dark bottom CTA banner tablet mockup              |
+| `avatar-alex-morgan.png`          | `/public/marketing/avatars/alex-morgan.png`          | 120 × 120px     | Extracted from `1442.png`                            | 1:1 circular portrait                                                         | False                              | Hero tracking card, Smart dispatch candidate      |
+| `avatar-hero-tracking-avatar.png` | `/public/marketing/avatars/hero-tracking-avatar.png` | 160 × 160px     | Extracted from `1442.png`                            | 1:1 circular portrait (smiling with cap)                                      | False                              | Technician marketplace, Compliance section        |
+| `avatar-priya-shah.png`           | `/public/marketing/avatars/priya-shah.png`           | 120 × 120px     | Extracted from `1442.png`                            | 1:1 circular portrait                                                         | False                              | Technician marketplace, Field operations          |
+| `avatar-daniel-carter.png`        | `/public/marketing/avatars/daniel-carter.png`        | 120 × 120px     | Extracted from `1442.png`                            | 1:1 circular portrait                                                         | False                              | Technician marketplace                            |
+| `avatar-alex-rivera.png`          | `/public/marketing/avatars/alex-rivera.png`          | 120 × 120px     | Extracted from `1442.png`                            | 1:1 circular portrait                                                         | False                              | Technician marketplace                            |
 
 ---
 
@@ -44,3 +44,41 @@ In accordance with the **Critical Image vs Code Rule**:
 2. **Tooling**: Node.js script using `sharp` to perform pixel-precise coordinate bounding box crops.
 3. **Target Destination**: `apps/web-buyer-portal/public/marketing/` and `apps/web-buyer-portal/public/marketing/avatars/`.
 4. **Resolution**: Stored at 2x retina density for crisp high-DPI display rendering.
+
+## Marketplace portrait replacements (2026-09-29)
+
+Four distinct fictional portraits were generated with the built-in image tool:
+`priya-shah-v2.png`, `marcus-lee-v2.png`, `daniel-carter-v2.png`, and
+`alex-rivera-v2.png`, under `apps/web-buyer-portal/public/marketing/avatars/`.
+Each source is 1254 × 1254px, with neutral lighting and no baked-in badge or
+status dot. The marketplace uses Next.js Image optimization and its existing
+circular crop; other consumers retain their original assets. Exact prompts are
+recorded in [marketplace-avatar-prompts.md](marketplace-avatar-prompts.md).
+
+### Reliability and closing banner follow-up (2026-09-29)
+
+Added `public/marketing/cta-forest-background.png`, generated with the built-in image tool as a wide dark forest backdrop. Prompt is recorded in `docs/cta-background-prompt.md`. Reused the existing Texas operations map and generated Marcus portrait. Banner text and dashboard controls remain native UI.
+
+### Footer reference follow-up (2026-09-29)
+
+Added `public/marketing/footer-background.png` using the built-in image generation tool. The wide dark abstract backdrop is decorative; native footer content remains separate. Exact prompt is in `docs/footer-background-prompt.md`. Existing social and brand SVG artwork is reused.
+
+### Generated expertise replacements (2026-09-29)
+
+Replaced all seven marked expertise images with separate high-resolution assets:
+`service-networking-v2.png`, `service-cabling-v2.png`, `service-pos-v2.png`,
+`service-security-v2.png`, `service-hardware-v2.png`, `service-av-v2.png`, and
+`service-enterprise-map-v2.png`, all in `public/marketing/`. The three wide images
+are 2022 × 778; the remaining four are 1774 × 887. Generated with the built-in
+image tool; exact prompts and saved paths are in `docs/expertise-image-prompts.md`.
+The existing assets remain untouched. Category badges now render as native text
+on every card, including the first row. The map's city labels and signage slogan
+remain part of their images. No card layout, copy, or navigation changes.
+
+### Field Operations image replacement (2026-09-29)
+
+Generated `map-field-operations-v2.png` (1254 × 1254), `photo-server-rack-v2.png` (1681 × 936), and `avatars/priya-shah-field-v3.png` (1254 × 1254) under `public/marketing/`. They replace the three marked images only in FieldOperationsSection. Existing assets and other consumers are preserved. Exact built-in image generation prompts are recorded in `docs/field-operations-image-prompts.md`. The server image has no baked Live badge; the existing native label remains.
+
+### Real Work separated assets follow-up (2026-09-29)
+
+The Real Work composite image is replaced by seven separately generated files in `public/marketing/`: `real-work-technician-v2.png`, `real-work-security-v2.png`, `real-work-networking-v2.png`, `real-work-pos-v2.png`, `real-work-cabling-v2.png`, `real-work-hardware-v2.png`, and `real-work-av-v2.png`. Exact prompts and paths are in `docs/real-work-image-prompts.md`. Built-in generation was used, and every image was inspected. Active Jobs, dispatch status, service captions, and the six-tile grid are native UI; the old composite remains on disk but is no longer used by RealWorkSection.

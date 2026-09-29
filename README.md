@@ -742,3 +742,41 @@ The five-item row begins at 1024px. Run its nine responsive browser checks with
 Hero and compact-navbar presentation use Tailwind utilities, preserving the
 existing design and zoom behavior. The custom hero CSS module is removed;
 self-hosted font registration remains in the global stylesheet.
+
+### Marketing lifecycle presentation
+
+The marketing lifecycle section uses a compact reference layout with two summary
+cards above seven stages, remaining in one row from 1024px. Tailwind styling and
+responsive browser checks cover desktop, tablet, and mobile.
+
+The real-work section uses a compact side-by-side desktop composition and a
+stacked mobile layout, with native copy and a sample Active Jobs card.
+
+The technician marketplace preview has four native profile cards over a pale map
+panel, with directory navigation beneath the cards and mobile card reflow.
+
+The smart-dispatch marketing preview now groups the map beside a compact
+candidate list with a two-by-two feature grid, on a pale-green section canvas.
+
+Field operations now presents assignment and completion phone previews around
+the live map, with a separate benefits bar. The adjacent payment section uses
+a compact workflow row beside its introduction and three horizontal benefit cards.
+
+The compliance preview uses a profile beside three separate trust panels, with
+a working portrait asset and compact credentials, work history, and metrics.
+
+The marketing Command Center preview uses a light workspace with a dark sidebar,
+compact operational summaries, and one benefits bar. It remains illustrative;
+its displayed metrics and statuses are not live operational data.
+
+### Audience and expertise reference follow-up (2026-09-29)
+
+The marketing audience and expertise sections now share a compact pale-green composition. Business and technician steps sit beside their introductions on desktop, followed by a three-card and four-card service grid. Existing call-to-action destinations are preserved.
+
+### Reliability and closing banner follow-up (2026-09-29)
+
+The marketing reliability and closing banner now share compact spacing, larger reliability cards, and a dark forest-backed CTA with a native dashboard preview. The forest is a separate generated asset; displayed metrics remain illustrative.
+
+### Footer reference follow-up (2026-09-29)
+
+The shared marketing footer now follows the dark six-column reference, including a Legal column and separate bottom bar. Newsletter delivery, app-store listings, and legal pages are not implemented: submission reports unavailability, download badges are disabled, and legal labels are static. English is the only offered language.

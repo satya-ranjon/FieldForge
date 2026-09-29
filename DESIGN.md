@@ -233,3 +233,92 @@ relative to the row. Tablet and mobile stacking remains unchanged.
 
 The single-row assurance layout starts at the 1024px laptop breakpoint, with
 a 14px minimum label size. Below 1024px it uses two columns, then one below 640px.
+
+## Marketing lifecycle reference layout
+
+The lifecycle introduction occupies the left column; two summary cards sit above
+a seven-stage row on the right from 1024px. Use the shared marketing content
+frame and Tailwind utilities. Below 1024px, the summaries and ordered stages
+stack beneath the introduction. Dispatch uses `lifecycle-active` (#c6f879) and
+`lifecycle-active-border` (#b4e76b), with a short bottom indicator. This is a
+static illustration, not an interactive workflow.
+
+Real-work reference follow-up: the pale-green section places its heading, copy,
+and circular benefit icons in a narrow left column from 1024px. The existing
+technician/industry illustration fills the remaining area without a nested
+frame. A native sample-jobs card replaces the clipped jobs text in that asset.
+On smaller screens the content, illustration, and readable job list stack.
+Lifecycle and real-work are grouped to remove the oversized intervening gap.
+
+### Technician marketplace reference follow-up
+
+The marketplace uses the shared marketing frame with a narrow left introduction
+and a pale map panel on the right. From 1024px, Marcus is the larger center card,
+Priya sits to its left, and Daniel and Alex form the right column. The navigation
+strip belongs at the bottom of the panel. Smaller layouts use flowing cards.
+All copy, portraits, tags, badges, and links are native elements styled with
+Tailwind; only the faint decorative map is a generated raster asset.
+
+### Smart dispatch reference follow-up
+
+Smart dispatch uses a full-width `surface-green` canvas and the shared marketing
+content frame. Its soft white inset panel has a larger map on the left and a
+compact candidate list on the right from 1024px. Four rounded feature pills form
+a two-by-two grid directly under the candidate list. Mobile stacks map, list,
+and pills. Use Tailwind utilities, native candidate text, existing map/portrait
+assets, and the existing orbit image for faint background decoration.
+
+### Field operations and secure payments reference follow-up
+
+These adjacent sections share a pale marketing canvas. Field operations uses a
+centered two-line heading, a light assignment phone, a live map/site card, an
+unboxed capability list, and a completion phone with a notification above it.
+A separate rounded benefits strip sits below. Payments places four compact
+workflow tiles beside its introduction at desktop widths, with three horizontal
+icon-and-copy cards below. Both use the shared marketing scale from 1024px and
+flow into stacked layouts on smaller screens. All UI styling uses Tailwind.
+
+### Compliance and trust reference follow-up
+
+Use a compact pale-green frame with the profile card on the left and the heading
+above three separate right-hand panels from 1024px. Verification, credentials,
+and reliability panels use light backgrounds, small title-case headings, circular
+icons, and thin row dividers. The profile uses a tall portrait, two-column pill
+badges, and a full-width primary action. Place the trust row directly below with
+no horizontal rule. Smaller layouts flow vertically. Tailwind controls styling.
+
+### Command center reference follow-up
+
+Use a pale mint canvas, centered compact summary cards, and a light dashboard
+frame. A dark sidebar spans the workspace height; the title, time-range preview,
+alert panel, and nearby-technician panel sit on white surfaces. Consolidate the
+four benefits into one divided bar. Use shared marketing scaling from 1024px,
+stack the map and panels below that width, and retain native text and Tailwind
+utilities around the existing map asset.
+
+### Audience and expertise reference follow-up (2026-09-29)
+
+Audience and expertise share a pale-green canvas with a compact gap. From 1024px, two audience cards sit side by side, each with introductory copy on the left and a four-step list behind a vertical divider on the right. Expertise uses a single-line desktop heading followed by three wider service cards and four smaller cards. Use circular step numbers, soft icon circles, modest corner radii, and Tailwind utilities. Mobile layouts stack without fixed heights.
+
+### Reliability and closing banner follow-up (2026-09-29)
+
+Reliability and the closing CTA form a compact group separated by 20px. The reliability section uses a large two-line heading and four white cards with circular lime icons. The dark banner places a large three-line pitch beside an inset dashboard from 1024px. Use the generated forest background as a separate decorative image, native copy and controls, compact bordered telemetry panels, and bottom assurance badges. Smaller screens stack the banner columns. All layout styling uses Tailwind.
+
+### Footer reference follow-up (2026-09-29)
+
+The shared marketing footer uses a dark decorative backdrop, a brand column, four compact navigation/content columns, and a newsletter/app area from 1024px. Thin vertical rules separate the brand and newsletter areas; a full-width horizontal rule separates the copyright bar. Use circular social buttons, the existing brand mark, lime accents, and native email/language controls. Tablet and mobile columns wrap with 44px interaction targets. Tailwind controls all styling.
+
+### Expertise image quality follow-up
+
+Expertise cards use the seven high-resolution `service-*-v2.png` assets through
+Next Image, with centered cropping. All seven category pills are native UI labels;
+the top row no longer depends on labels baked into low-resolution thumbnails.
+Preserve the existing grid, card heights, descriptions, and links.
+
+### Field Operations image replacement (2026-09-29)
+
+FieldOperationsSection uses three separately generated high-resolution assets for the technician map, server photo, and Priya portrait. Keep the map labels visible with contained fitting below 1024px and centered cover fitting on desktop. The Live badge remains native UI. The portrait requests a 96px source for the small circular display so it stays sharp on high-density screens.
+
+### Real Work separated assets follow-up (2026-09-29)
+
+Real Work must use one standalone technician photo, six individual service images in a two-column/three-row desktop grid, and native service labels. Keep Active Jobs as one native overlay, with no job text embedded behind it. The dispatch badge is native and sits in clear space at the top-left of the photo. Mobile stacks the photo, jobs, and service grid in normal flow. Tailwind controls layout; the decorative route arc from the old composite is omitted.
