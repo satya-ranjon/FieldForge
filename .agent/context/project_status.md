@@ -693,3 +693,15 @@ The three red-marked Field Operations assets were generated, inspected, saved, a
 ### Real Work separated assets follow-up (2026-09-29)
 
 RealWorkSection now separates the technician photo, six service photos, Active Jobs, and the dispatch badge. Seven new images were generated and wired through Next Image. Existing content/status data is preserved; no new service behavior or API calls. Updated the six responsive cases for seven independent images, six native service labels, the dispatch badge, and grid placement. Browser cases remain unrun under the existing security rejection; verified counts are unchanged.
+
+### Real Work reference alignment correction (2026-09-29)
+
+Refined the Real Work presentation against the latest screenshot: new technician background, blended edges, dispatch route/badge placement, and readable compact jobs. No data or behavior changes. Responsive cases updated but remain unrun under the existing browser policy block; verified test counts unchanged.
+
+### Command Center native demo map (2026-09-29)
+
+Replaced the Command Center raster map with a native SVG/HTML demo. Added zoom/pan bounds, technician selection, and reset; five new focused model tests pass. Updated six responsive E2E cases with interaction assertions, but these remain unrun because preview access is blocked. This does not implement live technician tracking.
+
+### Dispatch demo maps and portraits (2026-09-29)
+
+Replaced both remaining requested dispatch-map rasters with native demos and refreshed three candidate portraits. The shared map-state suite has five passing tests. Twelve existing responsive scenarios now cover these two maps and avatar decoding, but browser execution remains blocked by the existing security-policy rejection. No live dispatch or tracking acceptance changed.

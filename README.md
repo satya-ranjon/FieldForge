@@ -780,3 +780,15 @@ The marketing reliability and closing banner now share compact spacing, larger r
 ### Footer reference follow-up (2026-09-29)
 
 The shared marketing footer now follows the dark six-column reference, including a Legal column and separate bottom bar. Newsletter delivery, app-store listings, and legal pages are not implemented: submission reports unavailability, download badges are disabled, and legal labels are static. English is the only offered language.
+
+### Real Work reference alignment correction (2026-09-29)
+
+The Real Work preview uses a separately generated, softly blended technician background with native jobs, service captions, and dispatch decoration. Latest visual comparison remains pending under the existing preview restriction.
+
+### Command Center native demo map (2026-09-29)
+
+The marketing Command Center includes a native demo map with vector streets, selectable sample technicians, zoom, keyboard panning, and reset. It makes no location or map-provider requests. Run its focused model tests with `node --experimental-strip-types --test apps/web-buyer-portal/tests/command-map-model.test.mjs`.
+
+### Dispatch demo maps and portraits (2026-09-29)
+
+Smart Dispatch and the closing CTA also use native demo maps with sample routes/incidents, selectable locations, zoom, keyboard panning, and reset. Candidate portraits use the sharper existing generated assets.

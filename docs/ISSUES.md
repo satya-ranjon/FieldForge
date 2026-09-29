@@ -1789,3 +1789,15 @@ Replaced the low-resolution technician map and server thumbnail, plus the reques
 ### Real Work separated assets follow-up (2026-09-29)
 
 Removed the combined Real Work raster from the section. It embedded service cards, dispatch text, and a clipped job panel that could appear behind the native Active Jobs overlay. Separate generated images and native cards now replace those baked elements. The decorative route arc is not reproduced. Image files and code checks can be verified, but rendered comparison remains blocked by the earlier browser security rejection.
+
+### Real Work reference alignment correction (2026-09-29)
+
+The latest screenshot exposed hard photo edges, a distant technician crop, misplaced dispatch badge, and undersized job labels. Replaced the technician photo and corrected these presentation details with a feathered background and separate SVG route. This supersedes the earlier intentional route omission. Rendered comparison remains pending under the existing browser-security block.
+
+### Command Center native demo map (2026-09-29)
+
+The Command Center map previously embedded its legend, markers, popup, weather, and zoom controls in one PNG. Replaced it with independent vector/HTML elements and local demo interactions. The basemap is illustrative rather than survey-accurate; no external tiles are requested. Existing browser-policy restriction still blocks final rendered and integration verification.
+
+### Dispatch demo maps and portraits (2026-09-29)
+
+Replaced the two highlighted flattened maps and the cropped/low-resolution dispatch portraits. Maps now expose native sample interactions without external services. Browser security still prevents E2E/visual verification, so the mandatory pre-push E2E gate cannot currently be satisfied; push must remain blocked.

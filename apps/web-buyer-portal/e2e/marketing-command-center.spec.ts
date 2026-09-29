@@ -14,10 +14,38 @@ for (const width of [320, 390, 768, 1024, 1536, 2172]) {
     for (const value of ['18', '04', '09', '$42K']) {
       await expect(summary.getByText(value, { exact: true })).toBeVisible();
     }
-    const map = section.getByRole('img', { name: /New York live command operations map/ });
+    const map = section.getByRole('region', { name: 'New York demo operations map' });
     await map.scrollIntoViewIfNeeded();
-    await expect(map).toHaveJSProperty('complete', true);
-    expect(await map.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+    await expect(map.locator('img, image')).toHaveCount(0);
+    await expect(
+      map.getByRole('list', { name: 'Demo technician statuses' }).getByRole('listitem')
+    ).toHaveCount(4);
+    const zoomIn = map.getByRole('button', { name: 'Zoom in', exact: true });
+    const zoomOut = map.getByRole('button', { name: 'Zoom out', exact: true });
+    const canvas = map.getByRole('group', { name: /Interactive technician map/ });
+    await expect(zoomOut).toBeDisabled();
+    const initial = await canvas.getAttribute('viewBox');
+    await zoomIn.click();
+    await expect(canvas).not.toHaveAttribute('viewBox', initial!);
+    await canvas.focus();
+    const zoomed = await canvas.getAttribute('viewBox');
+    await canvas.press('ArrowRight');
+    await expect(canvas).not.toHaveAttribute('viewBox', zoomed!);
+    await map.getByRole('button', { name: 'Reset map view' }).click();
+    await expect(canvas).toHaveAttribute('viewBox', initial!);
+    await map.getByRole('button', { name: 'Daniel Lee, Available', exact: true }).click();
+    await expect(map.getByText('Upper East Side, NY')).toBeVisible();
+    await expect(
+      map.getByRole('button', { name: 'Daniel Lee, Available', exact: true })
+    ).toHaveAttribute('aria-pressed', 'true');
+    for (let step = 0; step < 3; step++) await zoomIn.click();
+    await expect(zoomIn).toBeDisabled();
+    await map.getByRole('button', { name: 'Reset map view' }).click();
+    await expect(map.getByText('1200 Market St, NY')).toBeVisible();
+    await expect(map.getByRole('link', { name: 'View All Technicians' })).toHaveAttribute(
+      'href',
+      '/technicians'
+    );
     const alerts = section.getByRole('region', { name: 'Operational Alerts' });
     const technicians = section.getByRole('region', { name: 'Technicians Nearby' });
     const benefits = section.getByRole('list', { name: 'Command center benefits' });

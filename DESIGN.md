@@ -321,4 +321,12 @@ FieldOperationsSection uses three separately generated high-resolution assets fo
 
 ### Real Work separated assets follow-up (2026-09-29)
 
-Real Work must use one standalone technician photo, six individual service images in a two-column/three-row desktop grid, and native service labels. Keep Active Jobs as one native overlay, with no job text embedded behind it. The dispatch badge is native and sits in clear space at the top-left of the photo. Mobile stacks the photo, jobs, and service grid in normal flow. Tailwind controls layout; the decorative route arc from the old composite is omitted.
+Real Work must use one standalone technician photo, six individual service images in a two-column/three-row desktop grid, and native service labels. Keep Active Jobs as one native overlay, with no job text embedded behind it. The dispatch badge is native and sits above the tablet, between the technician and the service grid. Mobile stacks the photo, jobs, and service grid in normal flow. Tailwind controls layout and soft photo-edge masking; a separate decorative SVG restores the lime dispatch route with a gap around the technician.
+
+### Command Center native demo map (2026-09-29)
+
+The Command Center map is now a client-side SVG/HTML demo, replacing the flattened map PNG. Use existing dark/map/status tokens, native 44px controls and markers, a separate legend, technician popup, weather card, and directory link. Local zoom is bounded to four levels; arrow keys pan the focused map within its bounds. Reset restores the initial center and Alex selection. Geography, weather, counts, and technician details are illustrative; no external map tiles or location services are used.
+
+### Dispatch demo maps and portraits (2026-09-29)
+
+Smart Dispatch and the closing CTA now use native SVG/HTML demo maps, preserving their dark palettes and San Francisco/Texas compositions. Emergency cards, route curves, distances, location badges, active-job counts, and zoom/reset controls are separate elements. Map interaction stays local; sample geography is illustrative. Dispatch candidates reuse the generated Marcus v2, Daniel v2, and Priya field v3 portraits with optimized image sizing.

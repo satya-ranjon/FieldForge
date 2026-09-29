@@ -411,3 +411,34 @@ The technician image was refined to face right, keeping the tablet clear of the
 jobs panel, and all seven saved image dimensions were checked. Existing backend
 suites used verified local caches. The updated six browser cases remain unrun;
 rendered fidelity has not been confirmed under the existing security block.
+
+### Real Work reference alignment correction (2026-09-29)
+
+Updated against `codex-clipboard-6a6c422d-96b0-4b2e-8213-67e5f303000e.png`: new close-framed technician background, feathered edges, dispatch badge above the tablet, separate SVG route, compact job rows with larger text, and service grid spacing. Existing six responsive cases now assert badge clearance and the route. Generated photo inspected directly; it is an interpretation, not a pixel-identical reproduction. Browser comparison remains blocked by the prior security-policy rejection; no workaround attempted. Final visual acceptance remains pending.
+
+Alignment correction checks: `pnpm check` passed (formatting, lint, type checking,
+and 15 cached test tasks), `pnpm build --cache=local:r` passed (12 tasks, buyer
+portal rebuilt), and `git diff --check` passed. The six updated browser cases
+remain unrun under the existing browser-security restriction.
+
+### Command Center native demo map (2026-09-29)
+
+Reference: `codex-clipboard-3fa73fa4-9023-40af-a8af-2efa133cb61c.png`. Replaced the map image with vector streets/water/land and native markers, technician popup, legend, weather, zoom/reset controls, and directory link. Preserved the surrounding dashboard. Five model tests passed; six existing responsive cases now assert absence of map images, selection, zoom limits, keyboard pan, and reset. Browser security still prevents execution and rendered comparison; final visual acceptance is pending.
+
+Demo-map validation: five focused Node model tests passed with fresh execution;
+`pnpm check` passed (formatting, lint, types, and 15 cached test tasks);
+`pnpm build --cache=local:r` passed (12 tasks, buyer portal rebuilt);
+`git diff --check` passed. Browser scenarios remain unrun, as noted above.
+
+### Dispatch demo maps and portraits (2026-09-29)
+
+Sources: `codex-clipboard-2ec5579f-5acb-4cc8-af13-1edaf8bd38bb.png` and `codex-clipboard-5fc85001-f50a-4e30-9433-5ae5b05a2282.png`. Replaced marked maps with vector geography, native incident panels, markers, distance chips, and functional zoom/reset/selection. Reused sharper generated portraits. Updated twelve responsive browser cases, unrun under the existing browser security restriction. Final visual acceptance remains pending.
+
+Dispatch-map verification and push gate: the five focused map-state tests passed
+with fresh execution. The buyer-portal production build passed (12 build tasks,
+11 cached). Pre-push steps 1–5 passed in order: `pnpm format`,
+`pnpm format:check`, `pnpm lint`, `pnpm typecheck`, and `pnpm test` (15 cached
+test tasks). Step 6, `pnpm test:e2e`, was not run: the existing browser security
+rejection forbids preview access and alternate browser execution. The gate
+therefore stops here; clean-typecheck and the final build/check sequence were
+not run as pre-push gates. No push is permitted or attempted.

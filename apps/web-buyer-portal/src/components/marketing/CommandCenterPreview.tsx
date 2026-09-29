@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { marketingLayoutScale } from './MarketingHero.styles';
 import { MarketingBrandMark } from './MarketingHeroArtwork';
+import { CommandCenterDemoMap } from './CommandCenterDemoMap';
 
 const kpiCards = [
   {
@@ -298,15 +299,7 @@ export function CommandCenterPreview(): React.JSX.Element {
               </div>
             </header>
             <div className="grid items-stretch gap-3 lg:grid-cols-[1.87fr_1fr] lg:gap-[1em]">
-              <div className="relative aspect-[1.69] overflow-hidden rounded-xl bg-brand-dark lg:rounded-[0.8em]">
-                <Image
-                  src="/marketing/map-command-center.png"
-                  alt="New York live command operations map with technician locations and status"
-                  fill
-                  sizes="(min-width: 1500px) 720px, (min-width: 1200px) 600px, (min-width: 1024px) 460px, 90vw"
-                  className="object-cover"
-                />
-              </div>
+              <CommandCenterDemoMap />
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 lg:grid-rows-2 lg:gap-[0.6em]">
                 <section
                   aria-labelledby="command-alerts-title"

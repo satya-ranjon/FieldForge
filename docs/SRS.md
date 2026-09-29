@@ -285,3 +285,15 @@ This reliability/CTA update is marketing presentation only. Dashboard values, al
 ### Footer reference follow-up (2026-09-29)
 
 The footer redesign does not establish acceptance of newsletter delivery, legal publication, app-store availability, localization, or live system health. Status copy remains illustrative, English is the only language, and the newsletter never submits data to a service. No backend requirement acceptance changes.
+
+### Real Work reference alignment correction (2026-09-29)
+
+Real Work visual refinement retains the existing illustrative work-order/dispatch content. No SRS-FR requirement acceptance status changes; browser visual acceptance is still pending.
+
+### Command Center native demo map (2026-09-29)
+
+Command Center demo-map controls are presentation-only sample interactions. They do not satisfy live geolocation, dispatch, or operational monitoring requirements. Existing SRS-FR acceptance states remain unchanged.
+
+### Dispatch demo maps and portraits (2026-09-29)
+
+Native San Francisco/Texas map demos and updated marketing portraits do not change SRS-FR operational acceptance. Example incidents, distances, routes, and availability remain static sample data.

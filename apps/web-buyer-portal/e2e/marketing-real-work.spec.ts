@@ -17,7 +17,7 @@ for (const width of [320, 390, 768, 1024, 1536, 2172]) {
       name: 'FieldForge technician using a tablet at a customer site'
     });
     await photo.scrollIntoViewIfNeeded();
-    await expect(photo).toHaveAttribute('src', /real-work-technician-v2/);
+    await expect(photo).toHaveAttribute('src', /real-work-technician-v3/);
     await expect(section.getByText(/Technician\s*dispatched/)).toBeVisible();
     const services = section.getByRole('list', { name: 'Industries served' });
     await expect(services.getByRole('listitem')).toHaveCount(6);
@@ -53,7 +53,12 @@ for (const width of [320, 390, 768, 1024, 1536, 2172]) {
     if (width >= 1024) {
       expect(jobBounds.x).toBeGreaterThanOrEqual(heading.x + heading.width);
       expect(bounds.width / bounds.height).toBeGreaterThan(2.5);
+      const badge = (await section.getByTestId('real-work-dispatch-badge').boundingBox())!;
+      await expect(section.getByTestId('real-work-dispatch-route')).toBeVisible();
+      expect(badge.x).toBeGreaterThan(jobBounds.x + jobBounds.width);
+      expect(badge.y + badge.height).toBeLessThan(jobBounds.y + jobBounds.height / 4);
       const serviceBounds = (await services.boundingBox())!;
+      expect(badge.x + badge.width).toBeLessThan(serviceBounds.x);
       expect(serviceBounds.x).toBeGreaterThan(jobBounds.x + jobBounds.width);
       expect(serviceBounds.y + serviceBounds.height).toBeLessThanOrEqual(bounds.y + bounds.height);
       const tiles = await services.getByRole('listitem').evaluateAll((items) =>

@@ -2269,3 +2269,15 @@ Implemented the reliability/closing-banner reference composition with Tailwind, 
 ### Footer reference follow-up (2026-09-29)
 
 Implemented the footer reference layout, reused social/brand artwork, and added a separate decorative background. Six responsive browser cases cover navigation, form validation, unavailability feedback, disabled app badges, and layout. They remain unrun under the existing browser security rejection. Newsletter integration, legal pages, and store releases are not added to accepted feature scope.
+
+### Real Work reference alignment correction (2026-09-29)
+
+Refined the Real Work reference composition with a closer generated technician photo, blended background, restored route, badge placement, and compact job typography. Implementation is ready for rendered comparison, still pending because browser access is blocked.
+
+### Command Center native demo map (2026-09-29)
+
+Command Center demo-map replacement implemented: vector geography, native legend/weather/popup/link, bounded zoom, keyboard panning, selection, and reset. Five model tests passed. Six responsive integration scenarios were updated; browser execution and visual acceptance remain pending under the existing security restriction.
+
+### Dispatch demo maps and portraits (2026-09-29)
+
+Native dispatch-map and portrait updates implemented. Validate shared map-state tests and repository gates; final visual comparison/E2E remains blocked by the existing browser restriction. Push is permitted only after every mandated gate succeeds.

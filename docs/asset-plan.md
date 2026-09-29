@@ -82,3 +82,15 @@ Generated `map-field-operations-v2.png` (1254 × 1254), `photo-server-rack-v2.pn
 ### Real Work separated assets follow-up (2026-09-29)
 
 The Real Work composite image is replaced by seven separately generated files in `public/marketing/`: `real-work-technician-v2.png`, `real-work-security-v2.png`, `real-work-networking-v2.png`, `real-work-pos-v2.png`, `real-work-cabling-v2.png`, `real-work-hardware-v2.png`, and `real-work-av-v2.png`. Exact prompts and paths are in `docs/real-work-image-prompts.md`. Built-in generation was used, and every image was inspected. Active Jobs, dispatch status, service captions, and the six-tile grid are native UI; the old composite remains on disk but is no longer used by RealWorkSection.
+
+### Real Work reference alignment correction (2026-09-29)
+
+`real-work-technician-v3.png` is the new 1774 × 887 background, generated from the latest target screenshot with all UI removed. It replaces only the technician background in RealWorkSection; six service photos remain separate. Original assets are retained. Exact generation prompt is in `docs/real-work-image-prompts.md`.
+
+### Command Center native demo map (2026-09-29)
+
+CommandCenterPreview no longer consumes `map-command-center.png`. Its map is rendered by CommandCenterDemoMap using SVG geography and native controls. The original image is retained on disk; no image generation was needed.
+
+### Dispatch demo maps and portraits (2026-09-29)
+
+SmartDispatchSection no longer renders `map-smart-dispatch.png`; DarkBottomCtaBanner no longer renders `map-texas-command.png`. Originals remain on disk. Dispatch candidate images now use `avatars/marcus-lee-v2.png`, `avatars/daniel-carter-v2.png`, and `avatars/priya-shah-field-v3.png`. No new image generation was needed.

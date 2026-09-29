@@ -49,3 +49,12 @@ Use case: product-mockup. Separate high-resolution photorealistic service-catego
 Saved asset: `apps/web-buyer-portal/public/marketing/real-work-av-v2.png`.
 
 Use case: product-mockup. Separate high-resolution photorealistic service-category image for a premium field-service website. Landscape 1.65:1 aspect ratio, softly lit clean modern workplace, neutral off-white and pale sage palette, sharp subject, gently blurred surroundings. Fill frame with equipment but keep important details away from edges. No overlay text, no labels, no UI cards, no badge, no collage, no watermark, no border. A large thin black flat-panel digital signage display mounted on the wall of an elegant office lobby. Slight three-quarter angle, whole display clearly visible in center, beige stone wall and glass partitions around it. Screen shows a vivid blue city skyline at twilight reflected in water, subtle sunset horizon, no words or logos on the screen. Commercial AV installation photography.
+
+### Technician reference correction (v3)
+
+Built-in image generation; reference: `codex-clipboard-6a6c422d-96b0-4b2e-8213-67e5f303000e.png`.
+Saved asset: `apps/web-buyer-portal/public/marketing/real-work-technician-v3.png` (1774 × 887).
+
+Prompt:
+
+Edit reference into a clean photographic background asset only. Preserve the central technician exactly as closely as possible: back view, black cap facing RIGHT, black polo with lime FieldForge back logo, large upper body, right hand holding tablet toward right. Remove ALL UI: entire left text column, white active jobs card, service photo grid at right, dispatch badge, lime curve and dots, rounded frame. Reconstruct behind removed items as a bright softly blurred glass office with plants. Output a landscape photo aspect ratio 2:1, technician centered horizontally at 48%, head at 10% height, body cropped at hips at bottom, tablet at 61% width. Background is pale mint white bright glass office, blurred foreground green foliage along bottom. No panels, text, captions, badges, collages, outlines, no route line. Keep logo on shirt. This is a standalone background for native HTML cards laid over it. Match reference technician scale and posture, not a distant full-body shot.

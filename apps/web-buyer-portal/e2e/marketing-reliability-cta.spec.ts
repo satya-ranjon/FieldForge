@@ -37,6 +37,18 @@ for (const width of [320, 390, 768, 1024, 1536, 2172]) {
       await expect(image).toHaveJSProperty('complete', true);
       expect(await image.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
     }
+    const map = banner.getByRole('region', { name: 'Texas demo dispatch map' });
+    await expect(map.locator('img, image')).toHaveCount(0);
+    const canvas = map.getByRole('group');
+    const initialView = await canvas.getAttribute('viewBox');
+    await map.getByRole('button', { name: 'Zoom in', exact: true }).click();
+    await expect(canvas).not.toHaveAttribute('viewBox', initialView!);
+    await map.getByRole('button', { name: 'Reset map view' }).click();
+    await expect(canvas).toHaveAttribute('viewBox', initialView!);
+    await map.getByRole('button', { name: 'Austin, 18 mi, Best match', exact: true }).click();
+    await expect(map.getByText('Nearby technician')).toBeVisible();
+    await map.getByRole('button', { name: 'Show emergency network outage' }).click();
+    await expect(map.getByText('#3287 · Austin, TX', { exact: true })).toBeVisible();
     const dashboard = banner.getByLabel('Dispatch command center preview', { exact: true });
     for (const panel of [reliability, banner, dashboard]) {
       const bounds = (await panel.boundingBox())!;

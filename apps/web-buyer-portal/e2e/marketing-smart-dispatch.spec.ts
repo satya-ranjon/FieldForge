@@ -20,10 +20,34 @@ for (const width of [320, 390, 768, 1024, 1536, 2172]) {
     const third = (await pills[2]!.boundingBox())!;
     expect(first.y).toBeCloseTo(second.y, 0);
     expect(third.y).toBeGreaterThan(first.y);
-    const map = section.getByRole('img', { name: /San Francisco dispatch map/ });
+    const map = section.getByRole('region', { name: 'San Francisco demo dispatch map' });
     await map.scrollIntoViewIfNeeded();
-    await expect(map).toHaveJSProperty('complete', true);
-    expect(await map.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+    await expect(map.locator('img, image')).toHaveCount(0);
+    await expect(map.getByRole('button', { name: 'Zoom out', exact: true })).toBeDisabled();
+    const canvas = map.getByRole('group');
+    const initialView = await canvas.getAttribute('viewBox');
+    await map.getByRole('button', { name: 'Zoom in', exact: true }).click();
+    await expect(canvas).not.toHaveAttribute('viewBox', initialView!);
+    await map.getByRole('button', { name: 'Reset map view' }).click();
+    await expect(canvas).toHaveAttribute('viewBox', initialView!);
+    await map.getByRole('button', { name: 'Alex Morgan, 1.8 mi, 4 min', exact: true }).click();
+    await expect(map.getByText('Nearby technician')).toBeVisible();
+    await expect(map.getByText('Alex Morgan', { exact: true })).toBeVisible();
+    await map.getByRole('button', { name: 'Show emergency network outage' }).click();
+    await expect(map.getByText('Network Down', { exact: true })).toBeVisible();
+    const avatars = panel.locator('img');
+    await expect(avatars).toHaveCount(3);
+    for (const [index, asset] of [
+      'marcus-lee-v2',
+      'daniel-carter-v2',
+      'priya-shah-field-v3'
+    ].entries()) {
+      await expect(avatars.nth(index)).toHaveAttribute('src', new RegExp(asset));
+      await expect(avatars.nth(index)).toHaveJSProperty('complete', true);
+      expect(
+        await avatars.nth(index).evaluate((img: HTMLImageElement) => img.naturalWidth)
+      ).toBeGreaterThan(0);
+    }
     const mapBounds = (await map.boundingBox())!;
     const panelBounds = (await panel.boundingBox())!;
     const featureBounds = (await features.boundingBox())!;

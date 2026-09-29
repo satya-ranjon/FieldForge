@@ -1,25 +1,26 @@
 import React from 'react';
 import Image from 'next/image';
-import { MapPin, Layers, Zap, ShieldCheck, ChevronRight, Users, Navigation } from 'lucide-react';
+import { MapPin, Layers, Zap, ShieldCheck, ChevronRight, Users } from 'lucide-react';
+import { DispatchDemoMap } from './DispatchDemoMap';
 import { marketingLayoutScale } from './MarketingHero.styles';
 
 const candidates = [
   {
     name: 'Alex Morgan',
     meta: '1.8 mi · 4 min · CCNA · Available',
-    avatar: '/marketing/avatars/alex-morgan.png',
+    avatar: '/marketing/avatars/marcus-lee-v2.png',
     bestMatch: true
   },
   {
     name: 'Daniel Lee',
     meta: '3.1 mi · 8 min · A+',
-    avatar: '/marketing/avatars/daniel-carter.png',
+    avatar: '/marketing/avatars/daniel-carter-v2.png',
     bestMatch: false
   },
   {
     name: 'Priya Shah',
     meta: '4.0 mi · 11 min · OSHA',
-    avatar: '/marketing/avatars/priya-shah.png',
+    avatar: '/marketing/avatars/priya-shah-field-v3.png',
     bestMatch: false
   }
 ];
@@ -67,21 +68,7 @@ export function SmartDispatchSection(): React.JSX.Element {
         </header>
 
         <div className="grid gap-5 rounded-3xl bg-surface-white/65 p-4 sm:p-6 lg:grid-cols-[1.69fr_1fr] lg:gap-[2em] lg:rounded-[2.4em] lg:p-[2.2em]">
-          <div className="relative aspect-[1.55] overflow-hidden rounded-2xl bg-surface-dark lg:rounded-[1.4em]">
-            <Image
-              src="/marketing/map-smart-dispatch.png"
-              alt="San Francisco dispatch map showing an emergency network outage and nearby technician routes"
-              fill
-              sizes="(min-width: 1500px) 820px, (min-width: 1200px) 680px, (min-width: 1024px) 530px, 90vw"
-              className="object-cover"
-            />
-            <span
-              className="absolute right-[3%] bottom-[4%] grid size-8 place-items-center rounded-full border border-white/30 bg-surface-dark-secondary text-white lg:size-[2.8em]"
-              aria-hidden="true"
-            >
-              <Navigation className="size-[52%] fill-white/80" />
-            </span>
-          </div>
+          <DispatchDemoMap />
 
           <div className="flex min-w-0 flex-col gap-4 lg:gap-[1.6em]">
             <div
@@ -109,8 +96,8 @@ export function SmartDispatchSection(): React.JSX.Element {
                     <Image
                       src={avatar}
                       alt=""
-                      width={48}
-                      height={48}
+                      width={96}
+                      height={96}
                       sizes="(min-width: 1500px) 52px, 40px"
                       className="size-9 shrink-0 rounded-full object-cover lg:size-[3.3em]"
                     />

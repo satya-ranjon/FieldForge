@@ -231,3 +231,15 @@ Reliability/CTA presentation introduces no new API calls, endpoints, DTOs, or ev
 ### Footer reference follow-up (2026-09-29)
 
 Footer updates introduce no endpoints, DTOs, events, external subscription requests, or persistent data. Email input remains local to the form, and submit displays service-unavailability feedback without transmitting or logging the address.
+
+### Real Work reference alignment correction (2026-09-29)
+
+Real Work reference alignment changes only marketing presentation and a local image. No REST endpoints, DTOs, validators, events, or persistence changes.
+
+### Command Center native demo map (2026-09-29)
+
+Command Center map interactions run entirely in local component state. No new endpoints, DTOs, events, geolocation requests, or live tracking integrations. View All Technicians retains the `/technicians` route.
+
+### Dispatch demo maps and portraits (2026-09-29)
+
+San Francisco and Texas marketing demo maps reuse local bounded map state only. No service calls, external tile requests, geolocation, assignments, DTOs, events, or migrations change.

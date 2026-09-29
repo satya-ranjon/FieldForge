@@ -13,6 +13,7 @@ import {
   MapPin,
   House
 } from 'lucide-react';
+import { DispatchDemoMap } from './DispatchDemoMap';
 import { marketingLayoutScale } from './MarketingHero.styles';
 import { MarketingBrandMark } from './MarketingHeroArtwork';
 
@@ -116,15 +117,7 @@ function DispatchDashboard(): React.JSX.Element {
             ))}
           </ul>
           <div className="grid gap-3 sm:grid-cols-[1.4fr_1fr] lg:gap-[0.7em]">
-            <div className="relative aspect-[1.28] overflow-hidden rounded-lg bg-brand-dark lg:rounded-[0.7em]">
-              <Image
-                src="/marketing/map-texas-command.png"
-                alt="Texas dispatch operations map showing an emergency near Austin"
-                fill
-                sizes="(min-width: 1500px) 405px, (min-width: 1200px) 340px, (min-width: 1024px) 260px, (min-width: 640px) 50vw, 90vw"
-                className="object-cover"
-              />
-            </div>
+            <DispatchDemoMap compact />
             <div className="flex min-w-0 flex-col gap-2 lg:gap-[0.7em]">
               <section
                 aria-labelledby="dispatch-alerts-title"
