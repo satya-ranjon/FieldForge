@@ -10,13 +10,15 @@
 # that guarantee a fresh Job execution on every invocation — regardless of whether
 # a completed or failed Job from a previous run still exists in the cluster.
 #
-# USAGE
+## USAGE
 # -----
-#   ./scripts/k8s-run-db-migration.sh [--timeout SECONDS] [--namespace NAMESPACE]
+#   ./scripts/k8s-run-db-migration.sh [--timeout SECONDS] [--namespace NAMESPACE] [--registry ECR_REGISTRY] [--tag IMAGE_TAG]
 #
 # OPTIONS
 #   --timeout SECONDS      kubectl wait timeout in seconds (default: 120)
 #   --namespace NAMESPACE  Kubernetes namespace (default: default)
+#   --registry REGISTRY    ECR registry hostname (or ECR_REGISTRY env var)
+#   --tag TAG              Git commit SHA tag in sha-<40hex> format (or IMAGE_TAG env var)
 #
 # DEPLOYMENT ORDERING CONTRACT
 # ----------------------------
@@ -37,7 +39,7 @@
 #   1. Apply ConfigMap + backing infra only (no application Deployments)
 #   2. Wait for backing readiness
 #   3. This script (migration runner)          ← current script
-#   4. kubectl apply -k infra/k8s             ← only if migration succeeds
+#   4. Apply full platform (with immutable images) ← only if migration succeeds
 #   5. Verify application rollouts
 #
 
@@ -74,11 +76,12 @@
 # of completed/failed Job objects after 10 minutes. This is housekeeping only.
 # Repeat execution depends on this runner's explicit delete/recreate — not TTL.
 #
-# MIGRATION IMAGE REVISION NOTE
-# ------------------------------
-# The Job currently uses fieldforge/auth-service:latest. In production, the
-# image tag MUST be pinned to the same immutable revision as the application
-# Deployments. Mutable :latest tagging is a deployment hardening follow-up.
+# IMMUTABLE IMAGE REVISION CONTRACT (H8-D1.6D)
+# --------------------------------------------
+# The migration Job uses ${ECR_REGISTRY}/fieldforge/auth-service:${IMAGE_TAG}.
+# It is guaranteed to match the exact revision of Deployment/auth-service via
+# scripts/k8s-render-release.sh. Mutated manifests are isolated in a temporary
+# workspace; tracked manifests in infra/k8s/ are never modified.
 #
 # ISOLATION GUARANTEES
 # --------------------
@@ -89,13 +92,18 @@ set -euo pipefail
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-MIGRATION_KUSTOMIZE_PATH="infra/k8s/migrations"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+RENDER_HELPER="${SCRIPT_DIR}/k8s-render-release.sh"
+
 JOB_NAME="fieldforge-db-migrate"
 REQUIRED_SECRET="fieldforge-secrets"
 MYSQL_POD_LABEL="app=mysql"
 
 TIMEOUT_SECONDS=120
 NAMESPACE="default"
+ECR_REGISTRY="${ECR_REGISTRY:-}"
+IMAGE_TAG="${IMAGE_TAG:-}"
 
 # ── Argument parsing ───────────────────────────────────────────────────────────
 
@@ -109,13 +117,21 @@ while [[ $# -gt 0 ]]; do
       NAMESPACE="$2"
       shift 2
       ;;
+    --registry)
+      ECR_REGISTRY="$2"
+      shift 2
+      ;;
+    --tag)
+      IMAGE_TAG="$2"
+      shift 2
+      ;;
     --help|-h)
       sed -n '/^# PURPOSE/,/^set -euo pipefail/{ /^set -euo pipefail/d; s/^# \{0,1\}//p }' "$0"
       exit 0
       ;;
     *)
       echo "❌ Unknown argument: $1" >&2
-      echo "   Usage: $0 [--timeout SECONDS] [--namespace NAMESPACE]" >&2
+      echo "   Usage: $0 [--timeout SECONDS] [--namespace NAMESPACE] [--registry ECR_REGISTRY] [--tag IMAGE_TAG]" >&2
       exit 1
       ;;
   esac
@@ -130,7 +146,7 @@ echo "    Namespace: ${NAMESPACE}"
 echo "    Timeout:   ${TIMEOUT_SECONDS}s"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-# ── Step 0: kubectl availability ──────────────────────────────────────────────
+# ── Step 0: Pre-flight validation ─────────────────────────────────────────────
 
 echo ""
 echo "🔍 Checking kubectl availability..."
@@ -139,6 +155,19 @@ command -v kubectl > /dev/null 2>&1 || {
   exit 1
 }
 echo "   ✅ kubectl found: $(kubectl version --client --short 2>/dev/null || kubectl version --client 2>/dev/null | head -1)"
+
+echo ""
+echo "🔍 Validating immutable release contract..."
+if [[ ! -x "${RENDER_HELPER}" ]]; then
+  echo "❌ Release render helper not found or not executable at: ${RENDER_HELPER}" >&2
+  exit 1
+fi
+
+"${RENDER_HELPER}" \
+  --registry "${ECR_REGISTRY}" \
+  --tag "${IMAGE_TAG}" \
+  --verify > /dev/null
+echo "   ✅ Release contract verified: ${ECR_REGISTRY}/fieldforge/auth-service:${IMAGE_TAG}"
 
 # ── Step 1: Secret existence check ────────────────────────────────────────────
 
@@ -199,8 +228,14 @@ echo "   ✅ Job '${JOB_NAME}' cleared (or was not present)."
 # ── Step 4: Apply the migration Kustomization ─────────────────────────────────
 
 echo ""
-echo "🚀 Applying migration Kustomization from ${MIGRATION_KUSTOMIZE_PATH}..."
-kubectl apply -k "${MIGRATION_KUSTOMIZE_PATH}" ${NS_FLAG}
+echo "🚀 Applying immutable migration Kustomization..."
+TMP_MIGRATE_WORKSPACE=$(mktemp -d -t fieldforge-migrate-XXXXXX)
+trap 'rm -rf "${TMP_MIGRATE_WORKSPACE}"' EXIT INT TERM
+"${RENDER_HELPER}" \
+  --registry "${ECR_REGISTRY}" \
+  --tag "${IMAGE_TAG}" \
+  --prepare-workspace "${TMP_MIGRATE_WORKSPACE}"
+kubectl apply -k "${TMP_MIGRATE_WORKSPACE}/migrations" ${NS_FLAG}
 echo "   ✅ Job '${JOB_NAME}' created."
 
 # ── Step 5: Wait for Job completion ───────────────────────────────────────────

@@ -136,12 +136,28 @@
   - **Matrix**: 7/7 services (`api-gateway`, `auth-service`, `billing-service`, `dispatch-matching-service`, `notification-service`, `work-order-service`, `web-buyer-portal`). `fail-fast: false`.
   - **GHA cache**: per-service scope (`scope=${{ matrix.service }}`) prevents cross-leg collisions; `mode=max`.
   - **Static AWS credentials**: NONE — `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` not introduced.
-  - **Infrastructure status**: ECR repositories and IAM role declared (H8-D1.6A/B) but NOT yet applied. Actual ECR push succeeds only after `terraform apply` (H8-D2 scope).
-  - **Kubernetes manifests**: still reference `:latest`. Immutable SHA injection into Kustomize overlays is H8-D1.6D scope.
+  - **Infrastructure status**: ECR repositories and IAM role declared (H8-D1.6A/B) but NOT yet applied. Remote image publishing requires the Terraform-defined ECR/OIDC AWS resources to be applied and required GitHub repository variables configured.
+  - **Release replay follow-up**: Preserved known follow-up where release tags on existing develop commits attempt to push duplicate immutable SHA tags; to be addressed in future release-promotion pipeline.
+  - **Kubernetes manifests**: base manifests remain cloud-neutral (`fieldforge/<service>:latest`). Runtime image injection is handled via isolated temporary workspaces in `scripts/k8s-render-release.sh`.
   - **Action versions**: `configure-aws-credentials@v4`, `amazon-ecr-login@v2`, `setup-buildx-action@v3`, `build-push-action@v6`.
   - **OIDC trust compatibility**: workflow triggers are a strict subset of Terraform trust subjects — compatible.
-  - Zero changes to Terraform, Kubernetes manifests, Dockerfiles, application code, DB schemas, or API contracts.
-  - Overall H8 remains OPEN pending immutable Kustomize image injection (H8-D1.6D) and EKS cluster provisioning / IAM IRSA (H8-D2).
+  - Zero changes to Terraform, application code, DB schemas, or API contracts.
+
+- **Immutable Kustomize Image Injection & Deployment Script Wiring (H8-D1.6D).**
+  - Created `scripts/k8s-render-release.sh` to centralize:
+    - Input validation: Staging release identity requires an AWS private ECR registry hostname (<12-digit-account-id>.dkr.ecr.<region>.amazonaws.com) and an immutable sha-<40-char-git-sha> image tag (^sha-[0-9a-f]{40}$, strictly rejecting mutable latest, develop, staging, main, semver tags, or truncated shas).
+    - Isolated temporary workspace management: copies tracked `infra/k8s` to a secure temp directory with automatic `trap` cleanup on exit or termination, guaranteeing zero git working-tree drift in `infra/k8s/`.
+    - Declarative Kustomize image injection: maps all 7 application service images (`fieldforge/api-gateway`, `fieldforge/auth-service`, `fieldforge/billing-service`, `fieldforge/dispatch-matching-service`, `fieldforge/notification-service`, `fieldforge/work-order-service`, `fieldforge/web-buyer-portal`) and migration Job image (`fieldforge/auth-service`) to `${ECR_REGISTRY}/fieldforge/<service>:${IMAGE_TAG}`.
+    - Pre-flight release verification: asserts exactly 8/8 immutable FieldForge images, 0 surviving `:latest` references, exact string revision equality between `Deployment/auth-service` and `Job/fieldforge-db-migrate`, and preservation of backing images (`mysql:8.4`, `redis:8.0-alpine`, `rabbitmq:4.1-management-alpine`).
+  - Updated `scripts/k8s-deploy-staging.sh`:
+    - Added `--registry` and `--tag` flags (with fallback to `ECR_REGISTRY` and `IMAGE_TAG` env vars).
+    - Added Step 0 pre-flight validation that fails closed before any cluster interaction or mutation occurs.
+    - Step 5 delegates to `k8s-run-db-migration.sh` with `--registry` and `--tag`.
+    - Step 6 applies full platform application Deployments via an isolated temporary workspace populated with immutable images, ensuring tracked manifests in `infra/k8s/` remain untouched.
+  - Updated `scripts/k8s-run-db-migration.sh`:
+    - Added `--registry` and `--tag` flags (with fallback to `ECR_REGISTRY` and `IMAGE_TAG` env vars).
+    - Added pre-flight release validation and applies the migration Job via an isolated temporary workspace with the exact immutable `auth-service` revision matching the application rollout.
+  - Overall H8 remains OPEN pending EKS cluster provisioning / IAM IRSA (H8-D2) and remote CD pipeline execution.
 
 - **Backing Infrastructure Auto-Start & RabbitMQ Connection Startup Race Condition (ISSUE-017).**
   - `scripts/clean-ports.sh` probes ports 3306 (MySQL), 5672 (RabbitMQ), and 6379 (Redis) before Turborepo dev servers launch, automatically invoking `scripts/docker-up.sh` if any backing dependency is offline.
@@ -579,3 +595,18 @@ This is a visual correction only; all operational acceptance states are unchange
 
 The assurance row stays on one line from 1024px. Explicit 1023px/1024px checks
 verify the tablet/laptop boundary along with the existing wider layouts.
+
+### Marketing lifecycle layout (2026-09-29)
+
+The lifecycle section now follows the compact reference using Tailwind: a left
+introduction and two summaries above seven stages on the right. Six focused
+Chromium checks cover 320–2172px and the 1024px single-row layout. This changes
+only presentation; backend test counts and operational acceptance are unchanged.
+
+### Real-work layout follow-up (2026-09-29)
+
+The compact real-work reference layout is implemented with Tailwind, using the
+existing technician/industry artwork and native sample-job text. Six responsive
+browser cases were added but remain unrun: the browser security policy rejected
+local-preview access. Visual acceptance remains pending; domain behavior and
+backend test counts are unchanged.

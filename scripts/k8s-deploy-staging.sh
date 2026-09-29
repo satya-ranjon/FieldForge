@@ -29,19 +29,24 @@
 #
 # USAGE
 # -----
-#   ./scripts/k8s-deploy-staging.sh [--timeout SECONDS] [--namespace NAMESPACE]
+#   ./scripts/k8s-deploy-staging.sh [--timeout SECONDS] [--namespace NAMESPACE] [--registry ECR_REGISTRY] [--tag IMAGE_TAG]
 #
 # OPTIONS
 #   --timeout SECONDS      Per-step kubectl wait timeout in seconds (default: 180)
 #   --namespace NAMESPACE  Kubernetes namespace (default: default)
+#   --registry REGISTRY    ECR registry hostname (or ECR_REGISTRY env var)
+#   --tag TAG              Git commit SHA tag in sha-<40hex> format (or IMAGE_TAG env var)
 #
 # DO NOT USE:
 #   kubectl apply -k infra/k8s
 # directly as the deployment command. That submits application Deployments
-# concurrently with backing infrastructure, without migration.
+# concurrently with backing infrastructure, without migration or image injection.
 #
 # WHAT THIS SCRIPT APPLIES IN ORDER
 # ----------------------------------
+# Step 0 — Pre-flight release verification:
+#   scripts/k8s-render-release.sh --verify (validates ECR_REGISTRY and IMAGE_TAG)
+#
 # Step 3 — Prerequisites (no application Deployments):
 #   infra/k8s/base/configmap.yaml      → fieldforge-global-config ConfigMap
 #   infra/k8s/backing/mysql.yaml       → MySQL StatefulSet + Service
@@ -53,15 +58,18 @@
 #   kubectl wait --for=condition=ready pod -l app=redis
 #   kubectl wait --for=condition=ready pod -l app=rabbitmq
 #
-# Step 5 — Migration (delegates entirely to k8s-run-db-migration.sh):
-#   scripts/k8s-run-db-migration.sh --timeout N --namespace NS
+# Step 4.5 — Immutable release pre-check (fail-closed before migration):
+#   Guarantees 8/8 immutable images, 0 latest, and auth/migration revision equality
 #
-# Step 6 — Full platform apply (only runs if Step 5 succeeds):
-#   kubectl apply -k infra/k8s
-#   (ConfigMap, backing, Ingress, all 6 service Deployments — idempotent)
+# Step 5 — Migration (delegates entirely to k8s-run-db-migration.sh):
+#   scripts/k8s-run-db-migration.sh --registry REG --tag TAG --timeout N --namespace NS
+#
+# Step 6 — Full platform apply with immutable images (only runs if Step 5 succeeds):
+#   Isolated temporary workspace populated via scripts/k8s-render-release.sh
+#   kubectl apply -k <workspace> (idempotent, 0 tracked git drift)
 #
 # Step 7 — Application rollout verification:
-#   kubectl rollout status deployment/<name> for all 6 services
+#   kubectl rollout status deployment/<name> for all 7 services
 #
 # REPEAT DEPLOYMENT BEHAVIOR
 # --------------------------
@@ -105,6 +113,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
+RENDER_HELPER="${SCRIPT_DIR}/k8s-render-release.sh"
 MIGRATION_RUNNER="${SCRIPT_DIR}/k8s-run-db-migration.sh"
 PLATFORM_KUSTOMIZE_PATH="${REPO_ROOT}/infra/k8s"
 
@@ -135,6 +144,8 @@ APP_DEPLOYMENTS=(
 
 TIMEOUT_SECONDS=180
 NAMESPACE="default"
+ECR_REGISTRY="${ECR_REGISTRY:-}"
+IMAGE_TAG="${IMAGE_TAG:-}"
 
 # ── Argument parsing ───────────────────────────────────────────────────────────
 
@@ -148,13 +159,21 @@ while [[ $# -gt 0 ]]; do
       NAMESPACE="$2"
       shift 2
       ;;
+    --registry)
+      ECR_REGISTRY="$2"
+      shift 2
+      ;;
+    --tag)
+      IMAGE_TAG="$2"
+      shift 2
+      ;;
     --help|-h)
       sed -n '/^# PURPOSE/,/^set -euo pipefail/{ /^set -euo pipefail/d; s/^# \{0,1\}//p }' "$0"
       exit 0
       ;;
     *)
       echo "❌ Unknown argument: $1" >&2
-      echo "   Usage: $0 [--timeout SECONDS] [--namespace NAMESPACE]" >&2
+      echo "   Usage: $0 [--timeout SECONDS] [--namespace NAMESPACE] [--registry ECR_REGISTRY] [--tag IMAGE_TAG]" >&2
       exit 1
       ;;
   esac
@@ -167,6 +186,23 @@ echo "🚀  FieldForge — Staging Deployment Orchestrator"
 echo "    Namespace: ${NAMESPACE}"
 echo "    Timeout:   ${TIMEOUT_SECONDS}s per step"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+# ── Step 0: Pre-flight immutable release verification ─────────────────────────
+# Fail closed BEFORE any cluster interaction or mutation occurs.
+echo ""
+echo "▶  Step 0/7 — Pre-flight immutable release verification"
+if [[ ! -x "${RENDER_HELPER}" ]]; then
+  echo "❌ Release render helper not found or not executable at: ${RENDER_HELPER}" >&2
+  exit 1
+fi
+
+"${RENDER_HELPER}" \
+  --registry "${ECR_REGISTRY}" \
+  --tag "${IMAGE_TAG}" \
+  --verify > /dev/null
+echo "   ✅ Immutable release contract verified:"
+echo "      ECR_REGISTRY: ${ECR_REGISTRY}"
+echo "      IMAGE_TAG:    ${IMAGE_TAG}"
 
 # ── Step 1: kubectl availability ──────────────────────────────────────────────
 
@@ -265,21 +301,29 @@ echo ""
 
 "${MIGRATION_RUNNER}" \
   --timeout "${TIMEOUT_SECONDS}" \
-  --namespace "${NAMESPACE}"
+  --namespace "${NAMESPACE}" \
+  --registry "${ECR_REGISTRY}" \
+  --tag "${IMAGE_TAG}"
 
 # If the migration runner returned non-zero, set -euo pipefail
 # ensures execution halts here. Step 6 (application apply) is never reached.
 echo ""
 echo "   ✅ Migration completed successfully. Proceeding to application rollout."
 
-# ── Step 6: Full platform apply (application Deployments) ─────────────────────
+# ── Step 6: Full platform apply (application Deployments with immutable images) ──
 # Only reachable after Step 5 (migration) succeeds.
 # Re-applying ConfigMap and backing infrastructure is safe and idempotent.
 
 echo ""
-echo "▶  Step 6/7 — Apply full platform (application Deployments)"
-echo "   kubectl apply -k ${PLATFORM_KUSTOMIZE_PATH}"
-kubectl apply -k "${PLATFORM_KUSTOMIZE_PATH}" ${NS_FLAG}
+echo "▶  Step 6/7 — Apply full platform (application Deployments with immutable images)"
+DEPLOY_WORKSPACE=$(mktemp -d -t fieldforge-deploy-XXXXXX)
+trap 'rm -rf "${DEPLOY_WORKSPACE}"' EXIT INT TERM
+"${RENDER_HELPER}" \
+  --registry "${ECR_REGISTRY}" \
+  --tag "${IMAGE_TAG}" \
+  --prepare-workspace "${DEPLOY_WORKSPACE}"
+echo "   kubectl apply -k <workspace> ${NS_FLAG}"
+kubectl apply -k "${DEPLOY_WORKSPACE}" ${NS_FLAG}
 echo ""
 echo "   ✅ Full platform applied."
 
@@ -320,6 +364,8 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "✅  FieldForge staging deployment complete."
 echo ""
 echo "    Namespace:    ${NAMESPACE}"
+echo "    Registry:     ${ECR_REGISTRY}"
+echo "    Image Tag:    ${IMAGE_TAG}"
 echo "    Backing:      MySQL ✅  Redis ✅  RabbitMQ ✅"
 echo "    Migrations:   Applied and verified ✅"
 echo "    Applications: $(printf '%s ' "${APP_DEPLOYMENTS[@]}") ✅"
