@@ -1,0 +1,21 @@
+# FieldForge Staging Terraform S3 Backend Configuration Template
+#
+# PURPOSE
+# -------
+# Provides the backend configuration arguments for the main FieldForge Terraform stack.
+# Uses AWS S3 for remote state storage and native S3 conditional write locking
+# (use_lockfile = true), eliminating the need for a separate DynamoDB locking table.
+#
+# PREREQUISITE (H8-D2A2):
+# 1. Apply infra/terraform/bootstrap-state/ to provision the dedicated state S3 bucket.
+# 2. Retrieve the bucket name:
+#      tofu -chdir=infra/terraform/bootstrap-state output -raw state_bucket_name
+# 3. Copy this file to backend.staging.tfbackend and replace <bootstrap-output-state_bucket_name>.
+# 4. Initialize and migrate the main stack backend:
+#      tofu -chdir=infra/terraform init -backend-config=backend.staging.tfbackend -migrate-state
+#
+bucket       = "<bootstrap-output-state_bucket_name>"
+key          = "fieldforge/staging/terraform.tfstate"
+region       = "us-east-1"
+use_lockfile = true
+encrypt      = true

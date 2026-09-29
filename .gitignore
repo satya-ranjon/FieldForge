@@ -58,7 +58,6 @@ Thumbs.db
 *.tfstate
 *.tfstate.*
 crash.log
-.terraform.lock.hcl
 
 # Testing & Coverage
 coverage/

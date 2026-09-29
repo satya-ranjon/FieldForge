@@ -157,7 +157,20 @@
   - Updated `scripts/k8s-run-db-migration.sh`:
     - Added `--registry` and `--tag` flags (with fallback to `ECR_REGISTRY` and `IMAGE_TAG` env vars).
     - Added pre-flight release validation and applies the migration Job via an isolated temporary workspace with the exact immutable `auth-service` revision matching the application rollout.
-  - Overall H8 remains OPEN pending EKS cluster provisioning / IAM IRSA (H8-D2) and remote CD pipeline execution.
+  - Committed locally as `7a01931` (`feat(k8s): enforce immutable release image deployment`).
+
+- **Remote State Bootstrap Source & Provider Lockfile (H8-D2A1).**
+  - **Avoided Backend Circular Dependency**: Established an independent, standalone root module in `infra/terraform/bootstrap-state/` that intentionally runs on local state to provision the remote state storage bucket prior to main stack backend activation.
+  - **S3 State Storage Bucket**: Declared private S3 bucket (`fieldforge-terraform-state-${data.aws_caller_identity.current.account_id}-${var.aws_region}`) with versioning (`Enabled`), AES256 server-side encryption, all public access blocked (`block_public_acls`, `block_public_policy`, `ignore_public_acls`, `restrict_public_buckets`), and destruction safeguard (`lifecycle { prevent_destroy = true }`).
+  - **Native S3 Locking**: Deprecated DynamoDB lock table was intentionally rejected. State locking will utilize native S3 conditional writes (`use_lockfile = true`) in the S3 backend.
+  - **Main Stack Backend Preparation**: Created `infra/terraform/backend.staging.tfbackend.example` as a non-active template. Main stack backend was NOT activated (remains local state; `tofu init -backend=false` and `tofu validate` pass cleanly with zero dependency on an unprovisioned S3 bucket).
+  - **Provider Lockfile Tracking**: Removed `.terraform.lock.hcl` from `.gitignore`. Generated and verified multi-platform provider lockfiles for both root modules (`infra/terraform/.terraform.lock.hcl` and `infra/terraform/bootstrap-state/.terraform.lock.hcl`) with official checksums for both `darwin_arm64` and `linux_amd64`.
+  - **EKS Roadmap Corrections**:
+    - Target EKS Kubernetes version updated to **1.36** (standard support; replacing 1.31 extended support).
+    - Future new-cluster access mode updated to **API** with explicit EKS Access Entries (avoiding deprecated `aws-auth`).
+    - Future EBS CSI storage identity updated to **EKS Pod Identity** (`eks-pod-identity-agent`).
+  - **Safety Boundary**: Zero AWS resources created or mutated. `tofu apply` was NOT executed.
+  - Overall H8 remains OPEN pending bootstrap apply & backend migration (H8-D2A2), and declarative EKS cluster foundation (H8-D2B+).
 
 - **Backing Infrastructure Auto-Start & RabbitMQ Connection Startup Race Condition (ISSUE-017).**
   - `scripts/clean-ports.sh` probes ports 3306 (MySQL), 5672 (RabbitMQ), and 6379 (Redis) before Turborepo dev servers launch, automatically invoking `scripts/docker-up.sh` if any backing dependency is offline.
@@ -610,3 +623,29 @@ existing technician/industry artwork and native sample-job text. Six responsive
 browser cases were added but remain unrun: the browser security policy rejected
 local-preview access. Visual acceptance remains pending; domain behavior and
 backend test counts are unchanged.
+
+### Marketplace reference layout follow-up (2026-09-29)
+
+The marketplace presentation now follows the supplied four-card composition.
+Existing portraits are retained and a decorative map asset was generated.
+Preview entry links lead to the existing `/technicians` directory; sample
+profiles are not live records. Six responsive browser cases were added but are
+unrun because local-preview browser access remains blocked. No backend counts
+or operational acceptance states change.
+
+### Smart dispatch reference follow-up (2026-09-29)
+
+The marketing dispatch illustration now uses the supplied side-by-side map and
+compact candidate composition, with four feature pills under the candidate
+list. This is presentation-only; sample candidates and matching behavior are
+unchanged. Six responsive cases were added but remain unrun under the existing
+browser security block. No backend acceptance or test counts change.
+
+### Operations and payments reference follow-up (2026-09-29)
+
+The marketing composition now includes two light phone previews, a live map/site
+card, separate capabilities and benefits, and the compact payment workflow beside
+its heading. Sample previews link to existing operations, technician, and audit
+pages; they do not create notes, reports, or payments. Six responsive cases were
+added but are unrun under the existing browser security block. Backend behavior,
+verified test counts, and acceptance states are unchanged.
