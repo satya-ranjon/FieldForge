@@ -1,25 +1,98 @@
-name: Docker Build
+name: Docker Build & Push to ECR
+
+# H8-D1.6C — GitHub Actions OIDC Authentication + Immutable ECR Image Publishing
+#
+# Triggers: develop branch push (staging) and v*.*.* release tags (release).
+# Authentication: AWS OIDC — no long-lived credentials stored anywhere.
+# Tag strategy: sha-<full-git-sha> exclusively (immutable, always).
+# Semver alias promotion (v*.*.* as a mutable alias) is intentionally deferred
+# to a later release-promotion workflow; this job publishes only the SHA image.
+#
+# TRUST BOUNDARY: Terraform IAM trust allows:
+#   repo:satya-ranjon/FieldForge:ref:refs/heads/develop  (branch push)
+#   repo:satya-ranjon/FieldForge:ref:refs/tags/v*         (release tags)
+# workflow_dispatch is intentionally OMITTED: manual dispatch can run from any
+# branch, which would not satisfy the trust conditions above, causing OIDC
+# AssumeRole to fail.
+#
+# INFRASTRUCTURE NOTE:
+#   AWS ECR repositories and IAM role are declared in infra/terraform/ but have
+#   NOT been applied to AWS yet. This workflow is source-ready; actual pushes
+#   will succeed only after terraform apply is executed (H8-D2 scope).
 
 on:
   push:
+    branches:
+      - develop
     tags:
       - 'v*.*.*'
 
+permissions:
+  id-token: write # Required for OIDC JWT issuance to assume the AWS IAM role
+  contents: read # Required for actions/checkout
+
 jobs:
-  build:
+  build-push:
+    name: Build & Push — ${{ matrix.service }}
     runs-on: ubuntu-latest
+
     strategy:
+      fail-fast: false
       matrix:
         service:
           - api-gateway
           - auth-service
-          - work-order-service
-          - dispatch-matching-service
           - billing-service
+          - dispatch-matching-service
           - notification-service
+          - work-order-service
           - web-buyer-portal
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Build Docker Image
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── AWS OIDC Authentication ─────────────────────────────────────────────
+      # Assumes the least-privilege ECR publisher role declared in
+      # infra/terraform/iam_github_oidc.tf. Role ARN is not a secret and is
+      # stored as a GitHub Actions repository variable AWS_ECR_PUBLISHER_ROLE_ARN.
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ECR_PUBLISHER_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+          role-session-name: fieldforge-ecr-push-${{ matrix.service }}
+
+      # ── ECR Login ──────────────────────────────────────────────────────────
+      # Obtains a short-lived ECR authorization token and logs in to the
+      # registry. The 'registry' output is the account-specific hostname
+      # (e.g. 123456789012.dkr.ecr.us-east-1.amazonaws.com) derived from the
+      # assumed role — no account ID is hardcoded in this file.
+      - name: Log in to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # ── BuildKit Setup ─────────────────────────────────────────────────────
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ── Build & Push ───────────────────────────────────────────────────────
+      # Image tag: sha-<full-git-sha> (40 hex chars) — always immutable.
+      # Mutable tags (latest, develop, staging) are intentionally NOT published.
+      # Repository path: <ecr-registry>/fieldforge/<service>:sha-<sha>
+      # BuildKit GHA cache is scoped per service to prevent destructive
+      # cache collisions across parallel matrix legs.
+      - name: Build and push ${{ matrix.service }} image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/${{ matrix.service }}/Dockerfile
+          push: true
+          tags: ${{ steps.ecr-login.outputs.registry }}/fieldforge/${{ matrix.service }}:sha-${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+      # ── Summary ────────────────────────────────────────────────────────────
+      - name: Print published image URI
         run: |
-          docker build -t fieldforge/${{ matrix.service }}:${{ github.sha }} -f apps/${{ matrix.service }}/Dockerfile .
+          echo "Published: ${{ steps.ecr-login.outputs.registry }}/fieldforge/${{ matrix.service }}:sha-${{ github.sha }}"

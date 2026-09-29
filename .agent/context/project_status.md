@@ -123,6 +123,26 @@
   - Zero changes to Kubernetes manifests, application code, DB schemas, API contracts, or `.github/workflows/**`.
   - Overall H8 remains OPEN pending GitHub Actions OIDC workflow integration & immutable image publishing (H8-D1.6C), and EKS cluster provisioning / IAM IRSA (H8-D2).
 
+- **GitHub Actions OIDC Authentication & Immutable ECR Image Publishing (H8-D1.6C).**
+  - Upgraded `.github/workflows/docker-build-push.yml` from a build-only stub (raw `docker build`, no push) to a full OIDC-authenticated ECR publish pipeline.
+  - **Triggers**: `push: branches: [develop]` (staging) and `push: tags: [v*.*.*]` (release). `workflow_dispatch` intentionally omitted — manual dispatch can run from arbitrary refs not covered by the Terraform IAM trust conditions (`refs/heads/develop`, `refs/tags/v*`), which would cause `sts:AssumeRoleWithWebIdentity` to fail.
+  - **Permissions**: `id-token: write` (OIDC JWT issuance) and `contents: read` (checkout only). No elevated permissions.
+  - **AWS OIDC authentication**: `aws-actions/configure-aws-credentials@v4` assumes `fieldforge-github-ecr-publisher` IAM role. Role ARN supplied via repository variable `AWS_ECR_PUBLISHER_ROLE_ARN` (non-secret, not hardcoded). Region from `vars.AWS_REGION || 'us-east-1'`. Session name `fieldforge-ecr-push-<service>` for auditability. Zero static AWS credentials.
+  - **ECR login**: `aws-actions/amazon-ecr-login@v2`. Registry hostname from step output — no account ID hardcoded.
+  - **BuildKit**: `docker/setup-buildx-action@v3`.
+  - **Build & push**: `docker/build-push-action@v6`, `context: .`, `file: apps/<service>/Dockerfile`, `push: true`.
+  - **Canonical image tag**: `sha-${{ github.sha }}` (full 40-hex Git SHA) exclusively. No `latest`, `develop`, `staging`, or mutable semver aliases.
+  - **Image URI pattern**: `<ecr-registry>/fieldforge/<service>:sha-<full-sha>`.
+  - **Matrix**: 7/7 services (`api-gateway`, `auth-service`, `billing-service`, `dispatch-matching-service`, `notification-service`, `work-order-service`, `web-buyer-portal`). `fail-fast: false`.
+  - **GHA cache**: per-service scope (`scope=${{ matrix.service }}`) prevents cross-leg collisions; `mode=max`.
+  - **Static AWS credentials**: NONE — `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` not introduced.
+  - **Infrastructure status**: ECR repositories and IAM role declared (H8-D1.6A/B) but NOT yet applied. Actual ECR push succeeds only after `terraform apply` (H8-D2 scope).
+  - **Kubernetes manifests**: still reference `:latest`. Immutable SHA injection into Kustomize overlays is H8-D1.6D scope.
+  - **Action versions**: `configure-aws-credentials@v4`, `amazon-ecr-login@v2`, `setup-buildx-action@v3`, `build-push-action@v6`.
+  - **OIDC trust compatibility**: workflow triggers are a strict subset of Terraform trust subjects — compatible.
+  - Zero changes to Terraform, Kubernetes manifests, Dockerfiles, application code, DB schemas, or API contracts.
+  - Overall H8 remains OPEN pending immutable Kustomize image injection (H8-D1.6D) and EKS cluster provisioning / IAM IRSA (H8-D2).
+
 - **Backing Infrastructure Auto-Start & RabbitMQ Connection Startup Race Condition (ISSUE-017).**
   - `scripts/clean-ports.sh` probes ports 3306 (MySQL), 5672 (RabbitMQ), and 6379 (Redis) before Turborepo dev servers launch, automatically invoking `scripts/docker-up.sh` if any backing dependency is offline.
   - `RabbitMQConnectionManager.ensureConnected()` in `@fieldforge/messaging` implements a resilient connection retry loop with backoff (configurable via `connectRetries` and `connectRetryDelayMs`, defaulting to 5 attempts in dev/production, 1 attempt in test), preventing fatal process exits on momentary broker startup delays.
