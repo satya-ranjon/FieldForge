@@ -20,7 +20,7 @@
   <b>High-throughput, event-driven SaaS marketplace connecting enterprise buyers with certified field service technicians for mission-critical hardware, telecom, and networking maintenance.</b>
 </p>
 
-[Architecture](#-system-architecture) • [Microservices](#-microservices-ecosystem) • [Database Schema](#-database--relational-modeling) • [FSM Lifecycle](#-work-order-finite-state-machine-fsm) • [Messaging](#-event-backbone--messaging-architecture-fieldforgemessaging) • [Quickstart](#-quickstart--local-development) • [Testing & Verification](#-automated-testing--verification-gates) • [ADRs](#-accepted-architecture-decision-records-adrs)
+[Architecture](#-system-architecture) • [Microservices](#-microservices-ecosystem) • [Database Schema](#-database--relational-modeling) • [FSM Lifecycle](#-work-order-finite-state-machine-fsm) • [Messaging](#-event-backbone--messaging-architecture-fieldforgemessaging) • [Quickstart](#-quickstart--local-development) • [Deployment](#-production-deployment-guides) • [Testing & Verification](#-automated-testing--verification-gates) • [ADRs](#-accepted-architecture-decision-records-adrs)
 
 </div>
 
@@ -684,6 +684,18 @@ This script executes:
 7. `pnpm validate:clean-typecheck` (Hermetic build artifact validation)
 8. `pnpm build` (Production compilation of all apps & packages)
 9. `pnpm check` (Full-stack workspace integrity check)
+
+---
+
+## 🚀 Production Deployment Guides
+
+FieldForge provides comprehensive, step-by-step production deployment guides and visual architecture flowcharts for multiple hosting topologies:
+
+| Target Platform                 | Guide & Runbook                                      | Architecture Highlights                                                                                                                                                                                                                                                               |
+| :------------------------------ | :--------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Amazon Web Services (AWS)**   | [**AWS Deployment Guide**](./docs/DEPLOYMENT_AWS.md) | OpenTofu S3 remote state bootstrap with native locking, Amazon ECR immutable image tagging, GitHub Actions OIDC federation, Amazon EKS (Kubernetes 1.36) with Pod Identity, in-cluster backing StatefulSets, Drizzle DB migration Jobs, and AWS ALB Ingress.                          |
+| **Google Cloud Platform (GCP)** | [**GCP Deployment Guide**](./docs/DEPLOYMENT_GCP.md) | OpenTofu GCS state backend, Google Artifact Registry, GitHub Actions Workload Identity Federation (WIF), Google Kubernetes Engine (GKE v1.36+ private cluster), GCE Persistent Disk CSI (`pd-balanced`), Drizzle DB migration Jobs, and Google Cloud Ingress with Managed SSL.        |
+| **Linux VPS / Bare Metal**      | [**VPS Deployment Guide**](./docs/DEPLOYMENT_VPS.md) | Standalone Ubuntu 24.04 LTS / Debian 12 host, non-root `deployer` & UFW firewall hardening, production Docker Compose v2 with `/var/lib/fieldforge` bind mounts, Caddy reverse proxy with automated Let's Encrypt TLS, systemd auto-restart service, and lightweight K3s alternative. |
 
 ---
 
