@@ -714,3 +714,7 @@ Replaced both remaining requested dispatch-map rasters with native demos and ref
 ### Platform page reference redesign (2026-10-03)
 
 Redesigned `/platform` from the supplied image 62 reference. Replaced technical architecture/unsupported performance claims with a product overview and separate UI previews. Local work-order search/status filtering, mobile navigation, and newsletter unavailability feedback are implemented. Five fresh model tests pass; six responsive browser scenarios are authored but unrun under the existing security restriction. This is marketing presentation, not new operational acceptance.
+
+### Solutions page reference redesign (2026-10-03)
+
+Redesigned `/solutions` from image 61. Local sample technician search and dispatch view/job selection are implemented. Six fresh model tests pass; six responsive E2E scenarios remain unrun under the existing browser restriction. New photographs are separate from native UI. Backend, contract, and operational acceptance status is unchanged.

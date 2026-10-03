@@ -1810,3 +1810,7 @@ Replaced the two highlighted flattened maps and the cropped/low-resolution dispa
 ### Platform page reference redesign (2026-10-03)
 
 The former Platform page diverged from the supplied reference and advertised unsupported quantitative guarantees. Replaced it with the reference composition and illustrative UI. No newsletter backend or company/legal destination routes were invented. Browser-security restrictions prevent final rendered comparison and E2E execution; preserve this limitation until verification is available.
+
+### Solutions page reference redesign (2026-10-03)
+
+Solutions reference implementation is present, but visual acceptance and the six responsive E2E cases remain blocked by the existing browser security rejection. No alternate browser execution was attempted. Sales booking and newsletter services remain unavailable; their controls provide explicit feedback. Company/legal destinations remain plain labels until routes exist.

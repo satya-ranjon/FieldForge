@@ -98,3 +98,7 @@ SmartDispatchSection no longer renders `map-smart-dispatch.png`; DarkBottomCtaBa
 ### Platform page reference redesign (2026-10-03)
 
 Platform uses one new asset, `public/marketing/platform-street-map.png` (1402 × 1122), generated using the built-in tool from image 62 as visual guidance. It contains streets/parks/water only; all pins, metrics, labels, cards and device UI remain native. Existing generated portraits, shared logo/social icon paths, and footer background are reused. Exact prompt is recorded in `docs/platform-image-prompts.md`.
+
+### Solutions page reference redesign (2026-10-03)
+
+Source: `design-files/marketing-page-desgn/image 61.png`. Added `solutions-technician-marketplace.png` and `solutions-technician-payment.png` under the buyer portal public/marketing directory, generated with the built-in image tool and inspected. Exact prompts: `docs/solutions-image-prompts.md`. Reused platform street-map texture, generated portraits, server-rack proof photo, and brand assets. All overlaid content is native React UI.

@@ -461,3 +461,22 @@ Platform nonvisual validation passed: five focused model tests (fresh execution)
 `pnpm build --cache=local:r` (12 tasks, 11 cached, buyer portal rebuilt),
 `pnpm infra:config`, and `git diff --check`. Existing local server is listening
 on port 5173. This does not establish browser rendering or visual fidelity.
+
+### Solutions page reference redesign (2026-10-03)
+
+- Source: `design-files/marketing-page-desgn/image 61.png` and `codex-clipboard-1ece618a-6a6c-4b18-ad38-ae8ef5fae21b.png`; normalized reference 1228 × 2048.
+- Implementation: `/solutions`, intended initial full-page comparison at 1228px viewport.
+- Implemented structure: compact navigation, split laptop hero, six solution cards, marketplace/photo, dispatch/map/details, proof/phone/photo, six industry links, pale CTA, light footer.
+- Two generated technician photographs inspected; brand, portraits, light map texture, and proof photo reused. Headings, panels, pins, statuses, and controls remain native.
+- Intentional differences: current copyright year; unimplemented company/legal destinations remain labels; newsletter and sales controls report unavailability; sample controls perform no backend mutations.
+- Fresh functional evidence: six model tests pass for normalized multi-field technician search, empty results, immutability, dispatch list/map parity, and unassigned filtering.
+- Six Playwright scenarios cover 320, 390, 768, 1024, 1228, and 1920px, local interactions, links, mobile menu, image decoding, overflow, and screenshots. Authored but unrun.
+- Implementation screenshot, rendered comparison, console evidence, and full responsive visual review remain unavailable because of the existing browser security-policy rejection. No alternate browser surface was used. No visual fidelity claim is made from source checks.
+- Next verification: run the responsive scenarios and compare full-page and focused screenshots at matched viewport/state once browser access is permitted.
+- final result: blocked
+
+Solutions nonvisual validation passed: six fresh focused model tests;
+`pnpm check` (formatting, lint, types, and 15 cached repository test tasks);
+`pnpm build --cache=local:r` (12 tasks, 11 cached, buyer portal rebuilt);
+`pnpm infra:config`; focused ESLint after final presentation edits; and
+`git diff --check`. This is not evidence of rendered visual fidelity.

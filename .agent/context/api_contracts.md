@@ -247,3 +247,7 @@ San Francisco and Texas marketing demo maps reuse local bounded map state only. 
 ### Platform page reference redesign (2026-10-03)
 
 Platform redesign adds no REST endpoints, DTOs, events, or persistence. Work-order search and status filtering operate on five local sample rows. Newsletter input is not transmitted or stored. Company/legal labels without implemented destinations remain noninteractive; existing CTA destinations are reused.
+
+### Solutions page reference redesign (2026-10-03)
+
+The `/solutions` redesign introduces no endpoints, DTOs, events, database changes, or service contracts. Search and dispatch selections use local sample data. Invite/View Job links navigate to existing routes. Sales/newsletter previews send no requests and do not simulate successful submission; Sign in/Get started reuse the existing authentication modal.

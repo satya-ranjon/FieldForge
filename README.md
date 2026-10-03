@@ -808,3 +808,7 @@ Smart Dispatch and the closing CTA also use native demo maps with sample routes/
 ### Platform page reference redesign (2026-10-03)
 
 The Platform page now presents the connected-operations overview, device previews, five capabilities, buyer/technician ecosystem, and searchable/filterable sample work orders. Preview metrics are illustrative. Primary links use existing solutions, operations, and technician routes. Focused search/filter tests: `node --experimental-strip-types --test apps/web-buyer-portal/tests/platform-preview-model.test.mjs`.
+
+### Solutions page reference redesign (2026-10-03)
+
+`/solutions` now follows the supplied image 61 reference with a laptop preview, six solution cards, marketplace/dispatch/proof sections, two generated technician photos, industry links, and a light footer. Sample technician search and dispatch views run locally; authentication reuses the existing modal. Sales and newsletter controls report their current unavailability honestly.
