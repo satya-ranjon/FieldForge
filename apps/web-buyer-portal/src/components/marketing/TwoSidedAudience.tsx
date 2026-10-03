@@ -64,7 +64,7 @@ export function TwoSidedAudience(): React.JSX.Element {
     <section
       id="audience-pathways"
       aria-label="For businesses and technicians"
-      className={`${marketingLayoutScale} mx-auto w-[calc(100%-2.5rem)] font-[family-name:Arial,Helvetica,sans-serif] text-text-primary lg:w-[calc(var(--hero-unit)*89)] lg:text-[length:var(--hero-unit)]`}
+      className={`${marketingLayoutScale} mx-auto w-[calc(100%-2.5rem)] max-w-marketing-page font-[family-name:Arial,Helvetica,sans-serif] text-text-primary lg:w-[calc(var(--hero-unit)*89)] lg:text-[length:var(--hero-unit)]`}
     >
       <div className="grid gap-4 lg:grid-cols-2 lg:gap-[1.2em]">
         {audiences.map((audience) => (

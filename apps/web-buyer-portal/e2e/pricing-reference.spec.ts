@@ -41,16 +41,19 @@ for (const width of [320, 390, 768, 1024, 1153, 1920]) {
       'not configured yet'
     );
     await page.getByRole('button', { name: 'Close pricing contact' }).click();
-    await page.getByLabel('Newsletter email address').fill('preview@example.com');
+    await page
+      .locator('#marketing-footer')
+      .getByLabel('Email address', { exact: true })
+      .fill('preview@example.com');
     await page.getByRole('button', { name: 'Subscribe', exact: true }).click();
     await expect(
       page
         .getByRole('status')
         .filter({ hasText: 'Newsletter subscriptions are not available yet.' })
     ).toBeVisible();
-    if (width < 1024) await page.getByRole('button', { name: 'Toggle navigation' }).click();
+    if (width < 900) await page.getByRole('button', { name: 'Toggle navigation menu' }).click();
     const nav = page.getByRole('navigation', {
-      name: width < 1024 ? 'Mobile navigation' : 'Primary navigation'
+      name: width < 900 ? 'Mobile navigation' : 'Primary navigation'
     });
     await expect(nav.getByRole('link', { name: 'Pricing', exact: true })).toHaveAttribute(
       'aria-current',

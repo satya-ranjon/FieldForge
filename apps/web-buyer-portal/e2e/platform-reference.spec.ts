@@ -49,15 +49,18 @@ for (const width of [320, 390, 768, 1024, 1368, 1920]) {
       .all()) {
       await expect(link).toHaveAttribute('href', '/operations');
     }
-    await page.getByLabel('Your email address').fill('design-review@example.com');
+    await page
+      .locator('#marketing-footer')
+      .getByLabel('Email address', { exact: true })
+      .fill('design-review@example.com');
     await page.getByRole('button', { name: 'Subscribe', exact: true }).click();
     await expect(
       page
         .getByRole('status')
         .filter({ hasText: 'Newsletter subscriptions are not available yet.' })
     ).toBeVisible();
-    if (width < 1024) {
-      const menu = page.getByRole('button', { name: 'Toggle navigation' });
+    if (width < 900) {
+      const menu = page.getByRole('button', { name: 'Toggle navigation menu' });
       await menu.click();
       await expect(menu).toHaveAttribute('aria-expanded', 'true');
       await expect(

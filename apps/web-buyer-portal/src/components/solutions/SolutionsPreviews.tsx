@@ -114,103 +114,105 @@ export function SolutionsHeroPreview(): React.JSX.Element {
   return (
     <div
       aria-label="Solutions laptop preview"
-      className="relative mx-auto aspect-[1.75] w-full max-w-[820px] text-[clamp(7px,1.2vw,13px)] lg:max-w-none lg:text-[0.85em]"
+      className="relative mx-auto w-full max-w-[820px] text-[clamp(7px,1.2vw,13px)] lg:max-w-none lg:text-[0.85em] xl:pr-[11em]"
     >
-      <div
-        aria-hidden="true"
-        className="absolute -left-[3%] top-[2%] h-[88%] w-full rotate-[-8deg] rounded-[48%] bg-surface-green"
-      />
       <p
         aria-hidden="true"
-        className="absolute -right-[6%] top-[9%] hidden rotate-[-12deg] text-center font-[family-name:'Comic_Sans_MS',cursive] text-[1.35em] leading-tight text-text-secondary xl:block"
+        className="absolute right-[0.75em] top-[9%] hidden w-[6.5em] rotate-[-12deg] text-center font-[family-name:'Comic_Sans_MS',cursive] text-[1.35em] leading-tight text-text-secondary xl:block"
       >
         From dispatch
         <br />
         to done.<span className="ml-5 block rotate-[-15deg] text-[2em] text-brand-green">⤵</span>
       </p>
-      <div className="absolute inset-x-[6%] bottom-[7%] top-[7%] rounded-t-[1.4em] border-[0.55em] border-text-heading bg-text-heading p-[0.35em] shadow-lg ring-2 ring-text-secondary/50">
-        <div className="grid h-full grid-cols-[23%_77%] overflow-hidden rounded-[0.3em] bg-white">
-          <aside className="bg-brand-dark px-[1em] py-[1.2em] text-[0.72em] text-white">
-            <PlatformBrand small />
-            <ul className="mt-[1.3em] space-y-[0.25em]">
-              {sidebar.map(([name, Icon], index) => (
-                <li
-                  key={name}
-                  className={`flex items-center gap-[0.7em] rounded px-[0.5em] py-[0.75em] ${index === 0 ? 'bg-white/10' : 'text-white/75'}`}
-                >
-                  <Icon className="size-[1.2em] shrink-0" />
-                  {name}
-                </li>
-              ))}
-            </ul>
-          </aside>
-          <div className="flex min-w-0 flex-col">
-            <div className="flex gap-[1.4em] border-b border-border-soft px-[1.3em] py-[1.2em] text-[0.55em] text-text-secondary">
-              <span>Operations</span>
-              <span className="text-trust-lime-ink">Realtime</span>
-              <span>Locations</span>
-              <span>Workforce</span>
-              <span>Console</span>
-            </div>
-            <div className="grid min-h-0 flex-1 grid-cols-[60%_40%] gap-[0.4em] p-[0.7em]">
-              <div className="flex flex-col gap-[0.7em]">
-                <h3 className="text-[0.9em] font-bold">Live Operations</h3>
-                <div className="relative flex-1">
-                  <StreetMap hero />
-                </div>
-              </div>
-              <div className="border-l border-border-soft pl-[0.8em]">
-                <div className="flex justify-between text-[0.8em] font-bold">
-                  <span>Technicians</span>
-                  <span className="text-[0.8em] font-normal text-text-secondary">See all</span>
-                </div>
-                {[
-                  { name: 'Taylor Kim', portrait: 'alex-rivera-v2', status: 'Available' },
-                  { name: 'Marcus Lee', portrait: 'marcus-lee-v2', status: 'On site' },
-                  { name: 'Priya Shah', portrait: 'priya-shah-field-v3', status: 'On route' },
-                  { name: 'Jordan Miles', portrait: 'daniel-carter-v2', status: 'Available' }
-                ].map(({ name, portrait, status }) => (
-                  <div
+      <div className="relative aspect-[1.75] w-full" data-solutions-laptop>
+        <div
+          aria-hidden="true"
+          className="absolute -left-[3%] top-[2%] h-[88%] w-full rotate-[-8deg] rounded-[48%] bg-surface-green"
+        />
+        <div className="absolute inset-x-[6%] bottom-[7%] top-[7%] rounded-t-[1.4em] border-[0.55em] border-text-heading bg-text-heading p-[0.35em] shadow-lg ring-2 ring-text-secondary/50">
+          <div className="grid h-full grid-cols-[23%_77%] overflow-hidden rounded-[0.3em] bg-white">
+            <aside className="bg-brand-dark px-[1em] py-[1.2em] text-[0.72em] text-white">
+              <PlatformBrand small />
+              <ul className="mt-[1.3em] space-y-[0.25em]">
+                {sidebar.map(([name, Icon], index) => (
+                  <li
                     key={name}
-                    className="mt-[1.55em] flex items-center gap-[0.7em] text-[0.72em]"
+                    className={`flex items-center gap-[0.7em] rounded px-[0.5em] py-[0.75em] ${index === 0 ? 'bg-white/10' : 'text-white/75'}`}
                   >
-                    <Avatar name={name} portrait={portrait} />
-                    <div>
-                      <p className="font-bold">{name}</p>
-                      <StatusBadge
-                        status={status}
-                        showPulse={false}
-                        className={`mt-1 h-auto! border-0! bg-transparent! p-0! text-[0.8em]! normal-case! tracking-normal! ${status === 'On route' ? 'text-amber-800!' : status === 'On site' ? 'text-blue-700!' : 'text-marketing-status-green!'}`}
-                      />
-                    </div>
-                  </div>
+                    <Icon className="size-[1.2em] shrink-0" />
+                    {name}
+                  </li>
                 ))}
+              </ul>
+            </aside>
+            <div className="flex min-w-0 flex-col">
+              <div className="flex gap-[1.4em] border-b border-border-soft px-[1.3em] py-[1.2em] text-[0.55em] text-text-secondary">
+                <span>Operations</span>
+                <span className="text-trust-lime-ink">Realtime</span>
+                <span>Locations</span>
+                <span>Workforce</span>
+                <span>Console</span>
+              </div>
+              <div className="grid min-h-0 flex-1 grid-cols-[60%_40%] gap-[0.4em] p-[0.7em]">
+                <div className="flex flex-col gap-[0.7em]">
+                  <h3 className="text-[0.9em] font-bold">Live Operations</h3>
+                  <div className="relative flex-1">
+                    <StreetMap hero />
+                  </div>
+                </div>
+                <div className="border-l border-border-soft pl-[0.8em]">
+                  <div className="flex justify-between text-[0.8em] font-bold">
+                    <span>Technicians</span>
+                    <span className="text-[0.8em] font-normal text-text-secondary">See all</span>
+                  </div>
+                  {[
+                    { name: 'Taylor Kim', portrait: 'alex-rivera-v2', status: 'Available' },
+                    { name: 'Marcus Lee', portrait: 'marcus-lee-v2', status: 'On site' },
+                    { name: 'Priya Shah', portrait: 'priya-shah-field-v3', status: 'On route' },
+                    { name: 'Jordan Miles', portrait: 'daniel-carter-v2', status: 'Available' }
+                  ].map(({ name, portrait, status }) => (
+                    <div
+                      key={name}
+                      className="mt-[1.55em] flex items-center gap-[0.7em] text-[0.72em]"
+                    >
+                      <Avatar name={name} portrait={portrait} />
+                      <div>
+                        <p className="font-bold">{name}</p>
+                        <StatusBadge
+                          status={status}
+                          showPulse={false}
+                          className={`mt-1 h-auto! border-0! bg-transparent! p-0! text-[0.8em]! normal-case! tracking-normal! ${status === 'On route' ? 'text-amber-800!' : status === 'On site' ? 'text-blue-700!' : 'text-marketing-status-green!'}`}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-      <div
-        aria-hidden="true"
-        className="absolute inset-x-0 bottom-[3.5%] h-[3.5%] rounded-b-[70%_100%] bg-linear-to-b from-slate-300 via-slate-400 to-slate-600 shadow-md"
-      >
-        <span className="absolute left-[41%] top-0 h-[40%] w-[18%] rounded-b-lg bg-slate-500/60" />
-      </div>
-      <div className="absolute bottom-[4%] left-[29%] w-[31%] rounded-[1em] border border-border-soft bg-white p-[1.4em] text-[0.8em] shadow-lg">
-        <p className="font-bold">#WO-2847</p>
-        <p className="mt-[0.4em] text-text-secondary">Store Equipment Install</p>
-        <div className="my-[0.9em]">
-          <JobStatus />
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 bottom-[3.5%] h-[3.5%] rounded-b-[70%_100%] bg-linear-to-b from-slate-300 via-slate-400 to-slate-600 shadow-md"
+        >
+          <span className="absolute left-[41%] top-0 h-[40%] w-[18%] rounded-b-lg bg-slate-500/60" />
         </div>
-        <div className="flex items-center gap-[0.7em]">
-          <Avatar name="Alex Martinez" portrait="priya-shah-field-v3" className="size-[2.6em]" />
-          <div>
-            <p className="text-text-secondary">Denver, CO</p>
-            <p className="font-bold">Alex Martinez</p>
+        <div className="absolute bottom-[4%] left-[29%] w-[31%] rounded-[1em] border border-border-soft bg-white p-[1.4em] text-[0.8em] shadow-lg">
+          <p className="font-bold">#WO-2847</p>
+          <p className="mt-[0.4em] text-text-secondary">Store Equipment Install</p>
+          <div className="my-[0.9em]">
+            <JobStatus />
           </div>
-        </div>
-        <div className="mt-[0.8em] rounded bg-lifecycle-active py-[0.6em] text-center font-bold">
-          View Details
+          <div className="flex items-center gap-[0.7em]">
+            <Avatar name="Alex Martinez" portrait="priya-shah-field-v3" className="size-[2.6em]" />
+            <div>
+              <p className="text-text-secondary">Denver, CO</p>
+              <p className="font-bold">Alex Martinez</p>
+            </div>
+          </div>
+          <div className="mt-[0.8em] rounded bg-lifecycle-active py-[0.6em] text-center font-bold">
+            View Details
+          </div>
         </div>
       </div>
     </div>

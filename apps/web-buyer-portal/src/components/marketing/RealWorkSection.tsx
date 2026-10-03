@@ -71,7 +71,7 @@ export function RealWorkSection(): ReactElement {
     <section
       id="real-work"
       aria-labelledby="real-work-title"
-      className={`${marketingLayoutScale} relative mx-auto w-[calc(100%-2.5rem)] overflow-hidden rounded-2xl border border-border-soft bg-surface-marketing font-[family-name:Arial,Helvetica,sans-serif] text-text-primary lg:w-[calc(var(--hero-unit)*89)] lg:rounded-[1.6em] lg:text-[length:var(--hero-unit)]`}
+      className={`${marketingLayoutScale} relative mx-auto w-[calc(100%-2.5rem)] max-w-marketing-page overflow-hidden rounded-2xl border border-border-soft bg-surface-marketing font-[family-name:Arial,Helvetica,sans-serif] text-text-primary lg:w-[calc(var(--hero-unit)*89)] lg:rounded-[1.6em] lg:text-[length:var(--hero-unit)]`}
     >
       <div className="relative z-10 p-5 sm:p-6 lg:w-[28%] lg:px-[1.6em] lg:py-[1.1em]">
         <span className="inline-flex items-center gap-[0.6em] rounded-full bg-surface-white px-[1em] py-[0.6em] text-[0.625rem] font-bold uppercase leading-none lg:text-[0.75em]">

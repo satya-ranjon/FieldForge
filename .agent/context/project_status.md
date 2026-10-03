@@ -730,3 +730,47 @@ Resources reference redesign adds eight local resource entries, search/type/topi
 ### Pricing page reference redesign (2026-10-03)
 
 Pricing reference redesign replaces the former three-tier presentation with a 12% completed-job marketing model and free technician access. Eight fresh calculator tests pass; six responsive browser scenarios are authored but unrun under the existing security restriction. Technician CTA opens the existing registration modal with technician selected; default buyer behavior is preserved. Billing service, authorization, contracts and operational test counts are unchanged.
+
+### Public page maximum width (2026-10-03)
+
+Standardized outer maximum widths across the six public marketing routes
+with a shared 1440px Tailwind token. Component edits are limited to maximum
+width utilities; all other presentation classes and content are preserved.
+No feature behavior, contracts, billing or operational acceptance changed.
+Browser visual verification remains unavailable under the existing restriction.
+
+### Shared public footer (2026-10-03)
+
+Platform, Solutions, Industries, Resources and Pricing now reuse the existing
+MarketingFooter, alongside Home. Removed four obsolete footer implementations.
+Shared footer newsletter feedback and unavailable app downloads are unchanged;
+Resources keeps its separate newsletter section and in-page resource filters.
+The footer browser suite now covers six routes at six widths (36 scenarios),
+but execution remains blocked by the existing browser security restriction.
+No backend, contracts or operational acceptance changed.
+
+### Shared public navbar (2026-10-03)
+
+Six public routes now use the compact MarketingNavbar. Retired PlatformNavigation
+and SolutionsNavigation; TalkToSales remains available to its existing pages.
+Added current-page semantics, a named mobile navigation region/control relation,
+and a technician-directory destination for the existing Search button. Login
+uses the existing AuthModal. Thirty-six shared navbar browser cases cover routes,
+active links, 899/900px transition, menu closing, login, Search and screenshots;
+execution remains blocked by the existing security-policy rejection.
+
+### Public content alignment correction (2026-10-03)
+
+Corrected the remaining navbar/body mismatch using the homepage content and
+wide-panel frames across public routes. Removed Platform preview right overflow.
+Shared navbar scenarios now include frame edge/width comparisons, Platform
+capability alignment and preview containment across 11 widths (66 total cases).
+These remain unrun under the existing browser security restriction. No backend
+or product behavior changed.
+
+### Solutions hero note correction (2026-10-03)
+
+Fixed the decorative note obscured by the laptop by allocating a desktop gutter
+and keeping device proportions within an inner frame. Eight Solutions responsive
+scenarios now include note visibility/non-overlap/containment assertions; browser
+execution remains blocked by the prior security restriction. No domain changes.

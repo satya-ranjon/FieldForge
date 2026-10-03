@@ -164,7 +164,7 @@ export function CommandCenterPreview(): React.JSX.Element {
         MADE SMARTER
       </p>
 
-      <div className="relative mx-auto w-[calc(100%-2.5rem)] lg:w-[calc(var(--hero-unit)*89)]">
+      <div className="relative mx-auto w-[calc(100%-2.5rem)] max-w-marketing-page lg:w-[calc(var(--hero-unit)*89)]">
         <header className="mx-auto max-w-3xl text-center lg:max-w-[60em]">
           <span className="inline-flex items-center gap-[0.8em] rounded-full border border-border-soft bg-surface-white px-[1.2em] py-[0.65em] text-[10px] font-bold uppercase shadow-sm lg:text-[0.85em]">
             <span className="size-[0.75em] rounded-full bg-marketing-check" aria-hidden="true" />

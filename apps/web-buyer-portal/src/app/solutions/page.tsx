@@ -1,3 +1,6 @@
+import { marketingPanelFrame } from '../../components/marketing/MarketingHero.styles';
+import { MarketingNavbar } from '../../components/marketing/MarketingNavbar';
+import { MarketingFooter } from '../../components/marketing/MarketingFooter';
 import React from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -24,11 +27,7 @@ import {
   platformHeading as heading,
   platformFocus as focus
 } from '../../components/platform/PlatformPrimitives';
-import {
-  SolutionsNavigation,
-  SolutionsFooter,
-  TalkToSales
-} from '../../components/solutions/SolutionsChrome';
+import { TalkToSales } from '../../components/solutions/SolutionsChrome';
 import {
   SolutionsHeroPreview,
   MarketplacePreview,
@@ -104,7 +103,7 @@ function LearnMore({ href, label }: { href: string; label: string }): React.JSX.
 export default function SolutionsPage(): React.JSX.Element {
   return (
     <div className="min-h-screen overflow-x-clip bg-white font-[family-name:Arial,Helvetica,sans-serif] text-text-primary lg:text-[clamp(12px,1.02vw,16px)]">
-      <SolutionsNavigation />
+      <MarketingNavbar compact activePage="/solutions" />
       <main>
         <section className="bg-linear-to-b from-white to-surface-marketing/65">
           <div
@@ -254,7 +253,9 @@ export default function SolutionsPage(): React.JSX.Element {
           </div>
         </section>
 
-        <section className="relative mx-auto mb-3 w-[calc(100%-2rem)] max-w-[1540px] overflow-hidden rounded-2xl bg-surface-green/70 px-5 py-7 lg:w-[92.8%] lg:px-[2.8em] lg:py-[1.2em]">
+        <section
+          className={`${marketingPanelFrame} relative mb-3 overflow-hidden rounded-2xl bg-surface-green/70 px-5 py-7 lg:px-[2.8em] lg:py-[1.2em]`}
+        >
           <div
             aria-hidden="true"
             className="pointer-events-none absolute -bottom-[11em] left-[54%] h-[17em] w-[20em] rotate-[-25deg] rounded-[50%] border border-brand-green/30"
@@ -276,7 +277,7 @@ export default function SolutionsPage(): React.JSX.Element {
           </div>
         </section>
       </main>
-      <SolutionsFooter />
+      <MarketingFooter />
     </div>
   );
 }

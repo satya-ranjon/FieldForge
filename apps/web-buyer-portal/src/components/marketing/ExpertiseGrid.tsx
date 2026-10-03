@@ -110,7 +110,7 @@ export function ExpertiseGrid(): React.JSX.Element {
     <section
       id="expertise"
       aria-labelledby="expertise-title"
-      className={`${marketingLayoutScale} mx-auto w-[calc(100%-2.5rem)] font-[family-name:Arial,Helvetica,sans-serif] text-text-primary lg:w-[calc(var(--hero-unit)*89)] lg:text-[length:var(--hero-unit)]`}
+      className={`${marketingLayoutScale} mx-auto w-[calc(100%-2.5rem)] max-w-marketing-page font-[family-name:Arial,Helvetica,sans-serif] text-text-primary lg:w-[calc(var(--hero-unit)*89)] lg:text-[length:var(--hero-unit)]`}
     >
       <header className="mx-auto mb-5 text-center lg:mb-[1.7em]">
         <h2

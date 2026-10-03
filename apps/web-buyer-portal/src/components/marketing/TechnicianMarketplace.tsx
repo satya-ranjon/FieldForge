@@ -192,7 +192,7 @@ export function TechnicianMarketplace(): React.JSX.Element {
     <section
       id="technician-marketplace"
       aria-labelledby="marketplace-title"
-      className={`${marketingLayoutScale} relative mx-auto grid w-[calc(100%-2.5rem)] gap-8 py-6 font-[family-name:Arial,Helvetica,sans-serif] text-text-primary lg:w-[calc(var(--hero-unit)*89)] lg:grid-cols-[30%_minmax(0,1fr)] lg:items-center lg:gap-[3.3em] lg:py-[3em] lg:text-[length:var(--hero-unit)]`}
+      className={`${marketingLayoutScale} relative mx-auto grid w-[calc(100%-2.5rem)] max-w-marketing-page gap-8 py-6 font-[family-name:Arial,Helvetica,sans-serif] text-text-primary lg:w-[calc(var(--hero-unit)*89)] lg:grid-cols-[30%_minmax(0,1fr)] lg:items-center lg:gap-[3.3em] lg:py-[3em] lg:text-[length:var(--hero-unit)]`}
     >
       <div>
         <span className="inline-flex items-center gap-[0.6em] rounded-full border border-border-soft bg-surface-white px-[1em] py-[0.7em] text-[0.625rem] font-bold uppercase leading-none lg:text-[0.7em]">

@@ -1,3 +1,6 @@
+import { marketingPanelFrame } from '../../components/marketing/MarketingHero.styles';
+import { MarketingNavbar } from '../../components/marketing/MarketingNavbar';
+import { MarketingFooter } from '../../components/marketing/MarketingFooter';
 import React from 'react';
 import type { Metadata } from 'next';
 import Image from 'next/image';
@@ -14,11 +17,7 @@ import {
   CornerDownRight,
   type LucideIcon
 } from 'lucide-react';
-import {
-  SolutionsNavigation,
-  SolutionsFooter,
-  TalkToSales
-} from '../../components/solutions/SolutionsChrome';
+import { TalkToSales } from '../../components/solutions/SolutionsChrome';
 import {
   PlatformEyebrow as Eyebrow,
   platformFrame as frame,
@@ -169,7 +168,7 @@ function IndustryHero(): React.JSX.Element {
 export default function IndustriesPage(): React.JSX.Element {
   return (
     <div className="min-h-screen overflow-x-clip bg-white font-[family-name:Arial,Helvetica,sans-serif] text-text-primary lg:text-[clamp(12px,1.13vw,18px)]">
-      <SolutionsNavigation activePage="/industries" />
+      <MarketingNavbar compact activePage="/industries" />
       <main>
         <section className="bg-surface-soft/35">
           <div
@@ -245,7 +244,7 @@ export default function IndustriesPage(): React.JSX.Element {
 
         <section
           aria-labelledby="industry-cta-title"
-          className="relative mx-auto mb-5 w-[calc(100%-2rem)] max-w-[1570px] overflow-hidden rounded-2xl bg-surface-marketing lg:w-[94.5%] lg:py-[2.8em]"
+          className={`${marketingPanelFrame} relative mb-5 overflow-hidden rounded-2xl bg-surface-marketing lg:py-[2.8em]`}
         >
           <Image
             src="/marketing/industries-cta-route.png"
@@ -315,7 +314,7 @@ export default function IndustriesPage(): React.JSX.Element {
           </div>
         </section>
       </main>
-      <SolutionsFooter activePage="/industries" />
+      <MarketingFooter />
     </div>
   );
 }

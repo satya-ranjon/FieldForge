@@ -45,7 +45,7 @@ export function SecurePaymentsSection(): React.JSX.Element {
     <section
       id="secure-payments"
       aria-labelledby="secure-payments-title"
-      className={`${marketingLayoutScale} relative mx-auto w-[calc(100%-2.5rem)] rounded-2xl bg-surface-white/65 p-5 font-[family-name:Arial,Helvetica,sans-serif] text-text-primary shadow-sm sm:p-7 lg:w-[calc(var(--hero-unit)*89)] lg:rounded-[1.6em] lg:p-[2.8em] lg:text-[length:var(--hero-unit)]`}
+      className={`${marketingLayoutScale} relative mx-auto w-[calc(100%-2.5rem)] max-w-marketing-page rounded-2xl bg-surface-white/65 p-5 font-[family-name:Arial,Helvetica,sans-serif] text-text-primary shadow-sm sm:p-7 lg:w-[calc(var(--hero-unit)*89)] lg:rounded-[1.6em] lg:p-[2.8em] lg:text-[length:var(--hero-unit)]`}
     >
       <div className="grid items-center gap-6 lg:grid-cols-[42%_minmax(0,1fr)] lg:gap-[2.7em]">
         <header>

@@ -2301,3 +2301,10 @@ Implemented the Resources reference page, local query/type/topic filtering, acce
 ### Pricing page reference redesign (2026-10-03)
 
 Pricing reference presentation implemented: split photographic hero, four-step workflow, customer/technician comparison, fee calculator, benefit row, FAQ and closing CTA/footer. Eight calculator tests pass. Six responsive interaction scenarios are authored but browser execution and visual acceptance remain pending under the existing security restriction. No billing milestone is advanced by this marketing change.
+
+### Shared public navigation (2026-10-03)
+
+Unified all six public page navbars and footers while preserving page content
+and the shared width cap. Cross-page responsive footer and navbar scenarios are
+authored; rendered verification remains pending due to the existing browser
+restriction. No operational marketplace milestone or billing scope is advanced.

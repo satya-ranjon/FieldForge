@@ -62,7 +62,7 @@ export function ComplianceTrustSection(): React.JSX.Element {
     <section
       id="compliance-trust"
       aria-labelledby="compliance-trust-title"
-      className={`${marketingLayoutScale} relative mx-auto w-[calc(100%-2.5rem)] overflow-hidden rounded-2xl bg-surface-green p-5 font-[family-name:Arial,Helvetica,sans-serif] text-text-primary sm:p-7 lg:w-[calc(var(--hero-unit)*89)] lg:rounded-[1.6em] lg:px-[2.7em] lg:pt-[1.6em] lg:pb-[1.5em] lg:text-[length:var(--hero-unit)]`}
+      className={`${marketingLayoutScale} relative mx-auto w-[calc(100%-2.5rem)] max-w-marketing-page overflow-hidden rounded-2xl bg-surface-green p-5 font-[family-name:Arial,Helvetica,sans-serif] text-text-primary sm:p-7 lg:w-[calc(var(--hero-unit)*89)] lg:rounded-[1.6em] lg:px-[2.7em] lg:pt-[1.6em] lg:pb-[1.5em] lg:text-[length:var(--hero-unit)]`}
     >
       <img
         src="/marketing/trust-orbit.png"

@@ -201,7 +201,7 @@ export function DarkBottomCtaBanner(): React.JSX.Element {
     <section
       id="fieldwork-cta"
       aria-labelledby="fieldwork-cta-title"
-      className={`${marketingLayoutScale} relative isolate mx-auto w-[calc(100%-2.5rem)] overflow-hidden rounded-2xl border border-white/15 bg-brand-dark font-[family-name:Arial,Helvetica,sans-serif] text-white lg:w-[calc(var(--hero-unit)*90)] lg:rounded-[1.6em] lg:text-[length:var(--hero-unit)]`}
+      className={`${marketingLayoutScale} relative isolate mx-auto w-[calc(100%-2.5rem)] max-w-marketing-page overflow-hidden rounded-2xl border border-white/15 bg-brand-dark font-[family-name:Arial,Helvetica,sans-serif] text-white lg:w-[calc(var(--hero-unit)*90)] lg:rounded-[1.6em] lg:text-[length:var(--hero-unit)]`}
     >
       <Image
         src="/marketing/cta-forest-background.png"

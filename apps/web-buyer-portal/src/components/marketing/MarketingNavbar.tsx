@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ArrowRight, Menu, Search, X } from 'lucide-react';
 import { AuthModal } from '../auth/AuthModal';
 import { heroStyles as styles } from './MarketingHero.styles';
@@ -13,9 +14,13 @@ const navLinks = [
   { href: '/industries', label: 'Industries' },
   { href: '/resources', label: 'Resources' },
   { href: '/pricing', label: 'Pricing' }
-];
+] as const;
 
-export const MarketingNavbar: React.FC<{ compact?: boolean }> = ({ compact = false }) => {
+export const MarketingNavbar: React.FC<{
+  compact?: boolean;
+  activePage?: (typeof navLinks)[number]['href'];
+}> = ({ compact = false, activePage }) => {
+  const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
@@ -24,7 +29,7 @@ export const MarketingNavbar: React.FC<{ compact?: boolean }> = ({ compact = fal
       <header
         className={`relative z-50 w-full bg-[#fbfcf8] ${compact ? styles.referenceNavbar : ''}`}
       >
-        <div className="mx-auto flex h-[88px] max-w-[1360px] items-center justify-between px-6 sm:px-8 xl:px-12">
+        <div className="mx-auto flex h-[88px] max-w-marketing-page items-center justify-between px-6 sm:px-8 xl:px-12">
           <Link
             href="/marketing"
             className="group flex items-center gap-3"
@@ -49,7 +54,8 @@ export const MarketingNavbar: React.FC<{ compact?: boolean }> = ({ compact = fal
               <Link
                 key={link.href}
                 href={link.href}
-                className="text-[15px] font-medium text-[#243342] transition hover:text-[#5ea824] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#85eb32]"
+                aria-current={activePage === link.href ? 'page' : undefined}
+                className="aria-[current=page]:shadow-[0_2px_0_var(--color-brand-green)] text-[15px] font-medium text-[#243342] transition hover:text-[#5ea824] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#85eb32]"
               >
                 {link.label}
               </Link>
@@ -61,6 +67,7 @@ export const MarketingNavbar: React.FC<{ compact?: boolean }> = ({ compact = fal
               type="button"
               className="flex h-10 w-10 items-center justify-center rounded-full text-[#07121b] transition hover:bg-[#eef6ed] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#85eb32]"
               aria-label="Search"
+              onClick={() => router.push('/technicians')}
             >
               <Search className="h-5 w-5 stroke-[2.2]" />
             </button>
@@ -94,20 +101,26 @@ export const MarketingNavbar: React.FC<{ compact?: boolean }> = ({ compact = fal
             className="flex h-12 w-12 items-center justify-center rounded-xl text-[#07121b] transition hover:bg-[#eef6ed] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a8f22d] lg:hidden"
             aria-expanded={mobileMenuOpen}
             aria-label="Toggle navigation menu"
+            aria-controls="marketing-mobile-navigation"
           >
             {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
         </div>
 
         {mobileMenuOpen && (
-          <div className="border-t border-[#e2ece5] bg-[#fbfcf8] px-6 py-5 lg:hidden">
-            <div className="mx-auto flex max-w-[1260px] flex-col gap-2">
+          <nav
+            id="marketing-mobile-navigation"
+            aria-label="Mobile navigation"
+            className={`border-t border-[#e2ece5] bg-[#fbfcf8] px-6 py-5 ${compact ? 'min-[56.25rem]:hidden' : 'lg:hidden'}`}
+          >
+            <div className="mx-auto flex max-w-marketing-page flex-col gap-2">
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
                   onClick={() => setMobileMenuOpen(false)}
-                  className="rounded-xl px-3 py-3 text-base font-semibold text-[#17212b] hover:bg-[#eef6ed]"
+                  aria-current={activePage === link.href ? 'page' : undefined}
+                  className="aria-[current=page]:bg-brand-green-soft rounded-xl px-3 py-3 text-base font-semibold text-[#17212b] hover:bg-[#eef6ed]"
                 >
                   {link.label}
                 </Link>
@@ -130,7 +143,7 @@ export const MarketingNavbar: React.FC<{ compact?: boolean }> = ({ compact = fal
                 Join as Technician
               </Link>
             </div>
-          </div>
+          </nav>
         )}
       </header>
 

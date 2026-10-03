@@ -45,7 +45,7 @@ export function SmartDispatchSection(): React.JSX.Element {
         aria-hidden="true"
         className="pointer-events-none absolute -top-40 -right-20 w-60 -rotate-35 opacity-20 lg:-top-[calc(var(--hero-unit)*22)] lg:-right-[calc(var(--hero-unit)*9)] lg:w-[calc(var(--hero-unit)*27)]"
       />
-      <div className="relative mx-auto w-[calc(100%-2.5rem)] lg:w-[calc(var(--hero-unit)*89)] lg:text-[length:var(--hero-unit)]">
+      <div className="relative mx-auto w-[calc(100%-2.5rem)] max-w-marketing-page lg:w-[calc(var(--hero-unit)*89)] lg:text-[length:var(--hero-unit)]">
         <header className="mb-7 grid gap-5 px-1 lg:mb-[2.8em] lg:grid-cols-2 lg:items-end lg:gap-[4em] lg:px-[2.7em]">
           <div>
             <span className="inline-flex items-center gap-[0.7em] rounded-full bg-surface-white/80 px-[1.1em] py-[0.8em] text-[0.625rem] font-bold uppercase leading-none tracking-[0.06em] lg:text-[0.8em]">

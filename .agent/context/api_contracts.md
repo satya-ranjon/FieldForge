@@ -263,3 +263,9 @@ Resources uses static bundled content and files at `/resources/field-operations-
 ### Pricing page reference redesign (2026-10-03)
 
 No endpoint, DTO, validator, event or payment contract changed. Pricing calculator uses a local 12% display constant and integer-cent arithmetic; its $1–$1,000,000 input bounds are UI preview limits only. Contact/newsletter controls explicitly report unavailable integrations. AuthModal initial role is a UI selection, not an authorization grant.
+
+### Shared public navigation (2026-10-03)
+
+Navbar/footer consolidation adds no endpoints, DTOs or events. Search navigates
+to the existing `/technicians` frontend route; Log in reuses AuthModal and its
+existing authentication contract. Authorization and registration roles are unchanged.

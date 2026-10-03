@@ -49,20 +49,20 @@ for (const width of [320, 390, 768, 1024, 1153, 1920]) {
       page.getByRole('button', { name: 'Technician Success', exact: true })
     ).toHaveAttribute('aria-pressed', 'true');
     await page.getByLabel('Newsletter email address').fill('preview@example.com');
-    await page.getByRole('button', { name: 'Subscribe', exact: true }).click();
+    await page.getByRole('main').getByRole('button', { name: 'Subscribe', exact: true }).click();
     await expect(
       page
         .getByRole('status')
         .filter({ hasText: 'Newsletter subscriptions are not available yet.' })
     ).toBeVisible();
-    if (width < 1024) {
-      await page.getByRole('button', { name: 'Toggle navigation' }).click();
+    if (width < 900) {
+      await page.getByRole('button', { name: 'Toggle navigation menu' }).click();
       await expect(
         page
           .getByRole('navigation', { name: 'Mobile navigation' })
           .getByRole('link', { name: 'Resources', exact: true })
       ).toHaveAttribute('aria-current', 'page');
-      await page.getByRole('button', { name: 'Toggle navigation' }).click();
+      await page.getByRole('button', { name: 'Toggle navigation menu' }).click();
     } else {
       await expect(
         page

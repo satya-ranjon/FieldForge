@@ -1,9 +1,10 @@
 import React from 'react';
 import Link from 'next/link';
 import { ArrowRight, Play, type LucideIcon } from 'lucide-react';
+import { marketingContentFrame } from '../marketing/MarketingHero.styles';
 import { MarketingBrandMark } from '../marketing/MarketingHeroArtwork';
 
-export const platformFrame = 'mx-auto w-[calc(100%-2.5rem)] max-w-[1440px] lg:w-[86.3%]';
+export const platformFrame = marketingContentFrame;
 export const platformFocus =
   'focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-green';
 export const platformHeading =

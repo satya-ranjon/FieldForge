@@ -189,7 +189,7 @@ export function PlatformDevicePreview(): React.JSX.Element {
       </div>
       <div
         aria-hidden="true"
-        className="absolute bottom-[6%] left-[9%] h-[4%] w-[95%] rounded-b-[50%_65%] border-b-[0.3em] border-slate-400 bg-slate-300 shadow-md"
+        className="absolute bottom-[6%] left-[9%] h-[4%] w-[91%] rounded-b-[50%_65%] border-b-[0.3em] border-slate-400 bg-slate-300 shadow-md"
       >
         <span className="absolute inset-x-[39%] top-0 h-1/2 rounded-b-lg bg-slate-400" />
       </div>

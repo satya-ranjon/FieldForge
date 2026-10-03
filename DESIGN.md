@@ -350,3 +350,58 @@ Resources follows image 59: split photo/search hero, six type filters, three fea
 ### Pricing page reference redesign (2026-10-03)
 
 Pricing follows image 58 with a pale background, split hero with independent customer photograph and transparent dashed connector, four-step workflow, two overview cards, native editable fee example, four benefits, two-column FAQ, dark CTA and footer. Desktop composition starts at 1024px; smaller screens stack. Shared Solutions navigation accepts Pricing as an active route without changing its default. All content and controls are native UI; existing fonts/tokens/icons/portraits are reused.
+
+### Public page maximum width (2026-10-03)
+
+All six public marketing routes (`/marketing`, `/platform`, `/solutions`,
+`/industries`, `/resources`, `/pricing`) use one outer-container cap:
+`--container-marketing-page: 1440px`, exposed as `max-w-marketing-page`.
+This replaces the independent 1520–1570px wide-panel caps and the old navbar
+caps. Shared navigation/content/footer frames and homepage composition frames
+use the same ceiling. Existing percentage/rem widths, intentional insets,
+gutters, typography, grids, breakpoints, imagery and full-width backgrounds
+are preserved. A maximum is a ceiling, not a requirement to stretch narrower
+sections to 1440px. Operational dashboard shells and internal text, dialog,
+and illustration widths are outside this public-page adjustment.
+
+### Shared public footer (2026-10-03)
+
+All six public marketing routes render `MarketingFooter` from the homepage.
+The dark background, brand/social column, Product/Resources/Company/Legal
+columns, newsletter form, app badges, language selector and bottom status row
+are identical across pages. The shared 1440px outer cap and existing responsive
+marketing scale remain. This explicit user request supersedes the individual
+Platform, Solutions, Industries, Resources and Pricing footer designs above.
+Page body and navigation designs remain unchanged.
+
+### Shared public navbar (2026-10-03)
+
+All six public pages render the homepage `MarketingNavbar` with `compact` enabled.
+This supersedes the independent Platform and Solutions navbar designs. Preserve
+its brand mark, em/rem scale, desktop spacing, background, Log in and Join as
+Technician controls, and shared maximum width. Current page is indicated with
+an underline on desktop and a soft background on mobile, plus `aria-current`.
+The homepage's 56.25rem (900px at default root size) compact breakpoint is used
+consistently for desktop and mobile navigation. Page bodies are unaffected.
+
+### Public content alignment correction (2026-10-03)
+
+The annotated user screenshots show that a shared maximum alone does not align
+the navbar and body: the homepage uses a stepped rem-based frame while other
+pages used 86.3% viewport width. `marketingContentFrame` now shares the exact
+homepage 86.4-unit frame and scale, including its 900px desktop threshold, with
+all public page content. It changes width only, not inherited typography.
+Wide CTA/panel surfaces use `marketingPanelFrame` with the homepage's existing
+89-unit width from 1024px. Existing mobile gutters, colors, content, section
+spacing and grid proportions are preserved. The earlier decision to retain
+independent percentage widths is superseded by this explicit alignment request.
+Platform hero no longer has a negative right margin, and the laptop base ends
+at the preview boundary instead of extending four percent beyond it.
+
+### Solutions hero note correction (2026-10-03)
+
+The “From dispatch to done” note occupies a reserved right-hand gutter from
+1280px. The laptop, its backdrop and floating work-order card share an inner
+1.75-aspect-ratio frame; the note stays outside that frame but inside the page
+bounds. Preserve the existing handwritten styling and hide the note below
+1280px as before. No change to page copy or surrounding sections.

@@ -1,3 +1,6 @@
+import { marketingPanelFrame } from '../../components/marketing/MarketingHero.styles';
+import { MarketingNavbar } from '../../components/marketing/MarketingNavbar';
+import { MarketingFooter } from '../../components/marketing/MarketingFooter';
 import React from 'react';
 import type { Metadata } from 'next';
 import {
@@ -13,7 +16,6 @@ import {
   UserRound,
   Users
 } from 'lucide-react';
-import { PlatformNavigation, PlatformFooter } from '../../components/platform/PlatformChrome';
 import {
   PlatformDevicePreview,
   PlatformWorkOrders
@@ -76,14 +78,14 @@ const benefits = [
 export default function PlatformPage(): React.JSX.Element {
   return (
     <div className="min-h-screen overflow-x-clip bg-white font-[family-name:Arial,Helvetica,sans-serif] text-text-primary lg:text-[clamp(12px,1.02vw,16px)]">
-      <PlatformNavigation />
+      <MarketingNavbar compact activePage="/platform" />
       <main>
         <section
           aria-labelledby="platform-title"
           className="bg-surface-marketing pb-10 pt-8 lg:pb-[2em] lg:pt-[0.7em]"
         >
           <div
-            className={`${platformFrame} grid items-center gap-8 lg:grid-cols-[36%_64%] lg:gap-0`}
+            className={`${platformFrame} grid items-center gap-8 [&>*]:min-w-0 lg:grid-cols-[36%_64%] lg:gap-0`}
           >
             <div className="relative z-10 lg:py-[2em]">
               <PlatformEyebrow>Platform</PlatformEyebrow>
@@ -106,7 +108,7 @@ export default function PlatformPage(): React.JSX.Element {
                 </PlatformLink>
               </div>
             </div>
-            <div className="min-w-0 lg:ml-[1.5em] lg:mr-[-3em]">
+            <div className="min-w-0 lg:ml-[1.5em]">
               <PlatformDevicePreview />
             </div>
           </div>
@@ -117,7 +119,9 @@ export default function PlatformPage(): React.JSX.Element {
           aria-labelledby="capabilities-title"
           className="bg-surface-marketing/35 py-10 lg:py-[2em]"
         >
-          <div className={`${platformFrame} grid gap-7 lg:grid-cols-[32%_68%] lg:gap-0`}>
+          <div
+            className={`${platformFrame} grid gap-7 [&>*]:min-w-0 lg:grid-cols-[32%_68%] lg:gap-0`}
+          >
             <div className="lg:pr-[2em] lg:pt-[0.6em]">
               <PlatformEyebrow>Core capabilities</PlatformEyebrow>
               <h2
@@ -276,7 +280,7 @@ export default function PlatformPage(): React.JSX.Element {
 
         <section
           aria-labelledby="platform-cta-title"
-          className="mx-auto mb-4 mt-2 w-[calc(100%-2.5rem)] max-w-[1520px] rounded-2xl bg-surface-marketing px-6 py-7 lg:mb-[1em] lg:w-[92%] lg:px-[3em] lg:py-[2em]"
+          className={`${marketingPanelFrame} max-lg:w-[calc(100%-2.5rem)] mb-4 mt-2 rounded-2xl bg-surface-marketing px-6 py-7 lg:mb-[1em] lg:px-[3em] lg:py-[2em]`}
         >
           <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
             <div>
@@ -296,7 +300,7 @@ export default function PlatformPage(): React.JSX.Element {
           </div>
         </section>
       </main>
-      <PlatformFooter />
+      <MarketingFooter />
     </div>
   );
 }

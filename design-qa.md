@@ -537,3 +537,85 @@ Pricing nonvisual checks passed: eight fresh calculator tests; `pnpm check`
 rebuilt); `pnpm infra:config`; and `git diff --check`. Both generated PNGs
 resolve and decode. These checks do not establish rendered fidelity or replace
 the six unrun browser cases.
+
+### Public page maximum width (2026-10-03)
+
+- Scope: six public marketing pages, including their header, main section and footer containers.
+- Shared maximum: 1440px through the Tailwind `max-w-marketing-page` token.
+- Source comparison confirms all 22 component/style-file edits change only maximum-width utilities. Content, grids, breakpoints, typography, spacing, image crops, and interaction code are identical to HEAD.
+- Preserve percentage/rem widths below the cap and intentional narrower/inset content. Full-width section backgrounds remain full width.
+- No new behavioral tests are needed for this reversible styling adjustment. Existing repository checks and production build are the nonvisual gates.
+- Browser screenshots, responsive rendering and computed-width measurements remain unverified due to the earlier security-policy rejection. A source comparison cannot prove pixel equality.
+- Follow-up visual verification: compare at 390, 1024, 1440, 1920 and 2560px; confirm outer containers stay centered and at most 1440px, with existing mobile flow and no clipped content.
+- final result: blocked (visual verification)
+
+Width-change validation passed: `pnpm check` (formatting, lint, types and
+15 cached repository test tasks), `pnpm build --cache=local:r` (12 successful
+tasks, 11 cached, buyer portal rebuilt), `pnpm infra:config` and
+`git diff --check`. Production CSS contains the 1440px token and generated
+`.max-w-marketing-page` rule referencing it. No browser or pixel-comparison
+result is claimed.
+
+### Shared public footer (2026-10-03)
+
+- User-selected source: existing homepage MarketingFooter, reused directly on all six public pages.
+- Removed the alternate PlatformFooter, SolutionsFooter, PricingFooter and ResourcesFooter implementations. Shared component markup/design is unchanged by this footer consolidation; the earlier shared width cap is retained.
+- Body sections, page navigation and resource filtering remain. Resources now has a shared footer newsletter in addition to its existing body newsletter; page tests scope the body Subscribe button to main.
+- Existing footer suite is parameterized over six pages and six viewport widths (320, 390, 768, 1024, 1536, 2172): one footer per page, headings, social links, newsletter validation/feedback, disabled app buttons, language, overflow and screenshot capture.
+- These 36 browser scenarios are authored but unrun under the earlier security-policy restriction. Browser screenshots and rendered parity remain unverified.
+- final result: blocked (visual verification)
+
+Shared-footer nonvisual verification passed: `pnpm check` (formatting, lint,
+types and 15 cached repository test tasks), `pnpm build --cache=local:r`
+(12 successful tasks, 11 cached, buyer portal rebuilt), `pnpm infra:config`,
+and `git diff --check`. Source audit confirms six shared footer call sites
+and no remaining alternate footer implementations. The 36 browser scenarios
+remain unrun; no rendered-fidelity claim is made.
+
+### Shared public navbar (2026-10-03)
+
+- Reference: existing compact homepage MarketingNavbar; reused directly on six public routes.
+- Shared design retains logo, composition scale, spacing, colors and actions. Active link highlight is the only added route-specific styling. Header uses the previously added maximum width token.
+- Retired the two alternate navbar implementations; page content and sales dialogs remain.
+- Existing page scenarios use the shared menu name/breakpoint. Thirty-six new browser cases cover six routes at 390, 768, 899, 900, 1440 and 1920px, login, active navigation, menu closing, search routing, overflow and screenshots.
+- Browser execution, computed layout and visual comparison remain blocked under the prior security-policy rejection. No workaround attempted.
+- final result: blocked (visual verification)
+
+Shared-navbar nonvisual verification passed: focused buyer-portal type checking,
+`pnpm check` (formatting, lint, types and 15 cached repository test tasks),
+`pnpm build --cache=local:r` (12 successful tasks, 11 cached, portal rebuilt),
+`pnpm infra:config`, and `git diff --check`. Desktop selector rules are scoped
+to the primary navigation so they cannot hide the mobile navigation landmark.
+Source audit confirms all six public routes render the same compact navbar.
+The 36 new browser cases remain unrun.
+
+### Public content alignment correction (2026-10-03)
+
+- Evidence: user screenshots `codex-clipboard-4c2eeda3-e280-46fe-a4fc-44f83ecea5f7.png` (Platform mismatch) and `codex-clipboard-63ae3633-7665-46ac-bc51-ca462da6525a.png` (homepage target).
+- Diagnosed percentage-based content frames versus the navbar's 86.4-unit stepped frame, plus Platform's negative right margin and 104%-extent laptop base.
+- Main public content now uses the homepage frame; wide panels use its 89-unit frame. Typography, grid ratios, assets, copy and section styling are preserved. Mobile gutters remain as before.
+- Navbar suite now has 66 cases (six routes × eleven widths), adding both-side frame alignment, Platform capability width and device containment checks. Widths cover 1199/1200 and 1499/1500 scale transitions plus 1708px comparable to the supplied screenshots.
+- Browser screenshots and geometry execution remain blocked by the existing security-policy rejection. No alternate browser workaround attempted.
+- final result: blocked (rendered verification)
+
+Alignment nonvisual checks passed: `pnpm check` (formatting, lint, types and
+15 cached repository test tasks), `pnpm build --cache=local:r` (12 successful
+tasks, 11 cached, portal rebuilt), `pnpm infra:config`, and `git diff --check`.
+Source/formula verification confirms identical navbar and main-frame widths
+(864px at 1024px viewport, 1123.2px at 1200px, 1347.84px from 1500px at the
+default root font size). This is arithmetic/source evidence, not executed
+browser geometry verification.
+
+### Solutions hero note correction (2026-10-03)
+
+- Source evidence: `codex-clipboard-77e61039-c1d0-434f-898f-49ee329ab7f0.png`.
+- Replaced overlapping negative-right note positioning with a reserved desktop gutter. Device/backdrop/card retain their local proportions inside a dedicated aspect-ratio frame; note text/style remain.
+- Eight Solutions browser cases cover 320, 390, 768, 1024, 1228, 1280, 1536, 1920px. Added assertions that the note is visible at its breakpoint, its transformed bounds do not overlap the laptop, and its right edge stays within the preview.
+- Browser execution and updated screenshots remain blocked by the earlier security-policy rejection; no alternate browser used.
+- final result: blocked (rendered verification)
+
+Note-fix nonvisual checks passed: six existing Solutions model tests run fresh;
+`pnpm check` (formatting, lint, types and 15 cached repository test tasks);
+`pnpm build --cache=local:r` (12 successful tasks, 11 cached, portal rebuilt);
+`pnpm infra:config`; and `git diff --check`. Eight browser scenarios remain
+unrun, including the new overlap assertions.

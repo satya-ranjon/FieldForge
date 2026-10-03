@@ -824,3 +824,9 @@ The Platform page now presents the connected-operations overview, device preview
 ### Pricing page reference redesign (2026-10-03)
 
 The `/pricing` marketing page follows image 58 with a completed-job fee overview, editable USD example, FAQ, technician signup entry, and dark footer. The 12% example is local presentation only: a $100 job pays the technician $100 and adds a $12 customer fee. Billing configuration is unchanged. Focused verification: `node --experimental-strip-types --test apps/web-buyer-portal/tests/pricing-model.test.mjs`.
+
+### Shared public navigation (2026-10-03)
+
+Home, Platform, Solutions, Industries, Resources and Pricing share the homepage
+navbar and footer. Navigation highlights the current page; the navbar Search
+button opens the existing technician directory and Log in opens authentication.

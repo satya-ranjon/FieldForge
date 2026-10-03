@@ -21,15 +21,15 @@ import {
   type LucideIcon
 } from 'lucide-react';
 import { Input } from '@fieldforge/ui';
-import { PlatformNavigation } from '../platform/PlatformChrome';
+import { marketingPanelFrame } from '../marketing/MarketingHero.styles';
+import { MarketingNavbar } from '../marketing/MarketingNavbar';
 import {
-  PlatformBrand,
   PlatformEyebrow as Eyebrow,
   platformFrame as frame,
   platformHeading as heading,
   platformFocus as focus
 } from '../platform/PlatformPrimitives';
-import { Linkedin, SocialX, Youtube } from '../platform/PlatformSocialIcons';
+import { MarketingFooter } from '../marketing/MarketingFooter';
 import {
   resources,
   resourceTypes,
@@ -204,144 +204,6 @@ function ArticleReader({
   );
 }
 
-function ResourcesFooter({
-  onFilter
-}: {
-  onFilter: (type: ResourceType) => void;
-}): React.JSX.Element {
-  const groups = [
-    {
-      title: 'Platform',
-      links: [
-        ['Overview', '/platform'],
-        ['Features', '/platform#capabilities'],
-        ['Security', '/platform'],
-        ['Integrations', '/platform#ecosystem']
-      ]
-    },
-    {
-      title: 'Solutions',
-      links: [
-        ['For Enterprises', '/solutions'],
-        ['For Growing Teams', '/solutions'],
-        ['For Technicians', '/technicians'],
-        ['Pricing', '/pricing']
-      ]
-    },
-    {
-      title: 'Industries',
-      links: [
-        ['Retail & POS', '/industries'],
-        ['Restaurants & Cafés', '/industries'],
-        ['Hospitality', '/industries'],
-        ['Warehouses & Logistics', '/industries'],
-        ['All Industries', '/industries']
-      ]
-    }
-  ];
-  return (
-    <footer className="bg-brand-dark text-white">
-      <div className={`${frame} py-8 lg:py-[2em]`}>
-        <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-[1.7fr_0.95fr_1.05fr_1.2fr_0.8fr_1.35fr] lg:gap-[2em]">
-          <div>
-            <Link href="/marketing" aria-label="FieldForge home" className={focus}>
-              <PlatformBrand small />
-            </Link>
-            <p className="mt-3 max-w-[16em] text-xs leading-relaxed text-white/75 lg:text-[0.8em]">
-              Built for the industries that cannot lose track of work.
-            </p>
-            <div className="mt-3 flex gap-2">
-              {[
-                { name: 'LinkedIn', href: 'https://linkedin.com', Icon: Linkedin },
-                { name: 'X', href: 'https://twitter.com', Icon: SocialX },
-                { name: 'YouTube', href: 'https://youtube.com', Icon: Youtube }
-              ].map(({ name, href, Icon }) => (
-                <a
-                  key={name}
-                  href={href}
-                  aria-label={name}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={`${focus} grid size-11 place-items-center rounded-full border border-white/40 text-white/85 lg:size-[2em]`}
-                >
-                  <Icon />
-                </a>
-              ))}
-            </div>
-          </div>
-          {groups.map((group) => (
-            <div key={group.title}>
-              <h3 className="text-xs font-bold text-trust-lime lg:text-[0.85em]">{group.title}</h3>
-              <ul className="mt-3 space-y-1 text-xs text-white/80 lg:text-[0.8em]">
-                {group.links.map(([label, href]) => (
-                  <li key={label}>
-                    <Link
-                      href={href}
-                      className={`${focus} inline-flex min-h-11 items-center hover:text-white lg:min-h-[1.5em]`}
-                    >
-                      {label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-          <div>
-            <h3 className="text-xs font-bold text-trust-lime lg:text-[0.85em]">Resources</h3>
-            <ul className="mt-3 space-y-1 text-xs text-white/80 lg:text-[0.8em]">
-              {(['Guides', 'Case Studies', 'Templates', 'Help Center'] as ResourceType[]).map(
-                (type) => (
-                  <li key={type}>
-                    <button
-                      type="button"
-                      onClick={() => onFilter(type)}
-                      className={`${focus} min-h-11 text-left hover:text-white lg:min-h-[1.5em]`}
-                    >
-                      {type}
-                    </button>
-                  </li>
-                )
-              )}
-              <li>
-                <button
-                  type="button"
-                  onClick={() => onFilter('All')}
-                  className={`${focus} min-h-11 lg:min-h-[1.5em]`}
-                >
-                  Blog
-                </button>
-              </li>
-            </ul>
-          </div>
-          <div className="flex flex-col gap-3 lg:border-l lg:border-white/15 lg:pl-[2em]">
-            <Link
-              href="/technicians"
-              className={`${focus} inline-flex min-h-11 items-center justify-center gap-3 whitespace-nowrap rounded-lg bg-brand-green px-4 text-xs font-bold text-brand-dark lg:min-h-[2.8em] lg:text-[0.85em]`}
-            >
-              Find Technicians <ArrowRight className="size-4" />
-            </Link>
-            <Link
-              href="/technicians"
-              className={`${focus} inline-flex min-h-11 items-center justify-center whitespace-nowrap rounded-lg border border-white/70 px-4 text-xs font-bold lg:min-h-[2.8em] lg:text-[0.85em]`}
-            >
-              Join as Technician
-            </Link>
-          </div>
-        </div>
-        <div className="mt-7 flex flex-wrap items-center justify-between gap-4 border-t border-white/15 pt-5 text-[10px] text-white/70 lg:mt-[2em] lg:text-[0.75em]">
-          <p>© {new Date().getFullYear()} FieldForge. All rights reserved.</p>
-          <p className="flex gap-6">
-            <span>Privacy</span>
-            <span>Terms</span>
-            <span>Contact</span>
-          </p>
-          <p>Field work moves the world forward. So do you.</p>
-        </div>
-      </div>
-    </footer>
-  );
-}
-
 export function ResourcesLibrary(): React.JSX.Element {
   const [input, setInput] = useState('');
   const [query, setQuery] = useState('');
@@ -374,7 +236,7 @@ export function ResourcesLibrary(): React.JSX.Element {
   }
   return (
     <div className="min-h-screen overflow-x-clip bg-white font-[family-name:Arial,Helvetica,sans-serif] text-text-primary lg:text-[clamp(12px,1.12vw,18px)]">
-      <PlatformNavigation activePage="/resources" />
+      <MarketingNavbar compact activePage="/resources" />
       <main>
         <section className="bg-surface-marketing/40">
           <div
@@ -574,7 +436,7 @@ export function ResourcesLibrary(): React.JSX.Element {
 
         <section
           aria-labelledby="resource-newsletter-title"
-          className="mx-auto mb-3 w-[calc(100%-2rem)] max-w-[1530px] rounded-3xl bg-surface-marketing px-6 py-8 lg:w-[94.2%] lg:px-[3.2em] lg:py-[2.3em]"
+          className={`${marketingPanelFrame} mb-3 rounded-3xl bg-surface-marketing px-6 py-8 lg:px-[3.2em] lg:py-[2.3em]`}
         >
           <div className="grid items-center gap-6 lg:grid-cols-[51%_43%] lg:justify-between">
             <div>
@@ -622,13 +484,7 @@ export function ResourcesLibrary(): React.JSX.Element {
           </div>
         </section>
       </main>
-      <ResourcesFooter
-        onFilter={(next) => {
-          setInput('');
-          setQuery('');
-          chooseType(next);
-        }}
-      />
+      <MarketingFooter />
       <ArticleReader resource={article} onClose={() => setArticle(null)} />
     </div>
   );

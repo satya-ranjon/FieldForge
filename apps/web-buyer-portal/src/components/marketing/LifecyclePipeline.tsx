@@ -33,7 +33,7 @@ export function LifecyclePipeline(): ReactElement {
     <section
       id="lifecycle"
       aria-labelledby="lifecycle-title"
-      className={`${marketingLayoutScale} relative mx-auto w-[calc(100%-2.5rem)] pt-6 pb-4 font-[family-name:Arial,Helvetica,sans-serif] text-text-primary lg:w-[calc(var(--hero-unit)*86.4)] lg:pt-[2em] lg:pb-[1em] lg:text-[length:var(--hero-unit)]`}
+      className={`${marketingLayoutScale} relative mx-auto w-[calc(100%-2.5rem)] max-w-marketing-page pt-6 pb-4 font-[family-name:Arial,Helvetica,sans-serif] text-text-primary lg:w-[calc(var(--hero-unit)*86.4)] lg:pt-[2em] lg:pb-[1em] lg:text-[length:var(--hero-unit)]`}
     >
       <div className="grid gap-6 lg:grid-cols-[33%_minmax(0,1fr)] lg:gap-[2em]">
         <div>

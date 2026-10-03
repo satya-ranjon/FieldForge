@@ -30,7 +30,7 @@ export function EnterpriseReliability(): React.JSX.Element {
     <section
       id="enterprise-reliability"
       aria-labelledby="enterprise-reliability-title"
-      className={`${marketingLayoutScale} relative mx-auto w-[calc(100%-2.5rem)] font-[family-name:Arial,Helvetica,sans-serif] text-text-primary lg:w-[calc(var(--hero-unit)*89)] lg:text-[length:var(--hero-unit)]`}
+      className={`${marketingLayoutScale} relative mx-auto w-[calc(100%-2.5rem)] max-w-marketing-page font-[family-name:Arial,Helvetica,sans-serif] text-text-primary lg:w-[calc(var(--hero-unit)*89)] lg:text-[length:var(--hero-unit)]`}
     >
       <header className="mx-auto mb-5 max-w-3xl text-center lg:mb-[1.7em] lg:max-w-[65em]">
         <span className="inline-flex items-center gap-2 rounded-full border border-border-soft bg-surface-white px-3.5 py-2 text-[9px] font-bold uppercase tracking-[0.04em] lg:gap-[1em] lg:px-[1.5em] lg:py-[0.8em] lg:text-[0.75em]">

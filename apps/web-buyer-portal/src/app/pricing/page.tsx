@@ -1,3 +1,6 @@
+import { marketingPanelFrame } from '../../components/marketing/MarketingHero.styles';
+import { MarketingNavbar } from '../../components/marketing/MarketingNavbar';
+import { MarketingFooter } from '../../components/marketing/MarketingFooter';
 import React from 'react';
 import type { Metadata } from 'next';
 import Image from 'next/image';
@@ -18,17 +21,12 @@ import {
   CornerDownLeft,
   type LucideIcon
 } from 'lucide-react';
-import { SolutionsNavigation } from '../../components/solutions/SolutionsChrome';
 import {
   platformFrame as frame,
   platformHeading as heading,
   platformFocus as focus
 } from '../../components/platform/PlatformPrimitives';
-import {
-  PricingContact,
-  PricingFooter,
-  TechnicianJoin
-} from '../../components/pricing/PricingChrome';
+import { PricingContact, TechnicianJoin } from '../../components/pricing/PricingChrome';
 import { PricingExample, PricingFaq } from '../../components/pricing/PricingInteractive';
 
 export const metadata: Metadata = {
@@ -36,8 +34,7 @@ export const metadata: Metadata = {
   description:
     'Explore FieldForge’s simple completed-job pricing model, a 12% platform fee example, and free access for technicians.'
 };
-const panel =
-  'mx-auto w-[calc(100%-2rem)] max-w-[1540px] rounded-2xl bg-white px-5 py-6 sm:px-7 lg:w-[92%] lg:px-[2.8em] lg:py-[1.3em]';
+const panel = `${marketingPanelFrame} rounded-2xl bg-white px-5 py-6 sm:px-7 lg:px-[2.8em] lg:py-[1.3em]`;
 function Eyebrow({
   children,
   dark = false
@@ -181,7 +178,7 @@ const benefits = [
 export default function PricingPage(): React.JSX.Element {
   return (
     <div className="min-h-screen overflow-x-clip bg-surface-marketing/65 font-[family-name:Arial,Helvetica,sans-serif] text-text-primary lg:text-[clamp(12px,1.2vw,18px)]">
-      <SolutionsNavigation activePage="/pricing" />
+      <MarketingNavbar compact activePage="/pricing" />
       <main>
         <section
           className={`${frame} grid items-center gap-6 py-7 lg:grid-cols-[46%_52%] lg:justify-between lg:gap-0 lg:pb-[1.1em] lg:pt-[0.7em]`}
@@ -362,7 +359,9 @@ export default function PricingPage(): React.JSX.Element {
           <PricingFaq />
         </section>
 
-        <section className="relative mx-auto my-5 w-[calc(100%-2rem)] max-w-[1520px] overflow-hidden rounded-xl bg-brand-dark px-6 py-7 text-white lg:my-[1.2em] lg:w-[91%] lg:px-[2.5em] lg:py-[1.5em]">
+        <section
+          className={`${marketingPanelFrame} relative my-5 overflow-hidden rounded-xl bg-brand-dark px-6 py-7 text-white lg:my-[1.2em] lg:px-[2.5em] lg:py-[1.5em]`}
+        >
           <Image
             src="/marketing/footer-background.png"
             alt=""
@@ -429,7 +428,7 @@ export default function PricingPage(): React.JSX.Element {
           </div>
         </section>
       </main>
-      <PricingFooter />
+      <MarketingFooter />
     </div>
   );
 }

@@ -31,7 +31,7 @@ export function MarketingTrustStrip(): ReactElement {
       className={`${marketingLayoutScale} relative isolate mt-4 w-full overflow-hidden py-10 font-[family-name:Arial,Helvetica,sans-serif] text-text-primary sm:mt-8 sm:py-[clamp(3rem,4.05vw,5.5rem)]`}
       aria-label="Platform assurances"
     >
-      <div className="relative mx-auto w-[min(22rem,calc(100%-3rem))] sm:w-[min(52rem,calc(100%-6rem))] lg:w-[calc(var(--hero-unit)*86.4)]">
+      <div className="relative mx-auto w-[min(22rem,calc(100%-3rem))] max-w-marketing-page sm:w-[min(52rem,calc(100%-6rem))] lg:w-[calc(var(--hero-unit)*86.4)]">
         <img
           className={`${orbitClasses} -left-16 lg:-left-[calc(var(--hero-unit)*9)]`}
           src="/marketing/trust-orbit.png"

@@ -182,7 +182,7 @@ export function FieldOperationsSection(): React.JSX.Element {
     <section
       id="field-operations"
       aria-labelledby="field-operations-title"
-      className={`${marketingLayoutScale} relative mx-auto w-[calc(100%-2.5rem)] pt-8 pb-6 font-[family-name:Arial,Helvetica,sans-serif] text-sm text-text-primary lg:w-[calc(var(--hero-unit)*89)] lg:pt-[2em] lg:pb-[2em] lg:text-[length:var(--hero-unit)]`}
+      className={`${marketingLayoutScale} relative mx-auto w-[calc(100%-2.5rem)] max-w-marketing-page pt-8 pb-6 font-[family-name:Arial,Helvetica,sans-serif] text-sm text-text-primary lg:w-[calc(var(--hero-unit)*89)] lg:pt-[2em] lg:pb-[2em] lg:text-[length:var(--hero-unit)]`}
     >
       <header className="mx-auto max-w-3xl text-center lg:max-w-[62em]">
         <span className="inline-flex items-center gap-[0.7em] rounded-full bg-surface-white px-[1.1em] py-[0.7em] text-[0.7em] font-bold uppercase shadow-xs">

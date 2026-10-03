@@ -38,14 +38,14 @@ for (const width of [320, 390, 768, 1024, 1280, 1920]) {
     );
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog', { name: 'Talk to sales' })).not.toBeVisible();
-    if (width < 1024) {
-      await page.getByRole('button', { name: 'Toggle navigation' }).click();
+    if (width < 900) {
+      await page.getByRole('button', { name: 'Toggle navigation menu' }).click();
       await expect(
         page
           .getByRole('navigation', { name: 'Mobile navigation' })
           .getByRole('link', { name: 'Industries', exact: true })
       ).toHaveAttribute('aria-current', 'page');
-      await page.getByRole('button', { name: 'Toggle navigation' }).click();
+      await page.getByRole('button', { name: 'Toggle navigation menu' }).click();
     } else {
       await expect(
         page
@@ -53,7 +53,10 @@ for (const width of [320, 390, 768, 1024, 1280, 1920]) {
           .getByRole('link', { name: 'Industries', exact: true })
       ).toHaveAttribute('aria-current', 'page');
     }
-    await page.getByLabel('Your email address').fill('preview@example.com');
+    await page
+      .locator('#marketing-footer')
+      .getByLabel('Email address', { exact: true })
+      .fill('preview@example.com');
     await page.getByRole('button', { name: 'Subscribe', exact: true }).click();
     await expect(
       page

@@ -1826,3 +1826,48 @@ Resources no longer uses inert PDF buttons or unsupported research/customer clai
 ### Pricing page reference redesign (2026-10-03)
 
 Reference image 58 contains contradictory fee arithmetic and conflicts with preauthorization requirements when it says no upfront payment. Resolved for this presentation using the written additive-fee rule and explicit job-amount hold wording; no billing implementation changed. The optional arithmetic clarification received no response before implementation. Browser security rejection still prevents rendered comparison and six new responsive E2E cases; no alternative browser workaround attempted. Contact/newsletter integrations and missing company/legal routes remain unavailable with honest feedback or plain labels.
+
+### Public page maximum width (2026-10-03)
+
+Resolved inconsistent public-page outer caps (1440px content versus
+1520–1570px panels) using a shared 1440px cap. Homepage composition widths
+retain their existing rem-based sizes under the same cap. This supersedes
+prior per-page maximum-width choices in DESIGN.md without changing architecture
+or public contracts. Browser verification remains blocked by the previously
+reported security-policy rejection; no alternate browser execution attempted.
+
+### Shared public footer (2026-10-03)
+
+Resolved public footer design drift by using the homepage MarketingFooter on
+all six public pages, rather than maintaining separate variants. Existing
+newsletter unavailability, app download placeholders and company destination
+limitations belong to the shared component and remain unchanged. Rendered
+cross-page comparison and 36 footer browser scenarios remain blocked by the
+previous browser security rejection; no workaround used.
+
+### Shared public navbar (2026-10-03)
+
+Resolved navbar design drift with the homepage component across all public pages.
+The formerly inert marketing Search button now opens the existing technician
+route. Compact menu visibility follows the same 900px breakpoint as its desktop
+controls, including when an open menu is resized. Previous per-page signup
+buttons are replaced by the requested homepage navbar controls; body CTAs remain.
+Browser visual verification and 36 navbar scenarios are still blocked by the
+previous security rejection, with no alternate execution workaround attempted.
+
+### Public content alignment correction (2026-10-03)
+
+The previous maximum-width change was insufficient: separate percentage widths
+still placed page copy outside the navbar edges, as shown in the user's Platform
+screenshot. Replaced them with the homepage's stepped frame system. Platform
+also had a negative right margin and a laptop base spanning 104% of its preview;
+removed that overrun. This is a presentation correction; rendered comparison
+remains blocked by the prior browser restriction, so visual acceptance is pending.
+
+### Solutions hero note correction (2026-10-03)
+
+The user screenshot showed the first words of “From dispatch to done” behind
+the laptop. Its negative right offset and shared absolute positioning let the
+later-painted laptop obscure it. A reserved right gutter separates the note
+from the device and keeps the rotated text within the preview width. Visual
+acceptance remains pending under the existing browser restriction.

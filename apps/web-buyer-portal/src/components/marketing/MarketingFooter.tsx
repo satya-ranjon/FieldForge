@@ -58,7 +58,7 @@ export function MarketingFooter(): React.JSX.Element {
         sizes="100vw"
         className="pointer-events-none -z-10 object-cover"
       />
-      <div className="mx-auto w-[calc(100%-2.5rem)] pt-12 pb-8 lg:w-[calc(var(--hero-unit)*89)] lg:pt-[9em] lg:pb-[3.8em]">
+      <div className="mx-auto w-[calc(100%-2.5rem)] max-w-marketing-page pt-12 pb-8 lg:w-[calc(var(--hero-unit)*89)] lg:pt-[9em] lg:pb-[3.8em]">
         <div className="grid gap-8 md:grid-cols-[1fr_2fr] lg:grid-cols-[20em_minmax(0,1fr)_22em] lg:gap-[2.3em]">
           <div className="lg:border-r lg:border-white/10 lg:pr-[2em]">
             <Link
@@ -312,7 +312,7 @@ export function MarketingFooter(): React.JSX.Element {
         </div>
       </div>
       <div className="border-t border-white/10">
-        <div className="mx-auto flex w-[calc(100%-2.5rem)] flex-col items-center justify-between gap-3 py-6 text-center text-[10px] text-white/65 lg:w-[calc(var(--hero-unit)*89)] lg:flex-row lg:gap-[2em] lg:pt-[2em] lg:pb-[4em] lg:text-[0.8em]">
+        <div className="mx-auto flex w-[calc(100%-2.5rem)] max-w-marketing-page flex-col items-center justify-between gap-3 py-6 text-center text-[10px] text-white/65 lg:w-[calc(var(--hero-unit)*89)] lg:flex-row lg:gap-[2em] lg:pt-[2em] lg:pb-[4em] lg:text-[0.8em]">
           <p>© {new Date().getFullYear()} FieldForge. All rights reserved.</p>
           <p className="text-white/85">Built for the people who keep the world moving.</p>
           <div className="flex items-center gap-4 lg:gap-[1.8em]">

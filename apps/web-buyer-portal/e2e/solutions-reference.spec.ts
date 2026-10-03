@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-for (const width of [320, 390, 768, 1024, 1228, 1920]) {
+for (const width of [320, 390, 768, 1024, 1228, 1280, 1536, 1920]) {
   test(`solutions reference and interactions at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 1000 });
     await page.goto('/solutions');
@@ -11,6 +11,22 @@ for (const width of [320, 390, 768, 1024, 1228, 1920]) {
     );
     await expect(page.locator('#our-solutions h3')).toHaveCount(6);
     await expect(page.getByLabel('Solutions laptop preview', { exact: true })).toBeVisible();
+    const heroPreview = page.getByLabel('Solutions laptop preview', { exact: true });
+    const note = heroPreview.locator(':scope > p');
+    if (width >= 1280) {
+      await expect(note).toBeVisible();
+      await expect(note).toContainText('From dispatch');
+      const noteBounds = (await note.boundingBox())!;
+      const laptopBounds = (await heroPreview.locator('[data-solutions-laptop]').boundingBox())!;
+      const previewBounds = (await heroPreview.boundingBox())!;
+      expect(noteBounds.x).toBeGreaterThanOrEqual(laptopBounds.x + laptopBounds.width);
+      expect(noteBounds.x + noteBounds.width).toBeLessThanOrEqual(
+        previewBounds.x + previewBounds.width
+      );
+    } else {
+      await expect(note).toBeHidden();
+    }
+
     const marketplace = page.getByLabel('Technician marketplace preview', { exact: true });
     await expect(marketplace.getByRole('link', { name: /^Invite / })).toHaveCount(3);
     await page.getByLabel('Search sample technicians').fill('networking');
@@ -36,21 +52,24 @@ for (const width of [320, 390, 768, 1024, 1228, 1920]) {
     await expect(dialog).toContainText('Sales booking is not available yet.');
     await page.keyboard.press('Escape');
     await expect(dialog).not.toBeVisible();
-    await page.getByLabel('Your email address').fill('preview@example.com');
+    await page
+      .locator('#marketing-footer')
+      .getByLabel('Email address', { exact: true })
+      .fill('preview@example.com');
     await page.getByRole('button', { name: 'Subscribe', exact: true }).click();
     await expect(
       page
         .getByRole('status')
         .filter({ hasText: 'Newsletter subscriptions are not available yet.' })
     ).toBeVisible();
-    if (width < 1024) {
-      await page.getByRole('button', { name: 'Toggle navigation' }).click();
+    if (width < 900) {
+      await page.getByRole('button', { name: 'Toggle navigation menu' }).click();
       await expect(
         page
           .getByRole('navigation', { name: 'Mobile navigation' })
           .getByRole('link', { name: 'Solutions', exact: true })
       ).toHaveAttribute('aria-current', 'page');
-      await page.getByRole('button', { name: 'Toggle navigation' }).click();
+      await page.getByRole('button', { name: 'Toggle navigation menu' }).click();
     } else {
       await expect(
         page
