@@ -313,3 +313,7 @@ Industries marketing presentation relates to FR-AUTH-001/003, FR-WO-001, and FR-
 ### Resources page reference redesign (2026-10-03)
 
 Resources guides relate to FR-WO-001/002, FR-DISP-001, FR-AUTH-003, FR-MOB-002/003 and FR-BILL-002 as explanatory material only. Local library interactions and templates establish no operational requirement acceptance. Case studies are illustrative, without invented customer outcomes or measured performance claims.
+
+### Pricing page reference redesign (2026-10-03)
+
+Pricing explanatory content relates to FR-BILL-001/002 and FR-AUTH-001 without changing operational acceptance. The supplied image conflicts internally: its text adds a customer fee and preserves full technician earnings, but its example deducts the fee. Presentation follows the written rule ($100 job + $12 fee = $112 customer total, technician $100). Existing preauthorization requirements remain: copy says no upfront platform fee and FAQ explains that a job-amount hold may precede work. The marketing 12% constant is not service billing configuration.

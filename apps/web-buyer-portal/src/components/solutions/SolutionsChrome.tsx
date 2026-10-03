@@ -24,7 +24,7 @@ const navigation = [
 export function SolutionsNavigation({
   activePage = '/solutions'
 }: {
-  activePage?: '/solutions' | '/industries';
+  activePage?: '/solutions' | '/industries' | '/pricing';
 }): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const [auth, setAuth] = useState<'login' | 'register' | null>(null);

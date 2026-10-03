@@ -24,14 +24,20 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialMode?: 'login' | 'register';
+  initialRole?: UserRole.BUYER | UserRole.TECHNICIAN;
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'login' }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({
+  isOpen,
+  onClose,
+  initialMode = 'login',
+  initialRole = UserRole.BUYER
+}) => {
   const dispatch = useDispatch();
   const { isLoading, error } = useSelector((state: RootState) => state.auth);
 
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
-  const [role, setRole] = useState<UserRole>(UserRole.BUYER);
+  const [role, setRole] = useState<UserRole>(initialRole);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [companyName, setCompanyName] = useState('');
@@ -283,6 +289,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
                 <button
                   type="button"
                   onClick={() => setRole(UserRole.BUYER)}
+                  aria-pressed={role === UserRole.BUYER}
                   className={`p-2.5 rounded-xl border text-left transition cursor-pointer flex items-center space-x-2 ${
                     role === UserRole.BUYER
                       ? 'border-[#22B947] bg-[#EAF8E9] text-[#090E11]'
@@ -299,6 +306,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
                 <button
                   type="button"
                   onClick={() => setRole(UserRole.TECHNICIAN)}
+                  aria-pressed={role === UserRole.TECHNICIAN}
                   className={`p-2.5 rounded-xl border text-left transition cursor-pointer flex items-center space-x-2 ${
                     role === UserRole.TECHNICIAN
                       ? 'border-[#22B947] bg-[#EAF8E9] text-[#090E11]'

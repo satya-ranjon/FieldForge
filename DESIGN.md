@@ -346,3 +346,7 @@ Industries uses the image 60 reference: split hero with clipped photographic pan
 ### Resources page reference redesign (2026-10-03)
 
 Resources follows image 59: split photo/search hero, six type filters, three featured cards, four latest cards, six topic tiles, pale newsletter band and dark six-column footer. Desktop grids start at 1024px; smaller screens stack. PlatformNavigation gains an optional activePage with its Platform default preserved. All UI uses existing tokens, brand, icons, fonts, visible focus states and native dialog focus management.
+
+### Pricing page reference redesign (2026-10-03)
+
+Pricing follows image 58 with a pale background, split hero with independent customer photograph and transparent dashed connector, four-step workflow, two overview cards, native editable fee example, four benefits, two-column FAQ, dark CTA and footer. Desktop composition starts at 1024px; smaller screens stack. Shared Solutions navigation accepts Pricing as an active route without changing its default. All content and controls are native UI; existing fonts/tokens/icons/portraits are reused.

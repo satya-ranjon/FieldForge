@@ -110,3 +110,7 @@ Industries image 60 asset set: `industries-rooftop.png`, `industries-technician.
 ### Resources page reference redesign (2026-10-03)
 
 Resources uses six generated photos under public/marketing: `resources-{technician,retail,reporting,checklist,team,hvac}.png`. Hero technician is reused for guide cards. Source image 59; saved paths and exact built-in generation prompts are in `docs/resources-image-prompts.md`. Generated photos were inspected; UI content remains native. Two static CSV files provide actual template downloads.
+
+### Pricing page reference redesign (2026-10-03)
+
+Pricing uses `public/marketing/pricing-customer.png` (1122 × 1402) and `pricing-route.png` (1536 × 1024 RGBA), generated with the built-in image tool and inspected. The route is 98.88% fully transparent. Existing technician portraits and footer background are reused. Exact prompts and saved paths: `docs/pricing-image-prompts.md`.

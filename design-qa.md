@@ -520,3 +520,20 @@ rebuilt); `pnpm infra:config`; focused ESLint after the final search/newsletter
 layout adjustments; and `git diff --check`. The build was repeated after fixing
 the shared Input wrapper layout so the email field and Subscribe button occupy
 one desktop row. No browser execution or rendered visual acceptance is claimed.
+
+### Pricing page reference redesign (2026-10-03)
+
+- Source: `design-files/marketing-page-desgn/image 58.png`, 3312 × 7600, inspected at 892 × 2048; supplied attachment `codex-clipboard-2864fb55-4b35-4ddf-acb1-70024a9de79f.png`.
+- Implementation `/pricing`; intended matched comparison at 892px plus desktop 1153px, initial calculator/FAQ state.
+- Implemented split photo hero, native floating cards, workflow, pricing overview, editable example, benefits, FAQ, dark CTA and footer. Two generated raster assets inspected; text/cards/buttons remain native.
+- Intentional differences: corrected additive fee arithmetic, hold-aware copy, no unsupported financial-risk guarantee, current copyright, honest contact/newsletter feedback.
+- Eight fresh calculator tests pass. Six E2E scenarios cover 320, 390, 768, 1024, 1153 and 1920px, arithmetic/validation, FAQ, technician signup role, contact, newsletter, active navigation, image decoding, overflow and screenshots. Authored but unrun.
+- Browser capture, console evidence, responsive execution and rendered comparison remain unavailable under the existing security-policy rejection; no alternate browser or indirect workaround used. Next verification is to execute these scenarios and compare full-page/hero/FAQ screenshots.
+- final result: blocked
+
+Pricing nonvisual checks passed: eight fresh calculator tests; `pnpm check`
+(formatting, lint, type checking and 15 cached repository test tasks);
+`pnpm build --cache=local:r` (12 successful tasks, 11 cached, buyer portal
+rebuilt); `pnpm infra:config`; and `git diff --check`. Both generated PNGs
+resolve and decode. These checks do not establish rendered fidelity or replace
+the six unrun browser cases.

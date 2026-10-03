@@ -259,3 +259,7 @@ Industries presentation adds no endpoints, DTOs, migrations, or events. Industry
 ### Resources page reference redesign (2026-10-03)
 
 Resources uses static bundled content and files at `/resources/field-operations-reporting.csv` and `/resources/technician-onboarding-checklist.csv`. These are public static downloads, not new service endpoints. Search/filter/dialog state is local; newsletter sends no request. No DTO, event, database, migration or shared contract changes.
+
+### Pricing page reference redesign (2026-10-03)
+
+No endpoint, DTO, validator, event or payment contract changed. Pricing calculator uses a local 12% display constant and integer-cent arithmetic; its $1–$1,000,000 input bounds are UI preview limits only. Contact/newsletter controls explicitly report unavailable integrations. AuthModal initial role is a UI selection, not an authorization grant.

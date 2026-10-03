@@ -820,3 +820,7 @@ The Platform page now presents the connected-operations overview, device preview
 ### Resources page reference redesign (2026-10-03)
 
 `/resources` now provides a searchable local resource library with type/topic filters, readable guide/help panels, explicitly illustrative case studies, two CSV downloads, and newsletter unavailability feedback. The image 59 layout uses separate generated photographs, featured/latest grids, and a dark footer. No new backend services are implied.
+
+### Pricing page reference redesign (2026-10-03)
+
+The `/pricing` marketing page follows image 58 with a completed-job fee overview, editable USD example, FAQ, technician signup entry, and dark footer. The 12% example is local presentation only: a $100 job pays the technician $100 and adds a $12 customer fee. Billing configuration is unchanged. Focused verification: `node --experimental-strip-types --test apps/web-buyer-portal/tests/pricing-model.test.mjs`.

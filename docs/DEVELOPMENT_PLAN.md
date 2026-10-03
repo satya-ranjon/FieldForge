@@ -2297,3 +2297,7 @@ Implemented the image 60 Industries marketing composition with separate generate
 ### Resources page reference redesign (2026-10-03)
 
 Implemented the Resources reference page, local query/type/topic filtering, accessible native article dialogs, and two downloadable CSV templates. Nine focused tests pass; six responsive E2E scenarios are authored but unrun under the existing browser restriction. Rendered acceptance remains pending; no dispatch/payment/operational milestone is advanced.
+
+### Pricing page reference redesign (2026-10-03)
+
+Pricing reference presentation implemented: split photographic hero, four-step workflow, customer/technician comparison, fee calculator, benefit row, FAQ and closing CTA/footer. Eight calculator tests pass. Six responsive interaction scenarios are authored but browser execution and visual acceptance remain pending under the existing security restriction. No billing milestone is advanced by this marketing change.

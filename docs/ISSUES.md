@@ -1822,3 +1822,7 @@ Industries layout and assets are implemented; rendered comparison and six new re
 ### Resources page reference redesign (2026-10-03)
 
 Resources no longer uses inert PDF buttons or unsupported research/customer claims. Article actions open supplied local content; template actions download real CSV files. Case studies are labeled illustrative. Newsletter remains unavailable with explicit feedback. Six responsive browser cases and rendered comparison remain blocked by the prior browser security restriction; no workaround attempted.
+
+### Pricing page reference redesign (2026-10-03)
+
+Reference image 58 contains contradictory fee arithmetic and conflicts with preauthorization requirements when it says no upfront payment. Resolved for this presentation using the written additive-fee rule and explicit job-amount hold wording; no billing implementation changed. The optional arithmetic clarification received no response before implementation. Browser security rejection still prevents rendered comparison and six new responsive E2E cases; no alternative browser workaround attempted. Contact/newsletter integrations and missing company/legal routes remain unavailable with honest feedback or plain labels.

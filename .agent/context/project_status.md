@@ -726,3 +726,7 @@ Redesigned `/industries` using the supplied image 60 reference. Reused existing 
 ### Resources page reference redesign (2026-10-03)
 
 Resources reference redesign adds eight local resource entries, search/type/topic filtering, article panels, and two CSV templates. Nine fresh tests pass for model/content/asset/download integrity. Six responsive browser scenarios are unrun under the existing security restriction. Case studies are expressly illustrative and the former unsupported research/performance claims are removed. Backend status unchanged.
+
+### Pricing page reference redesign (2026-10-03)
+
+Pricing reference redesign replaces the former three-tier presentation with a 12% completed-job marketing model and free technician access. Eight fresh calculator tests pass; six responsive browser scenarios are authored but unrun under the existing security restriction. Technician CTA opens the existing registration modal with technician selected; default buyer behavior is preserved. Billing service, authorization, contracts and operational test counts are unchanged.
