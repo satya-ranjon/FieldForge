@@ -710,3 +710,7 @@ Replaced the Command Center raster map with a native SVG/HTML demo. Added zoom/p
 ### Dispatch demo maps and portraits (2026-09-29)
 
 Replaced both remaining requested dispatch-map rasters with native demos and refreshed three candidate portraits. The shared map-state suite has five passing tests. Twelve existing responsive scenarios now cover these two maps and avatar decoding, but browser execution remains blocked by the existing security-policy rejection. No live dispatch or tracking acceptance changed.
+
+### Platform page reference redesign (2026-10-03)
+
+Redesigned `/platform` from the supplied image 62 reference. Replaced technical architecture/unsupported performance claims with a product overview and separate UI previews. Local work-order search/status filtering, mobile navigation, and newsletter unavailability feedback are implemented. Five fresh model tests pass; six responsive browser scenarios are authored but unrun under the existing security restriction. This is marketing presentation, not new operational acceptance.

@@ -1801,3 +1801,7 @@ The Command Center map previously embedded its legend, markers, popup, weather, 
 ### Dispatch demo maps and portraits (2026-09-29)
 
 Replaced the two highlighted flattened maps and the cropped/low-resolution dispatch portraits. Maps now expose native sample interactions without external services. Browser security still prevents E2E/visual verification, so the mandatory pre-push E2E gate cannot currently be satisfied; push must remain blocked.
+
+### Platform page reference redesign (2026-10-03)
+
+The former Platform page diverged from the supplied reference and advertised unsupported quantitative guarantees. Replaced it with the reference composition and illustrative UI. No newsletter backend or company/legal destination routes were invented. Browser-security restrictions prevent final rendered comparison and E2E execution; preserve this limitation until verification is available.

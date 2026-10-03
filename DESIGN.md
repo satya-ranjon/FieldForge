@@ -330,3 +330,7 @@ The Command Center map is now a client-side SVG/HTML demo, replacing the flatten
 ### Dispatch demo maps and portraits (2026-09-29)
 
 Smart Dispatch and the closing CTA now use native SVG/HTML demo maps, preserving their dark palettes and San Francisco/Texas compositions. Emergency cards, route curves, distances, location badges, active-job counts, and zoom/reset controls are separate elements. Map interaction stays local; sample geography is illustrative. Dispatch candidates reuse the generated Marcus v2, Daniel v2, and Priya field v3 portraits with optimized image sizing.
+
+### Platform page reference redesign (2026-10-03)
+
+The `/platform` route follows `design-files/marketing-page-desgn/image 62.png`: a connected-operations hero with separate laptop/phone UI, five capability cards, an ecosystem diagram, searchable sample work orders with three benefits, a pale closing CTA, and compact dark footer. It reuses marketing tokens, the local display font, brand mark, portraits, and existing routes. A light generated basemap is the only new raster; pins, cards, labels, device UI, and table content remain native. Desktop uses an 86.3% centered frame capped at 1440px; mobile stacks sections and scrolls only the table internally. This reference supersedes the old architecture-pillar presentation.

@@ -94,3 +94,7 @@ CommandCenterPreview no longer consumes `map-command-center.png`. Its map is ren
 ### Dispatch demo maps and portraits (2026-09-29)
 
 SmartDispatchSection no longer renders `map-smart-dispatch.png`; DarkBottomCtaBanner no longer renders `map-texas-command.png`. Originals remain on disk. Dispatch candidate images now use `avatars/marcus-lee-v2.png`, `avatars/daniel-carter-v2.png`, and `avatars/priya-shah-field-v3.png`. No new image generation was needed.
+
+### Platform page reference redesign (2026-10-03)
+
+Platform uses one new asset, `public/marketing/platform-street-map.png` (1402 × 1122), generated using the built-in tool from image 62 as visual guidance. It contains streets/parks/water only; all pins, metrics, labels, cards and device UI remain native. Existing generated portraits, shared logo/social icon paths, and footer background are reused. Exact prompt is recorded in `docs/platform-image-prompts.md`.

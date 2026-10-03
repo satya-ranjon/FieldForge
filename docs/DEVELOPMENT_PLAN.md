@@ -2281,3 +2281,7 @@ Command Center demo-map replacement implemented: vector geography, native legend
 ### Dispatch demo maps and portraits (2026-09-29)
 
 Native dispatch-map and portrait updates implemented. Validate shared map-state tests and repository gates; final visual comparison/E2E remains blocked by the existing browser restriction. Push is permitted only after every mandated gate succeeds.
+
+### Platform page reference redesign (2026-10-03)
+
+Platform reference implementation added: responsive device hero, capability row, ecosystem, work-order preview, benefits, CTA, compact navigation/footer. Five model tests pass and six responsive interaction cases are authored. Visual comparison remains pending because browser preview access is blocked. No backend roadmap milestone or SRS acceptance is promoted.

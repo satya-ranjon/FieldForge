@@ -442,3 +442,22 @@ test tasks). Step 6, `pnpm test:e2e`, was not run: the existing browser security
 rejection forbids preview access and alternate browser execution. The gate
 therefore stops here; clean-typecheck and the final build/check sequence were
 not run as pre-push gates. No push is permitted or attempted.
+
+### Platform page reference redesign (2026-10-03)
+
+- Source: `design-files/marketing-page-desgn/image 62.png` and user attachment `codex-clipboard-0eb9d619-8b2c-45ee-a02b-3bcaaa8bf938.png`, 4344 × 5792 pixels; inspected at 1368 × 1824 normalized display size.
+- Implementation: `/platform`. Intended comparison: 1368px viewport, full page, initial state. Implementation screenshot unavailable because the prior browser-security rejection prevents local preview capture; no alternative browser route attempted.
+- Structure implemented: navigation; split device hero; five capabilities; buyer/platform/technician ecosystem; native work-order table and benefits; pale CTA; compact footer.
+- Assets: reused brand/portraits/footer; generated light map texture with independent native pins and work-order popup. Device screens/table text remain native in response to the user's established sharpness/separation preference.
+- Intentional content differences: sample table tabs count the five actual sample rows, current copyright year, missing company/legal routes are plain labels, newsletter clearly reports unavailability, search navigates to the existing directory. No simulated backend success.
+- Typography, layout rhythm, color balance, image fidelity and copy: reference inspected; browser comparison has not been performed. No visual match claim can be made from source/build checks.
+- Full-view/focused evidence and console checks: unavailable. No comparison iterations recorded.
+- Functional evidence: five fresh model tests for query normalization, multi-field matching, status intersection, empty state, and immutability passed. Six responsive Playwright scenarios cover 320–1920px, links, search/filter, images, mobile menu and newsletter feedback; these remain unrun.
+- Next verification: capture source and implementation at the same viewport/state, compare hero/device sizing and full-page rhythm, exercise responsive scenarios, resolve visual differences.
+- final result: blocked
+
+Platform nonvisual validation passed: five focused model tests (fresh execution),
+`pnpm check` (formatting, lint, type checking, and 15 cached repository test tasks),
+`pnpm build --cache=local:r` (12 tasks, 11 cached, buyer portal rebuilt),
+`pnpm infra:config`, and `git diff --check`. Existing local server is listening
+on port 5173. This does not establish browser rendering or visual fidelity.

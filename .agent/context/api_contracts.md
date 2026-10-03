@@ -243,3 +243,7 @@ Command Center map interactions run entirely in local component state. No new en
 ### Dispatch demo maps and portraits (2026-09-29)
 
 San Francisco and Texas marketing demo maps reuse local bounded map state only. No service calls, external tile requests, geolocation, assignments, DTOs, events, or migrations change.
+
+### Platform page reference redesign (2026-10-03)
+
+Platform redesign adds no REST endpoints, DTOs, events, or persistence. Work-order search and status filtering operate on five local sample rows. Newsletter input is not transmitted or stored. Company/legal labels without implemented destinations remain noninteractive; existing CTA destinations are reused.

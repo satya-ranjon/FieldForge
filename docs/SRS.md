@@ -297,3 +297,7 @@ Command Center demo-map controls are presentation-only sample interactions. They
 ### Dispatch demo maps and portraits (2026-09-29)
 
 Native San Francisco/Texas map demos and updated marketing portraits do not change SRS-FR operational acceptance. Example incidents, distances, routes, and availability remain static sample data.
+
+### Platform page reference redesign (2026-10-03)
+
+Platform presentation uses illustrative work orders, metrics, portraits, and activity. Search/filter interactions are local demonstrations. Removed unsupported latency, match accuracy, and availability guarantee copy from the former page. No SRS-FR operational requirement acceptance status changes.

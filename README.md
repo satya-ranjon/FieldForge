@@ -804,3 +804,7 @@ The marketing Command Center includes a native demo map with vector streets, sel
 ### Dispatch demo maps and portraits (2026-09-29)
 
 Smart Dispatch and the closing CTA also use native demo maps with sample routes/incidents, selectable locations, zoom, keyboard panning, and reset. Candidate portraits use the sharper existing generated assets.
+
+### Platform page reference redesign (2026-10-03)
+
+The Platform page now presents the connected-operations overview, device previews, five capabilities, buyer/technician ecosystem, and searchable/filterable sample work orders. Preview metrics are illustrative. Primary links use existing solutions, operations, and technician routes. Focused search/filter tests: `node --experimental-strip-types --test apps/web-buyer-portal/tests/platform-preview-model.test.mjs`.
