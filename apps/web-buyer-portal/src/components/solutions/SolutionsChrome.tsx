@@ -21,7 +21,11 @@ const navigation = [
   ['Pricing', '/pricing']
 ] as const;
 
-export function SolutionsNavigation(): React.JSX.Element {
+export function SolutionsNavigation({
+  activePage = '/solutions'
+}: {
+  activePage?: '/solutions' | '/industries';
+}): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const [auth, setAuth] = useState<'login' | 'register' | null>(null);
   return (
@@ -38,8 +42,8 @@ export function SolutionsNavigation(): React.JSX.Element {
               <Link
                 key={href}
                 href={href}
-                aria-current={href === '/solutions' ? 'page' : undefined}
-                className={`${focus} border-b-2 py-[1.2em] text-[0.85em] ${href === '/solutions' ? 'border-brand-green font-bold' : 'border-transparent text-text-secondary hover:text-text-primary'}`}
+                aria-current={href === activePage ? 'page' : undefined}
+                className={`${focus} border-b-2 py-[1.2em] text-[0.85em] ${href === activePage ? 'border-brand-green font-bold' : 'border-transparent text-text-secondary hover:text-text-primary'}`}
               >
                 {name}
               </Link>
@@ -72,7 +76,7 @@ export function SolutionsNavigation(): React.JSX.Element {
             type="button"
             aria-label="Toggle navigation"
             aria-expanded={open}
-            aria-controls="solutions-mobile-menu"
+            aria-controls={`${activePage.slice(1)}-mobile-menu`}
             onClick={() => setOpen(!open)}
             className={`${focus} grid size-11 place-items-center lg:hidden`}
           >
@@ -81,7 +85,7 @@ export function SolutionsNavigation(): React.JSX.Element {
         </div>
         {open && (
           <nav
-            id="solutions-mobile-menu"
+            id={`${activePage.slice(1)}-mobile-menu`}
             aria-label="Mobile navigation"
             className="absolute inset-x-0 top-full border-b border-border-default bg-white p-5 shadow-md lg:hidden"
           >
@@ -89,7 +93,7 @@ export function SolutionsNavigation(): React.JSX.Element {
               <Link
                 key={href}
                 href={href}
-                aria-current={href === '/solutions' ? 'page' : undefined}
+                aria-current={href === activePage ? 'page' : undefined}
                 onClick={() => setOpen(false)}
                 className={`${focus} block rounded-lg p-3 text-sm hover:bg-surface-green`}
               >
@@ -164,17 +168,29 @@ export function TalkToSales(): React.JSX.Element {
   );
 }
 
-export function SolutionsFooter(): React.JSX.Element {
+export function SolutionsFooter({
+  activePage = '/solutions'
+}: {
+  activePage?: '/solutions' | '/industries';
+}): React.JSX.Element {
   const [message, setMessage] = useState('');
   return (
     <footer className="border-t border-border-soft bg-white">
-      <div className={`${frame} py-6 lg:py-[1.2em]`}>
-        <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-[2.2fr_1fr_0.85fr_1.2fr_2.1fr] lg:gap-[2.2em]">
+      <div
+        className={`${frame} py-6 ${activePage === '/industries' ? 'lg:py-[2em]' : 'lg:py-[1.2em]'}`}
+      >
+        <div
+          className={`grid gap-7 sm:grid-cols-2 lg:gap-[2.2em] ${activePage === '/industries' ? 'lg:grid-cols-[1.5fr_0.85fr_0.85fr_1.05fr_2.1fr]' : 'lg:grid-cols-[2.2fr_1fr_0.85fr_1.2fr_2.1fr]'}`}
+        >
           <div>
             <Link href="/marketing" className={focus} aria-label="FieldForge home">
-              <PlatformBrand small />
+              <span className={activePage === '/industries' ? 'text-[1.4em]' : ''}>
+                <PlatformBrand small />
+              </span>
             </Link>
-            <p className="mt-2 text-xs text-text-secondary lg:text-[0.72em]">
+            <p
+              className={`mt-2 text-xs text-text-secondary lg:text-[0.72em] ${activePage === '/industries' ? 'max-w-[16em] leading-relaxed' : ''}`}
+            >
               Skilled people. Real work. A more connected world.
             </p>
             <div className="mt-2 flex gap-2">
@@ -203,7 +219,8 @@ export function SolutionsFooter(): React.JSX.Element {
                 <li key={name}>
                   <Link
                     href={href}
-                    className={`${focus} inline-flex min-h-11 items-center lg:min-h-0 ${href === '/solutions' ? 'font-bold text-trust-lime-ink' : 'text-text-secondary'}`}
+                    aria-current={href === activePage ? 'page' : undefined}
+                    className={`${focus} inline-flex min-h-11 items-center lg:min-h-0 ${href === activePage ? 'font-bold text-trust-lime-ink' : 'text-text-secondary'}`}
                   >
                     {name}
                   </Link>
@@ -211,7 +228,7 @@ export function SolutionsFooter(): React.JSX.Element {
               ))}
             </ul>
           </div>
-          <div>
+          <div className={activePage === '/industries' ? 'lg:order-4' : ''}>
             <h3 className="text-xs font-bold lg:text-[0.75em]">Company</h3>
             <ul className="mt-2 space-y-2 text-xs text-text-secondary lg:text-[0.72em]">
               {['About Us', 'Careers', 'Contact'].map((name) => (
@@ -219,7 +236,7 @@ export function SolutionsFooter(): React.JSX.Element {
               ))}
             </ul>
           </div>
-          <div>
+          <div className={activePage === '/industries' ? 'lg:order-3' : ''}>
             <h3 className="text-xs font-bold lg:text-[0.75em]">Resources</h3>
             <ul className="mt-2 space-y-1 text-xs text-text-secondary lg:text-[0.72em]">
               {['Blog', 'Help Center', 'Guides', 'Case Studies'].map((name) => (
@@ -235,17 +252,21 @@ export function SolutionsFooter(): React.JSX.Element {
             </ul>
           </div>
           <form
+            className={activePage === '/industries' ? 'lg:order-5' : ''}
             onSubmit={(event) => {
               event.preventDefault();
               setMessage('Newsletter subscriptions are not available yet. Please check back soon.');
             }}
           >
-            <label htmlFor="solutions-email" className="text-xs font-bold lg:text-[0.75em]">
+            <label
+              htmlFor={`${activePage.slice(1)}-email`}
+              className="text-xs font-bold lg:text-[0.75em]"
+            >
               Subscribe to our newsletter
             </label>
             <div className="mt-2 flex overflow-hidden rounded-lg border border-border-default">
               <Input
-                id="solutions-email"
+                id={`${activePage.slice(1)}-email`}
                 aria-label="Your email address"
                 type="email"
                 required

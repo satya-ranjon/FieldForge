@@ -305,3 +305,7 @@ Platform presentation uses illustrative work orders, metrics, portraits, and act
 ### Solutions page reference redesign (2026-10-03)
 
 Solutions marketing presentation relates to FR-AUTH-003, FR-WO-001/002, FR-DISP-001, FR-MOB-002/003, and FR-BILL-002, but provides no new operational acceptance. Maps, network size, technicians, ratings, job states, and payment confirmation are illustrative. The previous unsupported SLA, scale, compliance-risk, and settlement guarantees were removed. Local preview filtering does not implement live dispatch.
+
+### Industries page reference redesign (2026-10-03)
+
+Industries marketing presentation relates to FR-AUTH-001/003, FR-WO-001, and FR-DISP-001, without changing acceptance. Replaced unsupported SLA/uptime promises with industry-oriented copy. Customer portraits/counts are illustrative marketing content, not newly verified operational metrics.

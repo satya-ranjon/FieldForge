@@ -338,3 +338,7 @@ The `/platform` route follows `design-files/marketing-page-desgn/image 62.png`: 
 ### Solutions page reference redesign (2026-10-03)
 
 The Solutions page uses existing tokens, shared brand/typography primitives, six equal desktop solution cards, alternating pale/white feature bands, native laptop/map/phone cards, separate technician photographs, a compact industry row, and a light footer. Desktop composition begins at 1024px; smaller screens stack sections. Operational preview statuses reuse StatusBadge. No global tokens or other page layouts changed.
+
+### Industries page reference redesign (2026-10-03)
+
+Industries uses the image 60 reference: split hero with clipped photographic panels, an eight-card grid (four columns from 1024px, two from 640px), soft green icon tiles, pale CTA/customer row, and light footer. Shared Solutions chrome accepts an optional activePage; its default preserves Solutions appearance. Uses existing tokens, font, icons and brand assets.

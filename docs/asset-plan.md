@@ -102,3 +102,7 @@ Platform uses one new asset, `public/marketing/platform-street-map.png` (1402 ×
 ### Solutions page reference redesign (2026-10-03)
 
 Source: `design-files/marketing-page-desgn/image 61.png`. Added `solutions-technician-marketplace.png` and `solutions-technician-payment.png` under the buyer portal public/marketing directory, generated with the built-in image tool and inspected. Exact prompts: `docs/solutions-image-prompts.md`. Reused platform street-map texture, generated portraits, server-rack proof photo, and brand assets. All overlaid content is native React UI.
+
+### Industries page reference redesign (2026-10-03)
+
+Industries image 60 asset set: `industries-rooftop.png`, `industries-technician.png`, eight `industries-{retail,restaurant,hospitality,office,warehouse,healthcare,property,chains}.png` photos, and transparent `industries-cta-route.png`, all under buyer-portal public/marketing. Built-in image generation used; exact prompts and saved paths in `docs/industries-image-prompts.md`. All inspected; brand/portraits/icons reused.

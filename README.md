@@ -812,3 +812,7 @@ The Platform page now presents the connected-operations overview, device preview
 ### Solutions page reference redesign (2026-10-03)
 
 `/solutions` now follows the supplied image 61 reference with a laptop preview, six solution cards, marketplace/dispatch/proof sections, two generated technician photos, industry links, and a light footer. Sample technician search and dispatch views run locally; authentication reuses the existing modal. Sales and newsletter controls report their current unavailability honestly.
+
+### Industries page reference redesign (2026-10-03)
+
+`/industries` now follows image 60: a rooftop/technician photo collage, eight industry cards, industry CTA, and light footer. Eleven generated raster assets are saved separately from native UI. Existing solution anchors, signup, sales information, and newsletter feedback are reused.

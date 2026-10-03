@@ -480,3 +480,23 @@ Solutions nonvisual validation passed: six fresh focused model tests;
 `pnpm build --cache=local:r` (12 tasks, 11 cached, buyer portal rebuilt);
 `pnpm infra:config`; focused ESLint after final presentation edits; and
 `git diff --check`. This is not evidence of rendered visual fidelity.
+
+### Industries page reference redesign (2026-10-03)
+
+- Source: `design-files/marketing-page-desgn/image 60.png`, 4096 × 6144; inspected at 1280 × 1920. Attachment `codex-clipboard-61b7d435-a164-4cf6-88cb-f7bbcf9659bc.png` is the same visual target.
+- Implementation `/industries`, intended comparison at 1280px initial state, full-page and focused hero/grid/CTA views.
+- Implemented compact navigation, split collage hero, eight photographic cards in two desktop rows, pale CTA with portraits and handwritten note, and light footer.
+- Ten photographs plus one transparent route asset generated and inspected. Card copy, headings, badge, icons, buttons and footer remain native UI. Existing customer portraits reused.
+- Intentional differences: current copyright year; industry Learn more links point to existing Solutions anchors; sales/newsletter remain unavailable with explicit feedback; company/legal labels have no invented destinations.
+- Six E2E cases authored for 320, 390, 768, 1024, 1280, 1920px: section/card counts, links, signup modal, sales dialog, mobile active navigation, newsletter feedback, image decoding, overflow, and screenshots. Not executed. Existing six Solutions model tests passed fresh.
+- Browser screenshots, console evidence, responsive interaction execution, and rendered comparison remain unavailable under the previous browser security-policy rejection. No alternative browser route used; no exact visual-match claim.
+- Next verification: capture implementation at the reference viewport, compare layout/type/photo cropping, then run Industries and shared Solutions responsive cases.
+- final result: blocked
+
+Industries nonvisual validation passed: `pnpm check` (formatting, lint, types,
+and 15 cached repository test tasks); six existing Solutions model tests run
+fresh; `pnpm build --cache=local:r` (12 successful tasks, 11 cached, buyer portal
+rebuilt); `pnpm infra:config`; and `git diff --check`. All eleven new asset paths
+resolve to valid PNGs. The generated CTA route has fine edge speckling noted
+during asset inspection; its low-opacity rendered appearance still needs review.
+These checks do not replace rendered visual acceptance or the six unrun E2E cases.

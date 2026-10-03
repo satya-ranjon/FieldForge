@@ -251,3 +251,7 @@ Platform redesign adds no REST endpoints, DTOs, events, or persistence. Work-ord
 ### Solutions page reference redesign (2026-10-03)
 
 The `/solutions` redesign introduces no endpoints, DTOs, events, database changes, or service contracts. Search and dispatch selections use local sample data. Invite/View Job links navigate to existing routes. Sales/newsletter previews send no requests and do not simulate successful submission; Sign in/Get started reuse the existing authentication modal.
+
+### Industries page reference redesign (2026-10-03)
+
+Industries presentation adds no endpoints, DTOs, migrations, or events. Industry links navigate to existing Solutions anchors. Signup reuses AuthModal; sales/newsletter controls retain their explicit unavailable state. The page adds no service or industry eligibility guarantees.
