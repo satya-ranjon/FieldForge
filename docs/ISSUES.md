@@ -1802,6 +1802,11 @@ The Command Center map previously embedded its legend, markers, popup, weather, 
 
 Replaced the two highlighted flattened maps and the cropped/low-resolution dispatch portraits. Maps now expose native sample interactions without external services. Browser security still prevents E2E/visual verification, so the mandatory pre-push E2E gate cannot currently be satisfied; push must remain blocked.
 
+### ISSUE-018 · Prometheus restart loop from invalid recording rules (resolved 2026-10-03)
+
+- **Cause:** Two expressions in `infra/docker/rules.yml` used the PromQL `or` set operator with scalar literals (`1` and `0`). Prometheus rejected both rules at startup and exited with code 2.
+- **Fix:** Changed the fallbacks to `vector(1)` and `vector(0)`. `promtool check rules` and `promtool check config` pass with all six rules, and the Compose container responds Ready on port 9090.
+
 ### Platform page reference redesign (2026-10-03)
 
 The former Platform page diverged from the supplied reference and advertised unsupported quantitative guarantees. Replaced it with the reference composition and illustrative UI. No newsletter backend or company/legal destination routes were invented. Browser-security restrictions prevent final rendered comparison and E2E execution; preserve this limitation until verification is available.

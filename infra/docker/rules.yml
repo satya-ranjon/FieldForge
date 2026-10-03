@@ -6,7 +6,7 @@ groups:
         expr: >-
           sum(rate(http_requests_total{status_code!~"5.."}[5m]))
           /
-          (sum(rate(http_requests_total[5m])) > 0 or 1)
+          (sum(rate(http_requests_total[5m])) > 0 or vector(1))
 
       - record: fieldforge:read_latency:p95_seconds_5m
         expr: >-
@@ -31,7 +31,7 @@ groups:
 
       - record: fieldforge:billing_reconciliation_failures:rate_1h
         expr: >-
-          sum(rate(billing_reconciliation_failures_total[1h])) or 0
+          sum(rate(billing_reconciliation_failures_total[1h])) or vector(0)
 
   - name: fieldforge-alerts
     rules:
