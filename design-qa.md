@@ -500,3 +500,23 @@ rebuilt); `pnpm infra:config`; and `git diff --check`. All eleven new asset path
 resolve to valid PNGs. The generated CTA route has fine edge speckling noted
 during asset inspection; its low-opacity rendered appearance still needs review.
 These checks do not replace rendered visual acceptance or the six unrun E2E cases.
+
+### Resources page reference redesign (2026-10-03)
+
+- Source: `design-files/marketing-page-desgn/image 59.png`, 3764 × 6688, inspected at 1153 × 2048; user attachment `codex-clipboard-76b3a80d-6842-412b-8c07-c8dc730336ec.png`.
+- Implementation `/resources`; intended full-page and focused comparison at 1153px, initial state.
+- Implemented split photo/search hero, six type filters, three featured cards, four latest cards, six topic tiles, pale newsletter section and dark footer. Six independently generated photographs inspected; native copy, badges and controls.
+- Functional scope: multi-term query search, intersecting type/topic filters, empty/clear states, readable native article dialogs, illustrative case-study notices, real CSV template downloads, and honest newsletter unavailability feedback.
+- Intentional content differences: no unverified 5,000-location customer claim, invented research results or popularity claims. Case studies are labeled illustrative. Copyright uses current year. No invented legal/contact routes.
+- Nine fresh model/content/file tests pass. Six responsive Playwright cases authored for 320, 390, 768, 1024, 1153, 1920px, including dialog close, filters, download, newsletter feedback, mobile navigation, image decoding, overflow and initial-state screenshots. They remain unrun.
+- Browser capture, console evidence and rendered comparison remain unavailable under the existing security-policy rejection. No alternative browser surface or execution workaround attempted.
+- Next verification: execute Resources and shared Platform navigation cases, compare initial full-page and focused screenshots, and resolve any layout/photo-crop discrepancies.
+- final result: blocked
+
+Resources nonvisual checks passed: nine fresh model/content/file tests;
+`pnpm check` (formatting, lint, types, and 15 cached repository test tasks);
+`pnpm build --cache=local:r` (12 successful tasks, 11 cached, buyer portal
+rebuilt); `pnpm infra:config`; focused ESLint after the final search/newsletter
+layout adjustments; and `git diff --check`. The build was repeated after fixing
+the shared Input wrapper layout so the email field and Subscribe button occupy
+one desktop row. No browser execution or rendered visual acceptance is claimed.

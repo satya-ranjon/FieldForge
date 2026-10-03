@@ -1,0 +1,2 @@
+Record type,Work order ID,Site,Category,Requested at,Assigned at,Arrived at,Completed at,Status,First visit resolved,Approved amount,Currency,Notes
+EXAMPLE,EXAMPLE-001,Example Site,Networking,2026-01-01 09:00,2026-01-01 09:30,2026-01-01 11:00,2026-01-01 12:00,Completed,Yes,0,USD,Replace this illustrative row with your own data. Use one timezone consistently. Amount is a placeholder.

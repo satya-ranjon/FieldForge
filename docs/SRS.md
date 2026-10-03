@@ -309,3 +309,7 @@ Solutions marketing presentation relates to FR-AUTH-003, FR-WO-001/002, FR-DISP-
 ### Industries page reference redesign (2026-10-03)
 
 Industries marketing presentation relates to FR-AUTH-001/003, FR-WO-001, and FR-DISP-001, without changing acceptance. Replaced unsupported SLA/uptime promises with industry-oriented copy. Customer portraits/counts are illustrative marketing content, not newly verified operational metrics.
+
+### Resources page reference redesign (2026-10-03)
+
+Resources guides relate to FR-WO-001/002, FR-DISP-001, FR-AUTH-003, FR-MOB-002/003 and FR-BILL-002 as explanatory material only. Local library interactions and templates establish no operational requirement acceptance. Case studies are illustrative, without invented customer outcomes or measured performance claims.

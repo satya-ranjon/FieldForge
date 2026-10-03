@@ -15,10 +15,16 @@ const navigation = [
   ['Resources', '/resources'],
   ['Pricing', '/pricing']
 ];
-export function PlatformNavigation(): React.JSX.Element {
+export function PlatformNavigation({
+  activePage = '/platform'
+}: {
+  activePage?: '/platform' | '/resources';
+}): React.JSX.Element {
   const [open, setOpen] = useState(false);
   return (
-    <header className="relative z-30 bg-surface-marketing/80">
+    <header
+      className={`relative z-30 ${activePage === '/resources' ? 'bg-white' : 'bg-surface-marketing/80'}`}
+    >
       <div
         className={`${platformFrame} flex min-h-20 items-center justify-between gap-5 lg:min-h-[5em]`}
       >
@@ -30,8 +36,8 @@ export function PlatformNavigation(): React.JSX.Element {
             <Link
               key={href}
               href={href}
-              aria-current={href === '/platform' ? 'page' : undefined}
-              className={`${platformFocus} border-b-2 py-[1.2em] text-[0.9em] ${href === '/platform' ? 'border-brand-green font-bold' : 'border-transparent hover:text-marketing-heading-accent'}`}
+              aria-current={href === activePage ? 'page' : undefined}
+              className={`${platformFocus} border-b-2 py-[1.2em] text-[0.9em] ${href === activePage ? 'border-brand-green font-bold' : 'border-transparent hover:text-marketing-heading-accent'}`}
             >
               {name}
             </Link>
@@ -56,7 +62,7 @@ export function PlatformNavigation(): React.JSX.Element {
         <button
           type="button"
           aria-label="Toggle navigation"
-          aria-controls="platform-mobile-menu"
+          aria-controls={`${activePage.slice(1)}-mobile-menu`}
           aria-expanded={open}
           onClick={() => setOpen(!open)}
           className={`${platformFocus} grid size-11 place-items-center lg:hidden`}
@@ -66,7 +72,7 @@ export function PlatformNavigation(): React.JSX.Element {
       </div>
       {open && (
         <nav
-          id="platform-mobile-menu"
+          id={`${activePage.slice(1)}-mobile-menu`}
           aria-label="Mobile navigation"
           className="absolute inset-x-0 top-full border-y border-border-soft bg-white px-5 py-4 shadow-md lg:hidden"
         >
@@ -75,7 +81,7 @@ export function PlatformNavigation(): React.JSX.Element {
               key={href}
               href={href}
               onClick={() => setOpen(false)}
-              aria-current={href === '/platform' ? 'page' : undefined}
+              aria-current={href === activePage ? 'page' : undefined}
               className={`${platformFocus} block rounded-lg px-3 py-3 text-sm hover:bg-surface-green`}
             >
               {name}

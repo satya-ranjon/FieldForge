@@ -816,3 +816,7 @@ The Platform page now presents the connected-operations overview, device preview
 ### Industries page reference redesign (2026-10-03)
 
 `/industries` now follows image 60: a rooftop/technician photo collage, eight industry cards, industry CTA, and light footer. Eleven generated raster assets are saved separately from native UI. Existing solution anchors, signup, sales information, and newsletter feedback are reused.
+
+### Resources page reference redesign (2026-10-03)
+
+`/resources` now provides a searchable local resource library with type/topic filters, readable guide/help panels, explicitly illustrative case studies, two CSV downloads, and newsletter unavailability feedback. The image 59 layout uses separate generated photographs, featured/latest grids, and a dark footer. No new backend services are implied.

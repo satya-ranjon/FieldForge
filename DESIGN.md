@@ -342,3 +342,7 @@ The Solutions page uses existing tokens, shared brand/typography primitives, six
 ### Industries page reference redesign (2026-10-03)
 
 Industries uses the image 60 reference: split hero with clipped photographic panels, an eight-card grid (four columns from 1024px, two from 640px), soft green icon tiles, pale CTA/customer row, and light footer. Shared Solutions chrome accepts an optional activePage; its default preserves Solutions appearance. Uses existing tokens, font, icons and brand assets.
+
+### Resources page reference redesign (2026-10-03)
+
+Resources follows image 59: split photo/search hero, six type filters, three featured cards, four latest cards, six topic tiles, pale newsletter band and dark six-column footer. Desktop grids start at 1024px; smaller screens stack. PlatformNavigation gains an optional activePage with its Platform default preserved. All UI uses existing tokens, brand, icons, fonts, visible focus states and native dialog focus management.

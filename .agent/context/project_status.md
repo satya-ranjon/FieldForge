@@ -722,3 +722,7 @@ Redesigned `/solutions` from image 61. Local sample technician search and dispat
 ### Industries page reference redesign (2026-10-03)
 
 Redesigned `/industries` using the supplied image 60 reference. Reused existing signup, sales information, and newsletter feedback; new industry links point to existing Solutions sections. Six existing Solutions model tests pass after the shared chrome extension; six new Industries E2E scenarios are authored but unrun. Operational test/acceptance counts are unchanged.
+
+### Resources page reference redesign (2026-10-03)
+
+Resources reference redesign adds eight local resource entries, search/type/topic filtering, article panels, and two CSV templates. Nine fresh tests pass for model/content/asset/download integrity. Six responsive browser scenarios are unrun under the existing security restriction. Case studies are expressly illustrative and the former unsupported research/performance claims are removed. Backend status unchanged.

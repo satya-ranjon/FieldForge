@@ -106,3 +106,7 @@ Source: `design-files/marketing-page-desgn/image 61.png`. Added `solutions-techn
 ### Industries page reference redesign (2026-10-03)
 
 Industries image 60 asset set: `industries-rooftop.png`, `industries-technician.png`, eight `industries-{retail,restaurant,hospitality,office,warehouse,healthcare,property,chains}.png` photos, and transparent `industries-cta-route.png`, all under buyer-portal public/marketing. Built-in image generation used; exact prompts and saved paths in `docs/industries-image-prompts.md`. All inspected; brand/portraits/icons reused.
+
+### Resources page reference redesign (2026-10-03)
+
+Resources uses six generated photos under public/marketing: `resources-{technician,retail,reporting,checklist,team,hvac}.png`. Hero technician is reused for guide cards. Source image 59; saved paths and exact built-in generation prompts are in `docs/resources-image-prompts.md`. Generated photos were inspected; UI content remains native. Two static CSV files provide actual template downloads.

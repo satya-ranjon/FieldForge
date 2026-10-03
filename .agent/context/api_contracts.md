@@ -255,3 +255,7 @@ The `/solutions` redesign introduces no endpoints, DTOs, events, database change
 ### Industries page reference redesign (2026-10-03)
 
 Industries presentation adds no endpoints, DTOs, migrations, or events. Industry links navigate to existing Solutions anchors. Signup reuses AuthModal; sales/newsletter controls retain their explicit unavailable state. The page adds no service or industry eligibility guarantees.
+
+### Resources page reference redesign (2026-10-03)
+
+Resources uses static bundled content and files at `/resources/field-operations-reporting.csv` and `/resources/technician-onboarding-checklist.csv`. These are public static downloads, not new service endpoints. Search/filter/dialog state is local; newsletter sends no request. No DTO, event, database, migration or shared contract changes.

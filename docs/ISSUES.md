@@ -1818,3 +1818,7 @@ Solutions reference implementation is present, but visual acceptance and the six
 ### Industries page reference redesign (2026-10-03)
 
 Industries layout and assets are implemented; rendered comparison and six new responsive E2E cases remain blocked by the existing browser security rejection. No alternate browser route was attempted. Industry detail routes are not invented: Learn more links target relevant existing Solutions sections.
+
+### Resources page reference redesign (2026-10-03)
+
+Resources no longer uses inert PDF buttons or unsupported research/customer claims. Article actions open supplied local content; template actions download real CSV files. Case studies are labeled illustrative. Newsletter remains unavailable with explicit feedback. Six responsive browser cases and rendered comparison remain blocked by the prior browser security restriction; no workaround attempted.
