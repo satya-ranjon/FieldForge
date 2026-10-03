@@ -186,7 +186,8 @@ are illustrative UI content. Reference-colored status badge overrides apply only
 to this public illustration; operational status enums and defaults are unchanged.
 The subsequent asset-separation, zoom, and detailed 1536px reference corrections
 also change no contracts.
-Existing links to `/create-wo`, `/resources`, and `/operations` are retained.
+The hero links to `/create-wo` and `/resources`; its sample job preview links to
+the buyer dashboard at `/dashboard`.
 
 The subsequent five-item platform assurance strip is also presentation-only.
 It introduces no API calls, endpoints, schemas, or verification guarantees; its
@@ -207,7 +208,7 @@ The smart-dispatch marketing redesign uses existing static candidate/map data
 and introduces no endpoints, requests, DTOs, events, or dispatch side effects.
 
 The operations/payment marketing update adds no APIs or state transitions.
-Preview links lead to existing `/`, `/technicians`, and `/audit` pages; they do
+Preview links lead to existing `/dashboard`, `/technicians`, and `/audit` pages; they do
 not submit notes, sign work orders, generate reports, or release funds.
 
 The compliance layout change introduces no requests or verification endpoints.
@@ -243,6 +244,14 @@ Command Center map interactions run entirely in local component state. No new en
 ### Dispatch demo maps and portraits (2026-09-29)
 
 San Francisco and Texas marketing demo maps reuse local bounded map state only. No service calls, external tile requests, geolocation, assignments, DTOs, events, or migrations change.
+
+### Public homepage and dashboard routes (2026-10-03)
+
+The Next.js page at `/` now renders the existing public marketing content;
+`/marketing` remains an equivalent URL. The former root buyer workspace is at
+`/dashboard`. These are page routes in `apps/web-buyer-portal`, not REST API
+endpoints. No shared DTO, validator, event, authorization, or service contract
+changed. The dashboard remains a demo surface with its existing access behavior.
 
 ### Platform page reference redesign (2026-10-03)
 

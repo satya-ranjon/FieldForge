@@ -58,7 +58,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab, onOpenAu
     if (path === '/technicians') return 'technicians';
     if (path === '/billing') return 'billing';
     if (path === '/audit') return 'audit';
-    if (path === '/operations' || path === '/') return 'operations';
+    if (path === '/operations' || path === '/dashboard') return 'operations';
     return activeTab || 'operations';
   };
 
@@ -137,7 +137,11 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab, onOpenAu
         {/* Left: Mobile Brand & Search Input */}
         <div className="flex items-center space-x-3 sm:space-x-4 flex-1 max-w-xl">
           {/* Brand mark for small screens (and E2E test locator) */}
-          <Link href="/" className="flex lg:hidden items-center space-x-2 shrink-0">
+          <Link
+            href="/"
+            aria-label="FieldForge home"
+            className="flex lg:hidden items-center space-x-2 shrink-0"
+          >
             <div className="w-8 h-8 rounded-xl bg-[#A8F22D] flex items-center justify-center font-black text-[#08120D] shadow-xs">
               <span className="text-base tracking-tighter leading-none">F</span>
             </div>

@@ -9,7 +9,7 @@ for (const route of ['marketing', 'platform', 'solutions', 'industries', 'resour
       await expect(header).toHaveCount(1);
       await expect(header.getByRole('link', { name: 'FieldForge home' })).toHaveAttribute(
         'href',
-        '/marketing'
+        '/'
       );
       const menu = header.getByRole('button', { name: 'Toggle navigation menu' });
       if (width < 900) {

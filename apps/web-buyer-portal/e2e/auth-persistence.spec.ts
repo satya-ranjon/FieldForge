@@ -36,13 +36,28 @@ test.describe('Buyer Portal Authentication & Storage Persistence Flow', () => {
         })
       });
     });
+
+    await page.route('**/api/v1/work-orders', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    });
+
+    await page.route('**/api/v1/auth/refresh', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          accessToken: 'test-access-token-xyz',
+          refreshToken: 'test-refresh-token-xyz'
+        })
+      });
+    });
   });
 
   test('loads unauthenticated on clean storage and does not auto-login after logout and localStorage clear', async ({
     page
   }) => {
     // 1. Initial load with clean storage
-    await page.goto('/');
+    await page.goto('/dashboard');
 
     // Verify Sign In button is present in header and Sign Out / user menu is not visible
     const headerSignInButton = page.locator('header').getByRole('button', { name: /Sign In/i });

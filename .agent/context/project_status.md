@@ -1,6 +1,7 @@
 # FieldForge Implementation Status
 
-**Last reviewed:** 2026-09-21  
+**Last reviewed:** 2026-10-03
+
 **Phase:** Phase 54 complete — High-Fidelity 1442px Desktop Marketing Page Visual Reconstruction & Photographic Asset Pipeline. Roadmap: `docs/DEVELOPMENT_PLAN.md`.
 
 ## What exists
@@ -13,7 +14,7 @@
   - **Command Center Canvas (`#0d1517`):** Slate-forest dark operational theme with elevated cards (`#142427`), subtle borders (`#22383c`), and radial ambient glow.
   - **Brand Green Identity:** High-energy spring-lime (`#A8F22D`), high-contrast dark-labeled CTA buttons (`#A8F22D` / text `#08120D`).
   - **Unified Component Library (`@fieldforge/ui`):** Reusable `Button`, `Card`, `StatusBadge`, `Input`, `Modal`, `Badge`, and `Tabs`.
-  - **Public Marketing Website (Phase 54 High-Fidelity 1442px Desktop Reconstruction):** Complete pixel-accurate reconstruction of `design-files/marketing-page-desgn/1442.png` broken into 13 modular JSX components with zero baked-in UI text: `MarketingNavbar`, `MarketingHero`, `CommandCenterPreview`, `TwoSidedAudience`, `SmartDispatchSection`, `MarketingTrustStrip`, `RealWorkSection`, `ExpertiseGrid`, `TechnicianMarketplace`, `LifecyclePipeline`, `FieldOperationsSection`, `ComplianceTrustSection`, `SecurePaymentsSection`, `EnterpriseReliability`, `DarkBottomCtaBanner`, and `MarketingFooter`. Dedicated routes for `/marketing`, `/platform`, `/solutions`, `/industries`, `/resources`, and `/pricing`.
+  - **Public Marketing Website (Phase 54 High-Fidelity 1442px Desktop Reconstruction):** Complete pixel-accurate reconstruction of `design-files/marketing-page-desgn/1442.png` broken into 13 modular JSX components with zero baked-in UI text: `MarketingNavbar`, `MarketingHero`, `CommandCenterPreview`, `TwoSidedAudience`, `SmartDispatchSection`, `MarketingTrustStrip`, `RealWorkSection`, `ExpertiseGrid`, `TechnicianMarketplace`, `LifecyclePipeline`, `FieldOperationsSection`, `ComplianceTrustSection`, `SecurePaymentsSection`, `EnterpriseReliability`, `DarkBottomCtaBanner`, and `MarketingFooter`. The public homepage is `/`, with `/marketing` retained as an equivalent route. Other public routes are `/platform`, `/solutions`, `/industries`, `/resources`, and `/pricing`; the buyer workspace is separate at `/dashboard`.
   - **Photographic Asset Pipeline (`apps/web-buyer-portal/public/marketing/`):** 19 isolated photographic and vector map assets cleanly cropped to eliminate text overlays, documented in `docs/reference-analysis.md` and `docs/asset-plan.md`.
   - **Mobile Tech App Brand Alignment (`apps/mobile-tech-app`):** Slate-forest canvas, elevated job cards, verified green badges (`#84e539`), and tactical GPS radar widget.
 - **NestJS Runtime Dependency Injection Invariants (ISSUE-016).**
@@ -774,3 +775,17 @@ Fixed the decorative note obscured by the laptop by allocating a desktop gutter
 and keeping device proportions within an inner frame. Eight Solutions responsive
 scenarios now include note visibility/non-overlap/containment assertions; browser
 execution remains blocked by the prior security restriction. No domain changes.
+
+### Public homepage and dashboard separation (2026-10-03)
+
+The existing marketing composition is the default `/` page, with `/marketing`
+retained as an equivalent entry. The former root buyer workspace is available at
+`/dashboard`; its existing operational routes remain intact. Public brand links
+return to `/`, desktop dashboard navigation retains Public Website, and the
+mobile dashboard brand link also returns to `/`. Marketing job-preview links
+that formerly targeted the root now target `/dashboard`. No service contracts,
+authentication policy, or operational acceptance changed. The current route
+change adds two E2E cases: both pass in Chromium and Mobile Chrome. The 20-case
+affected buyer suite and three focused marketing link/navigation cases pass in
+Chromium. `pnpm check`, `pnpm build`, and `pnpm infra:config` pass; unit and
+integration test counts are unchanged.

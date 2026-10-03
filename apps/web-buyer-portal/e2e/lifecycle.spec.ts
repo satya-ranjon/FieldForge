@@ -51,7 +51,7 @@ test.describe('Buyer Portal Full Lifecycle — SRS §5 Verification', () => {
           })
         });
       } else {
-        await route.continue();
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
       }
     });
 
@@ -118,14 +118,16 @@ test.describe('Buyer Portal Full Lifecycle — SRS §5 Verification', () => {
     page
   }) => {
     // 1. Initial load & authenticate
-    await page.goto('/');
+    await page.goto('/dashboard');
     const headerSignInButton = page.locator('header').getByRole('button', { name: /Sign In/i });
     await headerSignInButton.click();
     await page.getByRole('button', { name: 'Buyer Org' }).click();
     await page.getByRole('button', { name: /Authorize Session/i }).click();
+    await expect(page.getByRole('dialog')).not.toBeVisible();
 
     // 2. Navigate to SOW Studio to create & publish a work order
     await page.getByRole('button', { name: /SOW Studio/i }).click({ force: true });
+    await expect(page).toHaveURL(/\/create-wo$/);
     await expect(page.getByText('Enterprise SOW Template Presets')).toBeVisible();
 
     // Fill SOP step and advance through stepper

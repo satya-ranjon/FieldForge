@@ -2308,3 +2308,14 @@ Unified all six public page navbars and footers while preserving page content
 and the shared width cap. Cross-page responsive footer and navbar scenarios are
 authored; rendered verification remains pending due to the existing browser
 restriction. No operational marketplace milestone or billing scope is advanced.
+
+### Public homepage and dashboard route separation (2026-10-03)
+
+- [x] Make `/` render the existing marketing page and retain `/marketing` for existing links.
+- [x] Move the former root buyer workspace to `/dashboard` and update internal links.
+- [x] Update existing buyer E2E entry points and add public/dashboard route coverage.
+- [x] Verify the route behavior in Chromium and Mobile Chrome, including the mobile return path.
+- [ ] Continue the previously pending pixel-level marketing visual review.
+
+This is a routing and navigation change. No operational milestone or service
+contract acceptance advances.

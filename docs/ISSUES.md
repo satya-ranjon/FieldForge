@@ -1807,6 +1807,17 @@ Replaced the two highlighted flattened maps and the cropped/low-resolution dispa
 - **Cause:** Two expressions in `infra/docker/rules.yml` used the PromQL `or` set operator with scalar literals (`1` and `0`). Prometheus rejected both rules at startup and exited with code 2.
 - **Fix:** Changed the fallbacks to `vector(1)` and `vector(0)`. `promtool check rules` and `promtool check config` pass with all six rules, and the Compose container responds Ready on port 9090.
 
+### Public entry route correction (resolved 2026-10-03)
+
+The buyer dashboard occupied `/` even though the existing marketing page was
+intended as the public main page. The marketing page now serves `/` and remains
+available at `/marketing`; the buyer workspace serves `/dashboard`. Existing
+public and operational links were updated to keep their intended destinations.
+The mobile dashboard brand link now returns to the public homepage because the
+desktop Public Website sidebar is hidden on phones. The dashboard's existing
+demo access behavior is unchanged. Route coverage passes in desktop and mobile
+Chromium.
+
 ### Platform page reference redesign (2026-10-03)
 
 The former Platform page diverged from the supplied reference and advertised unsupported quantitative guarantees. Replaced it with the reference composition and illustrative UI. No newsletter backend or company/legal destination routes were invented. Browser-security restrictions prevent final rendered comparison and E2E execution; preserve this limitation until verification is available.

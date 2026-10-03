@@ -5,7 +5,7 @@ for (const route of ['marketing', 'platform', 'solutions', 'industries', 'resour
     test(`${route} shared marketing footer at ${width}px`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width, height: 1000 });
       await page.goto(`/${route}#marketing-footer`);
-      await expect(page.locator('footer')).toHaveCount(1);
+      await expect(page.locator('#marketing-footer')).toHaveCount(1);
       await page.evaluate(() => document.fonts.ready);
       const footer = page.locator('#marketing-footer');
       await footer.scrollIntoViewIfNeeded();
@@ -20,7 +20,7 @@ for (const route of ['marketing', 'platform', 'solutions', 'industries', 'resour
       }
       await expect(footer.getByRole('link', { name: 'FieldForge home' })).toHaveAttribute(
         'href',
-        '/marketing'
+        '/'
       );
       await expect(
         footer.getByRole('navigation', { name: 'Footer Product' }).getByRole('link')

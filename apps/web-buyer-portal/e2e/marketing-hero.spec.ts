@@ -148,7 +148,7 @@ test('hero calls to action retain their existing destinations', async ({ page })
   await expect(page).toHaveURL(/\/resources$/);
   await page.goto('/marketing');
   await hero.getByRole('link', { name: 'View All' }).click();
-  await expect(page).toHaveURL(/\/operations$/);
+  await expect(page).toHaveURL(/\/dashboard$/);
 });
 
 // Desktop page zoom reduces the CSS viewport and scales each CSS pixel. Model both

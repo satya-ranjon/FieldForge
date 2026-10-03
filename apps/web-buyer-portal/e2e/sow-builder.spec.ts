@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('SOW Builder & Work Order Publishing', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/dashboard');
     // Navigate to SOW Studio
     await page.getByRole('button', { name: /SOW Studio/i }).click();
     await expect(page.getByText('Enterprise SOW Template Presets')).toBeVisible();

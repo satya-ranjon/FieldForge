@@ -30,11 +30,7 @@ export const MarketingNavbar: React.FC<{
         className={`relative z-50 w-full bg-[#fbfcf8] ${compact ? styles.referenceNavbar : ''}`}
       >
         <div className="mx-auto flex h-[88px] max-w-marketing-page items-center justify-between px-6 sm:px-8 xl:px-12">
-          <Link
-            href="/marketing"
-            className="group flex items-center gap-3"
-            aria-label="FieldForge home"
-          >
+          <Link href="/" className="group flex items-center gap-3" aria-label="FieldForge home">
             {compact ? (
               <span className={styles.referenceBrand}>
                 <MarketingBrandMark />

@@ -531,17 +531,19 @@ stateDiagram-v2
 ### 🌐 Public Marketing Website (`apps/web-buyer-portal`)
 
 - **Dedicated Marketing & Discovery Routes:**
-  - `/marketing`: Approved product hero, live technician matching radar widget preview, automated 3-step workflow, customer validation, and FAQ accordion.
+  - `/`: Default public homepage with the existing marketing hero, product previews, and discovery sections.
+  - `/marketing`: Existing URL for the same marketing homepage.
   - `/platform`: Enterprise architecture, real-time dispatch matching engine, and tamper-evident proof of work.
   - `/solutions`: Telecom, enterprise networking, IoT, and critical infrastructure deployment solutions.
   - `/industries`: Vertical workflows for enterprise IT, data centers, managed service providers, and renewable energy.
   - `/resources`: Technical whitepapers, API reference guides, security architecture specifications, and customer case studies.
   - `/pricing`: Transparent volume tiers, escrow settlement schedules, and enterprise SLA contracts.
-- **Navigation & Brand Experience:** Floating pill navigation bar, approved green "F" brand logo, one-click access to command center operations.
+- **Navigation & Brand Experience:** Shared public navbar and footer with brand links to `/`; product preview links open the separate buyer dashboard.
 
 ### 🏢 Enterprise Buyer Portal (`apps/web-buyer-portal`)
 
 - **Next.js 16 App Router & React 19:** High-performance responsive dashboard served on port `5173`.
+- **Dashboard Entry:** `/dashboard` contains the existing buyer workspace and its five tabs. `/operations` and the other dedicated operational routes remain available.
 - **RTK Query API Slice:** Centralized API client with automatic token refresh (`baseQueryWithReauth`) and concurrency mutex for zero-interruption session persistence.
 - **5 Dedicated Route Segments:**
   - `/operations`: Live dispatch Kanban board, active SLA countdown monitors, and interactive FSM transitions.
@@ -830,3 +832,7 @@ The `/pricing` marketing page follows image 58 with a completed-job fee overview
 Home, Platform, Solutions, Industries, Resources and Pricing share the homepage
 navbar and footer. Navigation highlights the current page; the navbar Search
 button opens the existing technician directory and Log in opens authentication.
+The homepage is `/`; `/marketing` remains available for existing links. The
+buyer dashboard is `/dashboard`, and its Public Website link returns to `/`.
+Route coverage can be run with
+`pnpm --filter @fieldforge/web-buyer-portal exec playwright test e2e/home-routing.spec.ts --project=chromium`.

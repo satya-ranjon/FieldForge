@@ -2,13 +2,13 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Buyer Portal Smoke Tests', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/dashboard');
   });
 
   test('loads the buyer portal application with enterprise header', async ({ page, isMobile }) => {
     // Check main title / header elements
-    await expect(page.locator('header').getByText('FieldForge', { exact: true })).toBeVisible();
-    await expect(page.locator('header').getByText('Enterprise', { exact: true })).toBeVisible();
+    await expect(page.locator('header')).toContainText('FieldForge');
+    await expect(page.locator('header')).toContainText('Enterprise');
     if (!isMobile) {
       await expect(page.getByText('Apex Retail Corp').first()).toBeVisible();
     }

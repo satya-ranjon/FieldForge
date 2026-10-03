@@ -323,3 +323,11 @@ Pricing explanatory content relates to FR-BILL-001/002 and FR-AUTH-001 without c
 Shared public navbar reuses the existing authentication entry for FR-AUTH-001
 and technician directory route. No operational acceptance status changes;
 current-page highlighting and responsive navigation are presentation behavior.
+
+### Public homepage and buyer dashboard routing (2026-10-03)
+
+The marketing presentation now opens at `/`, with `/marketing` retained for
+existing links. The existing buyer workspace opens at `/dashboard`; its work
+order and dispatch previews relate to FR-WO-001/002 and FR-DISP-001 but add no
+operational acceptance. This route change does not alter authentication,
+authorization, contracts, or backend behavior.

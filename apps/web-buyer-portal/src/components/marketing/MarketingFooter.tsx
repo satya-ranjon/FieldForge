@@ -62,7 +62,7 @@ export function MarketingFooter(): React.JSX.Element {
         <div className="grid gap-8 md:grid-cols-[1fr_2fr] lg:grid-cols-[20em_minmax(0,1fr)_22em] lg:gap-[2.3em]">
           <div className="lg:border-r lg:border-white/10 lg:pr-[2em]">
             <Link
-              href="/marketing"
+              href="/"
               aria-label="FieldForge home"
               className={`${focus} inline-flex items-center gap-3 rounded-sm lg:mt-[0.8em] lg:gap-[1em]`}
             >

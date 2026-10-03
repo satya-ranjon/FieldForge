@@ -141,7 +141,7 @@ const ActiveJobsCard: React.FC = () => (
   <div className={styles.activeJobs}>
     <div className={styles.jobsHeader}>
       <h2>4 Active Service Jobs</h2>
-      <Link href="/operations">
+      <Link href="/dashboard">
         View All <ArrowRight aria-hidden="true" />
       </Link>
     </div>

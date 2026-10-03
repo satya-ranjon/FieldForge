@@ -145,7 +145,7 @@ test.describe('Work Order Transition Contract — ISSUE-009 Verification', () =>
       });
     });
 
-    await page.goto('/');
+    await page.goto('/dashboard');
 
     // Verify page loads without error
     await expect(page.locator('header')).toBeVisible();

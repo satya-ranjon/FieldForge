@@ -108,7 +108,7 @@ function AssignmentPhone(): React.JSX.Element {
           )
         )}
       </ol>
-      <Link href="/" className={`${action} bg-lifecycle-active text-brand-dark`}>
+      <Link href="/dashboard" className={`${action} bg-lifecycle-active text-brand-dark`}>
         View Job Details <ArrowRight className="size-[1em]" aria-hidden="true" />
       </Link>
     </div>
@@ -169,7 +169,7 @@ function CompletionPhone(): React.JSX.Element {
         <Link href="/audit" className={`${action} mt-[1em] bg-surface-dark-secondary text-white`}>
           View Report <ArrowRight className="size-[1em]" aria-hidden="true" />
         </Link>
-        <Link href="/" className={`${action} mt-[0.5em] bg-status-neutral-soft`}>
+        <Link href="/dashboard" className={`${action} mt-[0.5em] bg-status-neutral-soft`}>
           Add Note
         </Link>
       </div>
@@ -296,7 +296,10 @@ export function FieldOperationsSection(): React.JSX.Element {
                   <p className="font-bold">10:24 AM</p>
                 </div>
               </div>
-              <Link href="/" className={`${action} mt-auto bg-surface-dark-secondary text-white`}>
+              <Link
+                href="/dashboard"
+                className={`${action} mt-auto bg-surface-dark-secondary text-white`}
+              >
                 View Details <ArrowRight className="size-[1em]" aria-hidden="true" />
               </Link>
             </div>

@@ -55,7 +55,7 @@ export const BuyerPortalShell: React.FC<BuyerPortalShellProps> = ({
       <aside className="hidden lg:flex flex-col w-[232px] shrink-0 bg-[#081A15] border-r border-white/10 text-white min-h-screen sticky top-0 z-40 select-none">
         {/* Logo & Brand Header */}
         <div className="h-[66px] px-5 flex items-center justify-between border-b border-white/10">
-          <Link href="/" className="flex items-center space-x-2.5 group">
+          <Link href="/dashboard" className="flex items-center space-x-2.5 group">
             <div className="w-8 h-8 rounded-xl bg-[#A8F22D] flex items-center justify-center font-black text-[#08120D] shadow-xs transition-transform group-hover:scale-105">
               <span className="text-base tracking-tighter leading-none">F</span>
             </div>
@@ -114,7 +114,7 @@ export const BuyerPortalShell: React.FC<BuyerPortalShellProps> = ({
             Discover
           </div>
           <Link
-            href="/marketing"
+            href="/"
             className="w-full flex items-center space-x-2.5 px-3 h-[42px] rounded-lg text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 transition"
           >
             <Globe className="w-4 h-4 text-[#A8F22D] shrink-0" />
